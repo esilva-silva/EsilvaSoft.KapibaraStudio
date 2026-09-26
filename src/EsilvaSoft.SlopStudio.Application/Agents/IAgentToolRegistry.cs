@@ -9,6 +9,12 @@ namespace EsilvaSoft.SlopStudio.Application.Agents;
 public interface IAgentToolRegistry
 {
     IReadOnlyList<AgentToolDescriptor> GetDescriptors();
+
+    /// <summary>
+    /// Tools the MCP broker may list, per-session tools included; the broker filters them per authenticated channel.
+    /// Defaults to <see cref="GetDescriptors"/> for registries without per-session tools.
+    /// </summary>
+    IReadOnlyList<AgentToolDescriptor> GetChannelDescriptors() => GetDescriptors();
     AgentToolDescriptor? FindDescriptor(string? name);
     string? GetInputSchemaJson(string? name);
     string? GetOutputSchemaJson(string? name);

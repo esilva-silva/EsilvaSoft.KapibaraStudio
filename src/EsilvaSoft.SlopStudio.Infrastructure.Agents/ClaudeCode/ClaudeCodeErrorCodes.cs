@@ -30,6 +30,33 @@ public static class ClaudeCodeErrorCodes
     public const string TurnTimeout = "TurnTimeout";
     public const string ProviderFailure = "ProviderFailure";
 
+    /// <summary>O turno chegou sem <c>AgentTurnRequest.Plan</c>: nada é executado (o adapter não inventa política).</summary>
+    public const string TurnPlanMissing = "ClaudeCodeTurnPlanMissing";
+
+    /// <summary>O plano do turno está bloqueado (sem consentimento ou permissões inválidas): nenhum processo.</summary>
+    public const string TurnBlocked = "ClaudeCodeTurnBlocked";
+
+    /// <summary>
+    /// Plano incoerente ou que alargaria a allowlist (ferramenta nativa fora de Read/Glob/Grep, tool do produto
+    /// desconhecida, regra com caractere de controle, confirmação sem ferramenta de aprovação, permissões ausentes).
+    /// </summary>
+    public const string TurnPlanInvalid = "ClaudeCodeTurnPlanInvalid";
+
+    /// <summary>Prompt de sistema ausente, grande demais (&gt; 4096) ou com caractere não permitido em argv.</summary>
+    public const string SystemPromptInvalid = "ClaudeCodeSystemPromptInvalid";
+
+    /// <summary>
+    /// O plano expõe tools do produto, mas o canal MCP da sessão não ficou pronto (plataforma, broker, proxy ausente,
+    /// política). Falha visível, sem processo; nunca roda o turno sem as tools pedidas.
+    /// </summary>
+    public const string ProductToolsUnavailable = "ClaudeCodeProductToolsUnavailable";
+
+    /// <summary>Aviso (não erro): a sessão persistida não existe mais na CLI; o turno continuou numa sessão nova.</summary>
+    public const string ResumeSessionNotFoundNotice = "ClaudeCodeResumeSessionNotFound";
+
+    /// <summary>Aviso (não erro): o ID persistido não é um GUID válido; a conversa continua numa sessão nova.</summary>
+    public const string ResumeSessionInvalidNotice = "ClaudeCodeResumeSessionInvalid";
+
     /// <summary>Código de <c>ToolFailed</c> para ferramenta nativa de leitura que terminou com erro ou foi negada.</summary>
     public const string NativeToolFailed = "NativeToolFailed";
 
@@ -39,7 +66,8 @@ public static class ClaudeCodeErrorCodes
         EmptyMessage, InputTooLarge, ExecutableUnavailable, NotLoggedIn, NonSubscriptionAuthentication, BlockedEnvironment,
         AuthStatusUnavailable, StartFailed, InitMismatch, ToolOutsideAllowlist, ProtocolViolation, OutputLimitExceeded,
         StreamIncomplete, ProcessFailed, SessionNotFound, MaxTurnsReached, AuthenticationFailed, RateLimited,
-        ProviderUnavailable, RequestRejected, ExecutionError, TurnTimeout, ProviderFailure,
+        ProviderUnavailable, RequestRejected, ExecutionError, TurnTimeout, ProviderFailure, TurnPlanMissing, TurnBlocked,
+        TurnPlanInvalid, SystemPromptInvalid, ProductToolsUnavailable,
     ];
 }
 

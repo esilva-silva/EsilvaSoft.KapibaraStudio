@@ -82,7 +82,49 @@ public sealed class MongoAgentIndexSource(
             !definition.TryGetValue("key", out var key) || key is not BsonDocument fields)
             throw new FormatException("Invalid index metadata.");
         return new(name.AsString, fields.Names.ToArray(), Flag(definition, "unique"),
-            Flag(definition, "sparse"), Flag(definition, "hidden"));
+            Flag(definition, "sparse"), Flag(definition, "hidden"))
+        {
+            KeyDirections = fields.Values.Select(Direction).ToArray(),
+            TtlSeconds = definition.TryGetValue("expireAfterSeconds", out var ttl) && ttl.IsNumeric &&
+                         ttl.ToDouble() is var seconds && double.IsFinite(seconds) && seconds >= 0
+                ? (long)Math.Min(seconds, long.MaxValue) : null,
+            // Only the paths: the partial filter's values (constants of the user's data) never leave this adapter.
+            PartialFilterFields = definition.TryGetValue("partialFilterExpression", out var partial) &&
+                                  partial is BsonDocument filter
+                ? PartialFilterPaths(filter) : null
+        };
+    }
+
+    // Numeric keys become "1"/"-1"; special index kinds keep their short token ("text", "2dsphere", "hashed"...).
+    private static string Direction(BsonValue value) =>
+        value.IsNumeric ? value.ToDouble() < 0 ? "-1" : "1" :
+        value.IsString && value.AsString is { Length: > 0 and <= 32 } kind &&
+            kind.All(static c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_') ? kind : "other";
+
+    private static string[] PartialFilterPaths(BsonDocument filter)
+    {
+        var paths = new List<string>();
+        Collect(filter, 0);
+        return [.. paths.Distinct(StringComparer.Ordinal).Take(32)];
+
+        void Collect(BsonDocument document, int depth)
+        {
+            if (depth > 4) return;
+            foreach (var element in document)
+            {
+                if (paths.Count >= 64) return;
+                if (element.Name is "$and" or "$or" or "$nor" && element.Value is BsonArray items)
+                {
+                    foreach (var item in items)
+                        if (item is BsonDocument nested) Collect(nested, depth + 1);
+                }
+                else if (!element.Name.StartsWith('$') && element.Name.Length is > 0 and <= 1_024 &&
+                         !element.Name.Any(char.IsControl))
+                {
+                    paths.Add(element.Name);
+                }
+            }
+        }
     }
 
     internal static ListIndexesOptions CreateListOptions(TimeSpan maximumExecutionTime)

@@ -27,6 +27,7 @@ internal sealed class AgentBrokerConnection : IDisposable
     private readonly AgentBrokerAuthenticationLimiter _limiter;
     private readonly AgentBrokerCallAdmission _admission;
     private readonly IReadOnlyList<AgentBrokerToolDescriptor> _tools;
+    private readonly IAgentMcpSessionScopes? _sessionScopes;
     private readonly SemaphoreSlim _writeLock = new(1, 1);
     private readonly SemaphoreSlim _principalLock = new(1, 1);
     private readonly ConcurrentDictionary<long, CancellationTokenSource> _inFlight = new();
@@ -35,10 +36,12 @@ internal sealed class AgentBrokerConnection : IDisposable
     private Guid _channelId;
     private string? _proof;
     private AgentPrincipal? _principal;
+    // Set at the handshake from the durable channel purpose (or an active scope); never cleared for this connection.
+    private bool _sessionChannel;
 
     public AgentBrokerConnection(Stream stream, IAgentToolRegistry registry, IAgentPrincipalAuthority authority,
         AgentBrokerOptions options, AgentBrokerAuthenticationLimiter limiter, AgentBrokerCallAdmission admission,
-        IReadOnlyList<AgentBrokerToolDescriptor> tools)
+        IReadOnlyList<AgentBrokerToolDescriptor> tools, IAgentMcpSessionScopes? sessionScopes = null)
     {
         _stream = stream;
         _registry = registry;
@@ -47,6 +50,7 @@ internal sealed class AgentBrokerConnection : IDisposable
         _limiter = limiter;
         _admission = admission;
         _tools = tools;
+        _sessionScopes = sessionScopes;
     }
 
     public async Task RunAsync(CancellationToken hostToken)
@@ -170,8 +174,21 @@ internal sealed class AgentBrokerConnection : IDisposable
                     return false;
             }
 
+            // External MCP clients need the user's opt-in; per-session channels of integrated providers do not, but a
+            // session channel is accepted only while its scope is active (an orphan is never an external client).
+            var scope = _sessionScopes?.FindByChannel(channelId);
+            var sessionChannel = scope is not null || _principal?.IsSessionChannel == true;
+            if (sessionChannel ? scope is null : !_options.Enabled)
+            {
+                _principal = null;
+                _limiter.RecordFailure(channelId);
+                await TryWriteAsync(Error(AgentBrokerProtocol.ErrorCodes.AuthenticationFailed), token).ConfigureAwait(false);
+                return false;
+            }
+
             _channelId = channelId;
             _proof = proof;
+            _sessionChannel = sessionChannel;
             await WriteAsync(new AgentBrokerMessage
             {
                 Type = AgentBrokerProtocol.MessageTypes.Authenticated,
@@ -197,9 +214,15 @@ internal sealed class AgentBrokerConnection : IDisposable
             {
                 case AgentBrokerProtocol.MessageTypes.ListTools:
                     lastId = NextId(message, lastId);
+                    if (SessionScopeGone())
+                    {
+                        await TryWriteAsync(Error(AgentBrokerProtocol.ErrorCodes.AuthenticationRequired), token)
+                            .ConfigureAwait(false);
+                        return;
+                    }
                     await WriteAsync(new AgentBrokerMessage
                     {
-                        Type = AgentBrokerProtocol.MessageTypes.Tools, Id = lastId, Tools = _tools
+                        Type = AgentBrokerProtocol.MessageTypes.Tools, Id = lastId, Tools = VisibleTools()
                     }, token).ConfigureAwait(false);
                     break;
                 case AgentBrokerProtocol.MessageTypes.CallTool:
@@ -218,6 +241,22 @@ internal sealed class AgentBrokerConnection : IDisposable
                     throw new AgentBrokerProtocolException(AgentBrokerProtocol.ErrorCodes.ProtocolViolation);
             }
         }
+    }
+
+    private bool SessionScopeGone() =>
+        (_sessionChannel || _principal?.IsSessionChannel == true) &&
+        _sessionScopes?.FindByChannel(_channelId) is not { Closed: false };
+
+    /// <summary>
+    /// Discovery per channel: a per-session channel lists exactly its current turn plan; any other channel never lists
+    /// a per-session tool. The registry enforces the same rule on every call.
+    /// </summary>
+    private IReadOnlyList<AgentBrokerToolDescriptor> VisibleTools()
+    {
+        var scope = _sessionScopes?.FindByChannel(_channelId);
+        return scope is null
+            ? [.. _tools.Where(static tool => !AgentToolRegistry.IsSessionTool(tool.Name))]
+            : [.. _tools.Where(tool => scope.Exposes(tool.Name))];
     }
 
     // Ids must increase strictly, so a repeated or replayed request id is a protocol violation, not a new call.
@@ -269,7 +308,11 @@ internal sealed class AgentBrokerConnection : IDisposable
         try
         {
             var timeout = message.TimeoutMilliseconds ?? AgentBrokerProtocol.DefaultCallTimeoutMilliseconds;
-            if (timeout is < 1 or > AgentBrokerProtocol.MaximumCallTimeoutMilliseconds ||
+            // Only the permission-prompt tool waits for a human; it alone may use the approval window.
+            var ceiling = message.Name == AgentBrokerProtocol.ApproveToolName
+                ? AgentBrokerProtocol.MaximumApprovalCallTimeoutMilliseconds
+                : AgentBrokerProtocol.MaximumCallTimeoutMilliseconds;
+            if (timeout < 1 || timeout > ceiling ||
                 message.Name is not { Length: > 0 and <= AgentBrokerProtocol.MaximumToolNameLength } name ||
                 !TryGetArguments(message.Arguments, out var argumentsJson))
             {
@@ -324,6 +367,9 @@ internal sealed class AgentBrokerConnection : IDisposable
         // Defense in depth: this ingress executes only read-only descriptors.
         if (_registry.FindDescriptor(name) is { Risk: not AgentToolRisk.ReadOnly })
             return (Failure(id, AgentBrokerProtocol.ErrorCodes.PermissionDenied, dispatched: false), false);
+        // A closed or revoked session ends this connection on its next call, not only at the handshake.
+        if (SessionScopeGone())
+            return (Failure(id, AgentBrokerProtocol.ErrorCodes.AuthenticationRequired, dispatched: false), true);
 
         var (principal, denial) = await CurrentPrincipalAsync(token).ConfigureAwait(false);
         if (principal is null)

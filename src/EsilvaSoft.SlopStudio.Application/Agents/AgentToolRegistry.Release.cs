@@ -13,6 +13,11 @@ public sealed partial class AgentToolRegistry
         string name, string? argumentsJson, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        // Per-session tools without a MongoDB namespace: only the channel and the turn plan can change.
+        if (name is GetWorkspaceContextToolName or ProposeFileEditToolName)
+            return await RevalidateSessionReleaseAsync(principal, name, cancellationToken).ConfigureAwait(false);
+        if (SessionScopeOf(principal) is { } sessionScope && !sessionScope.Exposes(name))
+            return AgentToolInvocationResult.Failure(PermissionDenied, AgentAuditDecisionReason.PermissionMissing);
         if (result.ReleaseProfiles is null || result.StructuredContentJson is null ||
             outputScope is null || !IsCompleteInvocationContext(context) ||
             !IsValidDestination(destination, context) || FindDescriptor(name) is not { } descriptor)

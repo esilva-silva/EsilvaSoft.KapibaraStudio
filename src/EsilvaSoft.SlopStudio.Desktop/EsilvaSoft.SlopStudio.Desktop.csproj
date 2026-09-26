@@ -30,6 +30,48 @@
     <AvaloniaResource Include="Assets/**/*.png" />
     <AvaloniaResource Include="Assets/*.ico" />
   </ItemGroup>
+  <!-- P7-CLP-3 (ADR-056): the per-session MCP proxy of the Claude Code provider is launched from "mcp/" next to the
+       app. It is built/published by its own project into a subfolder (no ProjectReference: its MCP package stays out of
+       the Desktop dependency graph and lock files, and its assemblies never overwrite the app's). When the Desktop was
+       restored alone (release job), the proxy is restored here in locked mode, RID-less like the Desktop itself; its
+       lock files carry the RID sections (RuntimeIdentifiers in the proxy project). -->
+  <PropertyGroup>
+    <_McpServerProject>$(MSBuildThisFileDirectory)../EsilvaSoft.SlopStudio.McpServer/EsilvaSoft.SlopStudio.McpServer.csproj</_McpServerProject>
+    <_McpServerRidProperties>RuntimeIdentifier;SelfContained;PublishSingleFile;IncludeNativeLibrariesForSelfExtract;PublishDir;_CommandLineDefinedOutputPath;PublishReadyToRun;PublishTrimmed</_McpServerRidProperties>
+  </PropertyGroup>
+  <Target Name="RestoreMcpServerProxy" Condition="!Exists('$(MSBuildThisFileDirectory)../EsilvaSoft.SlopStudio.McpServer/obj/project.assets.json')">
+    <MSBuild Projects="$(_McpServerProject)" Targets="Restore"
+             Properties="MSBuildRestoreSessionId=$([System.Guid]::NewGuid());RestoreLockedMode=true"
+             RemoveProperties="$(_McpServerRidProperties)" />
+  </Target>
+  <Target Name="CopyMcpServerProxy" AfterTargets="Build" DependsOnTargets="RestoreMcpServerProxy"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <MSBuild Projects="$(_McpServerProject)" Targets="Build" BuildInParallel="$(BuildInParallel)"
+             RemoveProperties="$(_McpServerRidProperties)">
+      <Output TaskParameter="TargetOutputs" ItemName="_McpServerTargetPath" />
+    </MSBuild>
+    <PropertyGroup>
+      <_McpServerOutputDirectory>@(_McpServerTargetPath->'%(RootDir)%(Directory)')</_McpServerOutputDirectory>
+    </PropertyGroup>
+    <ItemGroup>
+      <_McpServerFiles Include="$(_McpServerOutputDirectory)**/*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_McpServerFiles)" DestinationFiles="@(_McpServerFiles->'$(OutDir)mcp/%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+  <!-- Publish: the proxy goes to <PublishDir>/mcp for the same RID and self-contained mode as the Desktop (it must run
+       on a machine without a shared .NET runtime). Single-file/native-extraction settings of the release flow through. -->
+  <Target Name="PublishMcpServerProxy" AfterTargets="Publish" DependsOnTargets="RestoreMcpServerProxy"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <PropertyGroup>
+      <_McpServerPublishDir>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(PublishDir)', 'mcp'))</_McpServerPublishDir>
+    </PropertyGroup>
+    <MSBuild Projects="$(_McpServerProject)" Targets="Publish"
+             Properties="Configuration=$(Configuration);PublishDir=$(_McpServerPublishDir);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=$(SelfContained)"
+             RemoveProperties="_CommandLineDefinedOutputPath" />
+    <Error Condition="!Exists('$(_McpServerPublishDir)EsilvaSoft.SlopStudio.McpServer.exe') And !Exists('$(_McpServerPublishDir)EsilvaSoft.SlopStudio.McpServer')"
+           Text="O proxy MCP (mcp/EsilvaSoft.SlopStudio.McpServer) não foi publicado." />
+  </Target>
   <Target Name="RejectBundledAiModels" AfterTargets="ComputeFilesToPublish">
     <ItemGroup>
       <BundledAiModel Include="@(ResolvedFileToPublish)" Condition="'%(ResolvedFileToPublish.Extension)' == '.onnx' Or '%(ResolvedFileToPublish.Extension)' == '.safetensors' Or '%(ResolvedFileToPublish.Extension)' == '.gguf'" />

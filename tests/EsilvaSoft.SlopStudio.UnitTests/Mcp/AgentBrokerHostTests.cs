@@ -417,9 +417,10 @@ public sealed class AgentBrokerHostTests
                 "Sem o registry compartilhado da infraestrutura o broker não é composto.");
             Assert.Throws<InvalidOperationException>(() => metadata.AddSlopStudioAgentBroker(metadataOptions),
                 "Um único broker por composição.");
+            // The platform default is Metadata (ADR-056); a broker announcing another stage is refused.
             Assert.Throws<InvalidOperationException>(() => new ServiceCollection()
                 .AddSlopStudioInfrastructure(Path.Combine(Path.GetTempPath(), $"slopstudio-broker-di-{Guid.NewGuid():N}.db"))
-                .AddSlopStudioAgentBroker(metadataOptions),
+                .AddSlopStudioAgentBroker(metadataOptions with { Stage = AgentToolExposureStage.LiteralQueries }),
                 "O broker não pode anunciar um estágio diferente do liberado ao registry compartilhado.");
         });
     }
@@ -442,7 +443,9 @@ public sealed class AgentBrokerHostTests
         Assert.Multiple(() =>
         {
             Assert.That(provider.GetRequiredService<IAgentToolRegistry>(), Is.SameAs(registry));
-            Assert.That(registry.GetDescriptors().Select(descriptor => descriptor.Name), Is.EquivalentTo(LiteralQueryTools));
+            // The production composition also releases get_indexes (Metadata stage, ADR-056).
+            Assert.That(registry.GetDescriptors().Select(descriptor => descriptor.Name),
+                Is.EquivalentTo(LiteralQueryTools.Append("get_indexes")));
             Assert.That(provider.GetRequiredService<AgentBrokerHost>().IsRunning, Is.False, "Composição não abre o endpoint.");
             Assert.That(provider.GetRequiredService<AgentBrokerHost>().Registry, Is.SameAs(registry));
         });

@@ -46,8 +46,13 @@ internal sealed record ClaudeCodeResultInfo(
 /// ferramenta, caminho, prompt, stderr ou identificador nativo é copiado para eventos. Blocos de <i>thinking</i>
 /// (texto vazio + assinatura opaca) são descartados.
 /// </summary>
-internal sealed class ClaudeCodeStreamTranslator(string expectedSessionId, ClaudeCodeVersion minimumVersion, string requestedModel)
+internal sealed class ClaudeCodeStreamTranslator(
+    string expectedSessionId, ClaudeCodeVersion minimumVersion, string requestedModel, ClaudeCodeTurnSetup setup)
 {
+    private readonly IReadOnlySet<string> _expectedTools = setup.ExpectedInitTools;
+    private readonly IReadOnlyDictionary<string, string> _callableTools = setup.CallableTools;
+    private readonly bool _expectsMcpServer = setup.RequiresMcpChannel;
+
     private const string NoConversationMarker = "No conversation found";
 
     private readonly Dictionary<string, AgentMessageId> _openText = new(StringComparer.Ordinal);
@@ -67,7 +72,7 @@ internal sealed class ClaudeCodeStreamTranslator(string expectedSessionId, Claud
 
     public bool RateLimitRejected { get; private set; }
 
-    public int NativeToolCalls => _tools.Count;
+    public int NativeToolCalls => _tools.Values.Count(static tool => IsNativeTool(tool.Name));
 
     public TranslationStep Translate(string line, List<AgentProviderEvent> output)
     {
@@ -176,9 +181,11 @@ internal sealed class ClaudeCodeStreamTranslator(string expectedSessionId, Claud
     }
 
     /// <summary>
-    /// Validação do <c>system/init</c> contra o argv: sessão esperada, <c>permissionMode</c> default, nenhuma chave de
-    /// API, <c>tools</c> exatamente a allowlist, nenhum servidor MCP e versão mínima. Divergência aborta o turno
-    /// (a requisição ao modelo já saiu: o <c>init</c> só chega depois da primeira mensagem, H-21).
+    /// Validação do <c>system/init</c> contra o plano do turno: sessão esperada, <c>permissionMode</c> default, nenhuma
+    /// chave de API, <c>tools</c> exatamente nativas do plano ∪ <c>mcp__slopstudio__</c>(tools do produto ∪ aprovação
+    /// quando exigida), <c>mcp_servers</c> exatamente <c>[{slopstudio, connected}]</c> quando o plano usa o canal (senão
+    /// vazio) e versão mínima. Divergência aborta o turno fail-closed (a requisição ao modelo já saiu: o <c>init</c> só
+    /// chega depois da primeira mensagem, H-21).
     /// </summary>
     private bool IsExpectedInit(JsonElement root)
     {
@@ -203,19 +210,45 @@ internal sealed class ClaudeCodeStreamTranslator(string expectedSessionId, Claud
             }
         }
 
-        if (!names.SetEquals(ClaudeCodeAgentProviderOptions.NativeToolAllowlist))
-        {
-            return false;
-        }
-
-        if (root.TryGetProperty("mcp_servers", out var servers) &&
-            !(servers.ValueKind == JsonValueKind.Array && servers.GetArrayLength() == 0) && servers.ValueKind != JsonValueKind.Null)
+        if (!names.SetEquals(_expectedTools) || !IsExpectedMcpServers(root))
         {
             return false;
         }
 
         return ClaudeCodeVersion.TryParse(String(root, "claude_code_version"), out var version) && version >= minimumVersion &&
             IsRequestedModel(String(root, "model"));
+    }
+
+    /// <summary>
+    /// Sem canal: ausente, nulo ou vazio. Com canal: exatamente um servidor, o do produto, conectado; servidor extra,
+    /// nome diferente ou qualquer outro status (failed, pending, needs-auth) é divergência.
+    /// </summary>
+    private bool IsExpectedMcpServers(JsonElement root)
+    {
+        if (!root.TryGetProperty("mcp_servers", out var servers) || servers.ValueKind == JsonValueKind.Null)
+        {
+            return !_expectsMcpServer;
+        }
+
+        if (servers.ValueKind != JsonValueKind.Array)
+        {
+            return false;
+        }
+
+        if (!_expectsMcpServer)
+        {
+            return servers.GetArrayLength() == 0;
+        }
+
+        if (servers.GetArrayLength() != 1)
+        {
+            return false;
+        }
+
+        var server = servers[0];
+        return server.ValueKind == JsonValueKind.Object &&
+            string.Equals(String(server, "name"), Application.Agents.McpServerLaunchSpec.DefaultServerName, StringComparison.Ordinal) &&
+            string.Equals(String(server, "status"), "connected", StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -314,8 +347,9 @@ internal sealed class ClaudeCodeStreamTranslator(string expectedSessionId, Claud
                 output.Add(new AgentProviderEvent(AgentEventKind.MessageStarted, MessageId: id));
                 return TranslationStep.Continue;
             case "tool_use":
-                // O nome parcial já permite recusar cedo uma ferramenta fora da allowlist.
-                return IsAllowedTool(String(block, "name")) ? TranslationStep.Continue : TranslationStep.Abort(ClaudeCodeErrorCodes.ToolOutsideAllowlist);
+                // O nome parcial já permite recusar cedo uma ferramenta fora do plano (inclui a de aprovação, que o modelo
+                // nunca chama diretamente) antes que a CLI a execute.
+                return IsCallableTool(String(block, "name"), out _) ? TranslationStep.Continue : TranslationStep.Abort(ClaudeCodeErrorCodes.ToolOutsideAllowlist);
             default:
                 return TranslationStep.Continue;
         }
@@ -345,8 +379,7 @@ internal sealed class ClaudeCodeStreamTranslator(string expectedSessionId, Claud
             switch (String(block, "type"))
             {
                 case "tool_use":
-                    var name = String(block, "name");
-                    if (!IsAllowedTool(name))
+                    if (!IsCallableTool(String(block, "name"), out var name))
                     {
                         return TranslationStep.Abort(ClaudeCodeErrorCodes.ToolOutsideAllowlist);
                     }
@@ -354,8 +387,9 @@ internal sealed class ClaudeCodeStreamTranslator(string expectedSessionId, Claud
                     if (SafeToken(String(block, "id")) is { } nativeId && !_tools.ContainsKey(nativeId))
                     {
                         var callId = AgentToolCallId.New();
-                        _tools[nativeId] = (callId, name!, false);
-                        // Observação visível da ferramenta nativa de leitura: só o nome (sem caminho/argumentos).
+                        _tools[nativeId] = (callId, name, false);
+                        // Observação visível: só o nome (leitura nativa, ou tool do produto pelo nome do registry, que
+                        // o broker já executou e auditou); nunca caminho, argumentos ou resultado.
                         output.Add(new AgentProviderEvent(AgentEventKind.ToolStarted, ToolCallId: callId, ToolName: name));
                     }
 
@@ -462,8 +496,24 @@ internal sealed class ClaudeCodeStreamTranslator(string expectedSessionId, Claud
         return new TranslationStep(TranslationKind.Result);
     }
 
-    private static bool IsAllowedTool(string? name) =>
-        name is not null && ClaudeCodeAgentProviderOptions.NativeToolAllowlist.Contains(name, StringComparer.Ordinal);
+    /// <summary>Ferramenta que o modelo pode chamar neste turno; <paramref name="displayName"/> é o nome publicado.</summary>
+    private bool IsCallableTool(string? name, out string displayName)
+    {
+        displayName = string.Empty;
+        if (name is null || !_callableTools.TryGetValue(name, out var mapped))
+        {
+            return false;
+        }
+
+        displayName = mapped;
+        return true;
+    }
+
+    /// <summary>Chamadas de tools do produto via MCP observadas neste turno (diagnóstico; nomes nunca persistidos).</summary>
+    public int ProductToolCalls => _tools.Values.Count(static tool => !IsNativeTool(tool.Name));
+
+    private static bool IsNativeTool(string name) =>
+        ClaudeCodeAgentProviderOptions.NativeToolAllowlist.Contains(name, StringComparer.Ordinal);
 
     /// <summary>
     /// Quadro de subagente (<c>parent_tool_use_id</c> preenchido). Agent/Task estão fora de <c>--tools</c>, então qualquer

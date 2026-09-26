@@ -36,6 +36,13 @@ public sealed record AgentProviderCapabilities
     /// <summary>Data leaves the machine. Presentation still derives the destination from <c>IsLocal</c>.</summary>
     public bool UsesNetwork { get; init; }
 
+    /// <summary>
+    /// The adapter honors <c>AgentTurnRequest.Plan</c>, <c>SystemPrompt</c> and <c>Attachments</c> (tools, rules, mode and
+    /// chips). False by default: callers must refuse to send a plan or attachments to a provider without it, instead of
+    /// letting them be silently ignored. Requires <see cref="Chat"/>.
+    /// </summary>
+    public bool TurnPlan { get; init; }
+
     public AgentCapabilityEvidence Evidence { get; init; }
 
     // Kept as instance properties (not static) so they stay part of the same reflection/serialization
@@ -68,6 +75,7 @@ public sealed record AgentProviderCapabilities
             CodeProposals = left.CodeProposals && right.CodeProposals,
             Mcp = left.Mcp && right.Mcp,
             ThinkingSummary = left.ThinkingSummary && right.ThinkingSummary,
+            TurnPlan = left.TurnPlan && right.TurnPlan,
             UsesNetwork = left.UsesNetwork || right.UsesNetwork,
             Evidence = (AgentCapabilityEvidence)Math.Min((int)left.Evidence, (int)right.Evidence),
         }.Normalize();
@@ -89,6 +97,7 @@ public sealed record AgentProviderCapabilities
             Streaming = Streaming && (Chat || CodeProposals),
             ToolCalling = ToolCalling && Chat,
             Sessions = Sessions && Chat,
+            TurnPlan = TurnPlan && Chat,
         };
     }
 }

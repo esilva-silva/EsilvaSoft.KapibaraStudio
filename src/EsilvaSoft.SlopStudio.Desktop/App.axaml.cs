@@ -73,7 +73,11 @@ public partial class App : Avalonia.Application
         // Lazy: nothing is located, started or authenticated until the user checks the status or opens a session.
         // No WorkspaceDirectory delegate: the provider never reads UI state later; the folder arrives only as the
         // per-session snapshot in AgentSessionOptions.WorkingDirectory (null = dedicated folder, reads ask approval).
-        services.AddSlopStudioClaudeCodeAgentProvider(new ClaudeCodeAgentProviderOptions());
+        // Product tools (ADR-056) reach the CLI only through the per-session MCP channel composed by the infrastructure
+        // (lazy: nothing starts until a turn needs it). The input budget covers the message plus the resolved chips.
+        services.AddSlopStudioClaudeCodeAgentProvider(
+            new ClaudeCodeAgentProviderOptions { MaxUserInputChars = AgentAttachmentResolver.MaximumMessageBytes },
+            static provider => provider.GetService<IAgentMcpChannelProvisioner>());
         // Production, provider-neutral view for the chat UI (AC-04/AC-09): built only from the shared
         // AgentProviderCatalog/capabilities, with no branch by provider brand.
         // The family map is display data only (mode chip "Claude · assinatura" / "Claude · API"); nothing branches on it.

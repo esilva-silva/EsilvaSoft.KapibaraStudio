@@ -10,13 +10,16 @@ public enum AgentToolExposureStage
     /// <summary>No tool is discoverable or executable. Default for every registry instance.</summary>
     None = 0,
 
-    /// <summary><c>list_connections</c>, <c>list_databases</c> and <c>list_collections</c>.</summary>
+    /// <summary>
+    /// <c>list_connections</c>, <c>list_databases</c>, <c>list_collections</c>, <c>get_indexes</c> and the per-session
+    /// tools <c>get_cached_schema</c>, <c>get_workspace_context</c>, <c>propose_file_edit</c> and <c>approve</c> (ADR-056).
+    /// </summary>
     Metadata = 1,
 
     /// <summary>Adds the literal query codec tools <c>mongo_find</c> and <c>mongo_count</c>.</summary>
     LiteralQueries = 2,
 
-    /// <summary>Adds schema, sample, distinct, explain, indexes, find-one and get-document.</summary>
+    /// <summary>Adds schema sampling, sample, distinct, explain, find-one and get-document.</summary>
     DerivedReads = 3,
 
     /// <summary>
@@ -81,13 +84,17 @@ public sealed class AgentToolExposure
     /// <summary>The stage that introduces a catalog tool, or <see langword="null"/> for unknown names.</summary>
     public static AgentToolExposureStage? StageOf(string? toolName) => toolName switch
     {
+        // ADR-056: get_indexes is structured metadata (names, keys, flags, TTL, partial-filter field paths), no document.
+        // The per-session tools also belong here: they release no document and never write MongoDB or disk.
         AgentToolRegistry.ListConnectionsToolName or AgentToolRegistry.ListDatabasesToolName or
-            AgentToolRegistry.ListCollectionsToolName => AgentToolExposureStage.Metadata,
+            AgentToolRegistry.ListCollectionsToolName or AgentToolRegistry.GetIndexesToolName or
+            AgentToolRegistry.GetCachedSchemaToolName or AgentToolRegistry.GetWorkspaceContextToolName or
+            AgentToolRegistry.ProposeFileEditToolName or AgentToolRegistry.ApproveToolName => AgentToolExposureStage.Metadata,
         AgentToolRegistry.MongoFindToolName or AgentToolRegistry.MongoCountToolName =>
             AgentToolExposureStage.LiteralQueries,
         AgentToolRegistry.GetCollectionSchemaToolName or AgentToolRegistry.SampleDocumentsToolName or
             AgentToolRegistry.MongoDistinctToolName or AgentToolRegistry.MongoExplainToolName or
-            AgentToolRegistry.GetIndexesToolName or AgentToolRegistry.MongoFindOneToolName or
+            AgentToolRegistry.MongoFindOneToolName or
             AgentToolRegistry.GetDocumentToolName => AgentToolExposureStage.DerivedReads,
         _ when WriteReleaseOf(toolName) is not AgentWriteToolRelease.None => AgentToolExposureStage.UnitaryWrites,
         _ => null

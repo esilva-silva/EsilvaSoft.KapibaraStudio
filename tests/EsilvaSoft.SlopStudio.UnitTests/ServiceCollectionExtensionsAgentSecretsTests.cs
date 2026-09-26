@@ -34,8 +34,10 @@ public sealed class ServiceCollectionExtensionsAgentSecretsTests
                 Assert.That(provider.GetRequiredService<IAgentAuthorizationPolicyRepository>(), Is.SameAs(policyRepository));
                 Assert.That(evaluator, Is.InstanceOf<AgentPermissionEvaluator>());
                 Assert.That(provider.GetRequiredService<IAgentPermissionEvaluator>(), Is.SameAs(evaluator));
-                // Always composed, but closed: no stage released means nothing discoverable.
-                Assert.That(provider.GetRequiredService<IAgentToolRegistry>().GetDescriptors(), Is.Empty);
+                // Always composed; the default stage (ADR-056) releases metadata tools only, never documents or writes.
+                Assert.That(provider.GetRequiredService<IAgentToolRegistry>().GetDescriptors()
+                    .Select(descriptor => AgentToolExposure.StageOf(descriptor.Name)),
+                    Is.All.EqualTo(AgentToolExposureStage.Metadata));
             });
         }
         finally

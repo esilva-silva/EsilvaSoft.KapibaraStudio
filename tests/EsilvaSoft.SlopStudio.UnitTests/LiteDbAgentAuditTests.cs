@@ -762,8 +762,9 @@ public sealed class LiteDbAgentAuditTests
         var audit = provider.GetRequiredService<IAgentAuditRepository>();
         Assert.That(audit, Is.SameAs(owner));
         Assert.That(provider.GetRequiredService<IAgentAuditRepository>(), Is.SameAs(audit));
-        // The shared registry is always composed but closed by default: nothing is discoverable without a stage.
-        Assert.That(provider.GetRequiredService<IAgentToolRegistry>().GetDescriptors(), Is.Empty);
+        // The shared registry is always composed; the default stage (ADR-056) releases metadata tools only.
+        Assert.That(provider.GetRequiredService<IAgentToolRegistry>().GetDescriptors()
+            .Select(descriptor => AgentToolExposure.StageOf(descriptor.Name)), Is.All.EqualTo(AgentToolExposureStage.Metadata));
         owner.Dispose();
         Assert.ThrowsAsync<ObjectDisposedException>(() => audit.AppendAsync(Event()));
     }

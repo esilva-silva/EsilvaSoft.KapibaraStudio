@@ -1,12 +1,21 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using EsilvaSoft.SlopStudio.Application.Agents;
 using EsilvaSoft.SlopStudio.Core.Agents;
+using EsilvaSoft.SlopStudio.Desktop.Agents;
 
 namespace EsilvaSoft.SlopStudio.Desktop.ViewModels;
 
-/// <summary>One ephemeral row of the agent conversation. Nothing here is persisted.</summary>
+/// <summary>
+/// One row of an agent conversation. Messages, tool summaries, notices and proposal references are persisted by the
+/// conversation (ADR-056, redacted, never attachment contents); confirmation cards are runtime-only.
+/// </summary>
 public abstract class AgentChatItemViewModel : ObservableObject
 {
     protected static LocalizationViewModel Text => LocalizationViewModel.Current;
+
+    /// <summary>When the row was created (or the persisted entry's timestamp when restored).</summary>
+    public DateTimeOffset Timestamp { get; internal set; } = DateTimeOffset.UtcNow;
 }
 
 public enum AgentChatRole
@@ -17,12 +26,14 @@ public enum AgentChatRole
 
 public sealed partial class AgentChatMessageItem : AgentChatItemViewModel
 {
-    public AgentChatMessageItem(AgentChatRole role, string text, AgentMessageId? messageId = null)
+    public AgentChatMessageItem(AgentChatRole role, string text, AgentMessageId? messageId = null,
+        IReadOnlyList<AgentAttachmentDescriptor>? attachments = null)
     {
         Role = role;
         MessageId = messageId;
         _content = text;
         _isStreaming = role == AgentChatRole.Agent && messageId is not null;
+        Attachments = attachments ?? [];
     }
 
     public AgentChatRole Role { get; }
@@ -32,6 +43,16 @@ public sealed partial class AgentChatMessageItem : AgentChatItemViewModel
     public bool IsUser => Role == AgentChatRole.User;
 
     public string RoleLabel => Text.Resolve(IsUser ? "agentRoleUser" : "agentRoleAgent");
+
+    /// <summary>Descriptors of the chips sent with this message (name, kind, size — never the content).</summary>
+    public IReadOnlyList<AgentAttachmentDescriptor> Attachments { get; }
+
+    public bool HasAttachments => Attachments.Count > 0;
+
+    /// <summary>"Anexos: clientes.json (1,2 KB) · developercluster › CakeShop" — identity only.</summary>
+    public string AttachmentsText => HasAttachments
+        ? Text.Format("agentMessageAttachments", string.Join(" · ", Attachments.Select(AgentContextChipViewModel.DescribeDescriptor)))
+        : "";
 
     /// <summary>Model text is displayed as data only; it never triggers commands, approvals or queries.</summary>
     [ObservableProperty] private string _content;
@@ -62,10 +83,27 @@ public sealed partial class AgentToolCallItem : AgentChatItemViewModel
         AgentToolOrigin? origin = null, string? observedBy = null)
     {
         CallId = callId;
-        ToolLabel = string.IsNullOrWhiteSpace(toolName) ? Text.Resolve("agentToolUnknown") : toolName;
+        ToolName = string.IsNullOrWhiteSpace(toolName) ? null : toolName;
+        ToolLabel = ToolName is null ? Text.Resolve("agentToolUnknown") : AgentToolConfirmationCardItem.DisplayToolName(ToolName);
         Destination = destination;
         Origin = origin;
         ObservedBy = observedBy;
+    }
+
+    /// <summary>Restores a persisted tool summary (name and outcome only).</summary>
+    internal static AgentToolCallItem Restored(string? toolName, AgentToolResultStatus? outcome)
+    {
+        var item = new AgentToolCallItem(AgentToolCallId.New(), toolName);
+        item.State = outcome switch
+        {
+            AgentToolResultStatus.Succeeded => AgentToolCallState.Succeeded,
+            AgentToolResultStatus.Denied => AgentToolCallState.Denied,
+            AgentToolResultStatus.Cancelled => AgentToolCallState.Cancelled,
+            AgentToolResultStatus.OutcomeUnknown => AgentToolCallState.OutcomeUnknown,
+            null => AgentToolCallState.OutcomeUnknown,
+            _ => AgentToolCallState.Failed,
+        };
+        return item;
     }
 
     /// <summary>Who ran the call, as published by the runtime (never inferred from provider output).</summary>
@@ -77,7 +115,6 @@ public sealed partial class AgentToolCallItem : AgentChatItemViewModel
     /// <summary>Native tool of the provider (display only): ran outside the registry, with no product approval.</summary>
     public bool IsProviderObserved => Origin == AgentToolOrigin.ProviderObserved;
 
-    /// <summary>"Leitura nativa · executada pelo Claude Code, fora das ferramentas do KapibaraStudio" or the product-tool line.</summary>
     public string OriginText => Origin switch
     {
         AgentToolOrigin.ProviderObserved => Text.Format("agentToolOriginObserved",
@@ -91,7 +128,6 @@ public sealed partial class AgentToolCallItem : AgentChatItemViewModel
     /// <summary>Sanitized output destination published by the runtime (Local/External); null when not reported.</summary>
     public AgentDataDestinationKind? Destination { get; }
 
-    /// <summary>"Destino: Externo" as text, never color alone; empty when the runtime did not report it.</summary>
     public string DestinationText => Destination switch
     {
         AgentDataDestinationKind.Local => Text.Format("agentToolDestination", Text.Resolve("agentDestinationLocal")),
@@ -101,7 +137,9 @@ public sealed partial class AgentToolCallItem : AgentChatItemViewModel
 
     public AgentToolCallId CallId { get; }
 
-    /// <summary>Registry canonical name published by the runtime; raw model text is never echoed.</summary>
+    /// <summary>Canonical name published by the runtime (persisted); raw model text is never echoed.</summary>
+    public string? ToolName { get; }
+
     public string ToolLabel { get; }
 
     public string Title => Text.Format(IsProviderObserved ? "agentToolNativeCard" : "agentToolCard", ToolLabel);
@@ -124,6 +162,16 @@ public sealed partial class AgentToolCallItem : AgentChatItemViewModel
 
     public bool IsTerminal => State is not (AgentToolCallState.Requested or AgentToolCallState.Running);
 
+    /// <summary>Outcome persisted with the conversation (name and outcome only).</summary>
+    public AgentToolResultStatus PersistedOutcome => State switch
+    {
+        AgentToolCallState.Succeeded => AgentToolResultStatus.Succeeded,
+        AgentToolCallState.Denied => AgentToolResultStatus.Denied,
+        AgentToolCallState.Cancelled => AgentToolResultStatus.Cancelled,
+        AgentToolCallState.Failed => AgentToolResultStatus.Failed,
+        _ => AgentToolResultStatus.OutcomeUnknown,
+    };
+
     public string StatusText
     {
         get
@@ -143,7 +191,6 @@ public sealed partial class AgentToolCallItem : AgentChatItemViewModel
                 status = Text.Format("agentToolStatusLine", status, Text.Format("agentToolDuration", duration));
             }
 
-            // Known safe codes are described (4 languages); unknown ones keep the generic "code X" form.
             return ErrorCode is { Length: > 0 } code
                 ? Text.Format("agentToolStatusLine", status, Text.HasTranslation(AgentChatViewModel.ErrorCodePrefix + code)
                     ? Text.Resolve(AgentChatViewModel.ErrorCodePrefix + code)
@@ -179,6 +226,7 @@ public enum AgentApprovalCardState
     Cancelled,
 }
 
+/// <summary>Card of a registry write approval (lote 10); the decision happens in the approval dialog.</summary>
 public sealed partial class AgentApprovalCardItem : AgentChatItemViewModel
 {
     public AgentApprovalCardItem(AgentApprovalViewModel approval) => Approval = approval;
@@ -205,9 +253,229 @@ public sealed partial class AgentApprovalCardItem : AgentChatItemViewModel
     public string ReviewLabel { get; } = Text.Resolve("agentApprovalReview");
 }
 
-public sealed class AgentChatNoticeItem(string content, bool isError = false) : AgentChatItemViewModel
+public enum AgentToolConfirmationState
+{
+    Pending,
+    ApprovedOnce,
+    Rejected,
+    Expired,
+}
+
+/// <summary>
+/// Inline confirmation of one tool call (modo Solicitar confirmações). The exact input is shown as data in code font;
+/// "Rejeitar" is the safe action and receives the initial focus; there is no "always". A decision covers exactly
+/// this call. The registry deadline cancels the token: the card then shows "expirada" and answers a rejection.
+/// Runtime only: never persisted.
+/// </summary>
+public sealed partial class AgentToolConfirmationCardItem : AgentChatItemViewModel
+{
+    public const int MaximumDisplayedInputChars = 2000;
+
+    private const string McpPrefix = "mcp__" + McpServerLaunchSpec.DefaultServerName + "__";
+    private readonly TaskCompletionSource<AgentToolConfirmationDecision> _decision =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    public AgentToolConfirmationCardItem(AgentToolConfirmationRequest request, CancellationToken deadline)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        Request = request;
+        ToolLabel = DisplayToolName(request.ToolName);
+        var input = request.InputJson ?? "";
+        InputText = input.Length > MaximumDisplayedInputChars ? input[..MaximumDisplayedInputChars] + "…" : input;
+        if (deadline.CanBeCanceled)
+        {
+            deadline.Register(() =>
+            {
+                if (_decision.TrySetResult(AgentToolConfirmationDecision.Rejected))
+                {
+                    AgentUiDispatch.Post(() => State = AgentToolConfirmationState.Expired);
+                }
+            });
+        }
+    }
+
+    public AgentToolConfirmationRequest Request { get; }
+
+    public Guid ConversationId => Request.ConversationId;
+
+    public string ToolLabel { get; }
+
+    public string Title => Text.Format("agentConfirmTitle", ToolLabel);
+
+    public string InputText { get; }
+
+    public bool HasInput => InputText.Length > 0;
+
+    public string CategoryText => Text.Resolve(Request.Category switch
+    {
+        AgentConfirmationCategories.MongoMetadataRead => "agentConfirmCategoryMongo",
+        AgentConfirmationCategories.WorkspaceContextRead => "agentConfirmCategoryWorkspace",
+        AgentConfirmationCategories.NativeFileRead => "agentConfirmCategoryFile",
+        AgentConfirmationCategories.EditProposal => "agentConfirmCategoryProposal",
+        _ => "agentConfirmCategoryOther",
+    });
+
+    public Task<AgentToolConfirmationDecision> Decision => _decision.Task;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsPending), nameof(StatusText))]
+    [NotifyCanExecuteChangedFor(nameof(ApproveOnceCommand), nameof(RejectCommand))]
+    private AgentToolConfirmationState _state;
+
+    public bool IsPending => State == AgentToolConfirmationState.Pending;
+
+    public string StatusText => Text.Resolve(State switch
+    {
+        AgentToolConfirmationState.Pending => "agentConfirmPending",
+        AgentToolConfirmationState.ApprovedOnce => "agentConfirmApproved",
+        AgentToolConfirmationState.Rejected => "agentConfirmRejected",
+        _ => "agentConfirmExpired",
+    });
+
+    [RelayCommand(CanExecute = nameof(IsPending))]
+    private void ApproveOnce()
+    {
+        if (_decision.TrySetResult(AgentToolConfirmationDecision.ApprovedOnce))
+        {
+            State = AgentToolConfirmationState.ApprovedOnce;
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(IsPending))]
+    private void Reject()
+    {
+        if (_decision.TrySetResult(AgentToolConfirmationDecision.Rejected))
+        {
+            State = AgentToolConfirmationState.Rejected;
+        }
+    }
+
+    /// <summary>Closes a pending card as rejected (turn ended, conversation deleted, panel disposed).</summary>
+    internal void Close()
+    {
+        if (_decision.TrySetResult(AgentToolConfirmationDecision.Rejected))
+        {
+            State = AgentToolConfirmationState.Expired;
+        }
+    }
+
+    /// <summary>"list_connections" for "mcp__slopstudio__list_connections"; native names are kept.</summary>
+    public static string DisplayToolName(string? toolName) =>
+        string.IsNullOrWhiteSpace(toolName) ? "?"
+        : toolName.StartsWith(McpPrefix, StringComparison.Ordinal) ? toolName[McpPrefix.Length..]
+        : toolName;
+}
+
+/// <summary>
+/// Card of an edit proposal (<c>propose_file_edit</c>): file, <c>+N −M</c>, state in text and the actions
+/// "Revisar" (opens/activates the target tab; the hunk review in the editor is CLP-6), "Aplicar tudo" and "Descartar";
+/// in the automatic mode "Manter"/"Reverter". The proposal itself lives in <see cref="AgentEditProposalStore"/>; the
+/// conversation persists only its ID and a short summary. After a restart the store no longer has it: the card is
+/// then read-only ("indisponível após reiniciar").
+/// </summary>
+public sealed partial class AgentEditProposalCardItem : AgentChatItemViewModel
+{
+    public AgentEditProposalCardItem(Guid proposalId, string fileName, int added, int removed, AgentEditProposalEntry? entry)
+    {
+        ProposalId = proposalId;
+        FileName = fileName;
+        AddedLines = added;
+        RemovedLines = removed;
+        _entry = entry;
+    }
+
+    internal static AgentEditProposalCardItem From(AgentEditProposalEntry entry) =>
+        new(entry.Id, Path.GetFileName(entry.Proposal.TargetPath), entry.Proposal.AddedLineCount,
+            entry.Proposal.RemovedLineCount, entry)
+        {
+            TargetPath = entry.Proposal.TargetPath,
+            TabId = entry.Proposal.TabId,
+        };
+
+    public Guid ProposalId { get; }
+
+    public string FileName { get; }
+
+    public string? TargetPath { get; private init; }
+
+    public string? TabId { get; private init; }
+
+    public int AddedLines { get; }
+
+    public int RemovedLines { get; }
+
+    public string Title => Text.Format("agentProposalTitle", FileName);
+
+    public string CountsText => PersistedCounts ?? Text.Format("agentProposalCounts", AddedLines, RemovedLines);
+
+    /// <summary>Counts restored from the persisted summary when the proposal is no longer in memory.</summary>
+    public string? PersistedCounts { get; init; }
+
+    /// <summary>Accessible summary of the counts ("3 linhas adicionadas, 1 removida").</summary>
+    public string CountsAccessibleText => Text.Format("agentProposalCountsAccessible", AddedLines, RemovedLines);
+
+    /// <summary>Persisted summary (no text of the proposal).</summary>
+    public string PersistedSummary => FileName + SummarySeparator + CountsText;
+
+    internal const string SummarySeparator = " · ";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StatusText), nameof(IsAvailable), nameof(CanApply), nameof(CanDiscard),
+        nameof(ShowKeepRevert), nameof(ShowApplyDiscard))]
+    [NotifyCanExecuteChangedFor(nameof(ReviewCommand))]
+    private AgentEditProposalEntry? _entry;
+
+    /// <summary>Applied automatically on arrival (Automático): the card offers Manter/Reverter.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowKeepRevert), nameof(ShowApplyDiscard))]
+    private bool _isAutomatic;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanApply), nameof(CanDiscard))]
+    private bool _isBusy;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasError))]
+    private string? _errorText;
+
+    public bool HasError => !string.IsNullOrEmpty(ErrorText);
+
+    public bool IsAvailable => Entry is not null;
+
+    public bool CanApply => !IsBusy && Entry is { HasPending: true };
+
+    public bool CanDiscard => !IsBusy && Entry is { } entry && (entry.HasPending || entry.HasApplied);
+
+    /// <summary>Automatic proposals with applied hunks offer Manter/Reverter instead of Aplicar/Descartar.</summary>
+    public bool ShowKeepRevert => IsAutomatic && Entry is { HasApplied: true } entry &&
+        entry.HunkStates.Any(static state => state == AgentEditHunkState.Applied);
+
+    public bool ShowApplyDiscard => IsAvailable && !ShowKeepRevert;
+
+    public string StatusText => Entry is not { } entry
+        ? Text.Resolve("agentProposalUnavailable")
+        : Text.Resolve(entry.Status switch
+        {
+            AgentEditProposalStatus.Registered => "agentProposalRegistered",
+            AgentEditProposalStatus.Applied => "agentProposalApplied",
+            AgentEditProposalStatus.PartiallyApplied => "agentProposalPartial",
+            AgentEditProposalStatus.Discarded => "agentProposalDiscarded",
+            _ => "agentProposalStale",
+        });
+
+    /// <summary>Raised by <see cref="ReviewCommand"/>; the chat activates the tab and forwards it to the store.</summary>
+    internal Func<AgentEditProposalCardItem, Task>? ReviewHandler { get; set; }
+
+    [RelayCommand(CanExecute = nameof(IsAvailable))]
+    private Task ReviewAsync() => ReviewHandler?.Invoke(this) ?? Task.CompletedTask;
+}
+
+public sealed class AgentChatNoticeItem(string content, bool isError = false, bool isWarning = false) : AgentChatItemViewModel
 {
     public string Content { get; } = content;
 
     public bool IsError { get; } = isError;
+
+    /// <summary>A visible, non-fatal notice (resume lost, tools unavailable…) shown with the warning outline.</summary>
+    public bool IsWarning { get; } = isWarning;
 }

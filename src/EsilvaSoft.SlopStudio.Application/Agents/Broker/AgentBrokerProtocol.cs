@@ -25,6 +25,16 @@ public static class AgentBrokerProtocol
     public const int MaximumCallTimeoutMilliseconds = 35_000;
 
     /// <summary>
+    /// Ceiling of the permission-prompt tool (<c>approve</c>), which waits for a human decision: the approval window
+    /// (at most 120 s) plus a margin. Only that tool may ask for it; every other call keeps
+    /// <see cref="MaximumCallTimeoutMilliseconds"/>.
+    /// </summary>
+    public const int MaximumApprovalCallTimeoutMilliseconds = 125_000;
+
+    /// <summary>Name of the per-session permission-prompt tool (see <c>AgentToolRegistry.ApproveToolName</c>).</summary>
+    public const string ApproveToolName = "approve";
+
+    /// <summary>
     /// Provider identifier used for the typed output destination of MCP calls. It routes the output grant; the
     /// principal still comes from the authenticated channel.
     /// </summary>

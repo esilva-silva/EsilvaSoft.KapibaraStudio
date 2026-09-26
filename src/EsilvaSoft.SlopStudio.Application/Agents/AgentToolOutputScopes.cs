@@ -15,7 +15,11 @@ public static class AgentToolOutputScopes
         AgentToolRegistry.ListConnectionsToolName or AgentToolRegistry.ListDatabasesToolName or
             AgentToolRegistry.ListCollectionsToolName or AgentToolRegistry.GetIndexesToolName =>
             AgentOutputDataScope.Metadata,
-        AgentToolRegistry.GetCollectionSchemaToolName => AgentOutputDataScope.Schema,
+        AgentToolRegistry.GetCollectionSchemaToolName or AgentToolRegistry.GetCachedSchemaToolName =>
+            AgentOutputDataScope.Schema,
+        // Per-session tools without MongoDB data: workspace names, a proposal receipt, a confirmation answer.
+        AgentToolRegistry.GetWorkspaceContextToolName or AgentToolRegistry.ProposeFileEditToolName or
+            AgentToolRegistry.ApproveToolName => AgentOutputDataScope.Metadata,
         AgentToolRegistry.MongoExplainToolName or AgentToolRegistry.MongoFindToolName or AgentToolRegistry.MongoCountToolName or
             AgentToolRegistry.SampleDocumentsToolName or AgentToolRegistry.MongoFindOneToolName or
             AgentToolRegistry.GetDocumentToolName or AgentToolRegistry.MongoDistinctToolName =>

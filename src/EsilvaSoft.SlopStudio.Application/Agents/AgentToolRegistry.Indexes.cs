@@ -95,7 +95,12 @@ public sealed partial class AgentToolRegistry
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (index is null || !IsSafeIndexName(index.Name) || index.KeyFields is null ||
-                index.KeyFields.Count is < 1 or > 32 || index.KeyFields.Any(field => !IsSafeIndexName(field)))
+                index.KeyFields.Count is < 1 or > 32 || index.KeyFields.Any(field => !IsSafeIndexName(field)) ||
+                index.KeyDirections is { } directions && (directions.Count != index.KeyFields.Count ||
+                    directions.Any(direction => direction is not { Length: > 0 and <= 32 } ||
+                        !direction.All(static c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_'))) ||
+                index.TtlSeconds is < 0 ||
+                index.PartialFilterFields is { } partial && (partial.Count > 32 || partial.Any(field => !IsSafeIndexName(field))))
                 return AgentToolInvocationResult.Failure(PermissionDenied, AgentAuditDecisionReason.ValidationRejected);
             var candidate = new IndexesResponse([.. selected, index], true, "OutputLimit");
             if (JsonSerializer.SerializeToUtf8Bytes(candidate, SerializerOptions).Length > MaximumOutputBytes)

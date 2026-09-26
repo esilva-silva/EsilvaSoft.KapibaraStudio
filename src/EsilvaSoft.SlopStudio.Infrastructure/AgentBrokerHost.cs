@@ -25,6 +25,7 @@ public sealed class AgentBrokerHost : IAsyncDisposable
     private readonly AgentBrokerOptions _options;
     private readonly AgentBrokerAuthenticationLimiter _limiter;
     private readonly AgentBrokerCallAdmission _admission;
+    private readonly IAgentMcpSessionScopes? _sessionScopes;
     private readonly ConcurrentDictionary<AgentBrokerConnection, Task> _connections = new();
     private readonly SemaphoreSlim _lifecycle = new(1, 1);
     private SemaphoreSlim? _slots;
@@ -32,13 +33,19 @@ public sealed class AgentBrokerHost : IAsyncDisposable
     private Task? _acceptLoop;
     private IReadOnlyList<AgentBrokerToolDescriptor>? _tools;
 
+    /// <remarks>
+    /// <c>sessionScopes</c>: per-session channels of integrated providers (ADR-056). They are internal channels of the
+    /// IDE: accepted even when <see cref="AgentBrokerOptions.Enabled"/> (the user's opt-in for external MCP clients) is
+    /// off, and they see only their turn plan. With external clients disabled, any other channel fails authentication.
+    /// </remarks>
     public AgentBrokerHost(IAgentToolRegistry registry, IAgentPrincipalAuthority authority, AgentBrokerOptions options,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null, IAgentMcpSessionScopes? sessionScopes = null)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _authority = authority ?? throw new ArgumentNullException(nameof(authority));
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _options.Validate();
+        _sessionScopes = sessionScopes;
         _limiter = new AgentBrokerAuthenticationLimiter(options.MaximumAuthenticationFailuresPerChannel,
             options.MaximumAuthenticationFailuresGlobal, options.AuthenticationFailureWindow,
             timeProvider ?? TimeProvider.System);
@@ -50,22 +57,35 @@ public sealed class AgentBrokerHost : IAsyncDisposable
 
     public AgentBrokerEndpoint Endpoint { get; }
 
+    /// <summary>Workspace identifier of the endpoint (not a credential); the proxy receives it as <c>--workspace-id</c>.</summary>
+    public Guid WorkspaceId => _options.WorkspaceId;
+
+    /// <summary>Whether external MCP clients (user opt-in) are accepted besides per-session channels.</summary>
+    public bool AcceptsExternalClients => _options.Enabled;
+
     /// <summary>Composition evidence (AC-14): the shared registry this broker forwards to.</summary>
     internal IAgentToolRegistry Registry => _registry;
     public bool IsRunning => _acceptLoop is { IsCompleted: false };
     public int ActiveConnectionCount => _connections.Count;
 
-    /// <summary>Opens the endpoint. Fails visibly when the user did not opt in or the endpoint is already owned.</summary>
+    /// <summary>
+    /// Opens the endpoint. Fails visibly when neither external clients (user opt-in) nor per-session channels were
+    /// composed, or the endpoint is already owned.
+    /// </summary>
     /// <exception cref="InvalidOperationException">Not enabled, already running, or endpoint in use.</exception>
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
-        if (!_options.Enabled)
+        if (!_options.Enabled && _sessionScopes is null)
             throw new InvalidOperationException("O servidor MCP local não foi habilitado pelo usuário.");
         await _lifecycle.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            // A faulted accept loop does not keep the host "running": release its resources and allow a new start.
+            if (_acceptLoop is { IsCompleted: true }) await ReleaseCompletedLoopAsync().ConfigureAwait(false);
             if (_acceptLoop is not null) throw new InvalidOperationException("O broker local já está em execução.");
             _tools = BuildDescriptors(_registry);
+            // Session channels left by a crash, kill or cancellation are revoked before anything is accepted.
+            await RevokeOrphanSessionChannelsAsync(cancellationToken).ConfigureAwait(false);
             Endpoint.EnsurePrivateDirectory();
             RemoveStaleUnixSocket();
             var slots = new SemaphoreSlim(_options.MaximumConnections, _options.MaximumConnections);
@@ -96,6 +116,20 @@ public sealed class AgentBrokerHost : IAsyncDisposable
         }
     }
 
+    private async Task RevokeOrphanSessionChannelsAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _authority.RevokeOrphanSessionChannelsAsync(_sessionScopes?.ChannelIds ?? [], cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            // Still fail-closed: a session principal without an active scope is denied by the broker and the registry.
+        }
+    }
+
     /// <summary>Stops accepting, cancels every connection's calls and closes their pipes. Idempotent.</summary>
     public async Task StopAsync()
     {
@@ -106,6 +140,7 @@ public sealed class AgentBrokerHost : IAsyncDisposable
             await _stop.CancelAsync().ConfigureAwait(false);
             try { await _acceptLoop!.ConfigureAwait(false); }
             catch (OperationCanceledException) { }
+            catch (Exception exception) when (exception is not OutOfMemoryException) { }
             var running = _connections.Values.ToArray();
             try { await Task.WhenAll(running).WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false); }
             catch (TimeoutException) { }
@@ -125,6 +160,20 @@ public sealed class AgentBrokerHost : IAsyncDisposable
         {
             _lifecycle.Release();
         }
+    }
+
+    private async Task ReleaseCompletedLoopAsync()
+    {
+        try { await _acceptLoop!.ConfigureAwait(false); }
+        catch (Exception exception) when (exception is not OutOfMemoryException) { }
+        var running = _connections.Values.ToArray();
+        try { await Task.WhenAll(running).WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false); }
+        catch (Exception exception) when (exception is not OutOfMemoryException) { }
+        _stop?.Dispose();
+        _stop = null;
+        _acceptLoop = null;
+        _slots?.Dispose();
+        _slots = null;
     }
 
     public async ValueTask DisposeAsync()
@@ -158,7 +207,7 @@ public sealed class AgentBrokerHost : IAsyncDisposable
             }
 
             var connection = new AgentBrokerConnection(instance, _registry, _authority, _options, _limiter,
-                _admission, _tools!);
+                _admission, _tools!, _sessionScopes);
             var registered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             _connections[connection] = ServeAsync(connection, slots, registered.Task, stop);
             registered.SetResult();
@@ -241,7 +290,7 @@ public sealed class AgentBrokerHost : IAsyncDisposable
     }
 
     private static AgentBrokerToolDescriptor[] BuildDescriptors(IAgentToolRegistry registry) =>
-        registry.GetDescriptors()
+        registry.GetChannelDescriptors()
             .Where(descriptor => descriptor.Risk == AgentToolRisk.ReadOnly)
             .Select(descriptor => new AgentBrokerToolDescriptor
             {

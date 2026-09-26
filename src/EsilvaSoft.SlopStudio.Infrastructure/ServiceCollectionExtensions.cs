@@ -50,6 +50,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IAgentAuthorizationPolicyProvider>(services => services.GetRequiredService<LiteDbConnectionProfileRepository>());
         services.AddSingleton<IAgentAuthorizationPolicyRepository>(services => services.GetRequiredService<LiteDbConnectionProfileRepository>());
         services.AddSingleton<IAgentAuditRepository>(services => services.GetRequiredService<LiteDbConnectionProfileRepository>());
+        // ADR-056: conversations and per-provider permissions are facets of the same owner (never a second LiteDatabase).
+        services.AddSingleton<IAgentConversationRepository>(services => services.GetRequiredService<LiteDbConnectionProfileRepository>());
+        services.AddSingleton<IAgentProviderPermissionsRepository>(services => services.GetRequiredService<LiteDbConnectionProfileRepository>());
         // Single issuer of AgentPrincipal: channel rows live in the same owner, proofs only in ISecretStore.
         services.AddSingleton<IAgentPrincipalAuthority>(services => services.GetRequiredService<LiteDbConnectionProfileRepository>());
         services.AddSingleton<IAgentPermissionEvaluator, AgentPermissionEvaluator>();
@@ -104,7 +107,11 @@ public static class ServiceCollectionExtensions
     /// ports, all singletons over the LiteDB owner facets registered above (no second database connection). The
     /// registry is the only execution boundary for every ingress; the native runtime consumes it here and the opt-in
     /// MCP broker (<see cref="AddSlopStudioAgentBroker"/>) consumes the same instance. Nothing is resolved at
-    /// startup, no provider, vault or network is touched, and the default stage exposes no tool. Registry write
+    /// startup, no provider, vault or network is touched. The default stage is <c>Metadata</c> (ADR-056): metadata
+    /// tools are released but every call still needs a persisted grant for its principal, which only the per-session
+    /// channel provisioner writes (for its own channels, from the turn plan). The per-session MCP channel of an
+    /// integrated provider is internal and lazy (<see cref="AgentMcpChannelProvisioner"/>); it is independent of the
+    /// user's opt-in for external MCP clients (<see cref="AddSlopStudioAgentBroker"/>). Registry write
     /// approvals are wired to the runtime stream (bridge + coordinator + interaction authority), but no write source is
     /// composed, so no write tool exists; provider-originated approvals and schema sampling consent stay fail-closed.
     /// </summary>
@@ -137,11 +144,29 @@ public static class ServiceCollectionExtensions
             approvalTimeout: options.Runtime.ApprovalTimeout));
         services.AddSingleton<IAgentWriteApprovalAuthority>(provider => provider.GetRequiredService<AgentWriteApprovalCoordinator>());
         services.AddSingleton<IAgentApprovalDetailsSource>(provider => provider.GetRequiredService<AgentWriteApprovalCoordinator>());
+        // ADR-056: get_indexes is part of the Metadata stage (allowlisted index metadata, no document or filter value).
+        services.AddSingleton<MongoAgentIndexSource>(provider => new MongoAgentIndexSource(
+            provider.GetRequiredService<IConnectionSecretStore>(), provider.GetService<IEnvironmentVaultRepository>(),
+            provider.GetRequiredService<MongoClientPool>()));
+        // Per-session channels of integrated providers (claude-code): scopes, ports and the lazy provisioner. The
+        // Desktop ports (workspace snapshot, proposal sink, confirmation card) are optional: a missing port makes its
+        // tool unavailable (or, for confirmations, every answer a denial). Nothing is started here.
+        services.AddSingleton<AgentMcpSessionRegistry>();
+        services.AddSingleton<IAgentMcpSessionScopes>(provider => provider.GetRequiredService<AgentMcpSessionRegistry>());
         services.AddSingleton<IAgentToolRegistry>(provider =>
         {
             var literalQueries = options.ToolExposureStage >= AgentToolExposureStage.LiteralQueries
                 ? provider.GetRequiredService<MongoAgentFindSource>()
                 : null;
+            var sessionTools = new AgentSessionToolPorts(provider.GetRequiredService<IAgentMcpSessionScopes>())
+            {
+                MetadataCache = provider.GetService<IMetadataCache>(),
+                LearnedSchemas = provider.GetService<ILearnedSchemaRepository>(),
+                WorkspaceContext = provider.GetService<IAgentWorkspaceContextSource>(),
+                ProposalSink = provider.GetService<IAgentEditProposalSink>(),
+                ConfirmationPrompt = provider.GetService<IAgentToolConfirmationPrompt>(),
+                ApprovalTimeout = options.Runtime.ApprovalTimeout
+            };
             return new AgentToolRegistry(
                 provider.GetRequiredService<IConnectionProfileRepository>(),
                 provider.GetRequiredService<IAgentAuthorizationPolicyProvider>(),
@@ -152,11 +177,23 @@ public static class ServiceCollectionExtensions
                 schemaSamplingConsent: provider.GetRequiredService<IAgentSchemaSamplingConsentProvider>(),
                 find: literalQueries,
                 count: literalQueries,
+                indexes: options.ToolExposureStage >= AgentToolExposureStage.Metadata
+                    ? provider.GetRequiredService<MongoAgentIndexSource>()
+                    : null,
                 exposure: AgentToolExposure.Through(options.ToolExposureStage),
                 principalAuthority: provider.GetRequiredService<IAgentPrincipalAuthority>(),
                 write: null,
-                writeApprovals: provider.GetRequiredService<IAgentWriteApprovalAuthority>());
+                writeApprovals: provider.GetRequiredService<IAgentWriteApprovalAuthority>(),
+                sessionTools: sessionTools,
+                inProcessExposure: AgentToolExposure.Through(options.InProcessToolExposureStage));
         });
+        services.AddSingleton<AgentMcpChannelProvisioner>(provider => new AgentMcpChannelProvisioner(
+            provider.GetRequiredService<IAgentToolRegistry>(), provider.GetRequiredService<IAgentPrincipalAuthority>(),
+            provider.GetRequiredService<IAgentAuthorizationPolicyRepository>(),
+            provider.GetRequiredService<IConnectionProfileRepository>(),
+            provider.GetRequiredService<AgentMcpSessionRegistry>(), options.ToolExposureStage,
+            externalBroker: provider.GetService<AgentBrokerHost>()));
+        services.AddSingleton<IAgentMcpChannelProvisioner>(provider => provider.GetRequiredService<AgentMcpChannelProvisioner>());
         // Recognizes only approvals frozen by the coordinator (identity check, never a grant); everything else keeps
         // the fail-closed answer.
         services.AddSingleton<IAgentInteractionAuthority>(provider => new AgentWriteApprovalInteractionAuthority(
@@ -201,9 +238,11 @@ public static class ServiceCollectionExtensions
         if (platform.ToolExposureStage != options.Stage)
             throw new InvalidOperationException("O estágio do broker precisa ser o mesmo liberado ao registry compartilhado.");
         services.AddSingleton(options);
+        // The same endpoint also serves the per-session channels of integrated providers (the provisioner reuses this
+        // host); those channels stay separate from the external opt-in and see only their turn plan.
         services.AddSingleton<AgentBrokerHost>(provider => new AgentBrokerHost(
             provider.GetRequiredService<IAgentToolRegistry>(), provider.GetRequiredService<IAgentPrincipalAuthority>(),
-            options));
+            options, sessionScopes: provider.GetRequiredService<IAgentMcpSessionScopes>()));
         return services;
     }
 

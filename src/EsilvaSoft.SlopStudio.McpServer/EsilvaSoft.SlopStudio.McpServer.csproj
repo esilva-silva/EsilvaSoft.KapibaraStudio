@@ -6,6 +6,9 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- P7-CLP-3: published self-contained next to the Desktop (mcp/) for the same RIDs, so the lock files carry the
+         runtime sections and the RID-less locked restore stays valid for `dotnet publish -r <rid>`. -->
+    <RuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64</RuntimeIdentifiers>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../EsilvaSoft.SlopStudio.Core/EsilvaSoft.SlopStudio.Core.csproj" />

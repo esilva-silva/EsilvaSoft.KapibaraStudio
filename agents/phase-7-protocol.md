@@ -24,7 +24,7 @@ Contrato compartilhado é estabilizado por arquitetura antes dos consumidores. L
 - Migrações aditivas no proprietário LiteDB único; cofre do SO armazena segredos, banco guarda referências. Falhas de persistência visíveis e recuperáveis, sem fallback plaintext.
 - Aprovação de escrita imutável, expira e é consumida uma vez. Intenção durável antes de executar; falha após envio pode ser `OutcomeUnknown`, sem replay nem promessa de rollback.
 - Snapshot antes de awaits, CTS por execução, filas/bytes/deadlines limitados, evento tardio descartado e tool result sem lock do consumidor do stream.
-- Sem workflows da fase 8, transcript persistido, shell/file editing ou subagentes do produto, exceto ferramentas nativas do modo Claude Code com aprovação por chamada (ADR-054) e o transcript gravado pelo próprio Claude Code; o Slop continua sem persistir transcript. ONNX e autocomplete continuam independentes e offline.
+- Sem workflows da fase 8, shell livre, escrita/rede nativas ou subagentes do produto. Exceções regidas pela [ADR-056](../docs/10-decisoes-arquiteturais.md#adr-056--agente-ia-integrado-conversas-persistidas-permissões-por-provider-modos-e-propostas-de-edição-26092026) (26/09/2026, sobre a ADR-054 revisada): o histórico de conversas do produto é persistido no owner LiteDB único, com redação, opt-out e apagar, sem anexos nem credenciais; edição de arquivos existe somente como proposta (`propose_file_edit`) revisada no editor, nunca gravada em disco pelo agente; no modo Claude Code só `Read`/`Glob`/`Grep` nativos (quando permitidos) e o transcript gravado pelo próprio Claude Code é limitação aceita. ONNX e autocomplete continuam independentes e offline.
 
 ## Entrega e gate
 

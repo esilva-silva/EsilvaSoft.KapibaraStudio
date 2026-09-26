@@ -8,8 +8,10 @@ namespace EsilvaSoft.SlopStudio.Infrastructure.Agents.ClaudeCode;
 /// Modo "Claude (assinatura)": conversa com o Claude pelo binário oficial do Claude Code instalado pelo usuário,
 /// executado como subprocesso (ADR-053). A autenticação é 100% do processo oficial: o app não lê <c>~/.claude</c>,
 /// arquivos de credencial nem tokens, não usa <c>--bare</c> e nunca cai silenciosamente para API Key — qualquer método
-/// efetivo que não seja a assinatura bloqueia o envio. Ferramentas nativas: somente Read/Glob/Grep (ADR-054 revisada);
-/// sem tools do produto nem ferramenta de aprovação nesta etapa. Separado do provider "Claude (Anthropic API)".
+/// efetivo que não seja a assinatura bloqueia o envio. Cada turno obedece ao <see cref="AgentTurnPlan"/> da
+/// <c>AgentModePolicy</c> (ADR-056): ferramentas nativas no máximo Read/Glob/Grep, tools do produto e a ferramenta de
+/// aprovação somente pelo canal MCP local da sessão (<see cref="IAgentMcpChannelProvisioner"/>), mesmo registry.
+/// Separado do provider "Claude (Anthropic API)".
 /// </summary>
 public sealed class ClaudeCodeAgentProvider : IAgentProvider
 {
@@ -19,22 +21,30 @@ public sealed class ClaudeCodeAgentProvider : IAgentProvider
 
     private readonly Func<ClaudeCodeAgentProviderOptions> _options;
     private readonly Func<ClaudeCodeExecutableLocator> _locator;
+    private readonly IAgentMcpChannelProvisioner? _mcpChannel;
     private readonly Lock _gate = new();
     private InstallationCacheEntry? _installation;
 
-    public ClaudeCodeAgentProvider(ClaudeCodeAgentProviderOptions options)
-        : this(() => options, ClaudeCodeExecutableLocator.ForCurrentProcess)
+    /// <param name="options">Configuração validada na construção.</param>
+    /// <param name="mcpChannel">
+    /// Canal MCP por sessão (composição do Desktop). Nulo: nenhuma tool do produto; um plano que as exija falha com
+    /// <see cref="ClaudeCodeErrorCodes.ProductToolsUnavailable"/>.
+    /// </param>
+    public ClaudeCodeAgentProvider(ClaudeCodeAgentProviderOptions options, IAgentMcpChannelProvisioner? mcpChannel = null)
+        : this(() => options, ClaudeCodeExecutableLocator.ForCurrentProcess, mcpChannel)
     {
         ArgumentNullException.ThrowIfNull(options);
         options.Validate();
     }
 
-    internal ClaudeCodeAgentProvider(Func<ClaudeCodeAgentProviderOptions> options, Func<ClaudeCodeExecutableLocator> locator)
+    internal ClaudeCodeAgentProvider(
+        Func<ClaudeCodeAgentProviderOptions> options, Func<ClaudeCodeExecutableLocator> locator, IAgentMcpChannelProvisioner? mcpChannel = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(locator);
         _options = options;
         _locator = locator;
+        _mcpChannel = mcpChannel;
     }
 
     public string ProviderId => Id;
@@ -44,8 +54,10 @@ public sealed class ClaudeCodeAgentProvider : IAgentProvider
 
     /// <summary>
     /// Capacidades implementadas, com evidência de contrato automatizado (CLI falso com fixtures do spike); a conta real
-    /// só é comprovada pela homologação manual (GCL-8). <see cref="AgentProviderCapabilities.ToolCalling"/> é falso:
-    /// as leituras nativas da CLI não passam pelo registry e não há tools do produto nesta etapa.
+    /// só é comprovada pela homologação manual (GCL-8/GCL-17). <see cref="AgentProviderCapabilities.TurnPlan"/>: o adapter
+    /// obedece a <c>Plan</c>, <c>SystemPrompt</c> e <c>Attachments</c> (turno sem plano é recusado).
+    /// <see cref="AgentProviderCapabilities.ToolCalling"/> é falso aqui e só vale por instância (<see cref="Capabilities"/>),
+    /// quando as tools do produto estão disponíveis na plataforma: as leituras nativas da CLI não passam pelo registry.
     /// </summary>
     internal static AgentProviderCapabilities ImplementedCapabilities { get; } = new()
     {
@@ -55,12 +67,40 @@ public sealed class ClaudeCodeAgentProvider : IAgentProvider
         Sessions = true,
         ModelSelection = true,
         UsesNetwork = true,
+        TurnPlan = true,
         Evidence = AgentCapabilityEvidence.AutomatedContract,
     };
 
+    /// <summary>
+    /// Fato de plataforma para a UI montar o plano (<c>AgentPlatformFacts.ProductToolsAvailable</c>): verdadeiro só com canal
+    /// MCP composto, plataforma com proof de transporte (hoje Windows) e estágio de exposição liberado. Sem processo, arquivo
+    /// ou rede. No Linux é falso: o chat funciona sem tools do produto e a UI mostra o estado "indisponível".
+    /// </summary>
+    public bool ProductToolsAvailable
+    {
+        get
+        {
+            try
+            {
+                return _mcpChannel?.ProductToolsAvailable == true;
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                return false;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Capacidades desta instância: <see cref="AgentProviderCapabilities.ToolCalling"/> verdadeiro quando as tools do
+    /// produto estão disponíveis (chamadas estruturadas executadas pelo registry único via broker MCP da sessão; o runtime
+    /// não despacha pedidos de tool deste adapter).
+    /// </summary>
+    public AgentProviderCapabilities Capabilities => ImplementedCapabilities with { ToolCalling = ProductToolsAvailable };
+
     /// <summary>Descrição estática, sem processo, arquivo ou rede.</summary>
     public AgentProviderDescriptor Describe() =>
-        new(Id, DisplayName, [AgentAuthenticationMethod.OfficialCliDelegated], ImplementedCapabilities);
+        new(Id, DisplayName, [AgentAuthenticationMethod.OfficialCliDelegated], Capabilities);
 
     /// <summary>
     /// Estado sob demanda (a listagem do catálogo não chama este método): executa <c>claude --version</c> (em cache
@@ -84,7 +124,7 @@ public sealed class ClaudeCodeAgentProvider : IAgentProvider
             return Unavailable(availability.Reason, AuthStateOf(availability.Reason));
         }
 
-        return new AgentProviderStatus(true, AgentProviderAuthState.Configured, ImplementedCapabilities with
+        return new AgentProviderStatus(true, AgentProviderAuthState.Configured, Capabilities with
         {
             ModelSelection = options.AllowedModelIds.Count > 1,
         }, options.AllowedModelIds, options.DefaultModel);
@@ -188,7 +228,8 @@ public sealed class ClaudeCodeAgentProvider : IAgentProvider
             throw new ClaudeCodeUnavailableException(availability.Reason);
         }
 
-        return new ClaudeCodeAgentSession(this, configuration, availability.Profile!);
+        return new ClaudeCodeAgentSession(this, configuration, availability.Profile!, new ClaudeCodeSessionContext(
+            _mcpChannel, options.ConversationId, options.ResumeProviderSessionId, options.ProviderSessionObserver));
     }
 
     /// <summary>Verificação imediatamente antes de escrever o prompt: ambiente, executável e método efetivo.</summary>
@@ -392,7 +433,10 @@ public sealed class ClaudeCodeAgentProvider : IAgentProvider
             var (directory, kind) = ClaudeCodeWorkspacePolicy.Resolve(options, home, requestedWorkspace, createDedicated);
             var deny = ClaudeCodeCommandLine.BuildDenyRules(options.ResolveAppDataDirectory(), options.ResolveDatabasePath(), home);
             return new ClaudeCodeLaunchProfile(installation.ExecutablePath!, installation.Version!.Value, directory, kind,
-                ClaudeCodeCommandLine.BuildSettingsJson(kind, deny), model);
+                ClaudeCodeCommandLine.BuildSettingsJson(kind, deny), model)
+            {
+                FixedDenyRules = deny,
+            };
         }
         catch (Exception exception) when (exception is InvalidOperationException or IOException or UnauthorizedAccessException or
             ArgumentException or NotSupportedException)

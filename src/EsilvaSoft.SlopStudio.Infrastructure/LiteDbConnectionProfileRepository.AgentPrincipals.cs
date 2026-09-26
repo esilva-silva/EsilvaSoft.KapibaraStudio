@@ -23,6 +23,12 @@ public sealed partial class LiteDbConnectionProfileRepository : IAgentPrincipalA
 
     private enum AgentChannelState { Pending = 0, Active = 1, Revoked = 2 }
 
+    /// <summary>
+    /// Additive field (absent in older rows = <see cref="ExternalClient"/>): a per-session channel of an integrated
+    /// provider (ADR-056) is never accepted as an external MCP client and is revoked as an orphan when no session owns it.
+    /// </summary>
+    private enum AgentChannelPurpose { ExternalClient = 0, Session = 1 }
+
     public Task<AgentPrincipalIssueResult> IssueInternalAsync(CancellationToken cancellationToken = default) =>
         RunAsync(() =>
         {
@@ -61,7 +67,40 @@ public sealed partial class LiteDbConnectionProfileRepository : IAgentPrincipalA
                channel.State == (int)AgentChannelState.Active ? channel : null;
     }
 
-    public async Task<AgentChannelEnrollmentResult> EnrollExternalChannelAsync(CancellationToken cancellationToken = default)
+    public Task<AgentChannelEnrollmentResult> EnrollExternalChannelAsync(CancellationToken cancellationToken = default) =>
+        EnrollChannelAsync(AgentChannelPurpose.ExternalClient, cancellationToken);
+
+    public Task<AgentChannelEnrollmentResult> EnrollSessionChannelAsync(CancellationToken cancellationToken = default) =>
+        EnrollChannelAsync(AgentChannelPurpose.Session, cancellationToken);
+
+    public async Task<int> RevokeOrphanSessionChannelsAsync(IReadOnlyCollection<Guid> activeChannelIds,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(activeChannelIds);
+        var keep = activeChannelIds.ToHashSet();
+        var orphans = await RunAsync(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return AgentChannels().FindAll()
+                .Where(channel => IsReadable(channel) && channel.Purpose == (int)AgentChannelPurpose.Session &&
+                    !keep.Contains(channel.Id) && !_activeChannelEnrollments.Contains(channel.Id) &&
+                    (channel.State != (int)AgentChannelState.Revoked || channel.ProofCleanupPending))
+                .Select(channel => channel.Id)
+                .ToArray();
+        }, cancellationToken).ConfigureAwait(false);
+        var revoked = 0;
+        foreach (var channelId in orphans)
+        {
+            // Revocation is durable first; a failed proof removal stays pending for RecoverPendingChannelsAsync.
+            if (await RevokeExternalChannelAsync(channelId, CancellationToken.None).ConfigureAwait(false) !=
+                AgentChannelRevocationStatus.UnknownChannel)
+                revoked++;
+        }
+        return revoked;
+    }
+
+    private async Task<AgentChannelEnrollmentResult> EnrollChannelAsync(AgentChannelPurpose purpose,
+        CancellationToken cancellationToken)
     {
         if (_profileSecrets is null)
             return new(AgentChannelEnrollmentStatus.CredentialStoreFailed, FailureCode: SecretStoreFailureCode.Unavailable);
@@ -75,7 +114,7 @@ public sealed partial class LiteDbConnectionProfileRepository : IAgentPrincipalA
             AgentChannels().Insert(new AgentChannelDocument
             {
                 Id = channelId, PrincipalId = principalId, Origin = (int)AgentPrincipalOrigin.External,
-                State = (int)AgentChannelState.Pending, ProofReferenceId = reference.Id,
+                State = (int)AgentChannelState.Pending, ProofReferenceId = reference.Id, Purpose = (int)purpose,
                 ProofReferenceVersion = reference.Version, CreatedAtUtcTicks = DateTime.UtcNow.Ticks
             });
             _activeChannelEnrollments.Add(channelId);
@@ -278,7 +317,8 @@ public sealed partial class LiteDbConnectionProfileRepository : IAgentPrincipalA
         // No persisted policy means nothing is granted; there is no revision to bind, so no principal is issued.
         if (policy is null || !policy.IsValid || policy.Revision < 1)
             return AgentPrincipalIssueResult.Denied(AgentPrincipalIssueStatus.PolicyMissing);
-        return AgentPrincipalIssueResult.Issued(new AgentPrincipal(channel.PrincipalId, origin, policy.Revision));
+        return AgentPrincipalIssueResult.Issued(new AgentPrincipal(channel.PrincipalId, origin, policy.Revision,
+            isSessionChannel: origin == AgentPrincipalOrigin.External && channel.Purpose == (int)AgentChannelPurpose.Session));
     }
 
     private static AgentPrincipalIssueStatus? ClassifyExternal(AgentChannelDocument? channel)
@@ -307,6 +347,8 @@ public sealed partial class LiteDbConnectionProfileRepository : IAgentPrincipalA
         channel.SchemaVersion == AgentChannelSchemaVersion && channel.PrincipalId != Guid.Empty &&
         channel.State is >= (int)AgentChannelState.Pending and <= (int)AgentChannelState.Revoked &&
         channel.Origin is (int)AgentPrincipalOrigin.Internal or (int)AgentPrincipalOrigin.External &&
+        (channel.Purpose == (int)AgentChannelPurpose.ExternalClient ||
+         channel.Purpose == (int)AgentChannelPurpose.Session && channel.Origin == (int)AgentPrincipalOrigin.External) &&
         (channel.ProofReferenceId is null || (channel.ProofReferenceId != Guid.Empty && channel.ProofReferenceVersion >= 1));
 
     private ILiteCollection<AgentChannelDocument> AgentChannels()
@@ -362,6 +404,7 @@ public sealed partial class LiteDbConnectionProfileRepository : IAgentPrincipalA
         public Guid? ProofReferenceId { get; init; }
         public int ProofReferenceVersion { get; init; }
         public bool ProofCleanupPending { get; set; }
+        public int Purpose { get; init; }
         public long CreatedAtUtcTicks { get; init; }
     }
 }

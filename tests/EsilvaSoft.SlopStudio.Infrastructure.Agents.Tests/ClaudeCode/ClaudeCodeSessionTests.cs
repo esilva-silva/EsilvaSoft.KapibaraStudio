@@ -301,7 +301,7 @@ public sealed class ClaudeCodeSessionTests
     {
         using var fixture = new ClaudeCodeFixture().Turn("cancel-with-child.jsonl", resumeFixture: "basic-turn2-resume.jsonl");
         await using var session = await SessionAsync(fixture.Provider());
-        var request = new AgentTurnRequest(AgentTurnId.New(), "Rode algo longo", "tab-1", 1);
+        var request = ClaudeCodeFixture.Request("Rode algo longo");
         var events = new List<AgentProviderEvent>();
 
         var run = Task.Run(async () =>

@@ -24,8 +24,8 @@ public sealed partial class AgentContextProvider : IAgentContextProvider
 
     private const int MaximumNameChars = 255;
     private const int MaximumTabIdChars = 128;
-    private const string RedactedConnectionString = "[connection string removida]";
-    private const string RedactedSecret = "[segredo removido]";
+    internal const string RedactedConnectionString = "[connection string removida]";
+    internal const string RedactedSecret = "[segredo removido]";
 
     private readonly IConnectionProfileRepository _profiles;
     private readonly TimeProvider _time;
@@ -114,7 +114,9 @@ public sealed partial class AgentContextProvider : IAgentContextProvider
     private static string? NormalizeName(string? name) =>
         string.IsNullOrWhiteSpace(name) || name.Length > MaximumNameChars || name.Any(char.IsControl) ? null : name;
 
-    private static string? Redact(string? text)
+    /// <summary>Shared best-effort secret redaction (also used by the attachment resolver and the prompt builder).</summary>
+    /// <exception cref="AgentRuntimeException">Code <c>ContextRedactionFailed</c> when redaction times out.</exception>
+    internal static string? Redact(string? text)
     {
         if (string.IsNullOrEmpty(text))
         {

@@ -24,6 +24,9 @@ namespace EsilvaSoft.SlopStudio.UnitTests;
 [NonParallelizable]
 public sealed class DesktopAgentCompositionTests
 {
+    private static readonly string[] DefaultMetadataTools =
+        ["list_connections", "list_databases", "list_collections", "get_indexes"];
+
     /// <summary>
     /// Same calls <c>App.axaml.cs</c> makes, minus the two Desktop-only view-model registrations that need a live
     /// Avalonia window; <see cref="InMemoryProfileSecretStore"/> stands in for an OS vault with nothing stored in it
@@ -62,8 +65,12 @@ public sealed class DesktopAgentCompositionTests
         {
             Assert.That(services.Any(descriptor => descriptor.ServiceType == typeof(AgentBrokerHost)), Is.False,
                 "O broker MCP continua opt-in; compor os providers externos não liga o ingresso MCP.");
-            Assert.That(((AgentToolRegistry)registry).ExposureStage, Is.EqualTo(AgentToolExposureStage.None));
-            Assert.That(registry.GetDescriptors(), Is.Empty, "Nada exposto por padrão, mesmo com OpenAI/Claude compostos.");
+            // ADR-056: the default stage is Metadata; still no document, write or per-session tool for in-process
+            // providers, and every call needs a persisted grant.
+            Assert.That(((AgentToolRegistry)registry).ExposureStage, Is.EqualTo(AgentToolExposureStage.Metadata));
+            Assert.That(registry.GetDescriptors().Select(descriptor => descriptor.Name), Is.EquivalentTo(
+                DefaultMetadataTools), "Só metadados por padrão, mesmo com OpenAI/Claude compostos.");
+            Assert.That(registry.FindDescriptor(AgentToolRegistry.InsertOneToolName), Is.Null, "write:null.");
             Assert.That(appCatalog.List().Select(entry => entry.Descriptor.ProviderId), Is.EquivalentTo(
                 new[] { LocalAgentProvider.Id, OpenAiAgentProvider.Id, ClaudeAgentProvider.Id }));
             Assert.That(desktopCatalog, Is.InstanceOf<DesktopAgentProviderCatalog>());

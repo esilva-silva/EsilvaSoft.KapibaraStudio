@@ -47,11 +47,18 @@ public sealed record WorkspacePreferences
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public EditorKeyBindings? EditorKeyBindings { get; init; }
+    /// <summary>
+    /// Additive to version 2 (ADR-056): Agent IA panel state. Null (absent) keeps the UI defaults and is not written
+    /// back, so sessions saved before this field keep their shape.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public AgentPanelPreferences? AgentPanel { get; init; }
 
     public void ValidateKeyBindings() => EditorKeyBindings?.Validate();
 
     public void ValidateMetadata()
     {
+        AgentPanel?.Validate();
         if (SchemaSamplingProfileIds is null || SchemaSamplingProfileIds.Contains(Guid.Empty))
             throw new InvalidDataException("Preferência de amostragem de schema inválida.");
         if (LearnedSchemaExcludedProfileIds is null || LearnedSchemaExcludedProfileIds.Contains(Guid.Empty))

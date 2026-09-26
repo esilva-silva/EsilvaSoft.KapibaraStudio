@@ -63,9 +63,10 @@ public sealed class AgentToolRegistryGateTests
         });
     }
 
-    [TestCase(AgentToolExposureStage.Metadata, new[] { "list_connections", "list_databases", "list_collections" })]
+    // ADR-056: get_indexes (allowlisted index metadata) belongs to the Metadata stage.
+    [TestCase(AgentToolExposureStage.Metadata, new[] { "list_connections", "list_databases", "list_collections", "get_indexes" })]
     [TestCase(AgentToolExposureStage.LiteralQueries,
-        new[] { "list_connections", "list_databases", "list_collections", "mongo_find", "mongo_count" })]
+        new[] { "list_connections", "list_databases", "list_collections", "get_indexes", "mongo_find", "mongo_count" })]
     public async Task ExposureFollowsPlanOrderAndDeniesLaterStagesBeforeAnySource(
         AgentToolExposureStage stage, string[] expected)
     {

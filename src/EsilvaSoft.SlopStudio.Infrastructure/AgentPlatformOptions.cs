@@ -4,9 +4,9 @@ namespace EsilvaSoft.SlopStudio.Infrastructure;
 
 /// <summary>
 /// Composition options of the agent platform shared by every ingress (native chat runtime and the opt-in MCP broker).
-/// The registry is always composed, but closed by default: <see cref="ToolExposureStage"/> starts at
-/// <see cref="AgentToolExposureStage.None"/>, so nothing is discoverable or executable until a stage is released
-/// explicitly. Stages beyond <see cref="AgentToolExposureStage.LiteralQueries"/> are refused until their gates are
+/// The registry is always composed. <see cref="ToolExposureStage"/> defaults to <see cref="AgentToolExposureStage.Metadata"/>
+/// (ADR-056: metadata reads and the per-session tools of the integrated Claude Code agent); releasing a stage still
+/// authorizes nothing by itself, and <see cref="AgentToolExposureStage.None"/> keeps everything closed. Stages beyond <see cref="AgentToolExposureStage.LiteralQueries"/> are refused until their gates are
 /// approved. Releasing a stage still grants nothing: every call needs a persisted grant for its principal.
 /// Write tools stay closed independently of the stage: no <see cref="IAgentMongoWriteSource"/> is composed yet
 /// (lote 10), so the registry never exposes them even though the approval chain is wired.
@@ -14,7 +14,15 @@ namespace EsilvaSoft.SlopStudio.Infrastructure;
 public sealed record AgentPlatformOptions
 {
     /// <summary>Catalog stage released to the single shared registry, for every ingress alike.</summary>
-    public AgentToolExposureStage ToolExposureStage { get; init; } = AgentToolExposureStage.None;
+    public AgentToolExposureStage ToolExposureStage { get; init; } = AgentToolExposureStage.Metadata;
+
+    /// <summary>
+    /// Stage announced to in-process providers (native chat: local, OpenAI and Claude API). Defaults to
+    /// <see cref="AgentToolExposureStage.None"/>: the internal principal has no grant by default, so announcing metadata
+    /// tools there would only produce denied calls. Never above <see cref="ToolExposureStage"/>. Per-session tools are
+    /// never announced in process.
+    /// </summary>
+    public AgentToolExposureStage InProcessToolExposureStage { get; init; } = AgentToolExposureStage.None;
 
     /// <summary>Registry execution ceiling (the registry itself caps at 30 s).</summary>
     public TimeSpan ToolExecutionTimeout { get; init; } = TimeSpan.FromSeconds(30);
@@ -39,6 +47,8 @@ public sealed record AgentPlatformOptions
             throw new ArgumentException("Estágio de exposição desconhecido.", nameof(ToolExposureStage));
         if (ToolExposureStage > AgentToolExposureStage.LiteralQueries)
             throw new ArgumentException("Estágio de exposição ainda não liberado.", nameof(ToolExposureStage));
+        if (!Enum.IsDefined(InProcessToolExposureStage) || InProcessToolExposureStage > ToolExposureStage)
+            throw new ArgumentException("Estágio in-process inválido.", nameof(InProcessToolExposureStage));
         if (ToolExecutionTimeout <= TimeSpan.Zero || ToolExecutionTimeout > TimeSpan.FromSeconds(30))
             throw new ArgumentException("Prazo de execução inválido.", nameof(ToolExecutionTimeout));
         if (Runtime is null) throw new ArgumentException("Opções do runtime ausentes.", nameof(Runtime));

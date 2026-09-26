@@ -23,6 +23,9 @@ namespace EsilvaSoft.SlopStudio.UnitTests;
 [NonParallelizable]
 public sealed class AgentPlatformCompositionTests
 {
+    private static readonly string[] DefaultMetadataTools =
+        ["list_connections", "list_databases", "list_collections", "get_indexes"];
+
     private const string ExternalProviderId = "fixture";
     private static readonly TimeSpan Wait = TimeSpan.FromSeconds(10);
 
@@ -53,9 +56,16 @@ public sealed class AgentPlatformCompositionTests
         Assert.Multiple(() =>
         {
             Assert.That(registry, Is.InstanceOf<AgentToolRegistry>());
-            Assert.That(((AgentToolRegistry)registry).ExposureStage, Is.EqualTo(AgentToolExposureStage.None));
-            Assert.That(registry.GetDescriptors(), Is.Empty, "Registry composto, mas nada exposto por padrão.");
-            Assert.That(registry.FindDescriptor(AgentToolRegistry.ListConnectionsToolName), Is.Null);
+            // ADR-056: default stage Metadata. Releasing it authorizes nothing: every call still needs a grant.
+            Assert.That(((AgentToolRegistry)registry).ExposureStage, Is.EqualTo(AgentToolExposureStage.Metadata));
+            Assert.That(registry.GetDescriptors().Select(descriptor => descriptor.Name), Is.EquivalentTo(
+                DefaultMetadataTools), "Só metadados por padrão.");
+            Assert.That(registry.FindDescriptor(AgentToolRegistry.MongoFindToolName), Is.Null);
+            // write:null: no write tool exists at any ingress, per-session tools included.
+            Assert.That(registry.GetChannelDescriptors().Select(descriptor => descriptor.Risk), Is.All.EqualTo(AgentToolRisk.ReadOnly));
+            Assert.That(registry.FindDescriptor(AgentToolRegistry.InsertOneToolName), Is.Null);
+            // The per-session MCP channel is lazy: composing it starts no broker and enrolls no channel.
+            Assert.That(provider.GetRequiredService<AgentMcpChannelProvisioner>().Broker, Is.Null);
             Assert.That(runtime, Is.SameAs(host), "Um único runtime por aplicação.");
             Assert.That(host.Runtime.ToolRegistry, Is.SameAs(registry));
             Assert.That(provider.GetRequiredService<IAgentToolBindingProvider>(), Is.InstanceOf<InternalAgentToolBindingProvider>());

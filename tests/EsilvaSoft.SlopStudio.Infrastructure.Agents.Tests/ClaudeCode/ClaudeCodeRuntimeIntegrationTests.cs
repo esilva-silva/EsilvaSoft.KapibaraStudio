@@ -28,8 +28,7 @@ public sealed class ClaudeCodeRuntimeIntegrationTests
         return events;
     }
 
-    private static AgentTurnRequest Request(string message = "Responda apenas: ok") =>
-        new(AgentTurnId.New(), message, "tab-1", 1);
+    private static AgentTurnRequest Request(string message = "Responda apenas: ok") => ClaudeCodeFixture.Request(message);
 
     [Test]
     public async Task NativeReadsReachTheRuntimeStreamAsObservationsWithNameAndStateOnly()

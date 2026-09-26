@@ -12,6 +12,22 @@ Um proxy MCP STDIO (`EsilvaSoft.SlopStudio.McpServer`) e um broker IPC autentica
 
 A tabela "Primeira entrega somente leitura" abaixo continua sendo a especificação normativa (schemas, limites, mapeamento de grants); ela já é consistente com as 12 tools implementadas, exceto por `get_connection_info`, que a especificação original propunha e ainda não foi implementada. `get_indexes` já usa DTO allowlist (`AgentMongoIndexSummary` em `AgentToolRegistry.Indexes.cs`), não índices BSON crus como a especificação original temia — confirmado por leitura do código nesta reconciliação.
 
+## Tools do Agente IA para o Claude Code (ADR-056, 26/09/2026)
+
+**Planejado, não implementado.** Pela [ADR-056](../../10-decisoes-arquiteturais.md#adr-056--agente-ia-integrado-conversas-persistidas-permissões-por-provider-modos-e-propostas-de-edição-26092026), o Claude Code (assinatura) passa a receber tools do produto por MCP local — `--mcp-config` inline apontando para `EsilvaSoft.SlopStudio.McpServer --stdio`, servidor `slopstudio`, `--strict-mcp-config` —, pelo mesmo broker e registry descritos acima, com canal e proof por sessão via `IAgentPrincipalAuthority`. No Linux o proof ainda não existe (`UnavailableClientTransportCredentialStore`) e as tools ficam indisponíveis com estado visível. O conjunto é exposto no estágio `Metadata`; hoje `get_indexes` pertence ao estágio `DerivedReads` e a reclassificação faz parte de P7-CL7-04 (tool-registry-agent).
+
+| Tool / categoria | Input → output (proposta) | Origem e restrições |
+| --- | --- | --- |
+| `list_connections` / leitura | `{}` → `connections[{id,name,readOnly,open}]` | Existente; sem URI; alias para destino externo; filtrada pelas conexões permitidas em `AgentProviderPermissions` |
+| `list_databases`, `list_collections` / leitura | C / D → `names[]` | Existentes |
+| `get_indexes` / leitura | N → nome, keys, options, unique/sparse/TTL/partial | Existente (`AgentMongoIndexSummary` a partir de `IndexInfo`) |
+| `get_cached_schema` / leitura | N → campos/tipos do cache, origem e data | **Nova.** Lê `IMetadataCache.GetSampledSchema` e o conhecimento aprendido (`ILearnedSchemaRepository`/`IKnowledgeCatalog`); **não amostra o banco** nem inicia aprendizagem; cache vazio retorna vazio com motivo |
+| `get_workspace_context` / leitura | `{}` → pasta do workspace, arquivo ativo, aba (conexão › banco › coleção) | **Nova.** Snapshot do `IAgentWorkspaceContextSource` do Desktop, capturado na thread de UI; sem conteúdo de arquivo nem URI |
+| `propose_file_edit` / proposta | `{path, edits:[{old_text,new_text}]}` ou `{path, new_content}` → `{proposalId, status:"registrada, aguardando revisão"}` | **Nova.** Categoria *proposta*: nunca grava em disco; `IAgentEditProposalSink` do Desktop cria a `AgentEditProposal`; caminho validado contra permissões e exclusões; não exposta no modo Planejamento |
+| `approve` (interna) | Pedido `{tool_name, input, tool_use_id}` da CLI → `allow`/`deny` | Só para `--permission-prompt-tool mcp__slopstudio__approve` (modo Solicitar confirmações e pasta dedicada); invisível ao modelo; decisão só pelo gesto humano |
+
+`get_collection_schema` (amostragem) continua dependendo do consentimento do P7-L02 e fica fora deste conjunto. As tools de escrita da seção [Escritas](#escritas-somente-após-permissão-aprovação-e-auditoria-homologadas) aparecem apenas na tela Permissões como **não disponíveis nesta versão** (lote 10 pendente). O `ClaudeCodeStreamTranslator` valida no `init` o conjunto exato `mcp__slopstudio__*` do plano.
+
 ## Contrato comum
 
 Nomes wire em inglês, descrições de produto em pt-BR. Cada `AgentToolDescriptor` informa nome, versão do schema, descrição, input/output JSON Schema, risco, permissões, categorias de dados, limites e necessidade de aprovação. Não gerar tools por reflexão dos serviços existentes. Anotações MCP são informativas; a autorização real acontece no registry. Para destinos `ProviderExternal`, nomes de perfil definidos pelo usuário não são enviados: o campo `name` recebe alias estável derivado do ID (`Conexão <ID>`). O nome original fica disponível somente para destino `Local`; redaction heurística de texto livre não é garantia de ausência de segredos.

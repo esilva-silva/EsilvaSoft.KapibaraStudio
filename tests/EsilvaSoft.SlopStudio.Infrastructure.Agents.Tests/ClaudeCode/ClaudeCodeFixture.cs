@@ -96,6 +96,32 @@ internal sealed class ClaudeCodeFixture : IDisposable
         return Save();
     }
 
+    /// <summary>Tools que o servidor MCP falso "lista" (sem prefixo) quando conectado.</summary>
+    public ClaudeCodeFixture McpTools(params string[] tools)
+    {
+        _scenario["mcpTools"] = new JsonArray([.. tools.Select(static tool => (JsonNode)JsonValue.Create(tool)!)]);
+        return Save();
+    }
+
+    /// <summary>Status reportado para cada servidor de <c>--mcp-config</c> (padrão <c>connected</c>).</summary>
+    public ClaudeCodeFixture McpStatus(string status)
+    {
+        _scenario["mcpStatus"] = status;
+        return Save();
+    }
+
+    public ClaudeCodeFixture ExtraInitTools(params string[] tools)
+    {
+        _scenario["extraInitTools"] = new JsonArray([.. tools.Select(static tool => (JsonNode)JsonValue.Create(tool)!)]);
+        return Save();
+    }
+
+    public ClaudeCodeFixture ExtraMcpServer(string name, string status)
+    {
+        _scenario["extraMcpServers"] = new JsonArray(new JsonObject { ["name"] = name, ["status"] = status });
+        return Save();
+    }
+
     public ClaudeCodeFixture Save(string? directory = null)
     {
         File.WriteAllText(Path.Combine(directory ?? WorkingDirectory, "fake-claude.json"), _scenario.ToJsonString());
@@ -146,11 +172,34 @@ internal sealed class ClaudeCodeFixture : IDisposable
     public IReadOnlyList<string[]> TurnInvocations(string? directory = null) =>
         [.. Invocations(directory).Where(static argv => argv.Contains("-p"))];
 
-    public static async Task<List<AgentProviderEvent>> RunAsync(IAgentSession session, string message = "Responda apenas: ok",
+    /// <summary>Prompt de sistema curto, sem segredos, como o do <c>AgentSystemPromptBuilder</c>.</summary>
+    public const string SystemPrompt = "Você é o agente de teste do KapibaraStudio. Modo: Agente. Descubra via tools.";
+
+    /// <summary>
+    /// Plano equivalente ao comportamento anterior ao ADR-056 (Read/Glob/Grep, sem tools do produto nem confirmação), para
+    /// os testes de protocolo/processo que não dependem do plano.
+    /// </summary>
+    public static AgentTurnPlan LegacyPlan { get; } = new(AgentOperationMode.Agent, ["Read", "Glob", "Grep"], [], [], [],
+        AgentProposalHandling.Disabled, false, AgentConfirmationCategories.None);
+
+    public static AgentTurnRequest Request(string message = "Responda apenas: ok", AgentTurnPlan? plan = null,
+        AgentProviderPermissions? permissions = null, Guid? conversationId = null) =>
+        new(AgentTurnId.New(), message, "tab-1", 1)
+        {
+            Plan = plan ?? LegacyPlan,
+            SystemPrompt = SystemPrompt,
+            Permissions = permissions,
+            ConversationId = conversationId,
+        };
+
+    public static Task<List<AgentProviderEvent>> RunAsync(IAgentSession session, string message = "Responda apenas: ok",
+        CancellationToken cancellationToken = default) => RunAsync(session, Request(message), cancellationToken);
+
+    public static async Task<List<AgentProviderEvent>> RunAsync(IAgentSession session, AgentTurnRequest request,
         CancellationToken cancellationToken = default)
     {
         var events = new List<AgentProviderEvent>();
-        await foreach (var item in session.RunTurnAsync(new AgentTurnRequest(AgentTurnId.New(), message, "tab-1", 1), cancellationToken))
+        await foreach (var item in session.RunTurnAsync(request, cancellationToken))
         {
             events.Add(item);
         }

@@ -1,0 +1,4 @@
+# Fixture sintética (P7-CLP-4): init válido montado a partir do argv e processo parado (cancelamento depois do stdin).
+{"type":"system","subtype":"init","cwd":"<WORK>","session_id":"{SESSION_ID}","tools":{INIT_TOOLS},"mcp_servers":{INIT_MCP_SERVERS},"model":"claude-haiku-4-5-20251001","permissionMode":"default","apiKeySource":"none","claude_code_version":"2.1.268","output_style":"default","uuid":"uuid-h001"}
+#spawn-child
+#hang

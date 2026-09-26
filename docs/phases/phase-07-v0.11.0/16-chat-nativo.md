@@ -8,6 +8,8 @@
 
 > **Escopo ampliado em 25/09/2026:** o lote 6 exige o chat **completo** na UI da aplicação, detalhado no [Lote 6 ampliado](10-plano-de-implementacao.md#lote-6-ampliado--chat-completo-na-ui-da-aplicação): hospedagem na `MainWindow` (dock recolhível), contexto por aba, provider/modelo, streaming, cartões de tool call, aprovação e consentimento, configuração de providers/credenciais, MCP opt-in, teclado/acessibilidade, estados vazio/erro, localização e PNGs nos dois temas em 960/1366/1920, com homologação de leitor de tela e diálogos nativos. Nada de transcript persistido. É escopo planejado: a hospedagem ainda está em andamento e nada aqui é declarado entregue. A opção **Entrar com conta** só existirá se os gates do sublote 7B ou do bloco Integração Claude ([23](23-integracao-claude.md)) forem provados; a homologação manual está no [roteiro 21](21-homologacao-manual-login.md).
 
+> **Polimento planejado em 26/09/2026 ([ADR-056](../../10-decisoes-arquiteturais.md#adr-056--agente-ia-integrado-conversas-persistidas-permissões-por-provider-modos-e-propostas-de-edição-26092026)).** O chat por aba descrito abaixo e na subseção do bloco CL é o estado **implementado** hoje. A decisão nova, ainda **não implementada**, torna o painel global ao workspace, com conversas persistidas, permissões persistentes por provider, chips de contexto, modos, tools do produto via MCP e propostas de edição revisadas por diff; somem **Revisar envio**, o cartão de prévia e o consentimento por sessão. Especificação em [Agente IA integrado](#agente-ia-integrado-adr-056--especificação-planejada) e no [design system](../../17-design-system-ui-ux.md#agente-ia-integrado-adr-056--especificação-planejada-26092026); tarefas P7-CL7-07/08 em [23](23-integracao-claude.md#polimento-do-agente-ia--adr-056-26092026).
+
 ## Composição e contexto
 
 Painel **Agente IA** recolhível na área de trabalho, sem substituir Explorer ou resultados. Em janela mínima, abrir superfície própria dentro da IDE com retorno ao editor; não reduzir editor/resultados abaixo dos mínimos do design system. A implementação validará a disposição com PNGs antes de fixar dimensões. Cabeçalho: provider/modelo, indicador textual **Local** ou **Externo**, estado e ação Configurar. Contexto fixo aparece como conexão lógica › banco › coleção; mudar seleção no Explorer não o altera.
@@ -49,6 +51,20 @@ Regras: nenhum token, chave, e-mail completo ou caminho pessoal é exibido; abri
 Modal proprietária exibe ferramenta, conexão/banco/coleção, filtro/ID, diff, limite afetado, risco e expiração. `Rejeitar` é a ação segura de fechamento; `Aprovar uma vez` só habilita a proposta atual. Confirmar destrutiva exige identificação do destino. O modelo não fecha a modal nem preenche consentimento. Aprovação revogada, destino alterado ou timeout desabilitam confirmar e explicam a razão.
 
 Estados obrigatórios: sem provider, sem modelo local, não autenticado, pronto, conectando, gerando, aguardando tool, aguardando aprovação, cancelando, concluído, resultado incerto, indisponível e erro de persistência. Todos têm texto e ação apropriada, não só cor. Sem IA, o editor permanece operacional. Status global reutiliza o coordenador de operações existente, enquanto o cancelamento continua por sessão/turno.
+
+## Agente IA integrado (ADR-056) — especificação planejada
+
+**Planejado, não implementado.** Substitui, quando entregue, o chat por aba, a prévia **Revisar envio** e o consentimento por sessão descritos acima.
+
+- **Painel global:** um `AgentChatPanel` ligado ao `WorkspaceViewModel`, sem vínculo com a aba. Trocar de aba não troca a conversa; o arquivo e a aba ativos entram como chip, capturados no envio. Um turno pertence à conversa que o originou; trocar de conversa durante o turno não redireciona o resultado.
+- **Cabeçalho:** título da conversa, **Histórico** (flyout com lista, busca, renomear, apagar), **Nova conversa**, **Configurar…** e fechar. Abaixo, linha de disponibilidade do provider (Verificando, Disponível, Não conectado, CLI ausente, Falha/timeout) com **Tentar novamente** nos estados de falha, e linha de resumo de permissões (ex.: "Externo · leitura MongoDB · arquivos do workspace") com link **Permissões**.
+- **Consentimento:** sem consentimento persistido do provider, o composer mostra **Configurar permissões** no lugar de enviar. Não há checkbox por sessão nem prévia por mensagem.
+- **Chips de contexto** acima do composer: arquivo ativo (padrão, conteúdo do buffer), metadados da aba, arquivos do workspace e anexos externos (se permitidos), cada um removível (×); **+ Anexar** abre "Arquivo do workspace…" (picker filtrado pelas permissões) e "Arquivo externo…" (diálogo nativo).
+- **Composer:** seletores de **modo** (Agente, Planejamento, Automático, Solicitar confirmações) e **modelo**; Ctrl+Enter envia direto com foco no composer.
+- **Cartões:** tool (já existe), confirmação inline (**Aprovar uma vez**/**Rejeitar**, modo Solicitar confirmações) e **proposta de edição** (arquivo, +N −M, **Revisar**, **Aplicar tudo**, **Descartar**; no Automático, **Manter**/**Reverter**).
+- **Configurações:** `AgentSettingsWindow` fica com autenticação, disponibilidade, modelo padrão, modo padrão e avisos, e ganha **Permissões…**, que abre a `AgentPermissionsWindow` (Envio de dados; Workspace e arquivos; Anexos externos; Contexto automático; Tools do KapibaraStudio — somente leitura / escrita indisponível; Confirmações; Histórico e privacidade).
+- **Revisão por diff:** a proposta abre (ou foca) o arquivo numa aba; o editor mostra removidas/adicionadas e barras **Apply**/**Revert** por hunk; nada é salvo em disco.
+- **Estados adicionais:** histórico ilegível/erro de persistência (visível, sem perder conversas), resume falhou (nova sessão com aviso), tools MCP indisponíveis no Linux, hunk desatualizado.
 
 ## Acessibilidade e prova visual futura
 

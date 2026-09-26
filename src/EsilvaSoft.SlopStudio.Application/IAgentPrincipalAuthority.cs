@@ -110,4 +110,20 @@ public interface IAgentPrincipalAuthority
 
     /// <summary>Abandons interrupted enrollments and retries pending proof removals; returns what is still pending.</summary>
     Task<int> RecoverPendingChannelsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Enrolls a per-session channel of an integrated provider (ADR-056), durably marked as such: its principal carries
+    /// <see cref="AgentPrincipal.IsSessionChannel"/> and it is never accepted as an external MCP client. Authorities that
+    /// do not support session channels fail closed.
+    /// </summary>
+    Task<AgentChannelEnrollmentResult> EnrollSessionChannelAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(new AgentChannelEnrollmentResult(AgentChannelEnrollmentStatus.CredentialStoreFailed,
+            FailureCode: SecretStoreFailureCode.Unavailable));
+
+    /// <summary>
+    /// Durably revokes every per-session channel that is not in <paramref name="activeChannelIds"/> (orphans left by a
+    /// crash, kill or cancellation). Returns how many were revoked. Authorities without session channels return zero.
+    /// </summary>
+    Task<int> RevokeOrphanSessionChannelsAsync(IReadOnlyCollection<Guid> activeChannelIds,
+        CancellationToken cancellationToken = default) => Task.FromResult(0);
 }

@@ -78,8 +78,13 @@ public static class AgentProviderServiceCollectionExtensions
     /// is lazy and side-effect free: no process, file or network access happens until the user explicitly checks the
     /// status or opens a session. Authentication belongs entirely to the official CLI; no credential is resolved here.
     /// </summary>
+    /// <remarks>
+    /// <c>mcpChannel</c> (optional, P7-CLP-4) resolves the per-session MCP channel provisioner that carries the product
+    /// tools. Null keeps the provider without product tools (a plan that needs them fails with a typed error).
+    /// </remarks>
     public static IServiceCollection AddSlopStudioClaudeCodeAgentProvider(
-        this IServiceCollection services, ClaudeCodeAgentProviderOptions? options = null)
+        this IServiceCollection services, ClaudeCodeAgentProviderOptions? options = null,
+        Func<IServiceProvider, IAgentMcpChannelProvisioner?>? mcpChannel = null)
     {
         ArgumentNullException.ThrowIfNull(services);
         if (services.Any(static descriptor => descriptor.ServiceType == typeof(ClaudeCodeAgentProvider)))
@@ -89,7 +94,7 @@ public static class AgentProviderServiceCollectionExtensions
 
         var configured = options ?? new ClaudeCodeAgentProviderOptions();
         configured.Validate();
-        services.AddSingleton(_ => new ClaudeCodeAgentProvider(configured));
+        services.AddSingleton(provider => new ClaudeCodeAgentProvider(configured, mcpChannel?.Invoke(provider)));
         services.AddSingleton<IAgentProvider>(provider => provider.GetRequiredService<ClaudeCodeAgentProvider>());
         return services;
     }

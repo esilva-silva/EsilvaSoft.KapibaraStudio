@@ -2,7 +2,7 @@
 
 **Em desenvolvimento inicial.** O lote 0 tem spikes isolados; o lote 1 tem adapters de cofre compostos, ainda sem homologação nativa completa; e o lote 2 tem persistência de política, evaluator e registry interno parcial. Nenhum lote está concluído; MCP, runtime, chat, providers, protocolo externo, migração de credenciais, tools expostas e todos os ACs continuam pendentes. Prefixo de projetos omitido nas tabelas: `EsilvaSoft.SlopStudio`. Cada lote deve terminar com revisão de diff, documentação e evidência do seu gate antes de liberar o seguinte.
 
-**Prioridade vigente — decisão do usuário em 25/09/2026 (posterior):** **finalizar a integração com Claude**, priorizando a assinatura Claude Pro pelo binário oficial do Claude Code, finalizando o que já está aberto e sem criar frentes desnecessárias. Ver [Bloco prioritário — Integração Claude](#bloco-prioritário--integração-claude-25092026) e [23](23-integracao-claude.md). Esse bloco substitui o sublote 8B; o 7B e os lotes 10/11/12 ficam subordinados a ele. Nada implementado ou homologado por esta decisão.
+**Prioridade vigente — decisão do usuário em 25/09/2026 (posterior):** **finalizar a integração com Claude**, priorizando a assinatura Claude Pro pelo binário oficial do Claude Code, finalizando o que já está aberto e sem criar frentes desnecessárias. Ver [Bloco prioritário — Integração Claude](#bloco-prioritário--integração-claude-25092026) e [23](23-integracao-claude.md). Esse bloco substitui o sublote 8B; o 7B e os lotes 10/11/12 ficam subordinados a ele. Nada implementado ou homologado por esta decisão. **Atualização de 26/09/2026:** provider Claude Code e conta pela CLI já existem em código (commits `63c162d`/`6e07b41`, sem homologação); a frente ativa passa a ser o [polimento do Agente IA](#polimento-do-agente-ia--sublotes-clp-0clp-7-26092026) (ADR-056, CLP-0..CLP-7).
 
 **Prioridade anterior (mesma data, parcialmente substituída):** viabilizar o uso das contas próprias **Codex/ChatGPT (7B)** e **Claude (8B)**, por integrações oficiais e sob os gates específicos abaixo. O 8B passa a integrar o escopo condicional da fase; a exclusão anterior de assinatura Claude é substituída por esta decisão. API Key continua baseline técnica disponível e alternativa escolhida explicitamente; não atende sozinha à prioridade de contas. Os dois acessos continuam **não implementados e não homologados**. Mantêm-se o chat completo (lote 6 ampliado) e a homologação de login somente manual com contas próprias e dados sintéticos, conforme [21](21-homologacao-manual-login.md). Importação de tokens/sessões e OAuth próprio permanecem fora do escopo.
 
@@ -47,7 +47,7 @@ Cofre, permissões e auditoria vêm antes de expor dados. **A ordem vigente é a
 
 ## Bloco prioritário — Integração Claude (25/09/2026)
 
-Decisão do usuário: finalizar a integração com Claude, priorizando a **assinatura Claude Pro** pelo binário oficial do Claude Code executado como subprocesso ([ADR-053](../../10-decisoes-arquiteturais.md#adr-053--claude-via-assinatura-usando-o-binário-oficial-do-claude-code-como-subprocesso-25092026)), com o modo **Anthropic API** (lote 8) separado e **sem fallback silencioso** entre eles. Ferramentas nativas do Claude Code entram com aprovação por chamada ([ADR-054](../../10-decisoes-arquiteturais.md#adr-054--ferramentas-nativas-do-claude-code-com-aprovação-por-chamada-25092026)). Arquitetura, fatos oficiais, tarefas `P7-CLx-nn`, gates GCL-1..8, riscos e limitações estão em [23 — Integração Claude](23-integracao-claude.md). Estado: **nada implementado, nenhum gate aprovado, nenhum AC aprovado**.
+Decisão do usuário: finalizar a integração com Claude, priorizando a **assinatura Claude Pro** pelo binário oficial do Claude Code executado como subprocesso ([ADR-053](../../10-decisoes-arquiteturais.md#adr-053--claude-via-assinatura-usando-o-binário-oficial-do-claude-code-como-subprocesso-25092026)), com o modo **Anthropic API** (lote 8) separado e **sem fallback silencioso** entre eles. Ferramentas nativas do Claude Code entram com aprovação por chamada ([ADR-054](../../10-decisoes-arquiteturais.md#adr-054--ferramentas-nativas-do-claude-code-com-aprovação-por-chamada-25092026)) — revisto no mesmo dia (ADR-054 revisada: só leitura pura) e em 26/09/2026 pela ADR-056. Arquitetura, fatos oficiais, tarefas `P7-CLx-nn`, gates GCL-1..8, riscos e limitações estão em [23 — Integração Claude](23-integracao-claude.md). Estado: **nada implementado, nenhum gate aprovado, nenhum AC aprovado**.
 
 | Passo (ordem obrigatória) | Tarefas | Reaproveita |
 | --- | --- | --- |
@@ -77,6 +77,23 @@ Decisão do usuário: finalizar a integração com Claude, priorizando a **assin
 
 Lotes 10, 11 e 12 ficam **subordinados** ao bloco CL: trabalho independente pode continuar, mas não disputa responsáveis nem arquivos do CL. Modo API Claude e OpenAI API continuam disponíveis como estão.
 
+### Polimento do Agente IA — sublotes CLP-0..CLP-7 (26/09/2026)
+
+Decisão do usuário registrada na [ADR-056](../../10-decisoes-arquiteturais.md#adr-056--agente-ia-integrado-conversas-persistidas-permissões-por-provider-modos-e-propostas-de-edição-26092026): transformar o Claude (assinatura) — já existente em código nos commits `081a5ab`, `63c162d` e `6e07b41` — num agente integrado, com conversas globais persistidas, permissões persistentes por provider, contexto em chips, modos, tools MongoDB de leitura via MCP local, prompt de sistema e propostas de edição revisadas por diff. Passos P7-CL7-01..11 e gates GCL-9..GCL-17 em [23](23-integracao-claude.md#polimento-do-agente-ia--adr-056-26092026). Estado: **planejado; CLP-0 (documentação) em execução; nenhum gate ou AC aprovado**.
+
+| Sublote | Escopo | Responsável | Tarefas |
+| --- | --- | --- | --- |
+| CLP-0 | ADR-056 e documentação | documentation-agent + architecture-agent | P7-CL7-01 |
+| CLP-1 | Contratos Core/Application, `AgentModePolicy`, prompt builder, anexos, `LineDiff` | architecture-agent + agent-runtime-agent | P7-CL7-02 |
+| CLP-2 | Facetas LiteDB, preferências aditivas, redação | persistence-security-agent | P7-CL7-03 |
+| CLP-3 | Tools novas, broker para o Claude Code, tool de permissão, proposal sink | tool-registry-agent + mcp-integration-agent | P7-CL7-04 |
+| CLP-4 | Adapter (plano → argv, `init`, resume persistido), disponibilidade automática, FakeClaudeCode estendido | agent-provider-agent | P7-CL7-05, P7-CL7-06 |
+| CLP-5 | Painel global, histórico, modos, chips, Configurações/Permissões | ui-ux-agent | P7-CL7-07 |
+| CLP-6 | Revisão por diff no editor | ui-ux-agent + architecture-agent | P7-CL7-08 |
+| CLP-7 | Testes, PNGs nos dois temas, revisão, documentação final | qa-testing-agent + code-review-agent + documentation-agent | P7-CL7-09..11 |
+
+Ordem: CLP-0 → CLP-1 → (CLP-2 ∥ CLP-3) → CLP-4 → CLP-5 → CLP-6 → CLP-7. Escritas MongoDB continuam no lote 10 e aparecem como "não disponíveis nesta versão". Tools MCP no Linux ficam pendentes (proof de canal só no Windows).
+
 ## Lote 6 ampliado — chat completo na UI da aplicação
 
 O lote 6 deixa de ser apenas painel, aprovação e configuração isolados: o chat precisa ficar **utilizável de ponta a ponta na janela principal**, ainda desabilitado por padrão até os gates. Estado em 25/09/2026: painel, aprovação e configuração existem no Desktop e a hospedagem na `MainWindow` está em andamento no checkout; nada disso é declarado entregue. Escopo exigido:
@@ -96,9 +113,9 @@ O lote 6 deixa de ser apenas painel, aprovação e configuração isolados: o ch
 | Localização | Todas as cadeias pelo sistema de localização existente; textos longos/CJK com rolagem local |
 | Evidência visual | PNGs reais inspecionados nos temas claro e escuro em 960×620, 1366×768 e 1920×1080 (e escalas do design system) |
 | Homologação nativa | Leitor de tela, IME e diálogos nativos em Windows e Linux, feitos por pessoa; sem isso a linha permanece pendente |
-| Restrições | Nenhum transcript persistido; nenhuma condicional por marca no ViewModel; nenhuma tool fora do registry; providers reais só com credencial autorizada |
+| Restrições | Nenhum transcript persistido (**revisado pela ADR-056 em 26/09/2026**: histórico do produto persistido com opt-out, sem anexos nem credenciais); nenhuma condicional por marca no ViewModel; nenhuma tool fora do registry; providers reais só com credencial autorizada |
 
-Propostas de código com **Aplicar ao editor** e histórico retomável ficam fora deste lote salvo novo requisito e permanecem registrados como não implementados em [16](16-chat-nativo.md).
+Propostas de código com **Aplicar ao editor** e histórico retomável ficam fora deste lote salvo novo requisito e permanecem registrados como não implementados em [16](16-chat-nativo.md). **Novo requisito em 26/09/2026:** ambos entram no polimento CLP (propostas revisadas por hunk e conversas persistidas), ver [acima](#polimento-do-agente-ia--sublotes-clp-0clp-7-26092026).
 
 ## Sublote 7B — login por conta OpenAI (condicional)
 
@@ -154,7 +171,7 @@ No lote 2, implementar primeiro `list_connections`/metadados, depois codec liter
 | Pré-condição update/delete é atômica nos documentos escolhidos? | Domínio MongoDB, lote 10 | Fixture concorrente real; negar quando não há estratégia segura |
 | Licença de binário/SDK/transitivas permite distribuição? | Revisão de dependências, 0/11 | NOTICE e licença da versão; não incorporar componente sem verificação |
 
-Streamable HTTP é incremento opcional posterior ao lote 4, dependente do mesmo broker e de revisão específica de autenticação/Origin/Host/TLS. Não condicionar o primeiro MCP à hospedagem remota. Persistência de transcript, shell, file editing e subagents requerem novos requisitos e não são ativados por um provider reportá-los. Única exceção decidida: ferramentas nativas do modo Claude Code com aprovação por chamada ([ADR-054](../../10-decisoes-arquiteturais.md#adr-054--ferramentas-nativas-do-claude-code-com-aprovação-por-chamada-25092026)), após threat model e gate de segurança; subagentes continuam negados.
+Streamable HTTP é incremento opcional posterior ao lote 4, dependente do mesmo broker e de revisão específica de autenticação/Origin/Host/TLS. Não condicionar o primeiro MCP à hospedagem remota. Persistência de transcript, shell, file editing e subagents requerem novos requisitos e não são ativados por um provider reportá-los. Única exceção decidida: ferramentas nativas do modo Claude Code com aprovação por chamada ([ADR-054](../../10-decisoes-arquiteturais.md#adr-054--ferramentas-nativas-do-claude-code-com-aprovação-por-chamada-25092026)), após threat model e gate de segurança; subagentes continuam negados. **Estado vigente (26/09/2026):** a ADR-054 revisada mantém só leitura pura (`Read`/`Glob`/`Grep`); a ADR-056 acrescenta histórico de conversas persistido com opt-out e edição de arquivos **somente como proposta** revisada no editor (`propose_file_edit`, nunca grava em disco).
 
 ## Validação por mudança
 

@@ -74,3 +74,28 @@ Regras:
 - Exceções que a CLI não submete ao diálogo/allowlist (regras `permissions.allow` do usuário, configurações gerenciadas) são neutralizadas por `--setting-sources`/`--settings` ou exibidas como limitação; nunca omitidas.
 - Cada decisão (inclusive negação por construção) gera evento de auditoria sem comando completo, conteúdo de arquivo ou saída.
 - Cancelamento usa exclusivamente Job Object (Windows) ou grupo de processos (Linux) para encerrar a árvore de processos; o turno cancelado fica `OutcomeUnknown`, retomável por `--resume`. O `control_request`/`interrupt` observado no spike não é usado (protocolo interno não documentado).
+
+## Permissões persistentes por provider e modos do Agente IA (ADR-056, 26/09/2026)
+
+**Planejado, não implementado.** A [ADR-056](../../10-decisoes-arquiteturais.md#adr-056--agente-ia-integrado-conversas-persistidas-permissões-por-provider-modos-e-propostas-de-edição-26092026) revisa a [ADR-050](../../10-decisoes-arquiteturais.md#adr-050--permissão-determinística-e-aprovação-vinculada-à-ação-22092026) para o Agente IA. Tudo acima continua valendo: interseção de políticas, deny por padrão, grants do registry, aprovação one-shot de escrita e ausência de "aprovar sempre" para escrita/destrutiva. O que muda é a camada que o usuário configura por provider.
+
+**`AgentProviderPermissions`** (uma por provider, persistida no owner LiteDB único, versionada e com CAS; edição em **Configurações → Claude (assinatura) → Permissões**):
+
+| Seção | Conteúdo | Padrão proposto |
+| --- | --- | --- |
+| Envio de dados | Consentimento de destino externo (data e hora); dados enviáveis: mensagem, arquivo ativo, arquivos do workspace, anexos externos, metadados da aba, schema inferido | Sem consentimento: nada é enviado e o composer mostra **Configurar permissões** |
+| Workspace e arquivos | Usar a pasta de Arquivos; globs de exclusão; leitura nativa pelo agente (`Read`/`Glob`/`Grep`); propostas de edição no arquivo ativo / em outros arquivos do workspace | Exclusões `.env`, `*.pem`, `*.key`, `**/secrets/**`; demais escolhas desligadas até decisão do usuário (valores finais em CLP-1) |
+| Anexos externos | Permitir arquivo fora do workspace pelo diálogo nativo | Desligado |
+| Contexto automático | Arquivo ativo e metadados da aba como chips automáticos | Definido em CLP-1; sempre visível e removível no chip |
+| Tools do KapibaraStudio | Conexões acessíveis (todas/selecionadas); tools somente leitura habilitadas; escrita listada como **indisponível nesta versão** | Leitura conforme escolha; escrita sempre indisponível (lote 10 pendente) |
+| Confirmações | Operações que pedem "Aprovar uma vez"/"Rejeitar" | Toda tool no modo Solicitar confirmações |
+| Histórico e privacidade | **Não guardar histórico** (opt-out) e **Apagar histórico** | Guardar, com redação; anexos e credenciais nunca |
+
+Regras:
+
+- Permissões persistentes **não** concedem grants do registry nem ampliam a política; a execução continua na interseção descrita em [Decisão efetiva](#decisão-efetiva). Login não consente envio.
+- Revogar consentimento ou uma seção bloqueia envios futuros e é revalidado antes de cada turno e de cada saída de tool; não promete apagar o que o serviço externo já recebeu.
+- Documento de permissões ilegível ou de versão futura nega com falha visível, sem sobrescrever.
+- A `AgentModePolicy` é o único ponto que combina modo, permissões e plataforma num `AgentTurnPlan`. **Solicitar confirmações** usa `--permission-prompt-tool mcp__slopstudio__approve` para toda tool, inclusive leitura, com cartão inline **Aprovar uma vez**/**Rejeitar**; Escape, timeout, fechar ou broker indisponível rejeitam. Não há "sempre permitir" nem aprovação persistente por chamada.
+- `--permission-mode default` em todos os modos; `bypassPermissions`, `acceptEdits`, `auto` e `dontAsk` proibidos. `Edit`/`Write`/`Bash`/`NotebookEdit` e demais não-leitura continuam fora da allowlist por construção (seção anterior).
+- `propose_file_edit` é categoria **proposta**: não é escrita de arquivo nem de banco, nunca grava em disco e, fora do modo Automático, só aplica ao buffer após **Apply** do usuário. No Automático aplica ao buffer de forma reversível (Manter/Reverter), sem salvar.

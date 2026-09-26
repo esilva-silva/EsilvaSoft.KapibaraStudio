@@ -60,9 +60,23 @@ AC-10 (cartões de tool, inclusive nativas) segue UI-01/UI-03 com PNGs. Os teste
 
 Casos manuais que exigem evidência do usuário: para o 7B, H-01..H-17 aplicáveis do roteiro 21 (Windows e Linux separados); **para Claude, H-01..H-17 não se exige** — o roteiro usa C-01..C-36, que cobrem as mesmas intenções adaptadas ao modo Claude Code (ver [21](21-homologacao-manual-login.md#casos-do-modo-claude-code-assinatura)). Em ambos os casos, o chat também exige leitor de tela, IME e diálogos nativos. Enquanto o registro do roteiro estiver vazio, esses ACs continuam **pendentes**.
 
+## Rastreio do polimento do Agente IA — 26/09/2026 (ADR-056)
+
+Nenhum AC aprovado; a tabela só define a evidência adicional dos passos P7-CL7-01..11 ([23](23-integracao-claude.md#polimento-do-agente-ia--adr-056-26092026)).
+
+| AC | Acréscimo | Automatizado | Manual (GCL-17) |
+| --- | --- | --- | --- |
+| AC-03 | Sem consentimento persistido nada é enviado; anexos respeitam exclusões/limites/redação; histórico persistido sem segredos, anexos ou credenciais | Resolver de anexos, canários no LiteDB, CTA sem consentimento | Anexar arquivo sintético excluído é recusado |
+| AC-04/09 | Painel global consome o runtime; `AgentModePolicy` único ponto de decisão, sem branch por marca/modo na UI | Tabela modo × permissões → plano; testes de arquitetura | — |
+| AC-10 | Cartões de tool MCP, confirmação inline e proposta de edição visíveis | UI headless e PNGs nos dois temas | Conversa real com tools do produto |
+| AC-11 | Cancelamento preserva a conversa; turno pertence à conversa de origem | FakeClaudeCode, troca de conversa durante turno | Cancelar turno real |
+| AC-12 | Solicitar confirmações pede toda tool; escrita indisponível; `propose_file_edit` nunca grava em disco | Adapter/registry com FakeClaudeCode | Apply/Revert por hunk em arquivo sintético |
+| AC-14 | Tools do Claude Code pelo mesmo registry via MCP local | `init` validado contra o plano; paridade registry/MCP | Listar conexões, índices e schema em cache com MongoDB real (Windows) |
+| AC-17 | Windows com tools MCP; Linux com estado "indisponível" | Por SO | Linux pendente para tools MCP |
+
 ## Portas de liberação
 
-Marco MCP read-only exige AC-01/02/03/08/12/13/14 e testes relevantes de AC-17. Chat externo exige também AC-04..11/15/16; versão completa exige todos os critérios aplicáveis, incluindo escritas previstas no lote 10. Tools administrativas, shell, subagents, persistência de transcript e HTTP remoto não são implicitamente liberados por esse aceite. A única liberação de shell/arquivos é a das ferramentas nativas do modo Claude Code com aprovação por chamada (ADR-054), condicionada a GCL-3/GCL-5 e C-08..C-11.
+Marco MCP read-only exige AC-01/02/03/08/12/13/14 e testes relevantes de AC-17. Chat externo exige também AC-04..11/15/16; versão completa exige todos os critérios aplicáveis, incluindo escritas previstas no lote 10. Tools administrativas, shell, subagents, persistência de transcript e HTTP remoto não são implicitamente liberados por esse aceite. A única liberação de shell/arquivos é a das ferramentas nativas do modo Claude Code com aprovação por chamada (ADR-054), condicionada a GCL-3/GCL-5 e C-08..C-11. **Estado vigente (26/09/2026):** pela ADR-054 revisada não há shell, escrita de arquivo nem rede nativos (só `Read`/`Glob`/`Grep`); pela ADR-056 o histórico de conversas do produto passa a ser persistido com opt-out e a edição de arquivos existe só como proposta revisada no editor, condicionados a GCL-9..GCL-17.
 
 Se o spike Codex obrigar API direta por impossibilidade de confinamento, registrar formalmente a mudança, capacidades e autenticação reduzidas. Não usar uma API Key para declarar entregue o login ChatGPT. O sublote 7B e o bloco CL (Claude pelo modo Claude Code, substitui o antigo 8B) são a prioridade atual: API Key sozinha não conclui esse objetivo. Aceite sem uma das contas exige impedimento documentado e decisão explícita de adiamento pelo usuário; a via pendente não é anunciada. Compatibilidade de um cliente ou plataforma não testada permanece pendente e não pode ser anunciada.
 

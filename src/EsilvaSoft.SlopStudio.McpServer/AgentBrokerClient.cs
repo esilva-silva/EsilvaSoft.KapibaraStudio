@@ -60,11 +60,18 @@ internal sealed class AgentBrokerClient : IAsyncDisposable
     /// <exception cref="AgentBrokerProtocolException">Transport, version or authentication failure (sanitized code).</exception>
     public async Task<AgentBrokerMessage> CallToolAsync(string name, JsonElement arguments, CancellationToken cancellationToken)
     {
+        // The permission-prompt tool waits for a human; only it gets the approval window.
+        var timeout = name == AgentBrokerProtocol.ApproveToolName
+            ? AgentBrokerProtocol.MaximumApprovalCallTimeoutMilliseconds
+            : AgentBrokerProtocol.DefaultCallTimeoutMilliseconds;
+        var ceiling = name == AgentBrokerProtocol.ApproveToolName
+            ? AgentBrokerProtocol.MaximumApprovalCallTimeoutMilliseconds
+            : AgentBrokerProtocol.MaximumCallTimeoutMilliseconds;
         var response = await SendAsync(new AgentBrokerMessage
         {
             Type = AgentBrokerProtocol.MessageTypes.CallTool, Name = name, Arguments = arguments,
-            TimeoutMilliseconds = AgentBrokerProtocol.DefaultCallTimeoutMilliseconds
-        }, TimeSpan.FromMilliseconds(AgentBrokerProtocol.MaximumCallTimeoutMilliseconds + 5_000), cancellationToken)
+            TimeoutMilliseconds = timeout
+        }, TimeSpan.FromMilliseconds(ceiling + 5_000), cancellationToken)
             .ConfigureAwait(false);
         return response.Type == AgentBrokerProtocol.MessageTypes.Result && response.Status is not null
             ? response

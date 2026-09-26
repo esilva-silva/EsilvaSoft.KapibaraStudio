@@ -331,7 +331,7 @@ public sealed class ClaudeCodeReviewFixTests
     {
         using var fixture = new ClaudeCodeFixture().Turn("cancel-with-grandchild.jsonl");
         await using var session = await SessionAsync(fixture.Provider());
-        var request = new AgentTurnRequest(AgentTurnId.New(), "Rode algo longo", "tab-1", 1);
+        var request = ClaudeCodeFixture.Request("Rode algo longo");
         var run = Task.Run(async () =>
         {
             await foreach (var _ in session.RunTurnAsync(request, CancellationToken.None))

@@ -1,6 +1,6 @@
 # Segurança, contexto e privacidade
 
-**Proposta — ADR-049/051.** Nenhum dado MongoDB sai da máquina apenas porque um provider está conectado. Uma saída precisa de ação explícita, contexto autorizado ou chamada de tool permitida. O mesmo limite se aplica ao cliente MCP externo: ele é outro destinatário, mesmo quando seu processo está local.
+**Proposta — ADR-049/051; ADR-051 substituída pela [ADR-056](../../10-decisoes-arquiteturais.md#adr-056--agente-ia-integrado-conversas-persistidas-permissões-por-provider-modos-e-propostas-de-edição-26092026) em 26/09/2026 (planejado, ver seção final).** Nenhum dado MongoDB sai da máquina apenas porque um provider está conectado. Uma saída precisa de ação explícita, contexto autorizado ou chamada de tool permitida. O mesmo limite se aplica ao cliente MCP externo: ele é outro destinatário, mesmo quando seu processo está local.
 
 ## Contexto não é uma escala de acesso irrestrito
 
@@ -15,7 +15,7 @@
 
 Esses escopos são independentes. Selecionar schema não concede documentos; uma inferência remota de schema por amostra exige consentimento para leitura local e envia somente a derivação autorizada. O nome do banco, valores de `distinct`, números de count e explain também podem ser sensíveis. A política descreve dados expostos, não apenas qual botão foi acionado.
 
-`IAgentContextProvider` cria snapshot com origem, conexão/revisão, namespace, aba/versão de texto, data da evidência, classificação, orçamento, redaction e destinatário. Interface mostra prévia do pacote e escopo ativo antes do envio. Tool responses passam pelo mesmo filtro e orçamento; não usar a permissão da primeira mensagem como autorização indefinida para novas coleções.
+`IAgentContextProvider` cria snapshot com origem, conexão/revisão, namespace, aba/versão de texto, data da evidência, classificação, orçamento, redaction e destinatário. Interface mostra prévia do pacote e escopo ativo antes do envio. **Revisado por ADR-056 (planejado):** no Agente IA a prévia por mensagem é substituída por consentimento persistente por provider e chips de contexto sempre visíveis e removíveis antes do envio. Tool responses passam pelo mesmo filtro e orçamento; não usar a permissão da primeira mensagem como autorização indefinida para novas coleções.
 
 Trocar provider inicia sessão independente; histórico/contexto anterior não é retransmitido sem confirmação explícita. Trocar Explorer nunca muda conversa ou operação existente. Redução de permissão bloqueia envios futuros e elimina buffers locais que já não devem ser usados; não promete apagar dados já recebidos pelo serviço. Não prometer retenção zero dos serviços externos; apontar termos e controles de conta aplicáveis nas [fontes](15-fontes-e-licencas.md).
 
@@ -39,7 +39,7 @@ Evento versionado contém timestamp UTC, operation/request ID, provider/client, 
 
 Persistir via proprietário LiteDB em coleção aditiva/versionada; `agentAuditEvents` schema v1 já armazena DTO fechado com 30 dias/10.000 eventos de retenção, preservando intents sem desfecho. Essa camada foi testada isoladamente, mas ainda não está ligada ao registry: o requisito de fechar acesso em falha só fica operacional quando o pipeline aguardar o append e negar antes de execução/publicação. Exportação de auditoria também exige ação explícita. Auditoria local é rastreabilidade operacional, não prova inviolável contra administrador da máquina. Falha de leitura/escrita deve ser visível e fechar o acesso de agentes; a IDE manual continua disponível conforme suas próprias políticas.
 
-Conversas e resultados de tools são efêmeros na v0.11.0; metadados de sessão podem ser retomados sem conteúdo sensível. Não inserir transcript em rascunhos nem histórico de consultas. Retenção própria do provider/App Server é uma fronteira separada a verificar/desativar quando possível; se o provider exige persistência incompatível com a política, a capability de retomada fica indisponível, com explicação.
+Conversas e resultados de tools são efêmeros na v0.11.0; metadados de sessão podem ser retomados sem conteúdo sensível. **Revisado por ADR-056 (26/09/2026, planejado):** o histórico do Agente IA passa a ser persistido no owner LiteDB único, com redação antes de gravar, opt-out **Não guardar histórico** e **Apagar histórico**; conteúdo de anexos, resultados completos de tools e credenciais continuam fora da persistência (ver seção final). Não inserir transcript em rascunhos nem histórico de consultas. Retenção própria do provider/App Server é uma fronteira separada a verificar/desativar quando possível; se o provider exige persistência incompatível com a política, a capability de retomada fica indisponível, com explicação.
 
 ## Ameaças e mitigação verificável
 
@@ -73,3 +73,24 @@ A liberação de ferramentas nativas com aprovação ([ADR-054](../../10-decisoe
 | Spoof da tool de permissão ou do canal MCP | Canal autenticado por sessão; tool não chamável pelo modelo | Chamada direta da tool é negada |
 | Processo órfão ou turno inacabado | Interrupt/SIGINT; kill com `OutcomeUnknown`; limites de fila/stderr | Cancelamento e crash sem processo residual (C-12) |
 
+## Agente IA integrado — privacidade e ameaças (ADR-056, 26/09/2026)
+
+**Planejado, não implementado.** A [ADR-056](../../10-decisoes-arquiteturais.md#adr-056--agente-ia-integrado-conversas-persistidas-permissões-por-provider-modos-e-propostas-de-edição-26092026) substitui a ADR-051 mantendo seus princípios (nenhum envio só por conectar, saída de tool pela política, DTO allowlist, alias externo, redação, erros sanitizados, auditoria sem conteúdo). Detalhes de ameaças em [22](22-threat-model.md#polimento-do-agente-ia-adr-056--ameaças-novas-26092026).
+
+| Dado | Pode sair para o provider | Persistido no Slop |
+| --- | --- | --- |
+| Mensagem digitada | Sim, com consentimento persistente | Sim, após redação (salvo opt-out) |
+| Arquivo ativo (buffer, inclusive não salvo) | Sim, se a permissão "arquivo ativo" estiver ligada; chip visível e removível | Só metadados do chip (nome, tipo, tamanho, hash) |
+| Arquivos do workspace / externos | Sim, se permitidos; exclusões `.env`, `*.pem`, `*.key`, `**/secrets/**`; 256 KB/arquivo, 1 MB/mensagem | Só metadados |
+| Leitura nativa `Read`/`Glob`/`Grep` | Sim, se ligada; aviso de envio à Anthropic | Não |
+| Resultado de tool do produto | Sim, pela política/grants do registry | Só cartão resumido |
+| Proposta de edição | Texto proposto vem do provider | Referência da proposta; o texto vive no buffer da aba, nunca em disco pelo agente |
+| Credenciais, URI, segredos | Nunca | Nunca |
+
+| Ameaça | Controle previsto | Evidência exigida |
+| --- | --- | --- |
+| Prompt injection em anexo/arquivo lido | Conteúdo é dado não confiável; não eleva política; edições só como proposta revisada; sem ferramentas de execução/rede | Fixture hostil em arquivo anexado pede para gravar/vazar e nada é executado nem salvo |
+| Segredo em arquivo anexado | Globs de exclusão, redação existente, limites | Canário em `.env`/arquivo excluído não sai |
+| Histórico persistido vazando segredo | Redação antes de gravar; sem anexos/credenciais; opt-out e apagar | Varredura de canários no LiteDB após conversas com segredos sintéticos |
+| Canal MCP forjado | Proof por sessão via `IAgentPrincipalAuthority`; `--strict-mcp-config`; `init` validado contra o plano | `init` com servidor extra ou tool inesperada bloqueia o turno |
+| Modo Automático alterando buffer sem revisão | Só buffer, reversível, nunca disco; hunk desatualizado não aplicado | Teste de que nenhum arquivo muda em disco |

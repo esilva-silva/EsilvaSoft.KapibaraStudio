@@ -23,6 +23,21 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
     public const string MongoDistinctToolName = "mongo_distinct";
     public const string GetIndexesToolName = "get_indexes";
     public const string MongoExplainToolName = "mongo_explain";
+
+    /// <summary>Per-session tool: reads the autocomplete schema cache only; never samples the database.</summary>
+    public const string GetCachedSchemaToolName = "get_cached_schema";
+
+    /// <summary>Per-session tool: workspace folder, active file and the tab's connection › database › collection.</summary>
+    public const string GetWorkspaceContextToolName = "get_workspace_context";
+
+    /// <summary>Per-session tool: registers an edit proposal for review; never writes to disk.</summary>
+    public const string ProposeFileEditToolName = "propose_file_edit";
+
+    /// <summary>
+    /// Per-session permission-prompt tool of the Claude Code CLI (<c>--permission-prompt-tool mcp__slopstudio__approve</c>).
+    /// Answers only from a human decision; never "always".
+    /// </summary>
+    public const string ApproveToolName = "approve";
     private const int MaximumInputBytes = 64 * 1024;
     private const int MaximumConnections = 200;
     private const string PermissionDenied = "PermissionDenied";
@@ -101,8 +116,10 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
     private const string GetIndexesInputSchema = """
         {"type":"object","additionalProperties":false,"required":["connectionId","database","collection"],"properties":{"connectionId":{"type":"string","format":"uuid"},"database":{"type":"string","minLength":1,"maxLength":255},"collection":{"type":"string","minLength":1,"maxLength":255}}}
         """;
+    // v2 (ADR-056): adds the direction/kind of each key field, the TTL and the field paths referenced by a partial
+    // filter. Filter values never leave the index source.
     private const string GetIndexesOutputSchema = """
-        {"type":"object","additionalProperties":false,"required":["indexes","truncated"],"properties":{"indexes":{"type":"array","maxItems":200,"items":{"type":"object","additionalProperties":false,"required":["name","keyFields","unique","sparse","hidden"],"properties":{"name":{"type":"string"},"keyFields":{"type":"array","items":{"type":"string"}},"unique":{"type":"boolean"},"sparse":{"type":"boolean"},"hidden":{"type":"boolean"}}}},"truncated":{"type":"boolean"},"truncationReason":{"type":"string","const":"OutputLimit"}}}
+        {"type":"object","additionalProperties":false,"required":["indexes","truncated"],"properties":{"indexes":{"type":"array","maxItems":200,"items":{"type":"object","additionalProperties":false,"required":["name","keyFields","unique","sparse","hidden"],"properties":{"name":{"type":"string"},"keyFields":{"type":"array","items":{"type":"string"}},"keyDirections":{"type":"array","items":{"type":"string"}},"unique":{"type":"boolean"},"sparse":{"type":"boolean"},"hidden":{"type":"boolean"},"ttlSeconds":{"type":"integer","minimum":0},"partialFilterFields":{"type":"array","maxItems":32,"items":{"type":"string"}}}}},"truncated":{"type":"boolean"},"truncationReason":{"type":"string","const":"OutputLimit"}}}
         """;
     private const string MongoExplainInputSchema = MongoFindInputSchema;
     private const string MongoExplainOutputSchema = """
@@ -127,10 +144,17 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
              [AgentPermission.ExecuteReadQueries, AgentPermission.ReadDocuments]),
          new AgentToolDescriptor(MongoDistinctToolName, 1, AgentToolRisk.ReadOnly,
              [AgentPermission.ExecuteReadQueries, AgentPermission.ReadDocuments]),
-         new AgentToolDescriptor(GetIndexesToolName, 1, AgentToolRisk.ReadOnly,
+         new AgentToolDescriptor(GetIndexesToolName, 2, AgentToolRisk.ReadOnly,
              [AgentPermission.ReadMetadata]),
          new AgentToolDescriptor(MongoExplainToolName, 1, AgentToolRisk.ReadOnly,
              [AgentPermission.ReadDiagnostics, AgentPermission.ExecuteReadQueries, AgentPermission.ReadDocuments]),
+         // Per-session tools (ADR-056): exposed only to the principal of a per-session channel and only when its turn
+         // plan names them. None of them writes to MongoDB or to disk, so they are ReadOnly for the MongoDB risk model.
+         // The workspace/proposal/confirmation tools touch no namespace; ReadMetadata is their audit classification.
+         new AgentToolDescriptor(GetCachedSchemaToolName, 1, AgentToolRisk.ReadOnly, [AgentPermission.ReadSchema]),
+         new AgentToolDescriptor(GetWorkspaceContextToolName, 1, AgentToolRisk.ReadOnly, [AgentPermission.ReadMetadata]),
+         new AgentToolDescriptor(ProposeFileEditToolName, 1, AgentToolRisk.ReadOnly, [AgentPermission.ReadMetadata]),
+         new AgentToolDescriptor(ApproveToolName, 1, AgentToolRisk.ReadOnly, [AgentPermission.ReadMetadata]),
          // Lote 10: each write is released separately (AgentToolExposure.WithWriteTools) and only for the
          // internal chat under a human, operation-bound approval.
          new AgentToolDescriptor(InsertOneToolName, 1, AgentToolRisk.Write, [AgentPermission.InsertDocuments]),
@@ -159,6 +183,8 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
     private readonly TimeSpan _executionTimeout;
     private readonly AgentToolExposure _exposure;
     private readonly IAgentPrincipalAuthority? _principalAuthority;
+    private readonly AgentSessionToolPorts? _sessionTools;
+    private readonly AgentToolExposure _inProcessExposure;
 
     public AgentToolRegistry(
         IConnectionProfileRepository profiles,
@@ -176,7 +202,9 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
         AgentToolExposure? exposure = null,
         IAgentPrincipalAuthority? principalAuthority = null,
         IAgentMongoWriteSource? write = null,
-        IAgentWriteApprovalAuthority? writeApprovals = null)
+        IAgentWriteApprovalAuthority? writeApprovals = null,
+        AgentSessionToolPorts? sessionTools = null,
+        AgentToolExposure? inProcessExposure = null)
     {
         _profiles = profiles ?? throw new ArgumentNullException(nameof(profiles));
         _policies = policies ?? throw new ArgumentNullException(nameof(policies));
@@ -194,6 +222,15 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
         // Closed by default: a registry exposes nothing until its composition names an approved stage.
         _exposure = exposure ?? AgentToolExposure.None;
         _principalAuthority = principalAuthority;
+        if (sessionTools is not null && (sessionTools.SessionScopes is null ||
+            sessionTools.ApprovalTimeout <= TimeSpan.Zero ||
+            sessionTools.ApprovalTimeout > AgentWriteApprovalCoordinator.DefaultApprovalTimeout))
+            throw new ArgumentException("Portas das tools de sessão inválidas.", nameof(sessionTools));
+        _sessionTools = sessionTools;
+        // In-process providers announce only what this (narrower) gate releases; omitted = the registry exposure.
+        _inProcessExposure = inProcessExposure ?? _exposure;
+        if (_inProcessExposure.Stage > _exposure.Stage)
+            throw new ArgumentException("A exposição in-process não pode exceder a do registry.", nameof(inProcessExposure));
         var requestedTimeout = executionTimeout ?? DefaultExecutionTimeout;
         if (requestedTimeout <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(executionTimeout));
         _executionTimeout = requestedTimeout > MaximumExecutionTimeout ? MaximumExecutionTimeout : requestedTimeout;
@@ -202,8 +239,24 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
     /// <summary>Stage released for this instance. Unreleased tools behave as unknown tools.</summary>
     public AgentToolExposureStage ExposureStage => _exposure.Stage;
 
+    /// <summary>
+    /// Tools announced to in-process providers. Per-session tools are omitted: only a per-session MCP channel can call
+    /// them (see <see cref="GetChannelDescriptors"/>).
+    /// </summary>
     public IReadOnlyList<AgentToolDescriptor> GetDescriptors() =>
+        Descriptors.Where(descriptor => IsAvailable(descriptor.Name) && !IsSessionTool(descriptor.Name) &&
+            _inProcessExposure.Exposes(descriptor.Name)).ToArray();
+
+    /// <summary>
+    /// Every released tool, per-session tools included, for the MCP broker. The broker still filters the list per
+    /// authenticated channel (turn plan for session channels, no per-session tool for external clients).
+    /// </summary>
+    public IReadOnlyList<AgentToolDescriptor> GetChannelDescriptors() =>
         Descriptors.Where(descriptor => IsAvailable(descriptor.Name)).ToArray();
+
+    /// <summary>Tools that exist only for the principal of a per-session channel.</summary>
+    public static bool IsSessionTool(string? name) =>
+        name is GetCachedSchemaToolName or GetWorkspaceContextToolName or ProposeFileEditToolName or ApproveToolName;
 
     public AgentToolDescriptor? FindDescriptor(string? name) =>
         IsAvailable(name)
@@ -223,6 +276,12 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
         MongoDistinctToolName => _distinct is not null,
         GetIndexesToolName => _indexes is not null,
         MongoExplainToolName => _explain is not null,
+        GetCachedSchemaToolName => _sessionTools?.MetadataCache is not null,
+        GetWorkspaceContextToolName => _sessionTools?.WorkspaceContext is not null,
+        ProposeFileEditToolName => _sessionTools is { WorkspaceContext: not null, ProposalSink: not null },
+        // Available with the session scopes alone: a missing confirmation port answers deny; it never hides the tool
+        // the CLI was told to call.
+        ApproveToolName => _sessionTools is not null,
         // A write needs both its source and the approval authority; without either it stays unknown.
         _ when IsWriteTool(name) => _write is not null && _writeApprovals is not null,
         _ => false
@@ -262,6 +321,10 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
             MongoDistinctToolName => MongoDistinctInputSchema,
             GetIndexesToolName => GetIndexesInputSchema,
             MongoExplainToolName => MongoExplainInputSchema,
+            GetCachedSchemaToolName => GetIndexesInputSchema,
+            GetWorkspaceContextToolName => ListConnectionsInputSchema,
+            ProposeFileEditToolName => ProposeFileEditInputSchema,
+            ApproveToolName => ApproveInputSchema,
             InsertOneToolName => InsertOneInputSchema,
             UpdateOneToolName => UpdateOneInputSchema,
             DeleteOneToolName => DeleteOneInputSchema,
@@ -284,6 +347,10 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
             MongoDistinctToolName => MongoDistinctOutputSchema,
             GetIndexesToolName => GetIndexesOutputSchema,
             MongoExplainToolName => MongoExplainOutputSchema,
+            GetCachedSchemaToolName => GetCachedSchemaOutputSchema,
+            GetWorkspaceContextToolName => GetWorkspaceContextOutputSchema,
+            ProposeFileEditToolName => ProposeFileEditOutputSchema,
+            ApproveToolName => ApproveOutputSchema,
             _ when IsWriteTool(name) => WriteOutputSchema,
             _ => null
         };
@@ -302,6 +369,15 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
         if (principal is not null && invocationContext is not null && destination is not null &&
             !IsAuthenticatedChannelBinding(principal, invocationContext, destination))
             return AgentToolInvocationResult.Failure(PermissionDenied);
+        // Per-session tools and the turn plan: a session-only tool, or any tool outside the plan of a per-session
+        // channel, is indistinguishable from an unknown tool (no audit, policy, profile or source access).
+        if (!IsExposedToPrincipal(principal, name))
+            return AgentToolInvocationResult.Failure(UnknownTool);
+        // The confirmation waits for a human (up to the approval window), dispatches nothing and releases no data: it
+        // has its own path, outside the 30 s execution deadline, the audit ledger and the per-turn budget.
+        if (name == ApproveToolName)
+            return await InvokeApproveAsync(principal, invocationContext, destination, argumentsJson, cancellationToken)
+                .ConfigureAwait(false);
         // Writes follow their own pipeline: durable intent, human approval with a separate budget, single-use
         // consumption and uncertain outcome. They never reach the read path below.
         if (FindDescriptor(name) is { Risk: not AgentToolRisk.ReadOnly } writeDescriptor)
@@ -480,11 +556,20 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
             parsed = TryParseFindArguments(argumentsJson, out connectionId, out database, out _, out _);
         else if (name == GetCollectionSchemaToolName)
             parsed = TryParseSchemaArguments(argumentsJson, out connectionId, out database, out _, out _);
+        else if (name == GetCachedSchemaToolName)
+            parsed = TryParseGetIndexesArguments(argumentsJson, out connectionId, out database, out _);
+        else if (name is GetWorkspaceContextToolName or ProposeFileEditToolName)
+        {
+            parsed = false;
+            connectionId = Guid.Empty;
+            database = null;
+        }
         else
             parsed = TryParseMetadataArguments(name, argumentsJson, out connectionId, out database, out _);
         var permission = name switch
         {
             GetCollectionSchemaToolName => AgentPermission.ReadSchema,
+            GetCachedSchemaToolName => AgentPermission.ReadSchema,
             MongoFindToolName => AgentPermission.ReadDocuments,
             MongoCountToolName => AgentPermission.ReadDocuments,
             SampleDocumentsToolName => AgentPermission.ReadDocuments,
@@ -539,7 +624,8 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
             {
                 outputBytes = Encoding.UTF8.GetByteCount(json);
                 using var document = JsonDocument.Parse(json);
-                itemCount = intent.ToolName is MongoCountToolName or MongoExplainToolName ? 1 :
+                itemCount = intent.ToolName is MongoCountToolName or MongoExplainToolName or
+                    GetWorkspaceContextToolName or ProposeFileEditToolName ? 1 :
                     intent.ToolName is MongoFindOneToolName or GetDocumentToolName
                         ? document.RootElement.GetProperty("documentEjson").ValueKind == JsonValueKind.Null ? 0 : 1
                         :
@@ -547,6 +633,7 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
                     {
                         ListConnectionsToolName => "connections",
                         GetCollectionSchemaToolName => "fields",
+                        GetCachedSchemaToolName => "fields",
                         MongoFindToolName => "documentsEjson",
                         SampleDocumentsToolName => "documentsEjson",
                         MongoDistinctToolName => "valuesEjson",
@@ -597,6 +684,18 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (FindDescriptor(name) is null) return AgentToolInvocationResult.Failure(UnknownTool);
+        // A per-session channel reaches only the connections of its turn plan (null = all, empty = none).
+        if (SessionConnectionDenial(principal, name, argumentsJson) is { } connectionDenial)
+            return connectionDenial;
+        if (name == GetCachedSchemaToolName)
+            return await InvokeCachedSchemaAsync(principal, invocationContext, destination, outputDataScope,
+                argumentsJson, cancellationToken).ConfigureAwait(false);
+        if (name == GetWorkspaceContextToolName)
+            return InvokeWorkspaceContext(principal, invocationContext, destination, outputDataScope, argumentsJson,
+                cancellationToken);
+        if (name == ProposeFileEditToolName)
+            return await InvokeProposeFileEditAsync(principal, invocationContext, destination, outputDataScope,
+                argumentsJson, cancellationToken).ConfigureAwait(false);
         if (name is ListDatabasesToolName or ListCollectionsToolName)
             return await InvokeMetadataAsync(principal, invocationContext, destination, outputDataScope,
                 name, argumentsJson, cancellationToken).ConfigureAwait(false);
@@ -675,6 +774,9 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
         foreach (var profile in snapshot)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            // Outside the turn plan of a per-session channel: skipped before validation, so a profile the channel may
+            // not see can neither be listed nor make the whole listing fail.
+            if (profile is not null && profile.Id != Guid.Empty && !IsConnectionInSessionScope(principal, profile.Id)) continue;
             if (profile is null || profile.Id == Guid.Empty || profile.SourceGenerationId is not Guid generationId || generationId == Guid.Empty ||
                 !IsValidProfileName(profile.Name))
                 return AgentToolInvocationResult.Failure(PermissionDenied, AgentAuditDecisionReason.ValidationRejected);
@@ -751,7 +853,7 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
 
         // Revalidate the projected values and origin after all asynchronous permission reads. This does not
         // replace the eventual transport's authorization check at the point it releases output.
-        if (await RevalidateProfilesAsync(authorizedSnapshots, cancellationToken).ConfigureAwait(false) is { } revalidationFailure)
+        if (await RevalidateProfilesAsync(authorizedSnapshots, cancellationToken, id => IsConnectionInSessionScope(principal, id)).ConfigureAwait(false) is { } revalidationFailure)
             return AgentToolInvocationResult.Failure(PermissionDenied, revalidationFailure);
 
         // Keep policy validation last, including revocation during the final profile read.
@@ -981,7 +1083,7 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
 
     private async Task<AgentAuditDecisionReason?> RevalidateProfilesAsync(
         IReadOnlyDictionary<Guid, AuthorizedConnectionSnapshot> expected,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, Func<Guid, bool>? inScope = null)
     {
         try
         {
@@ -992,6 +1094,8 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
             foreach (var profile in current)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                if (profile is not null && profile.Id != Guid.Empty && inScope?.Invoke(profile.Id) == false &&
+                    !expected.ContainsKey(profile.Id)) continue;
                 if (profile is null || profile.Id == Guid.Empty ||
                     profile.SourceGenerationId is not Guid generationId || generationId == Guid.Empty ||
                     !IsValidProfileName(profile.Name))

@@ -42,7 +42,8 @@ public sealed record AgentProviderPresentation(
     bool SupportsStreaming = true,
     bool SupportsToolCalling = false,
     string? UnavailableReason = null,
-    string? FamilyName = null)
+    string? FamilyName = null,
+    bool SupportsTurnPlan = false)
 {
     /// <summary>
     /// Builds the view from promoted contracts. Destination comes from the catalog entry (provider <c>IsLocal</c>), the
@@ -57,7 +58,9 @@ public sealed record AgentProviderPresentation(
         return new AgentProviderPresentation(descriptor.ProviderId, descriptor.DisplayName, entry.Destination,
             status.IsAvailable, status.Models, descriptor.AuthenticationMethods, status.AuthState,
             status.Capabilities.Streaming, status.Capabilities.ToolCalling,
-            status.IsAvailable ? null : localizedUnavailableReason, familyName);
+            status.IsAvailable ? null : localizedUnavailableReason, familyName,
+            // TurnPlan (ADR-056): what the provider declares, narrowed by the live status once it was checked.
+            descriptor.Capabilities.TurnPlan && (!status.IsAvailable || status.Capabilities.TurnPlan));
     }
 }
 
@@ -132,33 +135,15 @@ public sealed class AgentChatServicesFactory(Func<AgentChatServices> create)
     }
 }
 
-/// <summary>
-/// Immutable state of the originating tab, captured synchronously on the UI thread. It comes from the tab's own
-/// context (explicit destination), never from the explorer selection.
-/// </summary>
-public sealed record AgentChatTabSnapshot(
-    string TabId,
-    long DocumentVersion,
-    string? ConnectionId,
-    string? ConnectionLabel,
-    string? Database,
-    string? Collection,
-    string? SelectedText);
-
-/// <summary>What the user explicitly chose to share in a turn. Default is <see cref="None"/>.</summary>
-public enum AgentContextScope
-{
-    /// <summary>Only the typed message.</summary>
-    None,
-
-    /// <summary>Logical connection ID and namespace names of the tab.</summary>
-    Metadata,
-
-    /// <summary>Namespace plus the editor selection confirmed in the preview.</summary>
-    Selection,
-}
-
 /// <summary>Services consumed by the chat. Every member is optional: missing pieces make the feature unavailable.</summary>
+/// <remarks>
+/// ADR-056 (P7-CLP-5): the init-only members are the persistent conversations and permissions (LiteDB owner), the
+/// per-session MCP channel facts, the Desktop ports (proposal store, inline confirmations) and the automatic
+/// availability check. Each one is optional: without it the corresponding feature shows its unavailable state
+/// (e.g. without <see cref="Permissions"/> nothing can be sent to an external provider, since consent cannot be read).
+/// <see cref="ContextProvider"/> is no longer used by the global panel (context now travels as chips resolved by
+/// <see cref="AgentAttachmentResolver"/>); it stays for source compatibility.
+/// </remarks>
 public sealed record AgentChatServices(
     IAgentRuntime? Runtime,
     IAgentProviderCatalog? Catalog,
@@ -170,7 +155,25 @@ public sealed record AgentChatServices(
 {
     public static AgentChatServices Unavailable { get; } = new(null, null, null);
 
-    public bool IsComplete => Runtime is not null && Catalog is not null && ContextProvider is not null;
+    /// <summary>Workspace-global conversations; null = nothing is persisted (visible notice).</summary>
+    public IAgentConversationRepository? Conversations { get; init; }
+
+    /// <summary>Persistent permissions per provider; null = no consent can exist.</summary>
+    public IAgentProviderPermissionsRepository? Permissions { get; init; }
+
+    /// <summary>Per-session MCP channel facts (<see cref="IAgentMcpChannelProvisioner.ProductToolsAvailable"/>).</summary>
+    public IAgentMcpChannelProvisioner? McpChannels { get; init; }
+
+    /// <summary>Edit proposals registered by <c>propose_file_edit</c>.</summary>
+    public AgentEditProposalStore? Proposals { get; init; }
+
+    /// <summary>Inline confirmation cards of <c>AskConfirmations</c>.</summary>
+    public DesktopAgentToolConfirmationPrompt? Confirmations { get; init; }
+
+    /// <summary>Automatic availability check (cache, single flight, timeout).</summary>
+    public AgentProviderAvailabilityService? Availability { get; init; }
+
+    public bool IsComplete => Runtime is not null && Catalog is not null;
 
     public TimeProvider Clock => Time ?? TimeProvider.System;
 }

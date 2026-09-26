@@ -10,7 +10,12 @@ namespace EsilvaSoft.SlopStudio.FakeClaudeCode;
 /// usa), e cada invocação registra argv e stdin em <c>fake-claude.log.jsonl</c> para as asserções dos testes.
 /// Diretivas de fixture (linhas iniciadas por <c>#</c>): <c>#spawn-child</c>, <c>#hang</c>, <c>#garbage</c>,
 /// <c>#giant N</c>, <c>#stderr texto</c>, <c>#fragment</c>, <c>#sleep ms</c>, <c>#exit N</c>, <c>#spawn-grandchild</c>
-/// (filho intermediário cria um neto e sai, deixando o neto órfão).
+/// (filho intermediário cria um neto e sai, deixando o neto órfão). Linha só com <c>#</c> + texto é comentário.
+/// Emulação do argv do turno (P7-CLP-4): <c>--tools ""</c> desliga todas as nativas; <c>--mcp-config</c> precisa ser JSON
+/// com <c>mcpServers</c>; <c>--permission-prompt-tool</c> exige um servidor MCP configurado com o prefixo da ferramenta;
+/// <c>--append-system-prompt</c> exige valor. Marcadores <c>{INIT_TOOLS}</c>/<c>{INIT_MCP_SERVERS}</c> no init são
+/// preenchidos a partir do argv e do cenário (<c>mcpTools</c>, <c>mcpStatus</c>, <c>extraInitTools</c>,
+/// <c>extraMcpServers</c>), como a CLI real faria com <c>--tools</c> e <c>--mcp-config</c>.
 /// </summary>
 internal static class Program
 {
@@ -74,6 +79,13 @@ internal static class Program
     {
         var resume = args.Contains("--resume");
         var sessionId = ValueAfter(args, resume ? "--resume" : "--session-id") ?? "missing";
+        if (!TryBuildInit(scenario, args, out var initTools, out var initServers, out var argvError))
+        {
+            // Como a CLI real diante de argv inválido: mensagem no stderr e saída sem stream.
+            Console.Error.WriteLine("fake claude: " + argvError);
+            return 2;
+        }
+
         // Como o CLI real: nada é emitido antes da primeira mensagem no stdin.
         var first = Console.In.ReadLine();
         Log(new Dictionary<string, object?> { ["event"] = "stdin", ["line"] = first });
@@ -96,7 +108,9 @@ internal static class Program
         var fragment = false;
         foreach (var raw in lines)
         {
-            var line = raw.Replace("{SESSION_ID}", sessionId, StringComparison.Ordinal);
+            var line = raw.Replace("{SESSION_ID}", sessionId, StringComparison.Ordinal)
+                .Replace("{INIT_TOOLS}", initTools, StringComparison.Ordinal)
+                .Replace("{INIT_MCP_SERVERS}", initServers, StringComparison.Ordinal);
             if (line.Length == 0)
             {
                 continue;
@@ -159,6 +173,81 @@ internal static class Program
         // Como o CLI real em stream-json: espera mais entrada até o stdin fechar.
         DrainStdin();
         return Int(scenario, "exitCode") ?? 0;
+    }
+
+    /// <summary>Monta <c>tools</c> e <c>mcp_servers</c> do init a partir do argv; argv incoerente é recusado.</summary>
+    private static bool TryBuildInit(JsonElement scenario, string[] args, out string tools, out string servers, out string? error)
+    {
+        tools = "[]";
+        servers = "[]";
+        error = null;
+        var toolIndex = Array.IndexOf(args, "--tools");
+        if (toolIndex < 0 || toolIndex + 1 >= args.Length)
+        {
+            error = "--tools ausente";
+            return false;
+        }
+
+        var names = new List<string>(args[toolIndex + 1].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        var serverList = new List<Dictionary<string, string>>();
+        if (ValueAfter(args, "--mcp-config") is { } mcpConfig)
+        {
+            try
+            {
+                using var config = JsonDocument.Parse(mcpConfig);
+                foreach (var server in config.RootElement.GetProperty("mcpServers").EnumerateObject())
+                {
+                    if (server.Value.GetProperty("type").GetString() != "stdio" || server.Value.GetProperty("command").GetString() is not { Length: > 0 })
+                    {
+                        error = "servidor MCP inválido";
+                        return false;
+                    }
+
+                    var status = Text(scenario, "mcpStatus") ?? "connected";
+                    serverList.Add(new Dictionary<string, string> { ["name"] = server.Name, ["status"] = status });
+                    if (status == "connected" && scenario.TryGetProperty("mcpTools", out var mcpTools))
+                    {
+                        names.AddRange(mcpTools.EnumerateArray().Select(tool => "mcp__" + server.Name + "__" + tool.GetString()));
+                    }
+                }
+            }
+            catch (Exception exception) when (exception is JsonException or KeyNotFoundException or InvalidOperationException)
+            {
+                error = "--mcp-config inválido";
+                return false;
+            }
+        }
+
+        if (ValueAfter(args, "--permission-prompt-tool") is { } promptTool &&
+            !serverList.Any(server => promptTool.StartsWith("mcp__" + server["name"] + "__", StringComparison.Ordinal)))
+        {
+            error = "--permission-prompt-tool sem servidor MCP";
+            return false;
+        }
+
+        if (args.Contains("--append-system-prompt") && ValueAfter(args, "--append-system-prompt") is not { Length: > 0 })
+        {
+            error = "--append-system-prompt sem valor";
+            return false;
+        }
+
+        if (scenario.TryGetProperty("extraInitTools", out var extraTools))
+        {
+            names.AddRange(extraTools.EnumerateArray().Select(static tool => tool.GetString()!));
+        }
+
+        if (scenario.TryGetProperty("extraMcpServers", out var extraServers))
+        {
+            serverList.AddRange(extraServers.EnumerateArray().Select(static server => new Dictionary<string, string>
+            {
+                ["name"] = server.GetProperty("name").GetString()!,
+                ["status"] = server.GetProperty("status").GetString()!,
+            }));
+        }
+
+        tools = JsonSerializer.Serialize(names);
+        servers = JsonSerializer.Serialize(serverList);
+        return true;
     }
 
     private static void DrainStdin()
