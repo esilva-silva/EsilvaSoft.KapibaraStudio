@@ -31,5 +31,5 @@ Critérios funcionais automatizáveis das Fases 1 a 8, artefatos de distribuiç�
 ## Documentos relacionados
 
 - [Checklist de homologação](../../16-checklist-homologacao.md) · [Matriz de validação](../../15-matriz-de-validacao.md)
-- [Fase 7 — MCP e agentes externos](../phase-07-v0.11.0/README.md): integração real dependente de credenciais e sem segredos em CI, autenticação oficial, cofre nativo Windows/Linux, isolamento MCP e inspeção visual/acessibilidade do chat. Estes gates são adicionais; os anteriores permanecem abertos.
+- [Claude e integração de agentes](../phase-07-v0.11.0/README.md): homologação Windows com Claude Pro real, MCP e MongoDB, sem credenciais em CI. Linux continua indisponível para MCP/aprovações nesta entrega.
 - [Fase 1](../phase-01-v0.5.0/README.md) · [Fase 2](../phase-02-v0.6.0/README.md) · [Fase 3](../phase-03-v0.7.0/README.md) · [Fase 4](../phase-04-v0.8.0/README.md) · [Fase 5](../phase-05-v0.9.0/README.md) · [Fase 6](../phase-06-v0.10.0/README.md) · [Fase 8](../phase-08-v0.12.0/README.md)

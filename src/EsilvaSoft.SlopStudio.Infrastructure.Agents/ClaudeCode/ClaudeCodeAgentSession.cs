@@ -166,7 +166,8 @@ internal sealed partial class ClaudeCodeAgentSession : IAgentSession
             request.SystemPrompt,
             request.Attachments is null ? [] : [.. request.Attachments],
             request.Permissions,
-            request.ConversationId);
+            request.ConversationId,
+            request.WorkspaceContext);
         var turn = new TurnContext(request.TurnId, _options.MaxTurnDuration);
         lock (_gate)
         {
@@ -390,7 +391,8 @@ internal sealed partial class ClaudeCodeAgentSession : IAgentSession
         string? SystemPrompt,
         IReadOnlyList<AgentContextAttachment> Attachments,
         AgentProviderPermissions? Permissions,
-        Guid? ConversationId);
+        Guid? ConversationId,
+        AgentWorkspaceContext? WorkspaceContext);
 
     /// <summary>Estado privado do turno: tokens separados distinguem cancelamento de prazo; o processo é encerrado no Cancel.</summary>
     private sealed class TurnContext : IDisposable

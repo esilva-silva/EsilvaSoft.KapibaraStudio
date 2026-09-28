@@ -36,4 +36,7 @@ public sealed record AgentTurnRequest(
     /// and refuses the turn when the plan has product tools and this is null. Never widens the plan.
     /// </summary>
     public AgentProviderPermissions? Permissions { get; init; }
+
+    /// <summary>Immutable workspace snapshot captured when this turn was sent; never recaptured from the active tab.</summary>
+    public AgentWorkspaceContext? WorkspaceContext { get; init; }
 }

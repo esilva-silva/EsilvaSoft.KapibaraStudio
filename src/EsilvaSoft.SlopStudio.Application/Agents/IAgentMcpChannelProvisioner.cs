@@ -65,7 +65,7 @@ public interface IAgentMcpChannelProvisioner
     /// <summary>Platform fact for <see cref="AgentPlatformFacts.ProductToolsAvailable"/>.</summary>
     bool ProductToolsAvailable { get; }
 
-    /// <summary>Opens the channel of one provider session. Nothing is exposed until <see cref="UpdateTurnAsync"/>.</summary>
+    /// <summary>Opens the channel of one provider session. Nothing is exposed until a turn plan is bound.</summary>
     Task<AgentMcpChannelProvisioning> OpenSessionAsync(string providerId, Guid conversationId,
         CancellationToken cancellationToken = default);
 
@@ -75,6 +75,12 @@ public interface IAgentMcpChannelProvisioner
     /// </summary>
     Task<AgentMcpChannelStatus> UpdateTurnAsync(AgentMcpChannelHandle handle, AgentTurnPlan plan,
         AgentProviderPermissions permissions, CancellationToken cancellationToken = default);
+
+    /// <summary>Binds the immutable workspace snapshot captured by the originating chat turn.</summary>
+    Task<AgentMcpChannelStatus> UpdateTurnAsync(AgentMcpChannelHandle handle, AgentTurnPlan plan,
+        AgentProviderPermissions permissions, AgentWorkspaceContext? workspaceContext,
+        CancellationToken cancellationToken = default) =>
+        UpdateTurnAsync(handle, plan, permissions, cancellationToken);
 
     /// <summary>Revokes the channel (durably) and forgets the scope. Idempotent.</summary>
     Task CloseSessionAsync(AgentMcpChannelHandle handle, CancellationToken cancellationToken = default);

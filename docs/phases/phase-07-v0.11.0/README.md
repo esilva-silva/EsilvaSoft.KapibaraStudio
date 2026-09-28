@@ -1,0 +1,50 @@
+# Fase 7 — Claude no KapibaraStudio
+
+Estado revisado em **28/09/2026**. Esta página descreve o comportamento presente no código; testes automatizados não equivalem à homologação com uma conta Claude Pro real.
+
+## Plano e andamento
+
+| Ordem | Entrega | Andamento nesta revisão |
+| --- | --- | --- |
+| 1–3 | Detectar Claude Code, login Anthropic e validar autenticação sem receber credenciais | Implementado; testes automatizados, homologação real pendente |
+| 4–6 | Reutilizar providers atuais, chat e streaming assíncrono | Implementado; homologação real pendente |
+| 7 | Retomar sessão oficial e avisar quando o contexto anterior se perdeu | Implementado; testes automatizados, homologação após reinício pendente |
+| 8–9 | Aprovar ferramentas, negar desconhecidas e registrar auditoria | Implementado para capacidades mediadas; escrita nativa direta desabilitada para proteger buffers |
+| 10 | Cancelar processo/turno sem alegar rollback | Implementado; homologação real pendente |
+| 11 | Vincular workspace ao envio e detectar conflitos em propostas | Implementado e coberto por testes; homologação visual/manual pendente |
+| 12–13 | Exibir estado, permissões e erros na interface | Implementado; PNGs claro/escuro revisados |
+| 14 | Restore, build e testes | Restore locked e build passaram sem avisos/erros; testes de agents 246/246, unitários 3.774 aprovados/12 falhos/23 ignorados, benchmarks 43/43. As falhas reportam indisponibilidade do Credential Manager (`CredentialStoreFailed`/`NoLogonSession`) neste ambiente. Testes de Claude focados passaram. |
+| 15 | Documentação concisa e fontes oficiais | Esta página é o documento atual da fase; homologação real ainda aberta |
+
+O aceite Windows ainda depende de login Claude Pro real, conversa com streaming, permitir/negar, ferramenta MCP com MongoDB, cancelamento e retomada após reinício. A Fase 7 não será declarada homologada antes desses cenários.
+
+## Escolher a modalidade
+
+- **Claude — assinatura via Claude Code** inicia o executável oficial `claude`. A autenticação acontece na janela oficial da Anthropic. O KapibaraStudio consulta instalação, versão e estado por `claude auth status`, sem ler arquivos de credenciais, receber ou guardar tokens.
+- **Anthropic API** é uma modalidade separada que usa a API Key configurada pelo usuário. A ausência ou falha da assinatura nunca muda automaticamente para API, pois isso pode gerar cobrança diferente.
+
+O Claude Code oferece login, status e logout pela CLI documentada. A disponibilidade de recursos e limites da assinatura é definida pela Anthropic e pelo plano da conta. O aplicativo não converte a assinatura em acesso à API. Veja a [referência oficial da CLI](https://code.claude.com/docs/en/cli-reference) e as [condições oficiais de uso](https://code.claude.com/docs/en/legal-and-compliance).
+
+**Condição de distribuição:** a Anthropic distingue o uso normal individual do Claude Code de produtos de terceiros. A documentação atual diz que desenvolvedores de produtos que interagem com Claude, inclusive via Agent SDK, devem usar API Key; não permite oferecer login Claude.ai próprio nem rotear requisições com credenciais Pro em nome dos usuários. Ela também diz que executar o binário Claude Code em um produto exige acordo comercial salvo acordo mútuo diferente, e que cada usuário deve entrar com sua própria credencial no binário Anthropic sem modificações. Assim, este código não captura ou intermedeia login, mas a distribuição desta integração por assinatura depende da confirmação de que o modelo de execução e os termos comerciais aplicáveis são aceitos pela Anthropic. Sem essa confirmação, não anunciar nem tratar a assinatura como modalidade aprovada para distribuição; a API permanece separada.
+
+## Chat, sessões e ferramentas
+
+O provider existente usa o Claude Code em processo separado, com saída estruturada limitada, streaming, cancelamento da árvore de processos e ferramentas MCP locais do KapibaraStudio. Antes de enviar cada mensagem, o provider verifica novamente a autenticação. A sessão oficial é retomada pelo identificador persistido e `--resume`; se não existir mais, o chat avisa que abriu uma nova sessão sem o contexto anterior. Não retransmite o histórico local como se fosse uma retomada.
+
+O snapshot de workspace, arquivo e aba é capturado no envio e permanece vinculado ao turno e ao canal MCP. Uma mudança posterior de seleção não redireciona ferramentas. Propostas de edição verificam conflito com o buffer atual e não sobrescrevem alterações não salvas.
+
+As ferramentas nativas habilitadas dependem das permissões persistidas do provider. Leituras podem receber concessão em memória durante a conversa para a combinação exata de ferramenta e argumentos. Comandos e rede sempre pedem aprovação individual, também no modo Automático. Escritas nativas `Edit`/`Write` ficam indisponíveis: a CLI executa a escrita após receber aprovação, sem uma barreira atômica para buffers sujos em todas as abas. Use `propose_file_edit`, que compara a revisão e encaminha a mudança pelo workspace. Negação, expiração, revogação, falha da auditoria ou indisponibilidade da ponte bloqueiam a operação. Cancelar uma operação em andamento não garante rollback: quando o resultado não é conhecido, o chat informa essa incerteza.
+
+Comandos aprovados executam com os privilégios da conta do usuário; a aprovação não cria sandbox para arquivos ou rede. MCP e ferramentas externas são limitados ao registry já integrado. Ferramentas desconhecidas são negadas. No Linux, a integração MCP/aprovações ainda está indisponível nesta entrega.
+
+## Configurar e validar
+
+Em **Configurações → Agentes → Claude**, escolha a modalidade antes de testar. Em assinatura, **Verificar conexão** consulta instalação e autenticação e não envia mensagem. **Login** abre o fluxo oficial; aguarde a conclusão na janela do Claude Code. A tela não exibe tokens nem dados sensíveis da conta. Para sair, use o comando oficial de logout pela mesma tela.
+
+Roteiro de homologação Windows com Claude Pro real: detectar Claude Code; entrar e verificar estado; enviar mensagem e observar streaming; permitir e negar uma ferramenta; testar ferramenta MCP até MongoDB; cancelar um turno; retomar a conversa após reiniciar. Mocks e testes automatizados não aprovam esses passos reais. Até essa homologação, o estado permanece pendente.
+
+## Limites da modalidade por assinatura
+
+O KapibaraStudio não acessa endpoints privados, não reutiliza tokens OAuth e não implementa autenticação própria para Claude Pro. Só usa mecanismos oficialmente documentados da Anthropic. Se uma capacidade da assinatura não estiver disponível por esses mecanismos, ela permanece indisponível; configure Anthropic API separadamente se optar por esse tipo de cobrança.
+
+A Anthropic também informa que produtos de terceiros que interagem com Claude devem usar autenticação por API Key e que executar Claude Code como parte de um produto requer acordo comercial, salvo acordo mútuo diferente. Embora o binário permaneça inalterado e a autenticação seja concluída pelo próprio processo Anthropic, a permissão para distribuir esta modalidade embutida não foi confirmada. Esse gate externo permanece aberto antes de anunciar ou distribuir a assinatura integrada.

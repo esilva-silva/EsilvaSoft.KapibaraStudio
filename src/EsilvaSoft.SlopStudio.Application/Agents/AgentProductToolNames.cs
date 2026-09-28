@@ -26,6 +26,11 @@ public static class AgentProductToolNames
     public const string NativeRead = "Read";
     public const string NativeGlob = "Glob";
     public const string NativeGrep = "Grep";
+    public const string NativeBash = "Bash";
+    public const string NativeEdit = "Edit";
+    public const string NativeWrite = "Write";
+    public const string NativeWebSearch = "WebSearch";
+    public const string NativeWebFetch = "WebFetch";
 
     /// <summary>Product read tools in a stable order.</summary>
     public static IReadOnlyList<string> ReadTools { get; } =
@@ -33,6 +38,10 @@ public static class AgentProductToolNames
 
     /// <summary>Provider-native file read tools (Claude Code), in a stable order.</summary>
     public static IReadOnlyList<string> NativeFileReadTools { get; } = [NativeRead, NativeGlob, NativeGrep];
+
+    public static IReadOnlyList<string> NativeCommandTools { get; } = [NativeBash];
+    public static IReadOnlyList<string> NativeFileWriteTools { get; } = [NativeEdit, NativeWrite];
+    public static IReadOnlyList<string> NativeNetworkTools { get; } = [NativeWebSearch, NativeWebFetch];
 
     /// <summary>Confirmation category of a product tool; <see cref="AgentConfirmationCategories.None"/> for unknown names.</summary>
     public static AgentConfirmationCategories CategoryOf(string toolName) => toolName switch
@@ -42,6 +51,9 @@ public static class AgentProductToolNames
         GetWorkspaceContext => AgentConfirmationCategories.WorkspaceContextRead,
         ProposeFileEdit => AgentConfirmationCategories.EditProposal,
         NativeRead or NativeGlob or NativeGrep => AgentConfirmationCategories.NativeFileRead,
+        NativeBash => AgentConfirmationCategories.NativeCommand,
+        NativeEdit or NativeWrite => AgentConfirmationCategories.NativeFileWrite,
+        NativeWebSearch or NativeWebFetch => AgentConfirmationCategories.NativeNetwork,
         _ => AgentConfirmationCategories.None,
     };
 }

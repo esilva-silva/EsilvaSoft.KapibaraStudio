@@ -103,6 +103,15 @@ public sealed record AgentProviderPermissions
     /// <summary>Provider-native Read/Glob/Grep inside the workspace folder (subject to the exclusions).</summary>
     public bool NativeFileRead { get; init; } = true;
 
+    /// <summary>Native shell/command tool; every call requires individual approval by default.</summary>
+    public bool NativeCommandExecution { get; init; }
+
+    /// <summary>Native file edit/write tools; every call requires individual approval by default.</summary>
+    public bool NativeFileWrite { get; init; }
+
+    /// <summary>Native network tools; every call requires individual approval by default.</summary>
+    public bool NativeNetwork { get; init; }
+
     public AgentEditProposalPermissions EditProposals { get; init; } = new();
 
     public AgentAutomaticContextPermissions AutomaticContext { get; init; } = new();

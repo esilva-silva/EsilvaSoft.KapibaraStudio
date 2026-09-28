@@ -199,16 +199,6 @@ Implementado: construtor Date em UTC na apresentação de resultados/documentos/
 
 As seções de incrementos preservam evidência histórica. Seu texto não encerra requisitos amplos nem altera a versão alvo desta tabela. EDT-02 tem base determinística incluída na v0.5.0 e consolidação contextual na v0.6.0; IA opcional é v0.9.0. EDT-04 tem histórico/arquivos existentes, mas parâmetros e snippets completos permanecem pendentes. TRF-01 exige CSV no MVP, enquanto exportação de coleção inteira/streaming fica como extensão sem versão comprometida. Requisitos administrativos e Script/IA já implementados são antecipações mantidas, não novos bloqueadores do MVP.
 
-## Recortes planejados da v0.11.0 — MCP e agentes externos
+## Integração Claude e agentes
 
-O [plano da Fase 7](phases/phase-07-v0.11.0/README.md) acrescenta os recortes abaixo sem transformar evidências de IA local ou MongoDB em evidência de MCP. Todos estão **📋 Planejados**. IDs existentes são preservados; a fase detalha contratos, ferramentas, testes e aceites específicos.
-
-| IDs relacionados | Recorte novo | Aceite a implementar |
-| --- | --- | --- |
-| ADV-09, UX-01/02 | Agent Runtime, sessões, streaming, cancelamento e chat Avalonia por capabilities | UI independente do fornecedor, eventos normalizados, destino fixo e degradação sem serviços externos |
-| ADV-09, DAT-01/03/09/10, IDX-01 | MCP e registro único de ferramentas | Cliente externo descobre/executa leituras limitadas; MCP e chat usam a mesma implementação e autorização |
-| ADV-09, CON-07 | OpenAI/Codex e Claude por adaptadores; autenticação e cofre de SO | Contas próprias Codex/ChatGPT (7B) e Claude (8B, substituído pelo bloco CL: Claude pelo Claude Code, em código sem homologação desde 25/09/2026) são prioridade condicional planejada; API Key permanece alternativa. Apenas fluxos oficiais e gates por SO; nenhum token copiado ou segredo plaintext |
-| CON-07, ADM-11, DAT-04/05/06, IDX-01 | Permissões, aprovações, auditoria e limite de dados externos | Nenhuma escrita sem autorização vinculada à ação; nenhum dado enviado só por conectar um provider; segredos não retornados |
-| ADV-09, EDT-02 | Preservação do modo local | Autocomplete/ONNX funcionam offline e sem conta externa; capabilities locais não prometem ferramentas ou autonomia inexistentes |
-
-O workflow de ADV-09 permanece **📋 Planejado na [Fase 8/v0.12.0](phases/phase-08-v0.12.0/README.md)**, com fluxo fechado e ações revisadas. A integração MCP não habilita automaticamente funcionalidades de backlog ou administrativas ocultas.
+O provider Claude Code, autenticação oficial, streaming, retomada, chat e ponte de ferramentas MCP estão implementados e em validação no Windows. A API Anthropic permanece modalidade independente. Limites atuais, permissões e roteiro de homologação estão em [Claude no KapibaraStudio](phases/phase-07-v0.11.0/README.md). MCP/aprovações ainda não estão disponíveis no Linux; isso não implica aceite da fase funcional inteira ou de outros providers.

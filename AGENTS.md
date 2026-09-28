@@ -7,16 +7,12 @@
 - Produto: IDE desktop MongoDB em .NET 10/Avalonia; Windows e Linux; interface e documentação em pt-BR, identificadores em inglês.
 - Mantenha o nome EsilvaSoft.SlopStudio e a licença MIT. Não transformar o desktop em site ou adicionar dependência comercial sem pedido específico.
 
-## Responsabilidades e agentes especializados
+## Integração Claude
 
-- O diretório central `/agents/` concentra todos os agentes especializados da solução e sua orquestração por metas (`agents/goal-orchestrator.md`).
-- A abstração de modelos e regras de escalonamento residem em `agents/capabilities.md`.
-- Fase 7: aplicar `agents/phase-7-protocol.md` e a matriz de responsáveis/gates em `docs/phases/phase-07-v0.11.0/20-agentes-e-execucao.md`; runtime, MCP, registry e providers têm especialistas próprios.
-- Claude Code: `CLAUDE.md` importa estas regras; `.claude/agents/` contém adapters gerados dos contratos centrais. Instruções em `agents/claude-code.md`. Agentes de desenvolvimento não habilitam a capability `SubAgents` do produto.
-- UI/UX: hierarquia, tokens, tipografia, teclado, foco, estados vazios/erro e evidência visual nos dois temas (`agents/ui-ux-agent.md`).
-- Arquitetura: contexto fixo por aba, snapshots antes de awaits, cancelamento isolado, contratos explícitos e persistência versionada (`agents/architecture-agent.md`).
-- Qualidade: cenários observáveis, fixtures independentes, integridade BSON, concorrência, privacidade e distinção entre teste automatizado e homologação real (`agents/qa-testing-agent.md`, `agents/code-review-agent.md`).
-- Esses papéis são regras reutilizáveis do repositório; consulte `agents/README.md` para o catálogo completo.
+- A Fase 7 foi retomada com escopo focado em Claude; os antigos documentos de planejamento e agentes especializados foram removidos.
+- Estado, limitações, permissões e homologação estão em `docs/phases/phase-07-v0.11.0/README.md`; use o código e os ADRs vigentes como referência para contratos existentes.
+- Não criar providers ou fluxos de autenticação paralelos quando as abstrações atuais puderem ser concluídas.
+- Claude Code mantém autenticação oficial. Nunca ler arquivos de credenciais, capturar/reutilizar tokens, acessar endpoints privados ou fazer fallback silencioso para Anthropic API.
 
 ## Invariantes
 

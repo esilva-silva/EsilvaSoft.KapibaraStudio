@@ -257,14 +257,15 @@ public enum AgentToolConfirmationState
 {
     Pending,
     ApprovedOnce,
+    ApprovedThisSession,
     Rejected,
     Expired,
 }
 
 /// <summary>
 /// Inline confirmation of one tool call (modo Solicitar confirmações). The exact input is shown as data in code font;
-/// "Rejeitar" is the safe action and receives the initial focus; there is no "always". A decision covers exactly
-/// this call. The registry deadline cancels the token: the card then shows "expirada" and answers a rejection.
+/// "Rejeitar" is the safe action. Session approval is offered only for read-only operations and binds exact arguments
+/// to the in-memory session. The registry deadline cancels the token: the card then shows "expirada" and rejects.
 /// Runtime only: never persisted.
 /// </summary>
 public sealed partial class AgentToolConfirmationCardItem : AgentChatItemViewModel
@@ -306,11 +307,17 @@ public sealed partial class AgentToolConfirmationCardItem : AgentChatItemViewMod
 
     public bool HasInput => InputText.Length > 0;
 
+    public bool CanApproveThisSession => Request.Category is AgentConfirmationCategories.MongoMetadataRead or
+        AgentConfirmationCategories.WorkspaceContextRead or AgentConfirmationCategories.NativeFileRead;
+
     public string CategoryText => Text.Resolve(Request.Category switch
     {
         AgentConfirmationCategories.MongoMetadataRead => "agentConfirmCategoryMongo",
         AgentConfirmationCategories.WorkspaceContextRead => "agentConfirmCategoryWorkspace",
         AgentConfirmationCategories.NativeFileRead => "agentConfirmCategoryFile",
+        AgentConfirmationCategories.NativeCommand => "agentConfirmCategoryCommand",
+        AgentConfirmationCategories.NativeFileWrite => "agentConfirmCategoryWrite",
+        AgentConfirmationCategories.NativeNetwork => "agentConfirmCategoryNetwork",
         AgentConfirmationCategories.EditProposal => "agentConfirmCategoryProposal",
         _ => "agentConfirmCategoryOther",
     });
@@ -319,7 +326,7 @@ public sealed partial class AgentToolConfirmationCardItem : AgentChatItemViewMod
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsPending), nameof(StatusText))]
-    [NotifyCanExecuteChangedFor(nameof(ApproveOnceCommand), nameof(RejectCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ApproveOnceCommand), nameof(ApproveThisSessionCommand), nameof(RejectCommand))]
     private AgentToolConfirmationState _state;
 
     public bool IsPending => State == AgentToolConfirmationState.Pending;
@@ -328,6 +335,7 @@ public sealed partial class AgentToolConfirmationCardItem : AgentChatItemViewMod
     {
         AgentToolConfirmationState.Pending => "agentConfirmPending",
         AgentToolConfirmationState.ApprovedOnce => "agentConfirmApproved",
+        AgentToolConfirmationState.ApprovedThisSession => "agentConfirmApprovedSession",
         AgentToolConfirmationState.Rejected => "agentConfirmRejected",
         _ => "agentConfirmExpired",
     });
@@ -340,6 +348,15 @@ public sealed partial class AgentToolConfirmationCardItem : AgentChatItemViewMod
             State = AgentToolConfirmationState.ApprovedOnce;
         }
     }
+
+    [RelayCommand(CanExecute = nameof(CanApproveThisSessionAndPending))]
+    private void ApproveThisSession()
+    {
+        if (_decision.TrySetResult(AgentToolConfirmationDecision.ApprovedThisSession))
+            State = AgentToolConfirmationState.ApprovedThisSession;
+    }
+
+    private bool CanApproveThisSessionAndPending() => IsPending && CanApproveThisSession;
 
     [RelayCommand(CanExecute = nameof(IsPending))]
     private void Reject()

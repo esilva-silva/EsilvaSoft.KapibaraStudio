@@ -265,7 +265,7 @@ public sealed class LiteDbAgentProviderPermissionsTests
         {
             await repository.SaveAsync(baseline with { ProviderId = "Claude Code" }, 0, default),
             await repository.SaveAsync(baseline with { DefaultMode = (AgentOperationMode)9 }, 0, default),
-            await repository.SaveAsync(baseline with { ConfirmationCategories = (AgentConfirmationCategories)64 }, 0, default),
+            await repository.SaveAsync(baseline with { ConfirmationCategories = (AgentConfirmationCategories)128 }, 0, default),
             await repository.SaveAsync(baseline with { SelectedConnectionIds = [Guid.Empty] }, 0, default),
             await repository.SaveAsync(baseline with { Workspace = new() { Exclusions = [""] } }, 0, default),
             await repository.SaveAsync(baseline with { EnabledReadTools = ["list\ncollections"] }, 0, default),

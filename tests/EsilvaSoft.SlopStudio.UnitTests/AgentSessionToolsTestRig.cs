@@ -35,12 +35,13 @@ internal sealed class AgentSessionToolsTestRig : IDisposable
         Permissions = (permissions ?? (static value => value))(AgentProviderPermissions.Default("claude-code") with
         {
             ExternalDestinationConsentAt = DateTimeOffset.UtcNow,
-            DataSending = new AgentDataSendingPermissions { InferredSchema = true },
+            DataSending = new AgentDataSendingPermissions { ActiveFile = true, TabMetadata = true, InferredSchema = true },
             EditProposals = new AgentEditProposalPermissions { ActiveFile = true, OtherWorkspaceFiles = true }
         });
         Mode = mode;
         Principal = new AgentPrincipal(PrincipalId, AgentPrincipalOrigin.External, 1);
         Sessions.Register(ChannelId, PrincipalId, "claude-code", ConversationId);
+        Workspace.Context = new AgentWorkspaceContext(DateTimeOffset.UtcNow, WorkspaceFolder: _workspace);
         BindPlan(AgentModePolicy.Plan(mode, Permissions, new AgentPlatformFacts(true, true)));
         Policies.Set(PrincipalId, 1, GrantsFor(Profile, Other));
         Confirmation = withConfirmationPort ? new FakeConfirmation() : null;
@@ -56,7 +57,6 @@ internal sealed class AgentSessionToolsTestRig : IDisposable
                 ConfirmationPrompt = Confirmation,
                 ApprovalTimeout = approvalTimeout ?? TimeSpan.FromSeconds(5)
             });
-        Workspace.Context = new AgentWorkspaceContext(DateTimeOffset.UtcNow, WorkspaceFolder: _workspace);
     }
 
     public Guid ChannelId { get; } = Guid.NewGuid();
@@ -85,7 +85,7 @@ internal sealed class AgentSessionToolsTestRig : IDisposable
     public void BindPlan(AgentTurnPlan plan, AgentProviderPermissions? permissions = null)
     {
         Permissions = permissions ?? Permissions;
-        Sessions.UpdateTurn(PrincipalId, plan, Permissions);
+        Sessions.UpdateTurn(PrincipalId, plan, Permissions, Workspace.Context);
     }
 
     public AgentPermissionGrant[] GrantsFor(params ConnectionProfile[] profiles) =>

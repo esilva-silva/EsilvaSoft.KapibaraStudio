@@ -1,7 +1,7 @@
 # Agentes de autocomplete
 
 > [!NOTE]
-> Esta pasta documenta perfis específicos da frente de autocomplete criados durante a revisão de 15/09/2026. A governança global de agentes, o orquestrador de metas e os especialistas de escopo da solução residem centralizados na pasta [`/agents`](../../../agents/README.md).
+> Esta pasta documenta perfis específicos da frente de autocomplete criados durante a revisão de 15/09/2026. O catálogo global de agentes citado na revisão não está mais no checkout; as instruções vigentes da solução estão em [`AGENTS.md`](../../../AGENTS.md).
 
 Dez perfis especializados criados após a revisão de código/plano de 15/09/2026. São documentos reutilizáveis para acionar agentes posteriormente, não processos permanentes nem dez implementações disparadas nesta meta.
 

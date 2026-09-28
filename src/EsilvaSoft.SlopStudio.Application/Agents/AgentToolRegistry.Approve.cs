@@ -16,10 +16,10 @@ namespace EsilvaSoft.SlopStudio.Application.Agents;
 /// <para>
 /// Enforced on the server, not trusted to the CLI: a card opens only for a tool of the current turn plan whose category
 /// the plan confirms; the human decision is appended to the durable audit ledger (intent before the card, terminal after)
-/// and a failed append denies. "Aprovar uma vez" of a product tool issues a one-shot ticket bound to (principal, registry
+/// and a failed append denies. Product tool tickets are one-shot and bound to (principal, turn generation, registry
 /// tool, SHA-256 of the canonical input) that expires after <see cref="ConfirmationTicketLifetime"/>; the registry
 /// consumes it before executing that tool, and a product tool whose category requires confirmation never runs without
-/// one. There is no "always" answer. Native CLI tools (Read/Glob/Grep) get the decision only (they run in the CLI).
+/// one. Read-only calls may receive an exact-argument grant held only for this in-memory conversation session.
 /// </para>
 /// </summary>
 public sealed partial class AgentToolRegistry
@@ -60,16 +60,32 @@ public sealed partial class AgentToolRegistry
         var category = CategoryOfPlannedTool(plan, toolName!);
         if (category is null || (plan.ConfirmationCategories & category.Value) == 0) return Deny(ApproveNotInPlan);
         var registryTool = toolName!.StartsWith(McpToolPrefix, StringComparison.Ordinal) ? toolName[McpToolPrefix.Length..] : null;
-        var inputHash = registryTool is null ? null : CanonicalInputHash(inputJson);
-        if (registryTool is not null && inputHash is null) return Deny(ApproveInvalid);
+        var inputHash = CanonicalInputHash(inputJson);
+        if (inputHash is null) return Deny(ApproveInvalid);
         if (await CheckPrincipalCurrentAsync(principal, cancellationToken).ConfigureAwait(false) is not null)
             return Deny(ApproveUnavailable);
+
+        var sessionApprovalKey = SessionApprovalKey(toolName!, inputHash);
+        var auditName = registryTool ?? NativeAuditName(toolName);
+        var intent = CreateConfirmationIntent(principal, context!, destination, auditName, category.Value);
+        if (intent is null || !await TryAppendAuditAsync(intent).ConfigureAwait(false)) return Deny(ApproveUnavailable);
+        if (scope.SessionApprovals?.ContainsKey(sessionApprovalKey) == true)
+        {
+            if (!await TryAppendAuditAsync(ConfirmationTerminal(intent, AgentToolConfirmationDecision.ApprovedOnce, expired: false))
+                    .ConfigureAwait(false))
+                return Deny(ApproveUnavailable);
+            lock (scope.ApprovalGate ?? scope)
+            {
+                if (!ReferenceEquals(SessionScopeOf(principal), scope) || scope.Closed ||
+                    scope.SessionApprovals?.ContainsKey(sessionApprovalKey) != true) return Deny(ApproveUnavailable);
+                if (registryTool is not null) IssueConfirmationTicket(principal.Id, scope.Generation, registryTool, inputHash);
+            }
+            return Allow(inputJson!);
+        }
+
         if (_sessionTools?.ConfirmationPrompt is not { } prompt) return Deny(ApproveUnavailable);
 
         // Durable intent before the human sees anything; without the ledger nothing is asked.
-        var intent = CreateConfirmationIntent(principal, context!, destination, registryTool ?? NativeAuditName(toolName));
-        if (intent is null || !await TryAppendAuditAsync(intent).ConfigureAwait(false)) return Deny(ApproveUnavailable);
-
         using var window = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         window.CancelAfter(_sessionTools.ApprovalTimeout);
         AgentToolConfirmationDecision decision;
@@ -97,21 +113,30 @@ public sealed partial class AgentToolRegistry
         }
 
         // A decision that arrives after revocation or a plan change does not allow anything.
-        var stillPlanned = decision == AgentToolConfirmationDecision.ApprovedOnce &&
+        var wasApproved = decision is AgentToolConfirmationDecision.ApprovedOnce or AgentToolConfirmationDecision.ApprovedThisSession;
+        var stillPlanned = wasApproved &&
             await CheckPrincipalCurrentAsync(principal, cancellationToken).ConfigureAwait(false) is null &&
-            SessionScopeOf(principal) is { Plan: { } current } && CategoryOfPlannedTool(current, toolName) is not null;
-        var effective = stillPlanned ? AgentToolConfirmationDecision.ApprovedOnce : AgentToolConfirmationDecision.Rejected;
+            SessionScopeOf(principal) is { Plan: { } current } currentScope && ReferenceEquals(currentScope, scope) &&
+            CategoryOfPlannedTool(current, toolName) is { } currentCategory &&
+            (current.ConfirmationCategories & currentCategory) != 0 &&
+            (decision != AgentToolConfirmationDecision.ApprovedThisSession || CanApproveForSession(currentCategory));
+        var effective = stillPlanned ? decision : AgentToolConfirmationDecision.Rejected;
         if (!await TryAppendAuditAsync(ConfirmationTerminal(intent, effective,
-                expired: expired || decision == AgentToolConfirmationDecision.ApprovedOnce && !stillPlanned))
+                expired: expired || wasApproved && !stillPlanned))
                 .ConfigureAwait(false))
             return Deny(ApproveUnavailable);
-        if (effective != AgentToolConfirmationDecision.ApprovedOnce)
-            return Deny(expired ? ApproveTimedOut : decision == AgentToolConfirmationDecision.ApprovedOnce
+        if (effective is not (AgentToolConfirmationDecision.ApprovedOnce or AgentToolConfirmationDecision.ApprovedThisSession))
+            return Deny(expired ? ApproveTimedOut : wasApproved
                 ? ApproveNotInPlan : ApproveDeniedByUser);
 
-        if (registryTool is not null) IssueConfirmationTicket(principal.Id, registryTool, inputHash!);
-        var builder = new StringBuilder("{\"behavior\":\"allow\",\"updatedInput\":").Append(inputJson).Append('}');
-        return AgentToolInvocationResult.Success(builder.ToString());
+        lock (scope.ApprovalGate ?? scope)
+        {
+            if (!ReferenceEquals(SessionScopeOf(principal), scope) || scope.Closed) return Deny(ApproveUnavailable);
+            if (effective == AgentToolConfirmationDecision.ApprovedThisSession)
+                scope.SessionApprovals?[sessionApprovalKey] = 0;
+            if (registryTool is not null) IssueConfirmationTicket(principal.Id, scope.Generation, registryTool, inputHash!);
+        }
+        return Allow(inputJson!);
     }
 
     /// <summary>
@@ -121,15 +146,15 @@ public sealed partial class AgentToolRegistry
     private AgentToolInvocationResult? ConsumeRequiredConfirmation(AgentPrincipal? principal, string? name,
         string? argumentsJson)
     {
-        if (principal is null || name is null || SessionScopeOf(principal) is not { Plan: { } plan }) return null;
+        if (principal is null || name is null || SessionScopeOf(principal) is not { Plan: { } plan } scope) return null;
         var category = AgentProductToolNames.CategoryOf(name);
         if (category == AgentConfirmationCategories.None || (plan.ConfirmationCategories & category) == 0) return null;
-        return CanonicalInputHash(argumentsJson) is { } hash && TryConsumeConfirmationTicket(principal.Id, name, hash)
+        return CanonicalInputHash(argumentsJson) is { } hash && TryConsumeConfirmationTicket(principal.Id, scope.Generation, name, hash)
             ? null
             : AgentToolInvocationResult.Failure(PermissionDenied, AgentAuditDecisionReason.PermissionMissing);
     }
 
-    private void IssueConfirmationTicket(Guid principalId, string toolName, string inputHash)
+    private void IssueConfirmationTicket(Guid principalId, long generation, string toolName, string inputHash)
     {
         var tickets = _confirmationTickets.GetOrAdd(principalId, static _ => []);
         lock (tickets)
@@ -137,18 +162,18 @@ public sealed partial class AgentToolRegistry
             var now = DateTimeOffset.UtcNow;
             tickets.RemoveAll(ticket => ticket.ExpiresAt <= now);
             if (tickets.Count >= MaximumTicketsPerPrincipal) tickets.RemoveAt(0);
-            tickets.Add(new ConfirmationTicket(toolName, inputHash, now + ConfirmationTicketLifetime));
+            tickets.Add(new ConfirmationTicket(generation, toolName, inputHash, now + ConfirmationTicketLifetime));
         }
     }
 
-    private bool TryConsumeConfirmationTicket(Guid principalId, string toolName, string inputHash)
+    private bool TryConsumeConfirmationTicket(Guid principalId, long generation, string toolName, string inputHash)
     {
         if (!_confirmationTickets.TryGetValue(principalId, out var tickets)) return false;
         lock (tickets)
         {
             var now = DateTimeOffset.UtcNow;
             tickets.RemoveAll(ticket => ticket.ExpiresAt <= now);
-            var index = tickets.FindIndex(ticket => ticket.ToolName == toolName &&
+            var index = tickets.FindIndex(ticket => ticket.Generation == generation && ticket.ToolName == toolName &&
                 CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(ticket.InputHash), Encoding.ASCII.GetBytes(inputHash)));
             if (index < 0) return false;
             tickets.RemoveAt(index);
@@ -217,14 +242,22 @@ public sealed partial class AgentToolRegistry
     }
 
     private static AgentAuditEvent? CreateConfirmationIntent(AgentPrincipal principal, AgentInvocationContext context,
-        AgentOutputDestination destination, string auditToolName)
+        AgentOutputDestination destination, string auditToolName, AgentConfirmationCategories category)
     {
         try
         {
             var startedAt = DateTimeOffset.UtcNow;
+            var (risk, permission) = category switch
+            {
+                AgentConfirmationCategories.MongoMetadataRead or AgentConfirmationCategories.WorkspaceContextRead or
+                    AgentConfirmationCategories.NativeFileRead => (AgentToolRisk.ReadOnly, (AgentPermission?)AgentPermission.ReadMetadata),
+                AgentConfirmationCategories.EditProposal or AgentConfirmationCategories.NativeFileWrite =>
+                    (AgentToolRisk.Write, (AgentPermission?)null),
+                _ => (AgentToolRisk.Administrative, (AgentPermission?)null),
+            };
             return new AgentAuditEvent(Guid.NewGuid(), AgentAuditEvent.CurrentSchemaVersion, startedAt, principal.Id,
                 Guid.NewGuid(), context.SessionId, context.TurnId, AuditChannelOf(destination), destination.ProviderId,
-                auditToolName, 1, AgentToolRisk.ReadOnly, AgentPermission.ReadMetadata, AgentAuditDecision.Requested,
+                auditToolName, 1, risk, permission, AgentAuditDecision.Requested,
                 AgentAuditOutcome.Intent, principal.PolicyRevision, null, 0, 0, 0)
             {
                 NamespaceKind = AgentAuditNamespaceKind.None,
@@ -249,7 +282,7 @@ public sealed partial class AgentToolRegistry
             if (completedAt < intent.StartedAtUtc) completedAt = intent.StartedAtUtc;
             var duration = ((completedAt - intent.StartedAtUtc).Ticks + TimeSpan.TicksPerMillisecond - 1) /
                 TimeSpan.TicksPerMillisecond;
-            var approved = decision == AgentToolConfirmationDecision.ApprovedOnce;
+            var approved = decision is AgentToolConfirmationDecision.ApprovedOnce or AgentToolConfirmationDecision.ApprovedThisSession;
             return (intent with
             {
                 Id = Guid.NewGuid(),
@@ -293,6 +326,16 @@ public sealed partial class AgentToolRegistry
 
     private static AgentToolInvocationResult Deny(string message) =>
         AgentToolInvocationResult.Success(JsonSerializer.Serialize(new { behavior = "deny", message }));
+
+    private static AgentToolInvocationResult Allow(string inputJson) =>
+        AgentToolInvocationResult.Success("{\"behavior\":\"allow\",\"updatedInput\":" + inputJson + "}");
+
+    private static bool CanApproveForSession(AgentConfirmationCategories category) =>
+        category is AgentConfirmationCategories.MongoMetadataRead or AgentConfirmationCategories.WorkspaceContextRead or
+            AgentConfirmationCategories.NativeFileRead;
+
+    private static string SessionApprovalKey(string toolName, string inputHash) =>
+        Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(toolName + "\0" + inputHash)));
 
     /// <summary>Confirmation category of a tool the plan exposes, by the name the CLI uses; null when not planned.</summary>
     internal static AgentConfirmationCategories? CategoryOfPlannedTool(AgentTurnPlan plan, string toolName)
@@ -354,5 +397,5 @@ public sealed partial class AgentToolRegistry
         catch (JsonException) { return false; }
     }
 
-    private sealed record ConfirmationTicket(string ToolName, string InputHash, DateTimeOffset ExpiresAt);
+    private sealed record ConfirmationTicket(long Generation, string ToolName, string InputHash, DateTimeOffset ExpiresAt);
 }

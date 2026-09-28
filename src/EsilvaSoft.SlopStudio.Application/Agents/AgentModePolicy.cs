@@ -16,7 +16,8 @@ public sealed record AgentPlatformFacts(bool HasWorkspaceFolder, bool ProductToo
 /// newer format) block the turn (<see cref="AgentTurnBlockReason.InvalidPermissions"/>); nothing is read as allowed.</item>
 /// <item>Without persisted consent nothing is sent to an external destination (<see cref="AgentTurnBlockReason.ConsentMissing"/>).</item>
 /// <item>Confirmation: <see cref="AgentOperationMode.AskConfirmations"/> confirms every exposed tool;
-/// <see cref="AgentOperationMode.Automatic"/> confirms none; Agent/Planning use the persisted categories.
+/// <see cref="AgentOperationMode.Automatic"/> confirms none except mandatory commands/network operations;
+/// Agent/Planning use the persisted categories. Native file writes use mediated proposals, not direct CLI tools.
 /// Confirmations need the product permission-prompt tool, so where product tools are unavailable a tool that would
 /// need a confirmation is dropped instead of running unconfirmed.</item>
 /// <item>Native Read/Glob/Grep only inside a workspace folder, when native reads and workspace files are permitted and
@@ -62,12 +63,23 @@ public static class AgentModePolicy
             AgentOperationMode.Automatic => AgentConfirmationCategories.None,
             _ => permissions.ConfirmationCategories & AgentConfirmationCategories.All,
         };
+        // Command, native file mutation and network calls are always confirmed individually, including Automatic mode.
+        var mandatory = AgentConfirmationCategories.None;
+        if (permissions.NativeCommandExecution) mandatory |= AgentConfirmationCategories.NativeCommand;
+        if (permissions.NativeFileWrite) mandatory |= AgentConfirmationCategories.NativeFileWrite;
+        if (permissions.NativeNetwork) mandatory |= AgentConfirmationCategories.NativeNetwork;
 
         // A confirmation is only possible through the product permission-prompt tool (MCP channel).
         bool CanRun(AgentConfirmationCategories category) =>
-            (requested & category) == 0 || facts.ProductToolsAvailable;
+            ((requested | mandatory) & category) == 0 || facts.ProductToolsAvailable;
 
         var native = PlanNativeTools(permissions, facts, notices, CanRun(AgentConfirmationCategories.NativeFileRead));
+        if (permissions.NativeCommandExecution && facts.ProductToolsAvailable)
+            native.AddRange(AgentProductToolNames.NativeCommandTools);
+        // Native Edit/Write execute inside the external CLI after its approval reply. The desktop cannot atomically
+        // guard every open editor buffer at that boundary, so writes must use the mediated proposal tool instead.
+        if (permissions.NativeNetwork && facts.ProductToolsAvailable)
+            native.AddRange(AgentProductToolNames.NativeNetworkTools);
         var denyRules = native.Count == 0
             ? []
             : AgentWorkspaceExclusions.ToNativeReadRules(permissions.Workspace.EffectiveExclusions);
@@ -112,10 +124,9 @@ public static class AgentModePolicy
             exposed |= AgentProductToolNames.CategoryOf(tool);
         }
 
-        var confirmations = requested & exposed;
-        IReadOnlyList<string> askRules = (confirmations & AgentConfirmationCategories.NativeFileRead) != 0
-            ? [.. native]
-            : [];
+        var confirmations = (requested | mandatory) & exposed;
+        IReadOnlyList<string> askRules = [.. native.Where(tool =>
+            (confirmations & AgentProductToolNames.CategoryOf(tool)) != 0)];
 
         return new AgentTurnPlan(
             mode,

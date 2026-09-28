@@ -3,13 +3,14 @@ using EsilvaSoft.SlopStudio.Core.Agents;
 namespace EsilvaSoft.SlopStudio.Application.Agents;
 
 /// <summary>
-/// Human answer to one tool confirmation. There is deliberately no "always" value: every approval covers exactly one
-/// call with exactly the input shown.
+/// Human answer to one tool confirmation. Session grants are accepted only for read-only categories and exact canonical
+/// arguments; mutation, command and network categories remain one-call approvals.
 /// </summary>
 public enum AgentToolConfirmationDecision
 {
     Rejected = 0,
     ApprovedOnce = 1,
+    ApprovedThisSession = 2,
 }
 
 /// <summary>
@@ -31,7 +32,7 @@ public sealed record AgentToolConfirmationRequest(
 }
 
 /// <summary>
-/// Implemented by the Desktop as the inline card "Aprovar uma vez / Rejeitar" of the originating conversation. The
+/// Implemented by the Desktop as the inline card of the originating conversation. The
 /// registry applies the deadline (the runtime's <c>ApprovalTimeout</c>) and cancels the token when it expires; an
 /// expired, cancelled or failed prompt is a rejection. Missing implementation means every confirmation is denied.
 /// </summary>

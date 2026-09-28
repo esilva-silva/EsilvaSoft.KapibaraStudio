@@ -38,7 +38,7 @@ Uma CompletionSession por editor mantém debounce (150 ms), CancellationTokenSou
 
 ### Chat revisável do Console (histórico — painel removido)
 
-**Removido em 25/09/2026 pela [ADR-055](10-decisoes-arquiteturais.md#adr-055--remoção-do-assistente-ia-por-aba-25092026).** O texto abaixo descreve o painel "Assistente IA · por aba" da Fase 5, hoje substituído pelo painel **Agente IA** (Fase 7, [16-chat-nativo](phases/phase-07-v0.11.0/16-chat-nativo.md)), que não compartilha o conteúdo completo do editor nem oferece diff/**Aplicar ao editor**. `IAiChatService`, `AiEditorContext`, `AiChatResponse`, `AiChatService` e `WorkspaceTabViewModel.AiChat` foram removidos do código.
+**Removido em 25/09/2026 pela [ADR-055](10-decisoes-arquiteturais.md#adr-055--remoção-do-assistente-ia-por-aba-25092026).** O texto abaixo descreve o painel "Assistente IA · por aba" da Fase 5, hoje substituído pelo painel **Agente IA** (Fase 7, [16-chat-nativo](phases/phase-07-v0.11.0/README.md)), que não compartilha o conteúdo completo do editor nem oferece diff/**Aplicar ao editor**. `IAiChatService`, `AiEditorContext`, `AiChatResponse`, `AiChatService` e `WorkspaceTabViewModel.AiChat` foram removidos do código.
 
 O chat era uma superfície independente do autocomplete preditivo. `AiEditorContext` capturava instrução, cabeçalho, texto, linguagem, dialeto, banco, coleção, tipo de operação e contexto auxiliar em um snapshot bounded. `IAiChatService` retornava `AiChatResponse` com explicação, código completo proposto, diff e risco. `WorkspaceTabViewModel.AiChat` mantinha histórico, `CancellationTokenSource` e geração próprios por aba; uma resposta fora de ordem ou com texto/destino alterado era descartada.
 

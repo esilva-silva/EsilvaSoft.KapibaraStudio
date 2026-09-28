@@ -93,6 +93,6 @@ WorkspaceBehaviorTests verifica isolamento entre abas, conclusão fora de ordem,
 
 O teste gera 18 imagens de workspace por sistema (2 temas × 3 dimensões × 3 escalas), além da modal. Verifica dimensões úteis do editor, foco inicial, Escape da modal durante execução e alternância por teclado. Inspecionar as imagens; build/NUnit sozinhos não provam legibilidade. A integração com servidor, mongosh, leitor de tela e seletores de arquivo nativos exige homologação própria.
 
-## Planejamento de agentes — 22/09/2026
+## Claude e agents
 
-A v0.11.0 tem [estratégia específica de testes](phases/phase-07-v0.11.0/11-plano-de-testes.md) para runtime, adapters, MCP, autorização, BSON, segredos e Windows/Linux. São cenários planejados; testes atuais da solução não comprovam integração externa. Homologação com providers depende de credenciais autorizadas fora da CI comum.
+Os testes automatizados cobrem contratos, autenticação reportada pela CLI, streaming, retomada, aprovações e isolamento de sessão; não substituem a homologação com Claude Pro real nem MongoDB real. Use o roteiro e registre os resultados reais na [documentação Claude](phases/phase-07-v0.11.0/README.md) e na [matriz de validação](15-matriz-de-validacao.md).

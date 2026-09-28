@@ -126,6 +126,38 @@ internal sealed record ClaudeCodeTurnSetup
             return false;
         }
 
+        // The provider adapter is a second fail-closed boundary: a stale/tampered plan may not expose a CLI tool just
+        // because it is part of the adapter's maximum allowlist. Every modifying/network tool must also be gated by
+        // its persisted permission and routed through the official per-call approval prompt.
+        foreach (var tool in native)
+        {
+            var permission = tool switch
+            {
+                // Older internal callers may send the already-narrowed, trusted read plan without permissions; an
+                // explicit saved opt-out still wins. Risk-bearing tools always require an affirmative persisted field.
+                "Read" or "Glob" or "Grep" => permissions?.NativeFileRead != false,
+                "Bash" => permissions?.NativeCommandExecution == true,
+                "Edit" or "Write" => permissions?.NativeFileWrite == true,
+                "WebSearch" or "WebFetch" => permissions?.NativeNetwork == true,
+                _ => false,
+            };
+            var category = tool switch
+            {
+                "Read" or "Glob" or "Grep" => AgentConfirmationCategories.NativeFileRead,
+                "Bash" => AgentConfirmationCategories.NativeCommand,
+                "Edit" or "Write" => AgentConfirmationCategories.NativeFileWrite,
+                "WebSearch" or "WebFetch" => AgentConfirmationCategories.NativeNetwork,
+                _ => AgentConfirmationCategories.None,
+            };
+            var requiresPerCallApproval = category is AgentConfirmationCategories.NativeCommand or
+                AgentConfirmationCategories.NativeFileWrite or AgentConfirmationCategories.NativeNetwork;
+            if (!permission || (requiresPerCallApproval &&
+                (!plan.RequiresPermissionPromptTool || !plan.NativeAskRules.Contains(tool, StringComparer.Ordinal))))
+            {
+                return false;
+            }
+        }
+
         var product = plan.ProductTools.ToArray();
         if (product.Distinct(StringComparer.Ordinal).Count() != product.Length ||
             !product.All(static tool => IsProductTool(tool)))

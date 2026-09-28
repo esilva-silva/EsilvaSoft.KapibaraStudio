@@ -1,6 +1,6 @@
 # Documentação do EsilvaSoft.SlopStudio
 
-Referência: **22/09/2026**. Produto desktop .NET 10/Avalonia, Windows/Linux, LiteDB e MIT. **Atual:** escopos funcionais v0.5.0–v0.8.0 arquivados; release remota não verificada. **Próxima fase funcional:** v0.9.0 — IA local experimental. **Meta documental atual:** planejar v0.11.0, sem implementar integrações externas ou ativar nova interface. Arquivamento não equivale a homologação.
+Referência: **28/09/2026**. Produto desktop .NET 10/Avalonia, Windows/Linux, LiteDB e MIT. A integração Claude já está no código e segue em validação; a [documentação curta do Claude](phases/phase-07-v0.11.0/README.md) registra modalidades, segurança, limites e homologação pendente. A homologação real com Claude Pro não foi executada nesta revisão.
 
 ## Comece por aqui
 
@@ -20,7 +20,7 @@ Ao editar, adicionar ou mover arquivos `.md`, execute `node scripts/build-docs-i
 
 ## Estado consolidado do checkout
 
-Os recortes funcionais v0.5.0–v0.8.0 estão arquivados, mas seus gates de plataforma, acessibilidade, diálogos nativos, topologias MongoDB e edição real continuam abertos. A IA local da v0.9.0 é experimental; a administração/manutenção da v0.10.0 é antecipação técnica sem ponto de entrada atual na interface. A [v0.11.0](phases/phase-07-v0.11.0/README.md) planeja MCP e agentes externos; v0.12.0 preserva integralmente o workflow anterior, v0.13.0 concentra homologação e v1.0.0 estabilidade. Todas essas integrações novas permanecem planejadas.
+Os recortes funcionais v0.5.0–v0.8.0 estão arquivados, mas seus gates de plataforma, acessibilidade, diálogos nativos, topologias MongoDB e edição real continuam abertos. A IA local da v0.9.0 é experimental; a administração/manutenção da v0.10.0 segue em desenvolvimento. O Claude Code, o provider de chat, streaming, retomada e a ponte MCP já estão implementados em Windows; a homologação real com conta e servidor continua pendente. Consulte [Claude no KapibaraStudio](phases/phase-07-v0.11.0/README.md).
 
 A internacionalização da interface está concluída no recorte automatizado para `pt-BR`, `en`, `es` e `zh-CN`, com `pt-BR` inicial e fallback em `en`; os arquivos `docs/**/*.md` permanecem em português. A evidência histórica de fechamento da v0.8.0 é build sem avisos/erros, **2.674 testes unitários aprovados, 0 falhas e 20 ignorados**, além de **43 benchmarks aprovados**. Essa evidência não valida recursos MCP ou providers ainda planejados.
 
@@ -44,7 +44,7 @@ A internacionalização da interface está concluída no recorte automatizado pa
 | Dados e operação | [06 — Editor/BSON/UUID](06-editor-bson-e-uuid.md), [07 — Segurança/administração](07-dados-seguranca-e-administracao.md), [13 — Transferência lógica](13-exportacao-logica.md) |
 | Editor e exploração | [19 — Explorer](19-database-explorer.md), [20 — Console](20-console.md), [22 — Highlighting](22-syntax-highlighting.md) |
 | Inteligência opcional | [21 — Autocomplete local](21-autocomplete-local.md), [23 — ONNX/chat](23-onnx-slopcoder.md), [26 — IA local multimodelo](26-ia-local-multimodelo.md), [Autocomplete MongoDB — padrão e plano](auto-complite/README.md) |
-| MCP e agentes externos — planejado | [Fase 7 / v0.11.0](phases/phase-07-v0.11.0/README.md), [preservação do roadmap e inventário documental](phases/phase-07-v0.11.0/14-migracao-documental.md) |
+| Claude, autenticação e ferramentas | [Claude no KapibaraStudio](phases/phase-07-v0.11.0/README.md) |
 | Planejamento e histórico | [03 — Catálogo funcional](03-catalogo-funcional.md), [09 — Roadmap](09-plano-de-implementacao.md), [12 — Acompanhamento](12-acompanhamento-da-implementacao.md), [24 — Inventário](24-inventario-roadmap.md) |
 | Qualidade e validação | [08 — Testes](08-testes-e-qualidade.md), [11 — Fontes/evidências](11-fontes-e-evidencias.md), [15 — Matriz de validação](15-matriz-de-validacao.md), [16 — Checklist de homologação](16-checklist-homologacao.md) |
 

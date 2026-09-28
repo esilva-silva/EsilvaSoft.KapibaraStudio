@@ -16,7 +16,11 @@ public sealed record AgentMcpSessionScope(
     Guid ConversationId,
     AgentTurnPlan? Plan = null,
     AgentProviderPermissions? Permissions = null,
-    bool Closed = false)
+    bool Closed = false,
+    AgentWorkspaceContext? WorkspaceContext = null,
+    ConcurrentDictionary<string, byte>? SessionApprovals = null,
+    object? ApprovalGate = null,
+    long Generation = 0)
 {
     /// <summary>
     /// Whether the current turn exposes <paramref name="toolName"/> (registry name, without the MCP prefix). The
@@ -75,7 +79,8 @@ public sealed class AgentMcpSessionRegistry : IAgentMcpSessionScopes
         if (channelId == Guid.Empty || principalId == Guid.Empty || conversationId == Guid.Empty)
             throw new ArgumentException("Identificadores do canal de sessão inválidos.");
         ArgumentException.ThrowIfNullOrWhiteSpace(providerId);
-        var scope = new AgentMcpSessionScope(channelId, principalId, providerId, conversationId);
+        var scope = new AgentMcpSessionScope(channelId, principalId, providerId, conversationId,
+            SessionApprovals: new ConcurrentDictionary<string, byte>(StringComparer.Ordinal), ApprovalGate: new object());
         if (!_principalByChannel.TryAdd(channelId, principalId))
             throw new InvalidOperationException("Canal de sessão já registrado.");
         if (!_byPrincipal.TryAdd(principalId, scope))
@@ -90,14 +95,25 @@ public sealed class AgentMcpSessionRegistry : IAgentMcpSessionScopes
     public IReadOnlyCollection<Guid> ChannelIds => [.. _principalByChannel.Keys];
 
     /// <summary>Replaces the plan of the turn in progress. Returns false for an unknown or closed principal.</summary>
-    public bool UpdateTurn(Guid principalId, AgentTurnPlan plan, AgentProviderPermissions permissions)
+    public bool UpdateTurn(Guid principalId, AgentTurnPlan plan, AgentProviderPermissions permissions,
+        AgentWorkspaceContext? workspaceContext = null)
     {
         ArgumentNullException.ThrowIfNull(plan);
         ArgumentNullException.ThrowIfNull(permissions);
         while (_byPrincipal.TryGetValue(principalId, out var current) && !current.Closed)
         {
-            if (_byPrincipal.TryUpdate(principalId, current with { Plan = plan, Permissions = permissions }, current))
-                return true;
+            lock (current.ApprovalGate ?? current)
+            {
+                if (!ReferenceEquals(FindByPrincipal(principalId), current)) continue;
+                var revoke = current.Permissions is not null &&
+                    (!Equals(current.Permissions, permissions) || !SameWorkspace(current.WorkspaceContext, workspaceContext));
+                if (_byPrincipal.TryUpdate(principalId, current with
+                    {
+                        Plan = plan, Permissions = permissions, WorkspaceContext = workspaceContext,
+                        Generation = current.Generation + 1,
+                        SessionApprovals = revoke ? new ConcurrentDictionary<string, byte>(StringComparer.Ordinal) : current.SessionApprovals
+                    }, current)) return true;
+            }
         }
         return false;
     }
@@ -107,8 +123,11 @@ public sealed class AgentMcpSessionRegistry : IAgentMcpSessionScopes
     {
         while (_byPrincipal.TryGetValue(principalId, out var current))
         {
-            if (_byPrincipal.TryUpdate(principalId, current with { Plan = null, Permissions = null, Closed = true }, current))
-                return true;
+            lock (current.ApprovalGate ?? current)
+                if (_byPrincipal.TryUpdate(principalId, current with
+                    { Plan = null, Permissions = null, WorkspaceContext = null, Closed = true,
+                      Generation = current.Generation + 1,
+                      SessionApprovals = new ConcurrentDictionary<string, byte>(StringComparer.Ordinal) }, current)) return true;
         }
         return false;
     }
@@ -116,8 +135,20 @@ public sealed class AgentMcpSessionRegistry : IAgentMcpSessionScopes
     /// <summary>Removes the channel; later calls of its principal see no scope and are denied.</summary>
     public bool Remove(Guid principalId)
     {
-        if (!_byPrincipal.TryRemove(principalId, out var scope)) return false;
-        _principalByChannel.TryRemove(scope.ChannelId, out _);
-        return true;
+        while (_byPrincipal.TryGetValue(principalId, out var scope))
+        {
+            lock (scope.ApprovalGate ?? scope)
+            {
+                if (!ReferenceEquals(FindByPrincipal(principalId), scope)) continue;
+                if (!_byPrincipal.TryRemove(new KeyValuePair<Guid, AgentMcpSessionScope>(principalId, scope))) continue;
+                _principalByChannel.TryRemove(scope.ChannelId, out _);
+                return true;
+            }
+        }
+        return false;
     }
+
+    private static bool SameWorkspace(AgentWorkspaceContext? left, AgentWorkspaceContext? right) =>
+        left?.WorkspaceFolder == right?.WorkspaceFolder && left?.TabId == right?.TabId &&
+        left?.ActiveFilePath == right?.ActiveFilePath && left?.ConnectionId == right?.ConnectionId;
 }

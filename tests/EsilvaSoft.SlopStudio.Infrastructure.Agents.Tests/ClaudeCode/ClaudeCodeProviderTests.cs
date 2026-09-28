@@ -284,7 +284,9 @@ public sealed class ClaudeCodeProviderTests
         {
             Assert.That(deny, Is.EqualTo(ExpectedDenyRules));
             Assert.That(dedicated.RootElement.GetProperty("disableAllHooks").GetBoolean(), Is.True);
-            Assert.That(permissions.GetProperty("ask").EnumerateArray().Select(static e => e.GetString()), Is.EqualTo(ReadTools));
+            Assert.That(permissions.GetProperty("ask").EnumerateArray().Select(static e => e.GetString()),
+                Is.EqualTo(ClaudeCodeAgentProviderOptions.NativeToolAllowlist),
+                "O perfil dedicado pede confirmação para toda ferramenta nativa permitida pelo adapter; --tools continua limitado por turno.");
             Assert.That(permissions.GetProperty("deny").GetArrayLength(), Is.EqualTo(4));
             Assert.That(workspace.RootElement.GetProperty("permissions").TryGetProperty("ask", out _), Is.False);
             Assert.That(workspace.RootElement.GetProperty("permissions").GetProperty("deny").GetArrayLength(), Is.EqualTo(4));

@@ -7,6 +7,7 @@ using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using EsilvaSoft.SlopStudio.Application.Agents;
 using EsilvaSoft.SlopStudio.Core;
 using EsilvaSoft.SlopStudio.Core.Agents;
 using EsilvaSoft.SlopStudio.Desktop;
@@ -279,6 +280,12 @@ public sealed class AgentCliAccountUiTests
                 Assert.That(cards[2].Title, Is.EqualTo("Ferramenta mongo_find"));
                 Assert.That(cards[2].OriginText, Does.Contain("auditoria"));
             });
+            var confirmation = new AgentToolConfirmationCardItem(new AgentToolConfirmationRequest(
+                chat.ActiveConversation.Id, "claude-code", "Read", AgentConfirmationCategories.NativeFileRead,
+                "{\"file_path\":\"C:\\\\workspace\\\\README.md\"}", "toolu_approval"), CancellationToken.None);
+            chat.Items.Add(confirmation);
+            await PumpAsync(() => confirmation.IsPending);
+            Assert.That(confirmation.CanApproveThisSession, Is.True);
             foreach (var theme in Themes)
             {
                 Avalonia.Application.Current!.RequestedThemeVariant = theme;

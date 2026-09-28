@@ -165,8 +165,13 @@ public sealed class AgentMcpChannelProvisioner : IAgentMcpChannelProvisioner, IA
         }
     }
 
+    public Task<AgentMcpChannelStatus> UpdateTurnAsync(AgentMcpChannelHandle handle, AgentTurnPlan plan,
+        AgentProviderPermissions permissions, CancellationToken cancellationToken = default) =>
+        UpdateTurnAsync(handle, plan, permissions, null, cancellationToken);
+
     public async Task<AgentMcpChannelStatus> UpdateTurnAsync(AgentMcpChannelHandle handle, AgentTurnPlan plan,
-        AgentProviderPermissions permissions, CancellationToken cancellationToken = default)
+        AgentProviderPermissions permissions, AgentWorkspaceContext? workspaceContext,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(handle);
         ArgumentNullException.ThrowIfNull(plan);
@@ -178,7 +183,7 @@ public sealed class AgentMcpChannelProvisioner : IAgentMcpChannelProvisioner, IA
                 return AgentMcpChannelStatus.UnknownSession;
 
             // Narrow first: the scope is the intersection with the grants, so a transient mismatch never widens access.
-            _sessions.UpdateTurn(session.PrincipalId, plan, permissions);
+            _sessions.UpdateTurn(session.PrincipalId, plan, permissions, workspaceContext);
             IReadOnlyList<AgentPermissionGrant> grants;
             try
             {

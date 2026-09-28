@@ -360,7 +360,7 @@ public sealed class ClaudeCodeReviewFixTests
             RedirectStandardOutput = true,
             CreateNoWindow = true,
         };
-        foreach (var argument in new[] { "-p", "--session-id", Guid.NewGuid().ToString("D") })
+        foreach (var argument in new[] { "-p", "--session-id", Guid.NewGuid().ToString("D"), "--tools", "Read,Glob,Grep" })
         {
             info.ArgumentList.Add(argument);
         }

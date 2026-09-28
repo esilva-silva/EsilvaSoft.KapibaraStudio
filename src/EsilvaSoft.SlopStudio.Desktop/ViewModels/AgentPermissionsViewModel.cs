@@ -78,6 +78,9 @@ public sealed partial class AgentPermissionsViewModel : ObservableObject
     public bool InferredSchema { get => _permissions.DataSending.InferredSchema; set => Change(p => p with { DataSending = p.DataSending with { InferredSchema = value } }); }
     public bool UseWorkspace { get => _permissions.Workspace.UseFilesFolder; set => Change(p => p with { Workspace = p.Workspace with { UseFilesFolder = value } }); }
     public bool NativeFileRead { get => _permissions.NativeFileRead; set => Change(p => p with { NativeFileRead = value }); }
+    public bool NativeCommandExecution { get => _permissions.NativeCommandExecution; set => Change(p => p with { NativeCommandExecution = value }); }
+    public bool NativeFileWrite { get => _permissions.NativeFileWrite; set => Change(p => p with { NativeFileWrite = value }); }
+    public bool NativeNetwork { get => _permissions.NativeNetwork; set => Change(p => p with { NativeNetwork = value }); }
     public bool EditActiveFile { get => _permissions.EditProposals.ActiveFile; set => Change(p => p with { EditProposals = p.EditProposals with { ActiveFile = value } }); }
     public bool EditOtherFiles { get => _permissions.EditProposals.OtherWorkspaceFiles; set => Change(p => p with { EditProposals = p.EditProposals with { OtherWorkspaceFiles = value } }); }
     public bool KeepHistory { get => _permissions.KeepHistory; set => Change(p => p with { KeepHistory = value }); }
@@ -94,7 +97,7 @@ public sealed partial class AgentPermissionsViewModel : ObservableObject
     {
         if (!CanEdit) return;
         _permissions = update(_permissions);
-        foreach (var name in new[] { nameof(ActiveFile), nameof(WorkspaceFiles), nameof(ExternalAttachments), nameof(TabMetadata), nameof(InferredSchema), nameof(UseWorkspace), nameof(NativeFileRead), nameof(EditActiveFile), nameof(EditOtherFiles), nameof(KeepHistory), nameof(ConfirmMongoReads), nameof(ConfirmWorkspaceReads), nameof(ConfirmNativeReads), nameof(ConfirmEdits), nameof(AutomaticActiveFile), nameof(AutomaticTabMetadata), nameof(HasConsent), nameof(ConsentStatusText), nameof(LimitConnections), nameof(DeleteHistoryConfirmation), nameof(CanDeleteHistory), nameof(CanSave) }) OnPropertyChanged(name);
+        foreach (var name in new[] { nameof(ActiveFile), nameof(WorkspaceFiles), nameof(ExternalAttachments), nameof(TabMetadata), nameof(InferredSchema), nameof(UseWorkspace), nameof(NativeFileRead), nameof(NativeCommandExecution), nameof(NativeFileWrite), nameof(NativeNetwork), nameof(EditActiveFile), nameof(EditOtherFiles), nameof(KeepHistory), nameof(ConfirmMongoReads), nameof(ConfirmWorkspaceReads), nameof(ConfirmNativeReads), nameof(ConfirmEdits), nameof(AutomaticActiveFile), nameof(AutomaticTabMetadata), nameof(HasConsent), nameof(ConsentStatusText), nameof(LimitConnections), nameof(DeleteHistoryConfirmation), nameof(CanDeleteHistory), nameof(CanSave) }) OnPropertyChanged(name);
         NotifyCommandStates();
     }
 

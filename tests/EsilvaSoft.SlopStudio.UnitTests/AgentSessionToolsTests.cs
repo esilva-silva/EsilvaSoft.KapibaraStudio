@@ -22,7 +22,7 @@ public sealed class AgentSessionToolsTests
 
     private static readonly string[] OriginalHunkLines = ["linha 2"];
     private static readonly string[] ProposedHunkLines = ["linha dois", "linha 2b"];
-    private static readonly string[] ConfirmationDecisions = ["Rejected", "ApprovedOnce"];
+    private static readonly string[] ConfirmationDecisions = ["Rejected", "ApprovedOnce", "ApprovedThisSession"];
 
     private static readonly string[] SessionTools =
         ["get_cached_schema", "get_workspace_context", "propose_file_edit", "approve"];
@@ -242,6 +242,7 @@ public sealed class AgentSessionToolsTests
         var file = rig.WriteFile("scripts/clientes.json", "{\"segredo\":\"nao-enviar\"}");
         rig.Workspace.Context = new AgentWorkspaceContext(DateTimeOffset.UtcNow, rig.WorkspaceFolder, file, "clientes.json",
             "tab-1", 3, "BUFFER-CANARY", rig.Profile.Id.ToString("D"), "Principal", "CakeShop", "orders");
+        rig.BindPlan(AgentModePolicy.Plan(AgentOperationMode.Agent, rig.Permissions, new AgentPlatformFacts(true, true)));
 
         var inScope = await rig.CallRawAsync("get_workspace_context", "{}");
         var plan = AgentModePolicy.Plan(AgentOperationMode.Agent, rig.Permissions, new AgentPlatformFacts(true, true));
@@ -259,6 +260,31 @@ public sealed class AgentSessionToolsTests
             Assert.That(outOfScope.StructuredContentJson, Does.Contain("\"connectionInScope\":false")
                 .And.Not.Contain(rig.Profile.Id.ToString("D")).And.Not.Contain("Principal").And.Not.Contain("CakeShop"));
             Assert.That(extra.ErrorCode, Is.EqualTo("InvalidArguments"));
+        });
+    }
+
+    [Test]
+    public async Task WorkspaceToolsUseTheSnapshotBoundToTheTurnEvenAfterTheActiveWorkspaceChanges()
+    {
+        using var rig = new AgentSessionToolsTestRig();
+        var firstFile = rig.WriteFile("first.js", "const first = true;\n");
+        rig.Workspace.Context = new AgentWorkspaceContext(DateTimeOffset.UtcNow, rig.WorkspaceFolder, firstFile,
+            "first.js", "tab-first", 4, "const first = true;\n", Guid.NewGuid().ToString("D"),
+            "Conexão fora do escopo", "db-original", "collection-original");
+        rig.BindPlan(AgentModePolicy.Plan(AgentOperationMode.Agent, rig.Permissions, new AgentPlatformFacts(true, true))
+            with { AllowedConnectionIds = [rig.Profile.Id] });
+        rig.Workspace.Context = new AgentWorkspaceContext(DateTimeOffset.UtcNow,
+            Path.Combine(rig.WorkspaceFolder, "second"), Path.Combine(rig.WorkspaceFolder, "second.js"),
+            "second.js", "tab-second", 1, "const second = true;\n");
+
+        var result = await rig.CallRawAsync("get_workspace_context", "{}");
+        using var json = JsonDocument.Parse(result.StructuredContentJson!);
+        Assert.Multiple(() =>
+        {
+            Assert.That(json.RootElement.GetProperty("activeFile").GetProperty("name").GetString(), Is.EqualTo("first.js"), result.StructuredContentJson);
+            Assert.That(json.RootElement.GetProperty("tab").GetProperty("connectionInScope").GetBoolean(), Is.False, result.StructuredContentJson);
+            Assert.That(result.StructuredContentJson, Does.Not.Contain("second.js"));
+            Assert.That(rig.Workspace.Captures, Is.EqualTo(0), "The MCP handler must not recapture mutable UI state.");
         });
     }
 
@@ -305,6 +331,7 @@ public sealed class AgentSessionToolsTests
         var file = rig.WriteFile("app.js", "disco\r\n");
         rig.Workspace.Context = new AgentWorkspaceContext(DateTimeOffset.UtcNow, rig.WorkspaceFolder, file, "app.js",
             "tab-7", 9, "db.a.find()\r\ndb.b.find()\r\n");
+        rig.BindPlan(AgentModePolicy.Plan(AgentOperationMode.Agent, rig.Permissions, new AgentPlatformFacts(true, true)));
 
         var result = await rig.CallAsync("propose_file_edit", new
         {
@@ -372,6 +399,7 @@ public sealed class AgentSessionToolsTests
         var active = rig.WriteFile("ativo.js", "const uri = 'x';\n");
         rig.Workspace.Context = new AgentWorkspaceContext(DateTimeOffset.UtcNow, rig.WorkspaceFolder, active, "ativo.js",
             "tab", 1, "const uri = 'mongodb://u:p@h';\n");
+        rig.BindPlan(AgentModePolicy.Plan(AgentOperationMode.Agent, rig.Permissions, new AgentPlatformFacts(true, true)));
 
         var other = await rig.CallAsync("propose_file_edit", new { path = "outro.txt", new_content = "b\n" });
         var marker = await rig.CallAsync("propose_file_edit", new { path = "ativo.js", new_content = "const uri = '[segredo removido]';\n" });
@@ -424,9 +452,66 @@ public sealed class AgentSessionToolsTests
             Assert.That(request.Category, Is.EqualTo(AgentConfirmationCategories.MongoMetadataRead));
             Assert.That(request.ConversationId, Is.EqualTo(rig.ConversationId));
             Assert.That(request.ToolUseId, Is.EqualTo("toolu_1"));
-            Assert.That(Enum.GetNames<AgentToolConfirmationDecision>(), Is.EquivalentTo(ConfirmationDecisions),
-                "Não existe aprovação \"sempre\".");
+            Assert.That(Enum.GetNames<AgentToolConfirmationDecision>(), Is.EquivalentTo(ConfirmationDecisions));
         });
+    }
+
+    [Test]
+    public async Task SessionApprovalIsLimitedToExactReadOnlyArgumentsAndClearedWhenPermissionsChange()
+    {
+        using var rig = new AgentSessionToolsTestRig(AgentOperationMode.AskConfirmations);
+        rig.Confirmation!.Answer = static (_, _) => Task.FromResult(AgentToolConfirmationDecision.ApprovedThisSession);
+        const string input = "{\"tool_name\":\"mcp__slopstudio__list_databases\",\"input\":{\"connectionId\":\"9d1d9d7a-2b35-4e47-8f71-08a1a7e2a101\"}}";
+        var first = await rig.CallRawAsync("approve", input);
+        var second = await rig.CallRawAsync("approve", input);
+        var changedArguments = await rig.CallRawAsync("approve",
+            "{\"tool_name\":\"mcp__slopstudio__list_databases\",\"input\":{\"connectionId\":\"a81d9f50-1f7f-4ee6-bb56-10c8aeb34292\"}}");
+        var promptCount = rig.Confirmation.Requests.Count;
+
+        rig.BindPlan(AgentModePolicy.Plan(AgentOperationMode.AskConfirmations,
+            rig.Permissions with { KeepHistory = false }, new AgentPlatformFacts(true, true)),
+            rig.Permissions with { KeepHistory = false });
+        var afterPolicyChange = await rig.CallRawAsync("approve", input);
+        Assert.Multiple(() =>
+        {
+            Assert.That(Behavior(first), Is.EqualTo("allow"), first.StructuredContentJson);
+            Assert.That(Behavior(second), Is.EqualTo("allow"));
+            Assert.That(Behavior(changedArguments), Is.EqualTo("allow"));
+            Assert.That(promptCount, Is.EqualTo(2), "Repetição exata é liberada só na sessão; argumentos diferentes pedem confirmação.");
+            Assert.That(Behavior(afterPolicyChange), Is.EqualTo("allow"));
+            Assert.That(rig.Confirmation.Requests, Has.Count.EqualTo(3), "Mudança de permissão revoga a concessão da sessão.");
+        });
+    }
+
+    [Test]
+    public async Task DelayedApprovalIsDeniedWhenTurnScopeChangesBeforeTheUserDecisionReturns()
+    {
+        using var rig = new AgentSessionToolsTestRig(AgentOperationMode.AskConfirmations);
+        var decision = new TaskCompletionSource<AgentToolConfirmationDecision>(TaskCreationOptions.RunContinuationsAsynchronously);
+        rig.Confirmation!.Answer = (_, _) => decision.Task;
+        const string request = "{\"tool_name\":\"mcp__slopstudio__list_databases\",\"input\":{\"connectionId\":\"9d1d9d7a-2b35-4e47-8f71-08a1a7e2a101\"}}";
+        var pending = rig.CallRawAsync("approve", request);
+        while (rig.Confirmation.Requests.Count == 0) await Task.Yield();
+
+        rig.BindPlan(AgentModePolicy.Plan(AgentOperationMode.AskConfirmations, rig.Permissions with { KeepHistory = false },
+            new AgentPlatformFacts(true, true)), rig.Permissions with { KeepHistory = false });
+        decision.SetResult(AgentToolConfirmationDecision.ApprovedThisSession);
+
+        var result = await pending;
+        Assert.That(Behavior(result), Is.EqualTo("deny"), "Aprovação pendente não pode sobreviver à revogação do escopo.");
+    }
+
+    [Test]
+    public async Task SessionApprovalCannotAuthorizeCommandsOrFileMutations()
+    {
+        using var rig = new AgentSessionToolsTestRig(AgentOperationMode.Automatic, value => value with
+        {
+            NativeCommandExecution = true
+        });
+        rig.BindPlan(AgentModePolicy.Plan(AgentOperationMode.Automatic, rig.Permissions, new AgentPlatformFacts(true, true)));
+        rig.Confirmation!.Answer = static (_, _) => Task.FromResult(AgentToolConfirmationDecision.ApprovedThisSession);
+        var result = await rig.CallRawAsync("approve", "{\"tool_name\":\"Bash\",\"input\":{\"command\":\"dotnet test\"}}");
+        Assert.That(Behavior(result), Is.EqualTo("deny"));
     }
 
     [Test]

@@ -136,7 +136,7 @@ public sealed partial class AgentChatViewModel
             var request = new AgentTurnRequest(run.TurnId, message, context.TabId ?? "", context.DocumentVersion ?? 0)
             {
                 Plan = plan, SystemPrompt = systemPrompt, Attachments = resolution.Attachments,
-                ConversationId = run.Conversation.Id, Permissions = permissions,
+                ConversationId = run.Conversation.Id, Permissions = permissions, WorkspaceContext = context,
             };
             await RunTurnAsync(run, providerId, modelId, workingDirectory, request);
         }
@@ -254,7 +254,14 @@ public sealed partial class AgentChatViewModel
             ProviderSessionObserver = update => AgentUiDispatch.Post(() =>
             {
                 if (update.ProviderSessionId is { } id) ReportProviderSessionId(conversation, id);
-                if (update.Change == AgentProviderSessionChange.ResumeFallback) { conversation.ResumeLost = true; conversation.ProviderSessionId = null; }
+                if (update.Change == AgentProviderSessionChange.ResumeFallback)
+                {
+                    conversation.ResumeLost = true;
+                    conversation.ProviderSessionId = null;
+                    conversation.Items.Add(new AgentChatNoticeItem(
+                        Text.Resolve("agentResumeLost"),
+                        isWarning: true));
+                }
             }),
         }, cancellationToken);
         conversation.SessionId = created;

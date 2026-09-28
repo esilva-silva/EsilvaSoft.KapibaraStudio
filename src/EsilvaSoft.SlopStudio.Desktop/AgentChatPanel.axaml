@@ -125,6 +125,21 @@
                 </StackPanel>
               </Border>
             </DataTemplate>
+            <DataTemplate DataType="vm:AgentToolConfirmationCardItem">
+              <Border Classes="card" Padding="8" Margin="2" BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1">
+                <StackPanel Spacing="6">
+                  <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" AutomationProperties.LiveSetting="Assertive"/>
+                  <TextBlock Text="{Binding CategoryText}" Classes="metadata"/>
+                  <TextBox Text="{Binding InputText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="120" IsVisible="{Binding HasInput}"/>
+                  <TextBlock Text="{Binding StatusText}" Classes="metadata" TextWrapping="Wrap"/>
+                  <WrapPanel IsVisible="{Binding IsPending}">
+                    <Button Content="{local:Loc Key=agentConfirmAllowOnce}" Command="{Binding ApproveOnceCommand}" Margin="0,0,6,0"/>
+                    <Button Content="{local:Loc Key=agentConfirmAllowSession}" Command="{Binding ApproveThisSessionCommand}" IsVisible="{Binding CanApproveThisSession}" Margin="0,0,6,0"/>
+                    <Button Content="{local:Loc Key=agentConfirmDeny}" Command="{Binding RejectCommand}"/>
+                  </WrapPanel>
+                </StackPanel>
+              </Border>
+            </DataTemplate>
             <DataTemplate DataType="vm:AgentApprovalCardItem">
               <Border Classes="card agent-approval" Padding="8,6">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">

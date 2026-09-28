@@ -80,19 +80,9 @@ public sealed partial class AgentToolRegistry
     {
         if (!IsClosedEmptyObject(argumentsJson)) return AgentToolInvocationResult.Failure(InvalidArguments);
         if (!IsSessionCallBound(principal, context, destination, outputScope, GetWorkspaceContextToolName, out var scope) ||
-            _sessionTools?.WorkspaceContext is not { } source)
+            scope.WorkspaceContext is not { } snapshot)
             return AgentToolInvocationResult.Failure(PermissionDenied);
         cancellationToken.ThrowIfCancellationRequested();
-
-        AgentWorkspaceContext snapshot;
-        try
-        {
-            snapshot = source.Capture() ?? throw new InvalidOperationException();
-        }
-        catch (Exception exception) when (exception is not OutOfMemoryException)
-        {
-            return AgentToolInvocationResult.Failure(PermissionDenied, AgentAuditDecisionReason.ExecutionFailed);
-        }
 
         var permissions = scope.Permissions!;
         var exclusions = permissions.Workspace?.Exclusions ?? [];

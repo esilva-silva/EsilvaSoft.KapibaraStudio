@@ -107,13 +107,37 @@ public sealed class AgentModePolicyTests
     }
 
     [Test]
+    public void NativeCommandsAndNetworkRequireApprovalWhileFileWritesStayMediatedInAutomaticMode()
+    {
+        var off = AgentModePolicy.Plan(AgentOperationMode.Automatic, Consented(), Windows);
+        var enabled = Consented() with { NativeCommandExecution = true, NativeFileWrite = true, NativeNetwork = true };
+        var plan = AgentModePolicy.Plan(AgentOperationMode.Automatic, enabled, Windows);
+        Assert.Multiple(() =>
+        {
+            Assert.That(off.NativeTools, Does.Not.Contain("Bash").And.Not.Contain("Edit").And.Not.Contain("WebFetch"));
+            Assert.That(plan.NativeTools, Does.Contain("Bash").And.Not.Contain("Edit").And.Not.Contain("Write").And.Contain("WebFetch"));
+            Assert.That(plan.NativeAskRules, Does.Contain("Bash").And.Not.Contain("Edit").And.Not.Contain("Write").And.Contain("WebFetch"));
+            Assert.That(plan.ConfirmationCategories, Is.EqualTo(AgentConfirmationCategories.NativeCommand |
+                AgentConfirmationCategories.NativeNetwork));
+            Assert.That(plan.ProductTools, Does.Contain(AgentProductToolNames.ProposeFileEdit));
+            Assert.That(plan.RequiresPermissionPromptTool, Is.True);
+        });
+
+        var noApprovalChannel = AgentModePolicy.Plan(AgentOperationMode.Automatic, enabled, Linux);
+        Assert.That(noApprovalChannel.NativeTools, Is.EquivalentTo(["Read", "Glob"]),
+            "Read-only tools remain usable without a prompt; commands and network calls do not.");
+    }
+
+    [Test]
     public void AskConfirmationsConfirmsEveryExposedToolIncludingReads()
     {
         var plan = AgentModePolicy.Plan(AgentOperationMode.AskConfirmations, Consented(), Windows);
         Assert.Multiple(() =>
         {
             Assert.That(plan.RequiresPermissionPromptTool, Is.True);
-            Assert.That(plan.ConfirmationCategories, Is.EqualTo(AgentConfirmationCategories.All));
+            Assert.That(plan.ConfirmationCategories, Is.EqualTo(AgentConfirmationCategories.MongoMetadataRead |
+                AgentConfirmationCategories.WorkspaceContextRead | AgentConfirmationCategories.NativeFileRead |
+                AgentConfirmationCategories.EditProposal));
             Assert.That(plan.NativeAskRules, Is.EqualTo(["Read", "Glob"]));
             Assert.That(plan.ProposalHandling, Is.EqualTo(AgentProposalHandling.ReviewRequired));
         });
@@ -275,7 +299,7 @@ public sealed class AgentModePolicyTests
         yield return new TestCaseData(Consented() with { ConnectionScope = AgentConnectionScope.Selected, SelectedConnectionIds = null! })
             .SetName("SelecionadasNulas");
         yield return new TestCaseData(Consented() with { DefaultMode = (AgentOperationMode)7 }).SetName("ModoPadraoIndefinido");
-        yield return new TestCaseData(Consented() with { ConfirmationCategories = (AgentConfirmationCategories)64 })
+        yield return new TestCaseData(Consented() with { ConfirmationCategories = (AgentConfirmationCategories)128 })
             .SetName("CategoriaIndefinida");
     }
 

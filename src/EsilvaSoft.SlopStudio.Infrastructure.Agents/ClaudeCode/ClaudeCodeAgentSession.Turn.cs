@@ -234,7 +234,8 @@ internal sealed partial class ClaudeCodeAgentSession
                 return (ClaudeCodeErrorCodes.ProductToolsUnavailable, setup, AgentMcpChannelStatus.ServerExecutableMissing);
             }
 
-            var status = await _mcp.UpdateTurnAsync(open, input.Plan!, input.Permissions!, cancellationToken).ConfigureAwait(false);
+            var status = await _mcp.UpdateTurnAsync(open, input.Plan!, input.Permissions!, input.WorkspaceContext,
+                cancellationToken).ConfigureAwait(false);
             return status == AgentMcpChannelStatus.Ready
                 ? (null, setup.WithMcpServer(launch!), status)
                 : (ClaudeCodeErrorCodes.ProductToolsUnavailable, setup, status);
@@ -257,7 +258,8 @@ internal sealed partial class ClaudeCodeAgentSession
         {
             try
             {
-                narrowed = await _mcp.UpdateTurnAsync(open, input.Plan!, input.Permissions, cancellationToken).ConfigureAwait(false) ==
+                narrowed = await _mcp.UpdateTurnAsync(open, input.Plan!, input.Permissions, input.WorkspaceContext,
+                    cancellationToken).ConfigureAwait(false) ==
                     AgentMcpChannelStatus.Ready;
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

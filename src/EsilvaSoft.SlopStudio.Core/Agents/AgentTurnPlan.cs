@@ -14,8 +14,7 @@ public enum AgentProposalHandling
 }
 
 /// <summary>
-/// Categories of tool operations that may require a per-call confirmation. Writes are absent on purpose: MongoDB write
-/// tools are unavailable in this version and no category can enable them.
+/// Categories of tool operations governed by the provider permission prompt.
 /// </summary>
 [Flags]
 public enum AgentConfirmationCategories
@@ -34,7 +33,16 @@ public enum AgentConfirmationCategories
     /// <summary><c>propose_file_edit</c>.</summary>
     EditProposal = 8,
 
-    All = MongoMetadataRead | WorkspaceContextRead | NativeFileRead | EditProposal,
+    /// <summary>Native shell or command execution.</summary>
+    NativeCommand = 16,
+
+    /// <summary>Native file editing/writing.</summary>
+    NativeFileWrite = 32,
+
+    /// <summary>Native network tools.</summary>
+    NativeNetwork = 64,
+
+    All = MongoMetadataRead | WorkspaceContextRead | NativeFileRead | EditProposal | NativeCommand | NativeFileWrite | NativeNetwork,
 }
 
 /// <summary>Why a turn cannot be sent at all.</summary>

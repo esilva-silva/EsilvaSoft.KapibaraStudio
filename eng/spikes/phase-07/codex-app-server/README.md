@@ -34,7 +34,7 @@ O resultado não conclui o lote 0: continuam necessários os spikes de providers
 
 ## Execução observada
 
-A execução Windows registrada e os seus limites estão em [17 — validação e acompanhamento](../../../../docs/phases/phase-07-v0.11.0/17-validacao-da-meta.md#acompanhamento-posterior--spike-de-disponibilidadeschema-codex). Os schemas permanecem apenas em diretório temporário local, fora do repositório.
+A execução Windows registrada e os seus limites estão no [acompanhamento do lote 0](../../../../docs/12-acompanhamento-da-implementacao.md#lote-0-da-v0110--spike-codex-confirmado-parcialmente--22092026). Os schemas permanecem apenas em diretório temporário local, fora do repositório.
 
 ## Probe separado de handshake STDIO
 
@@ -64,4 +64,4 @@ Os cenários cobrem resposta/EOF válidos, ID incorreto, frame acima do teto, st
 
 O teste do manifesto cobre entrada válida, tamanho excessivo, JSON inválido sem eco de conteúdo, profundidade excessiva, propriedade duplicada e reparse point ancestral. Inclui symlink no arquivo quando o SO permite criá-lo; no Windows sem esse privilégio, imprime `SKIP` e esse cenário permanece não homologado. Na revisão Windows de 23/09/2026 UTC, os seis cenários disponíveis e os cinco de transporte passaram; symlink no arquivo ficou pendente. Caminhos e limpeza continuam sujeitos a troca por outro processo com escrita; o scratch privado reduz acesso acidental, sem isolar processos do mesmo usuário.
 
-O handshake Windows confirmado e suas contagens estão em [17 — acompanhamento do handshake](../../../../docs/phases/phase-07-v0.11.0/17-validacao-da-meta.md#acompanhamento-posterior--handshake-stdio-codex). AC-01..AC-20 e o lote 0 continuam pendentes. Protocolo consultado: [documentação oficial OpenAI — App Server](https://learn.chatgpt.com/docs/app-server#initialization).
+O handshake Windows confirmado e suas contagens estão no [acompanhamento do lote 0](../../../../docs/12-acompanhamento-da-implementacao.md#lote-0-da-v0110--spike-codex-confirmado-parcialmente--22092026). AC-01..AC-20 e o lote 0 continuam pendentes. Protocolo consultado: [documentação oficial OpenAI — App Server](https://learn.chatgpt.com/docs/app-server#initialization).

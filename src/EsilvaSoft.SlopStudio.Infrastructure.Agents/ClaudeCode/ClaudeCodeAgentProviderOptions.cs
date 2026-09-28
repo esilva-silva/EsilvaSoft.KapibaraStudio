@@ -17,10 +17,11 @@ public sealed class ClaudeCodeAgentProviderOptions
     public static ClaudeCodeVersion DefaultMinimumVersion { get; } = new(2, 1, 268);
 
     /// <summary>
-    /// Allowlist exata de ferramentas nativas (ADR-054 revisada): somente leitura. Bash, PowerShell, Edit, Write,
-    /// NotebookEdit, WebFetch, WebSearch, Agent/Task e demais ficam ausentes por construção via <c>--tools</c>.
+    /// Allowlist exata de ferramentas nativas admitidas pela política do produto. Subagents e ferramentas não listadas
+    /// permanecem indisponíveis. Ferramentas de comando, escrita e rede começam desabilitadas nas permissões.
     /// </summary>
-    public static IReadOnlyList<string> NativeToolAllowlist { get; } = ["Read", "Glob", "Grep"];
+    public static IReadOnlyList<string> NativeToolAllowlist { get; } =
+        ["Read", "Glob", "Grep", "Bash", "WebSearch", "WebFetch"];
 
     /// <summary>Caminho absoluto de <c>claude</c> escolhido pelo usuário; nulo procura no PATH e em locais conhecidos.</summary>
     public string? ExecutablePath { get; init; }

@@ -59,20 +59,10 @@ public sealed partial class AgentToolRegistry
         if (!TryParseProposalArguments(argumentsJson, out var path, out var edits, out var newContent))
             return AgentToolInvocationResult.Failure(InvalidArguments);
         if (!IsSessionCallBound(principal, context, destination, outputScope, ProposeFileEditToolName, out var scope) ||
-            _sessionTools is not { WorkspaceContext: { } source, ProposalSink: { } sink })
+            _sessionTools is not { ProposalSink: { } sink } || scope.WorkspaceContext is not { } snapshot)
             return AgentToolInvocationResult.Failure(PermissionDenied);
         var permissions = scope.Permissions!;
         var editPermissions = permissions.EditProposals ?? new AgentEditProposalPermissions();
-
-        AgentWorkspaceContext snapshot;
-        try
-        {
-            snapshot = source.Capture() ?? throw new InvalidOperationException();
-        }
-        catch (Exception exception) when (exception is not OutOfMemoryException)
-        {
-            return AgentToolInvocationResult.Failure(PermissionDenied, AgentAuditDecisionReason.ExecutionFailed);
-        }
 
         if (permissions.Workspace?.UseFilesFolder != true ||
             !AgentWorkspacePaths.TryGetWorkspaceRoot(snapshot.WorkspaceFolder, out var workspace))

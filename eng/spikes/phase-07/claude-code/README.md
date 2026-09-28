@@ -1,6 +1,6 @@
 # Spike P7-CL0-01 — Claude Code instalado (Windows)
 
-Spike reproduzível do binário oficial do Claude Code usado como subprocesso pelo modo "Claude (assinatura)" ([plano 23](../../../../docs/phases/phase-07-v0.11.0/23-integracao-claude.md), [threat model 22](../../../../docs/phases/phase-07-v0.11.0/22-threat-model.md)). **Não implementa o provider**, não altera `src/` e fica fora da solução principal (sem dependências novas). O plano 23 citava a pasta `claude-code-cli/`; o despacho da tarefa fixou `claude-code/`, que é esta.
+Spike reproduzível do binário oficial do Claude Code usado como subprocesso pelo modo "Claude (assinatura)"; consulte o [estado e os limites atuais da Fase 7](../../../../docs/phases/phase-07-v0.11.0/README.md). **Não implementa o provider**, não altera `src/` e fica fora da solução principal (sem dependências novas). Este registro de spike permanece como evidência técnica específica.
 
 Execução registrada: **25/09/2026, Windows 11 Pro 10.0.26200, Claude Code 2.1.268**, conta própria do usuário (Pro, login feito por ele). Nenhuma execução em Linux.
 
