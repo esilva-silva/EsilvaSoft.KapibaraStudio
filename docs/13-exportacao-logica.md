@@ -8,8 +8,8 @@ A aba **Exportar** produz uma cópia de intercâmbio de um banco MongoDB em Exte
 
 Cada execução cria uma pasta exclusiva abaixo do diretório local de dados do aplicativo:
 
-- Windows: `%LOCALAPPDATA%\EsilvaSoft\SlopStudio\exports`.
-- Linux: `$XDG_DATA_HOME/EsilvaSoft/SlopStudio/exports`, ou `~/.local/share/EsilvaSoft/SlopStudio/exports` quando `XDG_DATA_HOME` não estiver definido.
+- Windows: `%LOCALAPPDATA%\EsilvaSoft\KapibaraStudio\exports`.
+- Linux: `$XDG_DATA_HOME/EsilvaSoft/KapibaraStudio/exports`, ou `~/.local/share/EsilvaSoft/KapibaraStudio/exports` quando `XDG_DATA_HOME` não estiver definido.
 
 A pasta contém:
 

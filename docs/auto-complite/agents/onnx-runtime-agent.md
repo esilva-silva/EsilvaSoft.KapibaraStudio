@@ -12,7 +12,7 @@ Carga/sessões/tokenizer/EP CPU/GPU/NPU, lifetime, memória/buffers/OrtValue se 
 
 ## Componentes que pode modificar
 
-Infrastructure/OnnxLocalModelRuntime.cs, ModelAdapters.cs, DeepSeekModelTokenizer.cs, AiProviderSelector.cs, OnnxHardwareProbe.cs, LocalModelCatalog.cs; Application/LocalAiModelService e builders FIM/contratos; Core DTOs por lote acordado. Caminhos relativos ao projeto EsilvaSoft.SlopStudio indicado; componentes novos estão no plano.
+Infrastructure/OnnxLocalModelRuntime.cs, ModelAdapters.cs, DeepSeekModelTokenizer.cs, AiProviderSelector.cs, OnnxHardwareProbe.cs, LocalModelCatalog.cs; Application/LocalAiModelService e builders FIM/contratos; Core DTOs por lote acordado. Caminhos relativos ao projeto EsilvaSoft.KapibaraStudio indicado; componentes novos estão no plano.
 
 ## Componentes que não deve modificar
 

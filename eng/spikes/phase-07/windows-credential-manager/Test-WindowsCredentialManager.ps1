@@ -4,13 +4,13 @@ param()
 $ErrorActionPreference = 'Stop'
 if (-not $IsWindows) { throw 'Spike disponível somente no Windows; nenhum teste foi executado.' }
 
-if (-not ('SlopStudio.Spikes.WindowsCredentials.CredentialManagerProbe' -as [type])) {
+if (-not ('KapibaraStudio.Spikes.WindowsCredentials.CredentialManagerProbe' -as [type])) {
     Add-Type -Path (Join-Path $PSScriptRoot 'CredentialManagerProbe.cs')
 }
 
 $results = @(
     foreach ($scenario in @('Success', 'FailureAfterWrite', 'FailureAfterRead')) {
-        [SlopStudio.Spikes.WindowsCredentials.CredentialManagerProbe]::Run($scenario)
+        [KapibaraStudio.Spikes.WindowsCredentials.CredentialManagerProbe]::Run($scenario)
     }
 )
 $passed = $true

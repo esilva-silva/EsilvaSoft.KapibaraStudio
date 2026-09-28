@@ -10,7 +10,7 @@ Este fechamento não inclui gates de performance, validação multiplataforma, M
 
 ## Convenções e ordem
 
-Componentes abaixo são relativos a `src/EsilvaSoft.SlopStudio.*`: **A** Application, **C** Core, **I** Infrastructure, **D** Desktop, **X** Autocomplete.Core; **U** tests/EsilvaSoft.SlopStudio.UnitTests; **B** tests/EsilvaSoft.SlopStudio.Benchmarks. Arquivo/componente novo está marcado `(novo)`. Perfis completos em [agents](agents/README.md).
+Componentes abaixo são relativos a `src/EsilvaSoft.KapibaraStudio.*`: **A** Application, **C** Core, **I** Infrastructure, **D** Desktop, **X** Autocomplete.Core; **U** tests/EsilvaSoft.KapibaraStudio.UnitTests; **B** tests/EsilvaSoft.KapibaraStudio.Benchmarks. Arquivo/componente novo está marcado `(novo)`. Perfis completos em [agents](agents/README.md).
 
 ```text
 G00 contratos / riscos / propriedade dos arquivos

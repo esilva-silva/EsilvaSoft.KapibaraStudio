@@ -2,7 +2,7 @@ using System;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 
-namespace SlopStudio.Spikes.WindowsCredentials
+namespace KapibaraStudio.Spikes.WindowsCredentials
 {
     public sealed class ProbeResult
     {
@@ -67,7 +67,7 @@ namespace SlopStudio.Spikes.WindowsCredentials
             var result = new ProbeResult
             {
                 Scenario = scenario,
-                SyntheticTarget = "EsilvaSoft.SlopStudio.Spike.Phase07.Synthetic/" + Guid.NewGuid().ToString("N")
+                SyntheticTarget = "EsilvaSoft.KapibaraStudio.Spike.Phase07.Synthetic/" + Guid.NewGuid().ToString("N")
             };
             byte[] marker = RandomNumberGenerator.GetBytes(32);
             IntPtr unmanagedMarker = IntPtr.Zero;

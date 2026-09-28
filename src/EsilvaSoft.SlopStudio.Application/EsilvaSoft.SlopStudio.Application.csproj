@@ -1,7 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <ItemGroup>
-    <ProjectReference Include="../EsilvaSoft.SlopStudio.Core/EsilvaSoft.SlopStudio.Core.csproj" />
-    <ProjectReference Include="../EsilvaSoft.SlopStudio.Autocomplete.Core/EsilvaSoft.SlopStudio.Autocomplete.Core.csproj" />
-    <ProjectReference Include="../EsilvaSoft.SlopStudio.LocalAi.Core/EsilvaSoft.SlopStudio.LocalAi.Core.csproj" />
-  </ItemGroup>
-</Project>

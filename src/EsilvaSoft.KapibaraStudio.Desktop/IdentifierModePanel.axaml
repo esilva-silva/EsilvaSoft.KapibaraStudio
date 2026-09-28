@@ -1,0 +1,58 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:EsilvaSoft.KapibaraStudio.Desktop.ViewModels" xmlns:local="using:EsilvaSoft.KapibaraStudio.Desktop" x:Class="EsilvaSoft.KapibaraStudio.Desktop.IdentifierModePanel" x:DataType="vm:IdentifierPreferenceViewModel">
+  <UserControl.Styles>
+    <Style Selector="TextBlock.identifier-code">
+      <Setter Property="FontFamily" Value="{DynamicResource CodeFont}" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style Selector="TextBlock.identifier-status.error">
+      <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <StackPanel Spacing="6">
+    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+    <ComboBox x:Name="ModeChoice" ItemsSource="{Binding Choices}" SelectedItem="{Binding SelectedChoice}" AutomationProperties.Name="{Binding Title}">
+      <ComboBox.ItemTemplate>
+        <DataTemplate x:DataType="vm:IdentifierModeChoice">
+          <TextBlock Text="{Binding Label}" />
+        </DataTemplate>
+      </ComboBox.ItemTemplate>
+    </ComboBox>
+    <TextBlock x:Name="ModeDescription" Text="{Binding Description}" TextWrapping="Wrap" />
+    <TextBlock Text="{local:Loc Key=selectedModePreview}" Classes="metadata" />
+    <Border Classes="card" Padding="10,6">
+      <StackPanel Spacing="4">
+        <StackPanel x:Name="ObjectIdSection" Spacing="2" IsVisible="{Binding IsObjectIdPreviewVisible}">
+          <TextBlock Text="ObjectId" FontWeight="SemiBold" Margin="0,4,0,0" />
+          <ItemsControl ItemsSource="{Binding ObjectIdPreview}" AutomationProperties.Name="{local:Loc Key=objectIdPreview}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:IdentifierPreviewRow">
+                <StackPanel Margin="0,3">
+                  <TextBlock Text="{Binding Label}" Classes="metadata" FontWeight="SemiBold" />
+                  <TextBlock Text="{Binding Code}" Classes="identifier-code" />
+                  <TextBlock Text="{Binding Details}" Classes="metadata" TextWrapping="Wrap" />
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+        <StackPanel x:Name="UuidSection" Spacing="2" IsVisible="{Binding IsUuidPreviewVisible}">
+          <TextBlock Text="UUID" FontWeight="SemiBold" Margin="0,4,0,0" />
+          <ItemsControl ItemsSource="{Binding UuidPreview}" AutomationProperties.Name="{local:Loc Key=uuidPreview}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:IdentifierPreviewRow">
+                <StackPanel Margin="0,3">
+                  <TextBlock Text="{Binding Label}" Classes="metadata" FontWeight="SemiBold" />
+                  <TextBlock Text="{Binding Code}" Classes="identifier-code" />
+                  <TextBlock Text="{Binding Details}" Classes="metadata" TextWrapping="Wrap" />
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </StackPanel>
+    </Border>
+    <TextBlock Text="{local:Loc Key=identifierInvariant}" Classes="metadata" TextWrapping="Wrap" />
+    <TextBlock x:Name="IdentifierStatus" Text="{Binding Status}" Classes="identifier-status" Classes.error="{Binding HasError}" TextWrapping="Wrap" IsVisible="{Binding Status, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+  </StackPanel>
+</UserControl>

@@ -131,7 +131,7 @@ public static class SlopCodexHandshake
                 TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
                 TaskScheduler.Default);
             await WriteAsync(process.StandardInput.BaseStream,
-                "{\"id\":1,\"method\":\"initialize\",\"params\":{\"clientInfo\":{\"name\":\"slop_phase07_handshake_probe\",\"title\":\"EsilvaSoft.SlopStudio handshake spike\",\"version\":\"0.1.0\"}}}", deadline.Token);
+                "{\"id\":1,\"method\":\"initialize\",\"params\":{\"clientInfo\":{\"name\":\"slop_phase07_handshake_probe\",\"title\":\"EsilvaSoft.KapibaraStudio handshake spike\",\"version\":\"0.1.0\"}}}", deadline.Token);
             var frame = await ReadFrameAsync(process.StandardOutput.BaseStream, deadline.Token);
             Evidence evidence;
             using (var document = JsonDocument.Parse(frame, new JsonDocumentOptions { MaxDepth = 16 }))

@@ -12,7 +12,7 @@ Contratos comuns, dependências, stamps, ownership, migração e decisões; atua
 
 ## Componentes que pode modificar
 
-docs/auto-complite/architecture.md, decisions.md, execution-plan.md; testes de arquitetura em lote acordado. Caminhos relativos ao projeto EsilvaSoft.SlopStudio indicado; componentes novos estão no plano.
+docs/auto-complite/architecture.md, decisions.md, execution-plan.md; testes de arquitetura em lote acordado. Caminhos relativos ao projeto EsilvaSoft.KapibaraStudio indicado; componentes novos estão no plano.
 
 ## Componentes que não deve modificar
 

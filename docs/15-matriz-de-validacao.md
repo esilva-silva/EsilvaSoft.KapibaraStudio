@@ -14,7 +14,7 @@
 | Secret Service Linux — binding e adapter | `Tmds.DBus.Protocol` 0.94.1 (MIT), commit, assinatura e hashes registrados no relatório; `LinuxSecretServiceSecretStore` e seu protocolo/criptografia associados passaram 84 testes focados. | **Implementação isolada, sem runtime Linux:** nenhum serviço D-Bus/Secret Service foi acessado. Prompts, cancelamento/desbloqueio real, headless, ciclo de sessão e interoperabilidade continuam pendentes; nenhuma dependência ou cofre foi integrado ao produto. |
 | Licenças e transitivas | Pesquisa inicial registrada em [fontes e licenças da fase](phases/phase-07-v0.11.0/README.md). | **Pendente:** fixar artefatos/tag/hash e lockfiles; auditar dependências transitivas e nativas por RID, vulnerabilidades, SBOM, NOTICE e termos antes de distribuição. |
 
-Os resultados não provam confinamento de ferramentas nativas, autenticação, keyring, sandbox, atividade de processo ou compatibilidade ampla. A revisão de path não protege contra TOCTOU atômico. Schemas/manifesto estão em diretório temporário local fora do repo; não são evidência portátil. **Validações futuras planejadas — não executadas para o produto por este registro:** `dotnet restore EsilvaSoft.SlopStudio.slnx --locked-mode`; `dotnet build EsilvaSoft.SlopStudio.slnx --no-restore` (em ambiente com telemetria Avalonia bloqueada, acrescentar `-p:UsedAvaloniaProducts=`); `dotnet test EsilvaSoft.SlopStudio.slnx --no-build --no-restore`. Os resultados de build/test citados acima pertencem somente aos spikes isolados.
+Os resultados não provam confinamento de ferramentas nativas, autenticação, keyring, sandbox, atividade de processo ou compatibilidade ampla. A revisão de path não protege contra TOCTOU atômico. Schemas/manifesto estão em diretório temporário local fora do repo; não são evidência portátil. **Validações futuras planejadas — não executadas para o produto por este registro:** `dotnet restore EsilvaSoft.KapibaraStudio.slnx --locked-mode`; `dotnet build EsilvaSoft.KapibaraStudio.slnx --no-restore` (em ambiente com telemetria Avalonia bloqueada, acrescentar `-p:UsedAvaloniaProducts=`); `dotnet test EsilvaSoft.KapibaraStudio.slnx --no-build --no-restore`. Os resultados de build/test citados acima pertencem somente aos spikes isolados.
 
 Revalidação da solução existente em 23/09/2026: restore locked local pelo cache, build com 0 avisos/erros, 2.699 UnitTests aprovados/0 falhas/20 ignorados e 43 Benchmarks aprovados. Isso confirma a base anterior, não features novas da Fase 7. **AC-01 a AC-20 permanecem pendentes**, conforme [critérios de aceite](phases/phase-07-v0.11.0/README.md); evidência detalhada, incluindo o primeiro teste bloqueado por falta de espaço, está na [validação da meta](phases/phase-07-v0.11.0/README.md). O acompanhamento correspondente está em [12-acompanhamento](12-acompanhamento-da-implementacao.md#lote-0-da-v0110--spike-codex-confirmado-parcialmente--22092026).
 
@@ -24,7 +24,7 @@ Revalidação da solução existente em 23/09/2026: restore locked local pelo ca
 
 ## Fase 5 / v0.9.0 — IA local e produtividade contextual — 22/09/2026
 
-Escopo automatizável implementado. Restore locked-mode passou com `NuGet.Config` temporário apontando ao cache local e `NuGetAudit=false`; sandbox bloqueia o config global e TLS com NuGet.org, então a auditoria online de pacotes ficou indisponível. Build integrado (`dotnet build EsilvaSoft.SlopStudio.slnx --no-restore -p:UsedAvaloniaProducts=`): **0 avisos, 0 erros**. Suíte completa (`dotnet test EsilvaSoft.SlopStudio.slnx --no-build --no-restore -p:UsedAvaloniaProducts=`): **2.742 aprovados, 0 falhas, 20 ignorados** (2.699 UnitTests + 43 Benchmarks). Os 20 ignorados incluem verificações condicionadas a pesos ONNX/ambiente real.
+Escopo automatizável implementado. Restore locked-mode passou com `NuGet.Config` temporário apontando ao cache local e `NuGetAudit=false`; sandbox bloqueia o config global e TLS com NuGet.org, então a auditoria online de pacotes ficou indisponível. Build integrado (`dotnet build EsilvaSoft.KapibaraStudio.slnx --no-restore -p:UsedAvaloniaProducts=`): **0 avisos, 0 erros**. Suíte completa (`dotnet test EsilvaSoft.KapibaraStudio.slnx --no-build --no-restore -p:UsedAvaloniaProducts=`): **2.742 aprovados, 0 falhas, 20 ignorados** (2.699 UnitTests + 43 Benchmarks). Os 20 ignorados incluem verificações condicionadas a pesos ONNX/ambiente real.
 
 | Frente | Evidência automatizada | Limite registrado |
 | --- | --- | --- |
@@ -33,13 +33,13 @@ Escopo automatizável implementado. Restore locked-mode passou com `NuGet.Config
 | F5-04 — preemptivo e IME | Rajada de 20 teclas: 20 lookups determinísticos locais, 0 inferências de IA antes do debounce e uma única execução de fallback depois; lifecycle de preedit IME publicado e suprime ghost; quatro execuções de edição→ghost p95 **3,85–8,42 ms** | Headless não homologa IME nativo, acessibilidade ou temporização em Windows/Linux gráfico |
 | F5-06/07 — UI e idiomas | 73 casos focados nos quatro idiomas; PNGs Headless claros/escuros de chat/proposta e prévia nos quatro idiomas; amostras pt-BR claro, zh-CN escuro e en claro inspecionadas; undo após aplicar | Revisão linguística de domínio, leitor de tela e layouts nativos continuam na Fase 9 |
 
-PNGs do chat e prévia: `tests/EsilvaSoft.SlopStudio.UnitTests/bin/Debug/net10.0/ui-evidence/ai-chat-localization/` (quatro locales × claro/escuro). Benchmarks condicionais não executados estão contados como ignorados; não se declara inferência real concluída. A Fase 5 permanece experimental até a homologação aplicável; ver [meta de implementação](phases/phase-05-v0.9.0/meta-de-implementacao.md).
+PNGs do chat e prévia: `tests/EsilvaSoft.KapibaraStudio.UnitTests/bin/Debug/net10.0/ui-evidence/ai-chat-localization/` (quatro locales × claro/escuro). Benchmarks condicionais não executados estão contados como ignorados; não se declara inferência real concluída. A Fase 5 permanece experimental até a homologação aplicável; ver [meta de implementação](phases/phase-05-v0.9.0/meta-de-implementacao.md).
 
 **Atualização de 25/09/2026 (P7-L06-CLEANUP, [ADR-055](10-decisoes-arquiteturais.md#adr-055--remoção-do-assistente-ia-por-aba-25092026)):** o painel Assistente IA por aba foi removido; as linhas F5-02/05 (parte de chat) e F5-06/07 deixam de ter código e testes. Removidos junto com o código: `AiChatTests` (15 casos), `WorkspaceTabAiChatLocalizationUiTests` (4 casos, PNGs `ai-chat-localization`), e em `DeepSeekIntegrationTests` `ChatSharesModelAndRejectsTruncatedProposals`, `ChatPrivacyPreventsModelLoading` (2 casos) e o explícito `RealChatProducesReviewableCode`. Ajustados para chamar o papel `Chat` de `ILocalAiModelService` diretamente, sem afrouxar asserções: `LocalAiModelServiceTests.ChatIsUnavailableForAModelThatDoesNotDeclareIt`, `ExplicitChatPreemptsRunningAutocompleteWithoutReloading` e `DeepSeekIntegrationTests.CancelingChatDoesNotCancelQueuedAutocomplete`; privacidade, preempção e cancelamento isolado do provider local seguem em `LocalAgentProviderTests`. Suíte (SDK 10.0.401, Windows): UnitTests de 3.584/0/20 (3.604) para **3.562 aprovados, 0 falhas, 20 ignorados (3.582)**; Infrastructure.Agents.Tests 95/0; Benchmarks 43/0. Os opt-ins de contexto local persistidos ficaram sem consumidor; na revisão seguinte seus controles saíram das preferências e do cadastro de conexão (valores preservados, sem migração). `AiPrivacySettingsUiTests` passou a provar a ausência dos controles e a preservação dos valores ao salvar, e o novo `AgentChatEditorRevisionTests` (2 casos) prova, com o `WorkspaceTabViewModel` real, que editar o texto avança `EditorRevision`/`DocumentVersion` e descarta o pacote revisado do Agente IA. Suíte em worktree isolado com só estas alterações: UnitTests **3.545 aprovados, 0 falhas, 39 ignorados (3.584)** — os 19 ignorados a mais são testes de MongoDB real sem o binário local no worktree; na árvore principal eles passaram na rodada anterior —, Infrastructure.Agents.Tests 95/0, Benchmarks 43/0 (pendência no [doc 16](phases/phase-07-v0.11.0/README.md)).
 
 ## Estado corrente da meta de autocomplete — 21/09/2026
 
-Evidência automatizada atual: `dotnet build EsilvaSoft.SlopStudio.slnx --no-restore -p:UsedAvaloniaProducts=` passou com **0 avisos e 0 erros**; a suíte `EsilvaSoft.SlopStudio.UnitTests` passou com **2.639 aprovados, 0 falhas e 20 ignorados**; o corpus `LanguageCaseCorpusTests` passou com **676 testes verdes** (675 fixtures e o gate agregado de ranking). Os testes novos cobrem namespaces de metadata, schema aprendido no catálogo/completion, edições/snippets, `$lookup` estrangeiro e propagação de campos por ramos de `$facet`.
+Evidência automatizada atual: `dotnet build EsilvaSoft.KapibaraStudio.slnx --no-restore -p:UsedAvaloniaProducts=` passou com **0 avisos e 0 erros**; a suíte `EsilvaSoft.KapibaraStudio.UnitTests` passou com **2.639 aprovados, 0 falhas e 20 ignorados**; o corpus `LanguageCaseCorpusTests` passou com **676 testes verdes** (675 fixtures e o gate agregado de ranking). Os testes novos cobrem namespaces de metadata, schema aprendido no catálogo/completion, edições/snippets, `$lookup` estrangeiro e propagação de campos por ramos de `$facet`.
 
 Fora desta meta: gates de performance, validação em múltiplas plataformas, MongoDB real, modelos reais, leitor de tela e homologação nativa. O gate funcional publicado de ranking cobre 44 casos locais com **MRR 1,000, top-1 44/44 e top-5 44/44**; namespaces de metadata, schema learning e `$lookup` estrangeiro têm suites determinísticas próprias.
 
@@ -51,8 +51,8 @@ O resultado Headless não encerra a homologação: continuam pendentes revisão 
 
 ## Fase 1 (K11–K16, K16-b) e Fase 5.1 (Traditional Preemptive) — 18/09/2026
 
-Build `dotnet build EsilvaSoft.SlopStudio.slnx --no-restore`: **0 avisos, 0 erros**. Suíte
-`dotnet test EsilvaSoft.SlopStudio.slnx --no-build --no-restore`: **1273 aprovados, 0 falhas** (baseline de entrada:
+Build `dotnet build EsilvaSoft.KapibaraStudio.slnx --no-restore`: **0 avisos, 0 erros**. Suíte
+`dotnet test EsilvaSoft.KapibaraStudio.slnx --no-build --no-restore`: **1273 aprovados, 0 falhas** (baseline de entrada:
 1154). Esta seção separa o que tem **validação automatizada** (build + teste + benchmark local) do que exige
 **homologação manual** (hardware/SO/entrada reais), concentrada na [Fase 9 / v0.13.0](phases/phase-09-v0.13.0/README.md), como exigido pelo `AGENTS.md`.
 
@@ -106,7 +106,7 @@ Build Windows x64: **0 avisos, 0 erros**. Suíte completa: **1170 aprovados, 0 f
 
 ## Autocomplete — Fase 1: catálogo de conhecimento — 14/09/2026
 
-Restore `--locked-mode` da solução aprovado, com lockfiles novos do projeto de benchmarks para Cpu, WinML e Cuda. Build Debug WinML: 0 avisos, 0 erros. Suíte regular: **681 aprovados, 0 falhas, 4 ignorados**, em `tests/EsilvaSoft.SlopStudio.UnitTests/TestResults/fase1-regular.trx`. Os ignorados exigem MongoDB portátil ausente nesta máquina, inclusive o novo `MetadataSourceListsKindsValidatorsIndexesAndSamplesWithoutValues`. Testes Explicit de modelos seguem fora da seleção.
+Restore `--locked-mode` da solução aprovado, com lockfiles novos do projeto de benchmarks para Cpu, WinML e Cuda. Build Debug WinML: 0 avisos, 0 erros. Suíte regular: **681 aprovados, 0 falhas, 4 ignorados**, em `tests/EsilvaSoft.KapibaraStudio.UnitTests/TestResults/fase1-regular.trx`. Os ignorados exigem MongoDB portátil ausente nesta máquina, inclusive o novo `MetadataSourceListsKindsValidatorsIndexesAndSamplesWithoutValues`. Testes Explicit de modelos seguem fora da seleção.
 
 | Área | Evidência local | Validação pendente |
 | --- | --- | --- |
@@ -126,7 +126,7 @@ UI: nenhum comportamento visual novo; os testes Headless existentes de highlight
 
 Revisão posterior: **643 aprovados, 0 falhas**, `phase2-final-audit.trx`. `AggregationHistoryTests`, `MongoCompletionTargetTests`, fixture real de seleção/erro e 18 PNGs adicionais de Histórico. Não confundir esse total com os checkpoints anteriores abaixo; testes Explicit de modelos permanecem fora da execução regular. Detalhes e pendências em [27](backlog/27-consultas-avancadas.md).
 
-Suíte completa após o incremento: **623 aprovados, 0 falhas, 0 ignorados** em `tests/EsilvaSoft.SlopStudio.UnitTests/TestResults/phase2-current.trx`. Testes Explicit de modelos IA continuam fora da seleção regular.
+Suíte completa após o incremento: **623 aprovados, 0 falhas, 0 ignorados** em `tests/EsilvaSoft.KapibaraStudio.UnitTests/TestResults/phase2-current.trx`. Testes Explicit de modelos IA continuam fora da seleção regular.
 
 Restore locked e build com `-p:UsedAvaloniaProducts=` aprovados. `phase2-analysis.trx`: 29 testes aprovados, incluindo validação offline, proteção de escrita, autocomplete básico contextual, localização no editor e isolamento/cancelamento de explain. MongoDB portátil **8.0.30**: fixture independente dos 12 stages, join, unwind, facet, resultado Bia/5, contagem 2 e plano real aprovados; nenhuma coleção de saída criada. 18 PNGs `aggregation-diagnostic-*` gerados; inspeção de claro 960 e escuro 1366 confirmou seleção do erro e painel de diagnóstico. Validação Headless não comprova leitor de tela ou sessão nativa. [Pendências de aceite](backlog/27-consultas-avancadas.md).
 
@@ -170,9 +170,9 @@ Após a alteração de visibilidade de índice, build sem avisos nem erros e 204
 
 ## Reprodução da revisão UI/UX
 
-Windows: restore travado, `dotnet build EsilvaSoft.SlopStudio.slnx --no-restore -p:UsedAvaloniaProducts=` e `dotnet test EsilvaSoft.SlopStudio.slnx --no-build --no-restore --logger trx`.
+Windows: restore travado, `dotnet build EsilvaSoft.KapibaraStudio.slnx --no-restore -p:UsedAvaloniaProducts=` e `dotnet test EsilvaSoft.KapibaraStudio.slnx --no-build --no-restore --logger trx`.
 
-Linux: SDK oficial 10.0.400 instalado temporariamente no Ubuntu; `dotnet test EsilvaSoft.SlopStudio.slnx --artifacts-path <pasta-isolada> -p:UsedAvaloniaProducts= -p:RestoreLockedMode=true --logger trx`. Artefatos locais desta execução: `.cache/linux-validation`, isolados de bin/obj do Windows.
+Linux: SDK oficial 10.0.400 instalado temporariamente no Ubuntu; `dotnet test EsilvaSoft.KapibaraStudio.slnx --artifacts-path <pasta-isolada> -p:UsedAvaloniaProducts= -p:RestoreLockedMode=true --logger trx`. Artefatos locais desta execução: `.cache/linux-validation`, isolados de bin/obj do Windows.
 
 A opção UsedAvaloniaProducts vazia evita somente a tarefa de telemetria de build no ambiente restrito. Não relaxa testes ou analisadores. Os últimos TRX são identificados no [acompanhamento](12-acompanhamento-da-implementacao.md).
 
@@ -194,21 +194,21 @@ Assets, reprodução e prévias: [identidade visual](18-identidade-visual.md). N
 
 | Verificação | Evidência desta revisão | Limite |
 | --- | --- | --- |
-| Restore / build Windows | `dotnet restore EsilvaSoft.SlopStudio.slnx --locked-mode`; build `--no-restore -p:UsedAvaloniaProducts=`; 0 avisos/erros | Restore precisou de acesso ao NuGet.Config do usuário; nenhuma dependência adicionada |
-| NUnit Windows | **259/259 aprovados**, 0 ignorados | TRX: `tests/EsilvaSoft.SlopStudio.UnitTests/TestResults/chuke_ESILVA-PC_2026-09-10_14_34_49_net10.0.trx` |
+| Restore / build Windows | `dotnet restore EsilvaSoft.KapibaraStudio.slnx --locked-mode`; build `--no-restore -p:UsedAvaloniaProducts=`; 0 avisos/erros | Restore precisou de acesso ao NuGet.Config do usuário; nenhuma dependência adicionada |
+| NUnit Windows | **259/259 aprovados**, 0 ignorados | TRX: `tests/EsilvaSoft.KapibaraStudio.UnitTests/TestResults/chuke_ESILVA-PC_2026-09-10_14_34_49_net10.0.trx` |
 | Credenciais diretas e opcionais | Duas URIs válidas via parser MongoDB, round-trip LiteDB, Development/Production, caracteres reservados; campos de usuário/senha persistem URI direta | Autenticação contra servidor real pendente |
 | Compatibilidade e recuperação | URI legada preservada após reinício, nenhuma migração de secrets; cofre inválido/versão futura não sobrescrito; falha de gravação visível | Criptografia/cofre nativo não implementados |
 | Contexto e concorrência | Snapshot mantém valores anteriores; alteração invalida explorer, rejeita abertura antiga e preserva execução em andamento; entradas administrativas capturam ambiente | Retornos usam executores controlados |
 | Editor | Valor ENV inserido como texto escapado, sem injeção de campos; ObjectId e Int64 máximo preservados; script com ENV e chave ausente | JSON estrito administrativo mantém suas validações; entrada `slop.input` é literal |
 | Bootstrap JavaScript | Node executou o script gerado com stubs em dois ambientes; ordem conectar/banco/emitir, erro de chave ausente e remoção das variáveis de transporte conferidos | Não equivale a mongosh ou MongoDB real |
-| UI | 18 PNGs de Ambientes: 2 temas × 3 tamanhos × 3 escalas, inspecionados; sobreposição corrigida e geometria testada; formulário de conexão claro/escuro inspecionado | PNGs em `tests/EsilvaSoft.SlopStudio.UnitTests/bin/Debug/net10.0/ui-evidence`; teclado Escape testado, leitor de tela pendente |
+| UI | 18 PNGs de Ambientes: 2 temas × 3 tamanhos × 3 escalas, inspecionados; sobreposição corrigida e geometria testada; formulário de conexão claro/escuro inspecionado | PNGs em `tests/EsilvaSoft.KapibaraStudio.UnitTests/bin/Debug/net10.0/ui-evidence`; teclado Escape testado, leitor de tela pendente |
 | Linux | Não reexecutado nesta revisão | Números Linux anteriores são baseline; homologação desta alteração pendente |
 
 Cofre de ambientes usa armazenamento local sem criptografia nativa, separado dos snapshots. O aceite automatizado prova configuração simultânea e resolução por ambiente; homologação ponta a ponta exige MongoDB/mongosh instalados e uma fixture descartável, conforme o checklist. Nenhuma credencial real foi usada nesta validação.
 
 ## Database Explorer — 10/09/2026
 
-Restore travado aprovado; build Windows com `--no-restore -p:UsedAvaloniaProducts=` aprovado, **0 avisos e 0 erros**. Suíte final: **276/276 testes aprovados**, nenhum ignorado. TRX desta revisão (artefato histórico não disponível neste checkout: `../tests/EsilvaSoft.SlopStudio.UnitTests/TestResults/chuke_ESILVA-PC_2026-09-10_23_11_35_net10.0.trx`). Os totais anteriores são históricos.
+Restore travado aprovado; build Windows com `--no-restore -p:UsedAvaloniaProducts=` aprovado, **0 avisos e 0 erros**. Suíte final: **276/276 testes aprovados**, nenhum ignorado. TRX desta revisão (artefato histórico não disponível neste checkout: `../tests/EsilvaSoft.KapibaraStudio.UnitTests/TestResults/chuke_ESILVA-PC_2026-09-10_23_11_35_net10.0.trx`). Os totais anteriores são históricos.
 
 | Critério de aceite | Implementação e evidência automatizada | Homologação externa |
 | --- | --- | --- |
@@ -226,11 +226,11 @@ Restore travado aprovado; build Windows com `--no-restore -p:UsedAvaloniaProduct
 | 12. Múltiplas conexões | Todas as raízes salvas, contexto por aba; alteração de ambiente invalida conexões sem redirecionar execução | Sessão real com múltiplos servidores pendente |
 | 13. Refresh granular | `RefreshRetainsExpandedNodesAndDoesNotReloadSiblingConnection`; resposta atrasada após desconectar rejeitada | Latência real pendente |
 
-PNGs reais Headless/Skia inspecionados em **18 combinações** (claro/escuro × 960×620, 1366×768, 1920×1080 × escalas 1, 1,5, 2), além do editor de documento nos dois temas. Evidência em `tests/EsilvaSoft.SlopStudio.UnitTests/bin/Debug/net10.0/ui-evidence/explorer-*.png` e `document-editor-*.png`; prévias no [guia](19-database-explorer.md). Testes usam dados sintéticos e executores controlados. Linux, diálogos nativos, leitor de tela e MongoDB/mongosh reais não foram homologados nesta revisão.
+PNGs reais Headless/Skia inspecionados em **18 combinações** (claro/escuro × 960×620, 1366×768, 1920×1080 × escalas 1, 1,5, 2), além do editor de documento nos dois temas. Evidência em `tests/EsilvaSoft.KapibaraStudio.UnitTests/bin/Debug/net10.0/ui-evidence/explorer-*.png` e `document-editor-*.png`; prévias no [guia](19-database-explorer.md). Testes usam dados sintéticos e executores controlados. Linux, diálogos nativos, leitor de tela e MongoDB/mongosh reais não foram homologados nesta revisão.
 
 ## Console JavaScript — 11/09/2026
 
-Restore com `--locked-mode` aprovado; build `--no-restore -p:UsedAvaloniaProducts=` com **0 avisos/erros**; **294/294 testes aprovados**, nenhum ignorado. TRX final (artefato histórico não disponível neste checkout: `../tests/EsilvaSoft.SlopStudio.UnitTests/TestResults/chuke_ESILVA-PC_2026-09-11_07_55_19_net10.0.trx`).
+Restore com `--locked-mode` aprovado; build `--no-restore -p:UsedAvaloniaProducts=` com **0 avisos/erros**; **294/294 testes aprovados**, nenhum ignorado. TRX final (artefato histórico não disponível neste checkout: `../tests/EsilvaSoft.KapibaraStudio.UnitTests/TestResults/chuke_ESILVA-PC_2026-09-11_07_55_19_net10.0.trx`).
 
 | Aceite do Console | Evidência |
 | --- | --- |
@@ -256,7 +256,7 @@ Cobertura adicional: migração de rascunho JSON preservando opções e destino;
 
 ## UUID/GUID configurável — 11/09/2026
 
-Build Windows `--no-restore -p:UsedAvaloniaProducts=` com **0 avisos/erros**; **369/369 testes executados aprovados**, 1 ignorado (MongoDB real ausente). TRX final — `../tests/EsilvaSoft.SlopStudio.UnitTests/TestResults/chuke_ESILVA-PC_2026-09-11_14_50_37_net10.0.trx` (artefato histórico ausente neste checkout; resultado preservado como registro, não revalidado). Linux não reexecutado nesta revisão.
+Build Windows `--no-restore -p:UsedAvaloniaProducts=` com **0 avisos/erros**; **369/369 testes executados aprovados**, 1 ignorado (MongoDB real ausente). TRX final — `../tests/EsilvaSoft.KapibaraStudio.UnitTests/TestResults/chuke_ESILVA-PC_2026-09-11_14_50_37_net10.0.trx` (artefato histórico ausente neste checkout; resultado preservado como registro, não revalidado). Linux não reexecutado nesta revisão.
 
 | Aceite | Evidência automatizada | Validação externa |
 | --- | --- | --- |
@@ -272,7 +272,7 @@ Build Windows `--no-restore -p:UsedAvaloniaProducts=` com **0 avisos/erros**; **
 
 ## Resultados JSON e árvore — 11/09/2026
 
-Build Windows `--no-restore -p:UsedAvaloniaProducts=` com **0 avisos/erros**; **414 testes aprovados, 0 falhas, 1 ignorado** (MongoDB real ausente), total 415. Baseline imediatamente anterior: 369 aprovados e 1 ignorado. TRX final — `../tests/EsilvaSoft.SlopStudio.UnitTests/TestResults/chuke_ESILVA-PC_2026-09-11_16_08_39_net10.0.trx` (artefato histórico ausente neste checkout; resultado preservado como registro, não revalidado). Linux não reexecutado nesta revisão.
+Build Windows `--no-restore -p:UsedAvaloniaProducts=` com **0 avisos/erros**; **414 testes aprovados, 0 falhas, 1 ignorado** (MongoDB real ausente), total 415. Baseline imediatamente anterior: 369 aprovados e 1 ignorado. TRX final — `../tests/EsilvaSoft.KapibaraStudio.UnitTests/TestResults/chuke_ESILVA-PC_2026-09-11_16_08_39_net10.0.trx` (artefato histórico ausente neste checkout; resultado preservado como registro, não revalidado). Linux não reexecutado nesta revisão.
 
 | Aceite | Evidência automatizada | Validação externa |
 | --- | --- | --- |
@@ -295,8 +295,8 @@ Asserções alteradas: `WorkspaceUiTests` e `UuidPreferencesUiTests` passaram a 
 | Gate | Evidência atual | Limite |
 | --- | --- | --- |
 | Restore/build | Restore travado e build Windows com `-p:UsedAvaloniaProducts=`, 0 avisos/erros | Opção evita somente a tarefa externa de telemetria Avalonia |
-| Suíte regular | **415 aprovados**, 0 falhas; TRX (artefato histórico não disponível neste checkout: `../tests/EsilvaSoft.SlopStudio.UnitTests/TestResults/autocomplete-current-final.trx`) | Dois testes Qwen são Explicit e executados à parte |
-| IA real CPU | **2 aprovados**; TRX (artefato histórico não disponível neste checkout: `../tests/EsilvaSoft.SlopStudio.UnitTests/TestResults/qwen-current-final.trx`) | Qwen2.5-Coder-0.5B Q4, CPU Windows x64; não generaliza qualidade/performance a modelos maiores |
+| Suíte regular | **415 aprovados**, 0 falhas; TRX (artefato histórico não disponível neste checkout: `../tests/EsilvaSoft.KapibaraStudio.UnitTests/TestResults/autocomplete-current-final.trx`) | Dois testes Qwen são Explicit e executados à parte |
+| IA real CPU | **2 aprovados**; TRX (artefato histórico não disponível neste checkout: `../tests/EsilvaSoft.KapibaraStudio.UnitTests/TestResults/qwen-current-final.trx`) | Qwen2.5-Coder-0.5B Q4, CPU Windows x64; não generaliza qualidade/performance a modelos maiores |
 | FIM/tokenizer | Tokenizer nativo + FIM gerou `a + b`; código sintético avaliado com resultado 5 | Teste fixo, não benchmark de qualidade |
 | Cancelamento nativo | Cancelar geração longa, recuperar sessão e gerar novamente | Inicialização nativa não é imediatamente interrompível; worker mantém UI livre |
 | Contexto/concorrência | AutocompleteReliabilityTests: 1 inferência ativa, fila cancelada não executa, duas sessões independentes; limite antes do runtime | Fakes determinísticos, complementados pelo teste nativo de cancelamento |
@@ -310,7 +310,7 @@ Pesos de teste externos ao repositório; nenhuma dependência Python/Ollama/serv
 
 ## Autocomplete preditivo — auditoria de aceite (11/09/2026)
 
-Esta revisão substitui as limitações anteriores de preview abaixo do editor e contexto somente textual. Restore `--locked-mode` aprovado; build `--no-restore -p:UsedAvaloniaProducts=` com 0 avisos/erros; **431 testes regulares aprovados**, 0 falhas (TRX (artefato histórico não disponível neste checkout: `../tests/EsilvaSoft.SlopStudio.UnitTests/TestResults/predictive-final.trx`)). **2 testes Explicit reais aprovados**, separados da suíte comum (TRX (artefato histórico não disponível neste checkout: `../tests/EsilvaSoft.SlopStudio.UnitTests/TestResults/predictive-real-final.trx`)).
+Esta revisão substitui as limitações anteriores de preview abaixo do editor e contexto somente textual. Restore `--locked-mode` aprovado; build `--no-restore -p:UsedAvaloniaProducts=` com 0 avisos/erros; **431 testes regulares aprovados**, 0 falhas (TRX (artefato histórico não disponível neste checkout: `../tests/EsilvaSoft.KapibaraStudio.UnitTests/TestResults/predictive-final.trx`)). **2 testes Explicit reais aprovados**, separados da suíte comum (TRX (artefato histórico não disponível neste checkout: `../tests/EsilvaSoft.KapibaraStudio.UnitTests/TestResults/predictive-real-final.trx`)).
 
 | Requisito | Implementação e evidência conferida |
 | --- | --- |
@@ -331,14 +331,14 @@ Esta revisão substitui as limitações anteriores de preview abaixo do editor e
 | Arquitetura/extensibilidade | Contratos e DI existentes preservados; nenhuma dependência ONNX em editor/Core; runtime substituível por fábrica, catálogo/tokenizer/prompt separados |
 | Documentação | Guia 21, guia de uso, design system, ADR-030, plano, catálogo e acompanhamento atualizados |
 
-Inspecionados PNGs reais de 18 combinações do editor e 18 das preferências (claro/escuro, três tamanhos, escalas 100/150/200%) e duas imagens de inferência Qwen. A projeção respeita o fundo do template focado e recorte do viewport. Evidência em `tests/EsilvaSoft.SlopStudio.UnitTests/bin/Debug/net10.0/ui-evidence/autocomplete-*.png`. Não se alteraram golden files. Asserções antigas de Tab integral foram substituídas por verificação de inserção parcial, resto disponível e reconstrução integral; testes de falha agora iniciam a IA com prefixo sem resposta óbvia do dicionário, preservando a verificação de cooldown/fallback.
+Inspecionados PNGs reais de 18 combinações do editor e 18 das preferências (claro/escuro, três tamanhos, escalas 100/150/200%) e duas imagens de inferência Qwen. A projeção respeita o fundo do template focado e recorte do viewport. Evidência em `tests/EsilvaSoft.KapibaraStudio.UnitTests/bin/Debug/net10.0/ui-evidence/autocomplete-*.png`. Não se alteraram golden files. Asserções antigas de Tab integral foram substituídas por verificação de inserção parcial, resto disponível e reconstrução integral; testes de falha agora iniciam a IA com prefixo sem resposta óbvia do dicionário, preservando a verificação de cooldown/fallback.
 
 Limites: execução comprovada em Windows x64 CPU. Headless/Skia não homologa leitor de tela, IME, gerenciador de janela nativo ou Linux/ARM64. 150 ms é debounce, não promessa de latência total; qualidade e duração variam conforme contexto/hardware. Resultados contribuem com campos de amostra limitada, não treinamento. Publicações descritas na seção anterior correspondem ao incremento anterior, não foram refeitas nesta revisão preditiva.
 
 
 ## Syntax highlighting MongoDB — 12/09/2026
 
-Windows x64 / .NET 10.0.401 / Avalonia 12.1.2. Restore com --locked-mode aprovado, sem alterar dependências/lockfiles. Build com --no-restore -p:UsedAvaloniaProducts= aprovado, zero avisos/erros. Suíte completa com --no-build --no-restore: **453 aprovados, zero falhas**, em 34 s. O runner informou duas integrações Qwen opt-in não executadas; elas não integram a contagem de testes aprovados. TRX local: tests/EsilvaSoft.SlopStudio.UnitTests/TestResults/syntax-validation.trx. Após o ajuste visual final do fundo focado, novo build aprovado e os **4 testes de UI de highlighting/autocomplete** passaram em 15 s.
+Windows x64 / .NET 10.0.401 / Avalonia 12.1.2. Restore com --locked-mode aprovado, sem alterar dependências/lockfiles. Build com --no-restore -p:UsedAvaloniaProducts= aprovado, zero avisos/erros. Suíte completa com --no-build --no-restore: **453 aprovados, zero falhas**, em 34 s. O runner informou duas integrações Qwen opt-in não executadas; elas não integram a contagem de testes aprovados. TRX local: tests/EsilvaSoft.KapibaraStudio.UnitTests/TestResults/syntax-validation.trx. Após o ajuste visual final do fundo focado, novo build aprovado e os **4 testes de UI de highlighting/autocomplete** passaram em 15 s.
 
 | Cenário | Evidência |
 | --- | --- |
@@ -356,7 +356,7 @@ Prévias duráveis: [claro](ui/syntax-claro.png), [escuro](ui/syntax-escuro.png)
 
 ## Modos de identificador — 12/09/2026
 
-Build Windows `--no-restore -p:UsedAvaloniaProducts=` com **0 avisos/erros**; **504 aprovados, 1 falha, 1 ignorado**. TRX — `../tests/EsilvaSoft.SlopStudio.UnitTests/TestResults/identifier-mode-final.trx` (artefato histórico ausente neste checkout; resultado preservado como registro, não revalidado). A única falha (`HugeSingleLineKeepsFullTextAndMakesEveryRangeReachableWithoutShapingItAll`, syntax highlighting) reproduz no commit `f8e7a16` sem estas alterações. Linux não reexecutado.
+Build Windows `--no-restore -p:UsedAvaloniaProducts=` com **0 avisos/erros**; **504 aprovados, 1 falha, 1 ignorado**. TRX — `../tests/EsilvaSoft.KapibaraStudio.UnitTests/TestResults/identifier-mode-final.trx` (artefato histórico ausente neste checkout; resultado preservado como registro, não revalidado). A única falha (`HugeSingleLineKeepsFullTextAndMakesEveryRangeReachableWithoutShapingItAll`, syntax highlighting) reproduz no commit `f8e7a16` sem estas alterações. Linux não reexecutado.
 
 | Aceite | Evidência automatizada | Validação externa |
 | --- | --- | --- |
@@ -371,25 +371,25 @@ Build Windows `--no-restore -p:UsedAvaloniaProducts=` com **0 avisos/erros**; **
 
 ## ONNX SlopCoder, hardware e chat — 13/09/2026
 
-Windows x64, .NET 10.0.401: restore `--locked-mode` e build `--no-restore -p:UsedAvaloniaProducts=` aprovados nas variantes Cpu, WinML e Cuda (0 avisos/erros). Suíte final padrão WinML: **520 aprovados, 1 falha** em 37 s; TRX (artefato histórico não disponível neste checkout: `../tests/EsilvaSoft.SlopStudio.UnitTests/TestResults/onnx-expanded-final.trx`). A falha é `HugeSingleLineKeepsFullTextAndMakesEveryRangeReachableWithoutShapingItAll`, já registrada na entrega anterior de identificadores; asserção e golden files não foram alterados. Seis testes nativos Explicit ficam fora da suíte regular.
+Windows x64, .NET 10.0.401: restore `--locked-mode` e build `--no-restore -p:UsedAvaloniaProducts=` aprovados nas variantes Cpu, WinML e Cuda (0 avisos/erros). Suíte final padrão WinML: **520 aprovados, 1 falha** em 37 s; TRX (artefato histórico não disponível neste checkout: `../tests/EsilvaSoft.KapibaraStudio.UnitTests/TestResults/onnx-expanded-final.trx`). A falha é `HugeSingleLineKeepsFullTextAndMakesEveryRangeReachableWithoutShapingItAll`, já registrada na entrega anterior de identificadores; asserção e golden files não foram alterados. Seis testes nativos Explicit ficam fora da suíte regular.
 
 | Verificação | Resultado e evidência |
 | --- | --- |
-| Tokenizer e prompt DeepSeek | 547 strings e 40 prompts completos com IDs idênticos; decode também confere os três casos sem round-trip do HF. TRX CPU (artefato histórico não disponível neste checkout: `../tests/EsilvaSoft.SlopStudio.UnitTests/TestResults/deepseek-cpu-final.trx`) |
+| Tokenizer e prompt DeepSeek | 547 strings e 40 prompts completos com IDs idênticos; decode também confere os três casos sem round-trip do HF. TRX CPU (artefato histórico não disponível neste checkout: `../tests/EsilvaSoft.KapibaraStudio.UnitTests/TestResults/deepseek-cpu-final.trx`) |
 | SlopCoder real CPU | Geração repetida, cancelamento e recuperação; 12 tokens em 1168/1146 ms em prompt curto sintético. Mesmo TRX; não é TTFT nem benchmark do editor |
-| Chat e GPU → CPU | Proposta ONNX real e recuperação depois de erro DirectML aprovadas. TRX (artefato histórico não disponível neste checkout: `../tests/EsilvaSoft.SlopStudio.UnitTests/TestResults/deepseek-chat-fallback.trx`) |
-| GPU estrita | Falhou na execução do pacote CPU (`DmlFusedNode_0_4`, `80070057`). TRX (artefato histórico não disponível neste checkout: `../tests/EsilvaSoft.SlopStudio.UnitTests/TestResults/deepseek-gpu.trx`). Não há homologação GPU deste pacote; CUDA só restaurado/compilado |
+| Chat e GPU → CPU | Proposta ONNX real e recuperação depois de erro DirectML aprovadas. TRX (artefato histórico não disponível neste checkout: `../tests/EsilvaSoft.KapibaraStudio.UnitTests/TestResults/deepseek-chat-fallback.trx`) |
+| GPU estrita | Falhou na execução do pacote CPU (`DmlFusedNode_0_4`, `80070057`). TRX (artefato histórico não disponível neste checkout: `../tests/EsilvaSoft.KapibaraStudio.UnitTests/TestResults/deepseek-gpu.trx`). Não há homologação GPU deste pacote; CUDA só restaurado/compilado |
 | Contratos/falhas | Manifesto com ID incorreto e pesos externos ausentes retornam Invalid; propostas truncadas e marcadores são rejeitados; chat cancelado não cancela autocomplete em fila; sessão inicializada uma vez; filtros de privacidade impedem carga |
 | Regressão visual | Suíte Headless produziu PNGs existentes de autocomplete; inspecionados claro/escuro 1366×768 100%, ghost text e painel IA. Não houve mudança de layout/XAML |
 
 O chat FIM gerou filtro de data adicional não solicitado: integração funcional não representa aprovação de fidelidade conversacional. Revisão e confirmação permanecem obrigatórias. Linux, GPU com exportação compatível, leitor de tela, diálogos nativos e MongoDB real não foram homologados nesta entrega. [Guia e contratos](23-onnx-slopcoder.md).
 
-Regressão Qwen real no build WinML: **1 aprovado**, geração CPU repetida e recuperação de cancelamento; TRX (artefato histórico não disponível neste checkout: `../tests/EsilvaSoft.SlopStudio.UnitTests/TestResults/onnx-qwen-regression.trx`).
+Regressão Qwen real no build WinML: **1 aprovado**, geração CPU repetida e recuperação de cancelamento; TRX (artefato histórico não disponível neste checkout: `../tests/EsilvaSoft.KapibaraStudio.UnitTests/TestResults/onnx-qwen-regression.trx`).
 
 
 ## Datas BSON — 13/09/2026
 
-Restore locked aprovado; build sem restore com -p:UsedAvaloniaProducts= aprovado, 0 avisos/erros. Suíte final: **530 aprovados, 1 falha preexistente** em HugeSingleLineKeepsFullTextAndMakesEveryRangeReachableWithoutShapingItAll (já registrada na entrega ONNX). TRX: tests/EsilvaSoft.SlopStudio.UnitTests/TestResults/date-format-final.trx.
+Restore locked aprovado; build sem restore com -p:UsedAvaloniaProducts= aprovado, 0 avisos/erros. Suíte final: **530 aprovados, 1 falha preexistente** em HugeSingleLineKeepsFullTextAndMakesEveryRangeReachableWithoutShapingItAll (já registrada na entrega ONNX). TRX: tests/EsilvaSoft.KapibaraStudio.UnitTests/TestResults/date-format-final.trx.
 
 Novos testes verificam bytes BSON com fixture do driver, UTC e offset -03:00, milissegundos negativos/zero, datas inválidas, limite Int64, strings preservadas, argumentos BSON enviados pelo Console e helper mongosh executado em Jint. Resultado visual confirmado na modal de documento: Date legível nos PNGs reais result-document-json-Light-760-1.png e result-document-json-Dark-760-1.png em ui-evidence do diretório de testes. Os testes existentes de resultados/cópia e representações também passaram.
 
@@ -418,7 +418,7 @@ Verificação documental: 68 requisitos originais preservados e EDT-08 acrescent
 
 ## Polimento MVP — 13/09/2026
 
-Restore locked e build sem restore com `-p:UsedAvaloniaProducts=` aprovados, zero avisos/erros. Suíte `mvp-polish.trx`: **549 testes executados/aprovados, zero falhas**; 555 descobertos, seis casos explícitos de IA fora desta execução/MVP. Arquivo local: `tests/EsilvaSoft.SlopStudio.UnitTests/TestResults/mvp-polish.trx`.
+Restore locked e build sem restore com `-p:UsedAvaloniaProducts=` aprovados, zero avisos/erros. Suíte `mvp-polish.trx`: **549 testes executados/aprovados, zero falhas**; 555 descobertos, seis casos explícitos de IA fora desta execução/MVP. Arquivo local: `tests/EsilvaSoft.KapibaraStudio.UnitTests/TestResults/mvp-polish.trx`.
 
 Inclui dois testes de integração com MongoDB portátil 8.0.30 em Windows, paginação/CRUD protegido/conflito/exportação, 18 PNGs da barra concorrente nos temas/tamanhos/escalas declarados, undo real de formatação e correção do teste de linha com dois milhões de caracteres antes falho. Nenhuma asserção de limite visual foi enfraquecida. Startup Headless quente: 9 ms na última execução, 464 ms em execução anterior isolada; cenário de duas páginas de 100 em 5.000 documentos com edição/conflito/exportação: 55 ms (anterior 84 ms). Esses números são observações locais, não benchmark de produção.
 
@@ -448,8 +448,8 @@ Revisão documental, sem alteração de código de produto: inspeção estática
 > Encerrada por decisão do responsável com pendências aceitas em aberto. As linhas marcadas como pendentes abaixo
 > **não foram verificadas** e não devem ser lidas como aprovadas.
 
-Build `dotnet build EsilvaSoft.SlopStudio.slnx --no-restore`: **0 avisos, 0 erros**.
-Testes `dotnet test EsilvaSoft.SlopStudio.slnx --no-build --no-restore`: **1 156 aprovados, 0 falhas** (entrada: 1 127).
+Build `dotnet build EsilvaSoft.KapibaraStudio.slnx --no-restore`: **0 avisos, 0 erros**.
+Testes `dotnet test EsilvaSoft.KapibaraStudio.slnx --no-build --no-restore`: **1 156 aprovados, 0 falhas** (entrada: 1 127).
 
 | Área | Evidência local | Validação pendente |
 | --- | --- | --- |

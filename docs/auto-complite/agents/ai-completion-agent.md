@@ -12,7 +12,7 @@ Relevant Context Selector, AI Context Builder, budgets, contrato v1, seleção p
 
 ## Componentes que pode modificar
 
-Novos Application/Language/Ai, AutocompleteContextBuilder.cs; provider/pipeline/output; integração Ctrl+; no dispatcher/presenter em lote reservado; harness de contexto. Caminhos relativos ao projeto EsilvaSoft.SlopStudio indicado; componentes novos estão no plano.
+Novos Application/Language/Ai, AutocompleteContextBuilder.cs; provider/pipeline/output; integração Ctrl+; no dispatcher/presenter em lote reservado; harness de contexto. Caminhos relativos ao projeto EsilvaSoft.KapibaraStudio indicado; componentes novos estão no plano.
 
 ## Componentes que não deve modificar
 

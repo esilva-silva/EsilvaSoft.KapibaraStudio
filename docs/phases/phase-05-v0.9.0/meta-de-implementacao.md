@@ -7,7 +7,7 @@
 
 ## Resultado esperado
 
-Concluir o escopo funcional automatizável de ADV-09 e da extensão preemptiva de EDT-02 no EsilvaSoft.SlopStudio: assistência local opcional, catálogo multimodelo, seleção de hardware disponível, sugestões inline e propostas revisáveis com diff. Preservar o autocomplete determinístico, a privacidade, o contexto por aba e a operação sem modelo instalado. Encerrar a fase somente com evidência rastreável e pendências de homologação real registradas na Fase 9.
+Concluir o escopo funcional automatizável de ADV-09 e da extensão preemptiva de EDT-02 no EsilvaSoft.KapibaraStudio: assistência local opcional, catálogo multimodelo, seleção de hardware disponível, sugestões inline e propostas revisáveis com diff. Preservar o autocomplete determinístico, a privacidade, o contexto por aba e a operação sem modelo instalado. Encerrar a fase somente com evidência rastreável e pendências de homologação real registradas na Fase 9.
 
 ## Ponto de partida e limites
 
@@ -55,14 +55,14 @@ A revisão avançada de F5-08 se justifica por concorrência, privacidade e prop
 ## Validação executada
 
 ```powershell
-dotnet restore EsilvaSoft.SlopStudio.slnx --locked-mode
-dotnet build EsilvaSoft.SlopStudio.slnx --no-restore
-dotnet test EsilvaSoft.SlopStudio.slnx --no-build --no-restore
+dotnet restore EsilvaSoft.KapibaraStudio.slnx --locked-mode
+dotnet build EsilvaSoft.KapibaraStudio.slnx --no-restore
+dotnet test EsilvaSoft.KapibaraStudio.slnx --no-build --no-restore
 ```
 
 Build integrado com `-p:UsedAvaloniaProducts=`: 0 avisos, 0 erros. Suíte da solução sem restore: 2.742 aprovados (2.699 UnitTests + 43 Benchmarks), 0 falhas, 20 ignorados. Os testes focados da UI/contexto passaram com 73 aprovados; runtime/corridas/override de chat passaram com 4 aprovados. Uma primeira suíte integral expôs regressão no override de ChatModel, corrigida e coberta por teste; a execução integral seguinte passou. Não se alteraram golden files para encobrir falhas.
 
-O restore locked-mode foi concluído usando um `NuGet.Config` temporário apontado ao cache hierárquico local, pois o sandbox bloqueia leitura do `C:\Users\chuke\AppData\Roaming\NuGet\NuGet.Config` e a conexão TLS com NuGet.org não está disponível. Comandos: `dotnet restore EsilvaSoft.SlopStudio.slnx --locked-mode --configfile <config-temporário> -p:UsedAvaloniaProducts= -p:NuGetAudit=false -p:RestoreIgnoreFailedSources=true`; isso preservou o lockfile e usou dependências já em cache, mas não verificou auditoria online de vulnerabilidades. PNGs reais Headless/Skia de chat/proposta e prévia foram gerados nos quatro idiomas × dois temas em `tests/EsilvaSoft.SlopStudio.UnitTests/bin/Debug/net10.0/ui-evidence/ai-chat-localization/`; amostras de cada idioma/tema foram inspecionadas. Nenhum modelo externo real foi carregado.
+O restore locked-mode foi concluído usando um `NuGet.Config` temporário apontado ao cache hierárquico local, pois o sandbox bloqueia leitura do `C:\Users\chuke\AppData\Roaming\NuGet\NuGet.Config` e a conexão TLS com NuGet.org não está disponível. Comandos: `dotnet restore EsilvaSoft.KapibaraStudio.slnx --locked-mode --configfile <config-temporário> -p:UsedAvaloniaProducts= -p:NuGetAudit=false -p:RestoreIgnoreFailedSources=true`; isso preservou o lockfile e usou dependências já em cache, mas não verificou auditoria online de vulnerabilidades. PNGs reais Headless/Skia de chat/proposta e prévia foram gerados nos quatro idiomas × dois temas em `tests/EsilvaSoft.KapibaraStudio.UnitTests/bin/Debug/net10.0/ui-evidence/ai-chat-localization/`; amostras de cada idioma/tema foram inspecionadas. Nenhum modelo externo real foi carregado.
 
 Testes com modelo externo são separados da suíte determinística e executados quando o ambiente estiver disponível; registrar pacote, hash, provider efetivo e limites. A [Fase 9](../phase-09-v0.13.0/README.md) mantém GPU/NPU, fidelidade de todas as ações em modelos reais, revisão linguística de domínio, latência/memória reais, Linux gráfico, leitores de tela e diálogos nativos. Não transformar ausência dessas evidências em alegação de suporte. Não transferir para a Fase 9 falhas dos critérios automatizados acima.
 
@@ -82,8 +82,8 @@ Permanecem para Fase 9: pesos/modelos reais por pacote e provider, fidelidade da
 
 - Concluído: todos os itens automatizáveis F5-01 a F5-09 conforme registro de execução acima.
 - Limites transferidos: apenas homologações reais enumeradas para a Fase 9; não são falhas automatizáveis pendentes.
-- Validação inicial: `dotnet restore EsilvaSoft.SlopStudio.slnx --locked-mode` não iniciou porque o sandbox negou leitura de `C:\Users\chuke\AppData\Roaming\NuGet\NuGet.Config`. Os assets locais de restore estão presentes; build/testes sem restore e nova tentativa do restore serão registrados quando viáveis.
-- Baseline do binário já compilado (`dotnet test EsilvaSoft.SlopStudio.slnx --no-build --no-restore`): 2.674 aprovados, 0 falhas e 20 ignorados em 1m27s. Isso é baseline anterior às alterações, não valida código novo.
+- Validação inicial: `dotnet restore EsilvaSoft.KapibaraStudio.slnx --locked-mode` não iniciou porque o sandbox negou leitura de `C:\Users\chuke\AppData\Roaming\NuGet\NuGet.Config`. Os assets locais de restore estão presentes; build/testes sem restore e nova tentativa do restore serão registrados quando viáveis.
+- Baseline do binário já compilado (`dotnet test EsilvaSoft.KapibaraStudio.slnx --no-build --no-restore`): 2.674 aprovados, 0 falhas e 20 ignorados em 1m27s. Isso é baseline anterior às alterações, não valida código novo.
 - Build incremental inicial bloqueou em `MongoTextEditor.cs` com dois CS8765; a frente F5-04 corrigiu as assinaturas anuláveis e confirmou compilação da camada Desktop. Build integrado ainda pendente.
 - Bloqueios confirmados: restore por perfil do usuário depende de acesso externo ao workspace; sem evidência de falha de dependência ainda.
 - Descobertas, falhas e escalonamentos: registrar durante a execução.

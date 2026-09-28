@@ -12,7 +12,7 @@
   "results": [
     {
       "Scenario": "Success",
-      "SyntheticTarget": "EsilvaSoft.SlopStudio.Spike.Phase07.Synthetic/d49b139d79de41f495a537ae906e277f",
+      "SyntheticTarget": "EsilvaSoft.KapibaraStudio.Spike.Phase07.Synthetic/d49b139d79de41f495a537ae906e277f",
       "Status": "NoLogonSession",
       "NativeError": 1312,
       "Written": false,
@@ -26,7 +26,7 @@
     },
     {
       "Scenario": "FailureAfterWrite",
-      "SyntheticTarget": "EsilvaSoft.SlopStudio.Spike.Phase07.Synthetic/dfee8e87197341889a7df3bbe7d760eb",
+      "SyntheticTarget": "EsilvaSoft.KapibaraStudio.Spike.Phase07.Synthetic/dfee8e87197341889a7df3bbe7d760eb",
       "Status": "NoLogonSession",
       "NativeError": 1312,
       "Written": false,
@@ -40,7 +40,7 @@
     },
     {
       "Scenario": "FailureAfterRead",
-      "SyntheticTarget": "EsilvaSoft.SlopStudio.Spike.Phase07.Synthetic/b00a0a815d474b08ba69d11a0046f717",
+      "SyntheticTarget": "EsilvaSoft.KapibaraStudio.Spike.Phase07.Synthetic/b00a0a815d474b08ba69d11a0046f717",
       "Status": "NoLogonSession",
       "NativeError": 1312,
       "Written": false,

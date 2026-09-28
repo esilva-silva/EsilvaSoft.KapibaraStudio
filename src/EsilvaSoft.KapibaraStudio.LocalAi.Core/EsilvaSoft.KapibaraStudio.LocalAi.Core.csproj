@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../EsilvaSoft.KapibaraStudio.Core/EsilvaSoft.KapibaraStudio.Core.csproj" />
+  </ItemGroup>
+</Project>

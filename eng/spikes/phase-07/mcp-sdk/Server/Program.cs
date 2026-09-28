@@ -1,7 +1,7 @@
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
-namespace EsilvaSoft.SlopStudio.Spikes.McpServer;
+namespace EsilvaSoft.KapibaraStudio.Spikes.McpServer;
 
 public static class Program
 {

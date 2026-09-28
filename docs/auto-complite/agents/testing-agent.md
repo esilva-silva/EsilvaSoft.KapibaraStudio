@@ -12,7 +12,7 @@ Contexto/catálogo/schema/ranking/snippets/providers, preemptivos, configuraçã
 
 ## Componentes que pode modificar
 
-tests/EsilvaSoft.SlopStudio.UnitTests e fixtures novas; docs/testing, matriz/pendências; coordenar PNGs com dono Desktop. Caminhos relativos ao projeto EsilvaSoft.SlopStudio indicado; componentes novos estão no plano.
+tests/EsilvaSoft.KapibaraStudio.UnitTests e fixtures novas; docs/testing, matriz/pendências; coordenar PNGs com dono Desktop. Caminhos relativos ao projeto EsilvaSoft.KapibaraStudio indicado; componentes novos estão no plano.
 
 ## Componentes que não deve modificar
 

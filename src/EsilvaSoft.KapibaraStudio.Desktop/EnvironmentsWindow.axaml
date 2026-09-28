@@ -1,0 +1,41 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:EsilvaSoft.KapibaraStudio.Desktop.ViewModels" xmlns:core="using:EsilvaSoft.KapibaraStudio.Core" xmlns:local="using:EsilvaSoft.KapibaraStudio.Desktop" x:Class="EsilvaSoft.KapibaraStudio.Desktop.EnvironmentsWindow" x:DataType="vm:EnvironmentsViewModel" Title="{local:Loc Key=environmentsTitle}" Width="760" Height="540" MinWidth="600" MinHeight="420" WindowStartupLocation="CenterOwner">
+  <Grid Margin="20" RowDefinitions="Auto,*,Auto" RowSpacing="12">
+    <StackPanel Spacing="4">
+      <TextBlock Text="{local:Loc Key=environmentsTitle}" Classes="section-title"/>
+      <TextBlock Text="{local:Loc Key=environmentNote}" Classes="muted" TextWrapping="Wrap"/>
+    </StackPanel>
+    <ScrollViewer Grid.Row="1">
+      <StackPanel Spacing="8">
+        <TextBlock Text="{local:Loc Key=editActivateEnvironment}"/>
+        <ComboBox x:Name="EnvironmentSelector" ItemsSource="{Binding Environments}" SelectedItem="{Binding SelectedEnvironment}" HorizontalAlignment="Stretch" AutomationProperties.Name="{local:Loc Key=editActivateEnvironment}">
+          <ComboBox.ItemTemplate><DataTemplate x:DataType="core:EnvironmentDefinition"><TextBlock Text="{Binding Name}"/></DataTemplate></ComboBox.ItemTemplate>
+        </ComboBox>
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+          <TextBox Text="{Binding EnvironmentName}" PlaceholderText="{local:Loc Key=newEnvironmentName}" AutomationProperties.Name="{local:Loc Key=newEnvironmentName}"/>
+          <Button Grid.Column="1" Content="{local:Loc Key=createEnvironment}" Command="{Binding AddEnvironmentCommand}"/>
+        </Grid>
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+          <StackPanel x:Name="KeysPanel" Spacing="6">
+            <TextBlock Text="{local:Loc Key=environmentKeys}"/>
+            <ListBox ItemsSource="{Binding Keys}" SelectedItem="{Binding SelectedKey}" Height="112" AutomationProperties.Name="{local:Loc Key=environmentKeys}"/>
+            <Button Content="{local:Loc Key=removeSelectedKey}" Command="{Binding RemoveValueCommand}"/>
+          </StackPanel>
+          <StackPanel x:Name="ValuePanel" Grid.Column="1" Spacing="6">
+            <TextBox Text="{Binding Key}" PlaceholderText="{local:Loc Key=keyExample}" AutomationProperties.Name="{local:Loc Key=environmentVariableKey}"/>
+            <TextBox Text="{Binding Value}" PasswordChar="●" PlaceholderText="{local:Loc Key=variableValue}" AutomationProperties.Name="{local:Loc Key=environmentVariableValue}"/>
+            <Button Content="{local:Loc Key=addUpdateVariable}" Command="{Binding SetValueCommand}"/>
+            <TextBlock Text="{local:Loc Key=noKeysNote}" Classes="metadata" TextWrapping="Wrap"/>
+          </StackPanel>
+        </Grid>
+        <TextBlock Text="{local:Loc Key=storageWarning}" Classes="metadata" TextWrapping="Wrap"/>
+      </StackPanel>
+    </ScrollViewer>
+    <StackPanel Grid.Row="2" Spacing="8">
+      <TextBlock Text="{Binding Status}" TextWrapping="Wrap"/>
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+        <Button Content="{local:Loc Key=close}" Click="CloseDialog"/>
+        <Button Content="{local:Loc Key=saveActivateEnvironment}" Classes="primary" Command="{Binding SaveCommand}"/>
+      </StackPanel>
+    </StackPanel>
+  </Grid>
+</Window>

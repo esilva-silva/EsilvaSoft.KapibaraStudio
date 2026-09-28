@@ -155,7 +155,7 @@ interface Projeto { Id: UUID; NomeProjeto: string; Cliente: { Id: UUID; Nome: st
 **D — arquivos virtuais no formato de repositório do Qwen2.5-Coder**
 
 ```text
-<|repo_name|>slopstudio-workspace
+<|repo_name|>kapibarastudio-workspace
 <|file_sep|>schema/Projetos/Projetos.d.ts
 interface Projeto { Id: UUID; NomeProjeto: string; Cliente: { Id: UUID; Nome: string }; CriadoEm: Date; Tags: string[] }
 <|file_sep|>console.js
@@ -182,7 +182,7 @@ Hipótese a testar: C ou D oferecem melhor validade de nomes por token em modelo
 
 ## Contratos versionados
 
-- `slopstudio-model.json` ganha `contextContract` (ausente = `editor-context-v1`) e `supportsRepositoryContext`.
+- `kapibarastudio-model.json` ganha `contextContract` (ausente = `editor-context-v1`) e `supportsRepositoryContext`.
 - `IAiContextContract` por formato; `AutocompleteContextBuilder` é congelado como implementação de `editor-context-v1`, com teste-ouro byte a byte contra a saída atual.
 - O adapter do modelo valida que o contrato é suportado (ex.: D exige os tokens de repositório).
 
@@ -203,7 +203,7 @@ public sealed record AiPrompt(string Prefix, string Suffix, string? RepositoryPr
 
 ## Avaliação
 
-Harness em `tests/EsilvaSoft.SlopStudio.Benchmarks` (execução `Explicit`, modelo via variável de ambiente):
+Harness em `tests/EsilvaSoft.KapibaraStudio.Benchmarks` (execução `Explicit`, modelo via variável de ambiente):
 
 - **Dataset:** schemas sintéticos (sem dados reais) e scripts com posições de cursor em filtros, operadores, updates, pipelines, `$lookup`, cursores e `db.`; resposta esperada e alternativas aceitáveis. Categorias balanceadas e casos em pt-BR/en para nomes.
 - **Métricas:** acerto exato, prefixo correto em caracteres, validade sintática após inserir (parser tolerante sem diagnóstico novo), **validade de catálogo** (campos, coleções e operadores existentes e compatíveis), tokens de entrada, tempo de seleção/builder/tokenização, TTFT e tempo total.

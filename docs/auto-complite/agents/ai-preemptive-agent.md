@@ -12,7 +12,7 @@ Gating IA, evitar inferência desnecessária, cancelar obsoletos, orçamento/deb
 
 ## Componentes que pode modificar
 
-Novos Application/AiPreemptiveCompletionProvider, InlineAiPolicy, ModelLatencyProfile; integração por contrato com coordinator. Caminhos relativos ao projeto EsilvaSoft.SlopStudio indicado; componentes novos estão no plano.
+Novos Application/AiPreemptiveCompletionProvider, InlineAiPolicy, ModelLatencyProfile; integração por contrato com coordinator. Caminhos relativos ao projeto EsilvaSoft.KapibaraStudio indicado; componentes novos estão no plano.
 
 ## Componentes que não deve modificar
 

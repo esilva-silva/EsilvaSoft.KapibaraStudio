@@ -195,10 +195,10 @@
         "resolved": "13.0.3",
         "contentHash": "HrC5BXdl00IP9zeV+0Z848QWPAoCr9P3bDEZguI+gkLcBKAOxix/tLEAAHC+UvDNPv4a2d18lOReHMOagPa+zQ=="
       },
-      "EsilvaSoft.SlopStudio.Spikes.McpIndependentClient": {
+      "EsilvaSoft.KapibaraStudio.Spikes.McpIndependentClient": {
         "type": "Project"
       },
-      "EsilvaSoft.SlopStudio.Spikes.McpServer": {
+      "EsilvaSoft.KapibaraStudio.Spikes.McpServer": {
         "type": "Project",
         "dependencies": {
           "ModelContextProtocol": "[2.2.0, 2.2.0]"

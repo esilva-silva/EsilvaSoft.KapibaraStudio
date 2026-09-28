@@ -1,10 +1,10 @@
 # Autocomplete local — análise e contrato de implementação
 
-> **Nota de estrutura (ADR-040, 17/09/2026):** as seções abaixo registram a análise original de 11/09/2026, quando a solução tinha quatro projetos (`Core`, `Application`, `Infrastructure`, `Desktop`). Desde a ADR-040, o núcleo determinístico de autocomplete/highlighting foi extraído para `EsilvaSoft.SlopStudio.Autocomplete.Core`, os contratos e políticas puras de IA local para `EsilvaSoft.SlopStudio.LocalAi.Core`, e os adaptadores ONNX Runtime GenAI para `EsilvaSoft.SlopStudio.Infrastructure.LocalAi`. Ver [arquitetura atual](05-arquitetura.md) e [ADR-040](10-decisoes-arquiteturais.md).
+> **Nota de estrutura (ADR-040, 17/09/2026):** as seções abaixo registram a análise original de 11/09/2026, quando a solução tinha quatro projetos (`Core`, `Application`, `Infrastructure`, `Desktop`). Desde a ADR-040, o núcleo determinístico de autocomplete/highlighting foi extraído para `EsilvaSoft.KapibaraStudio.Autocomplete.Core`, os contratos e políticas puras de IA local para `EsilvaSoft.KapibaraStudio.LocalAi.Core`, e os adaptadores ONNX Runtime GenAI para `EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi`. Ver [arquitetura atual](05-arquitetura.md) e [ADR-040](10-decisoes-arquiteturais.md).
 
 ## Análise inicial da solução (11/09/2026)
 
-`EsilvaSoft.SlopStudio.slnx` contém Core, Application, Infrastructure, Desktop e UnitTests. Todos usam .NET 10, nullable, analisadores como erros, pacotes centralizados e lockfiles. `tools/BrandAssets` é uma ferramenta auxiliar fora da solução. O CI existente executa restore travado, build e NUnit em Windows/Linux; publicação ARM64 e instalação nativa não eram gates implementados.
+`EsilvaSoft.KapibaraStudio.slnx` contém Core, Application, Infrastructure, Desktop e UnitTests. Todos usam .NET 10, nullable, analisadores como erros, pacotes centralizados e lockfiles. `tools/BrandAssets` é uma ferramenta auxiliar fora da solução. O CI existente executa restore travado, build e NUnit em Windows/Linux; publicação ARM64 e instalação nativa não eram gates implementados.
 
 Core contém DTOs e regras de BSON, conexão, sessão e ambiente. Application expõe contratos específicos e WorkspaceService como fachada. Infrastructure implementa driver MongoDB, runtime Console Jint, processo mongosh, arquivos, segredos de sessão e persistência. Desktop usa MVVM/CommunityToolkit; App é composition root, com descarte do contêiner no encerramento. WorkspaceViewModel coordena abas; cada WorkspaceTabViewModel captura contexto antes de executar. Ferramentas administrativas permanecem no MainWindowViewModel contextual. O novo recurso não altera execução nem roteamento.
 
@@ -64,8 +64,8 @@ Instale separadamente uma **exportação ONNX Runtime GenAI do Qwen2.5-Coder**, 
 
 Diretório padrão de descoberta:
 
-- Windows: `%LOCALAPPDATA%\EsilvaSoft\SlopStudio\Models`.
-- Linux: `$XDG_DATA_HOME/EsilvaSoft/SlopStudio/Models`, com fallback para `~/.local/share`.
+- Windows: `%LOCALAPPDATA%\EsilvaSoft\KapibaraStudio\Models`.
+- Linux: `$XDG_DATA_HOME/EsilvaSoft/KapibaraStudio/Models`, com fallback para `~/.local/share`.
 
 Exemplo de instalação externa:
 
@@ -81,7 +81,7 @@ Models/
 ```
 
 1. Obtenha uma exportação compatível de origem confiável e confira licença/integridade. Conserve **todos** os arquivos e dados externos do pacote.
-2. Extraia em um diretório fora do repositório e da instalação do Slop Studio.
+2. Extraia em um diretório fora do repositório e da instalação do Kapibara Studio.
 3. Em **Preferências → Autocomplete**, informe o diretório pai em **Diretório de modelos** e escolha a pasta em **Modelo**, ou use **Outra pasta…**. Atualizar lista até 100 subpastas e informa as ignoradas com o motivo (arquivos ausentes, inválido, não suportado).
 4. Use **Testar modelo**. A ação salva a configuração, recarrega, valida arquivos, inicializa tokenizer/sessão/provider e gera até oito tokens de `db.Users.find({`, sem dados do usuário.
 5. Mantenha **Automático**, ou escolha **Básico** para não carregar IA. Salvar aplica a configuração; fechar descarta edições ainda não salvas.

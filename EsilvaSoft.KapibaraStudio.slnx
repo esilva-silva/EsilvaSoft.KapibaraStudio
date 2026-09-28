@@ -1,0 +1,15 @@
+<Solution>
+  <Project Path="src/EsilvaSoft.KapibaraStudio.Core/EsilvaSoft.KapibaraStudio.Core.csproj" />
+  <Project Path="src/EsilvaSoft.KapibaraStudio.Autocomplete.Core/EsilvaSoft.KapibaraStudio.Autocomplete.Core.csproj" />
+  <Project Path="src/EsilvaSoft.KapibaraStudio.LocalAi.Core/EsilvaSoft.KapibaraStudio.LocalAi.Core.csproj" />
+  <Project Path="src/EsilvaSoft.KapibaraStudio.Application/EsilvaSoft.KapibaraStudio.Application.csproj" />
+  <Project Path="src/EsilvaSoft.KapibaraStudio.Infrastructure/EsilvaSoft.KapibaraStudio.Infrastructure.csproj" />
+  <Project Path="src/EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi/EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi.csproj" />
+  <Project Path="src/EsilvaSoft.KapibaraStudio.Desktop/EsilvaSoft.KapibaraStudio.Desktop.csproj" />
+  <Project Path="src/EsilvaSoft.KapibaraStudio.McpServer/EsilvaSoft.KapibaraStudio.McpServer.csproj" />
+  <Project Path="src/EsilvaSoft.KapibaraStudio.Infrastructure.Agents/EsilvaSoft.KapibaraStudio.Infrastructure.Agents.csproj" />
+  <Project Path="tests/EsilvaSoft.KapibaraStudio.UnitTests/EsilvaSoft.KapibaraStudio.UnitTests.csproj" />
+  <Project Path="tests/EsilvaSoft.KapibaraStudio.Benchmarks/EsilvaSoft.KapibaraStudio.Benchmarks.csproj" />
+  <Project Path="tests/EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Tests/EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Tests.csproj" />
+  <Project Path="tests/EsilvaSoft.KapibaraStudio.FakeClaudeCode/EsilvaSoft.KapibaraStudio.FakeClaudeCode.csproj" />
+</Solution>

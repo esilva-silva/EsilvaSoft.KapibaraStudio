@@ -1,0 +1,81 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets/kapibara-studio.ico</ApplicationIcon>
+    <RuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64</RuntimeIdentifiers>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../EsilvaSoft.KapibaraStudio.Application/EsilvaSoft.KapibaraStudio.Application.csproj" />
+    <ProjectReference Include="../EsilvaSoft.KapibaraStudio.Infrastructure/EsilvaSoft.KapibaraStudio.Infrastructure.csproj" />
+    <ProjectReference Include="../EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi/EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi.csproj" />
+    <!-- P7-L06-WIRING: only the composition root (App.axaml.cs) uses this project's types (OpenAI/Anthropic SDKs
+         confined to Infrastructure.Agents); ViewModels/Views never reference it (AC-04, checked by
+         AgentArchitectureTests). -->
+    <ProjectReference Include="../EsilvaSoft.KapibaraStudio.Infrastructure.Agents/EsilvaSoft.KapibaraStudio.Infrastructure.Agents.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.AvaloniaEdit" />
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Fonts.Inter" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <!-- Infrastructure.Agents pulls OpenAI 2.14.0 -> System.ClientModel 1.15.0, which requires >= 10.0.9; the
+         central pin (10.0.0) stays as-is for the rest of the solution. -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" VersionOverride="10.0.10" />
+  </ItemGroup>
+  <ItemGroup>
+    <AvaloniaResource Include="Assets/**/*.png" />
+    <AvaloniaResource Include="Assets/*.ico" />
+  </ItemGroup>
+  <!-- P7-CLP-3 (ADR-056): the per-session MCP proxy of the Claude Code provider is launched from "mcp/" next to the
+       app. It is built/published by its own project into a subfolder (no ProjectReference: its MCP package stays out of
+       the Desktop dependency graph and lock files, and its assemblies never overwrite the app's). When the Desktop was
+       restored alone (release job), the proxy is restored here in locked mode, RID-less like the Desktop itself; its
+       lock files carry the RID sections (RuntimeIdentifiers in the proxy project). -->
+  <PropertyGroup>
+    <_McpServerProject>$(MSBuildThisFileDirectory)../EsilvaSoft.KapibaraStudio.McpServer/EsilvaSoft.KapibaraStudio.McpServer.csproj</_McpServerProject>
+    <_McpServerRidProperties>RuntimeIdentifier;SelfContained;PublishSingleFile;IncludeNativeLibrariesForSelfExtract;PublishDir;_CommandLineDefinedOutputPath;PublishReadyToRun;PublishTrimmed</_McpServerRidProperties>
+  </PropertyGroup>
+  <Target Name="RestoreMcpServerProxy" Condition="!Exists('$(MSBuildThisFileDirectory)../EsilvaSoft.KapibaraStudio.McpServer/obj/project.assets.json')">
+    <MSBuild Projects="$(_McpServerProject)" Targets="Restore"
+             Properties="MSBuildRestoreSessionId=$([System.Guid]::NewGuid());RestoreLockedMode=true"
+             RemoveProperties="$(_McpServerRidProperties)" />
+  </Target>
+  <Target Name="CopyMcpServerProxy" AfterTargets="Build" DependsOnTargets="RestoreMcpServerProxy"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <MSBuild Projects="$(_McpServerProject)" Targets="Build" BuildInParallel="$(BuildInParallel)"
+             RemoveProperties="$(_McpServerRidProperties)">
+      <Output TaskParameter="TargetOutputs" ItemName="_McpServerTargetPath" />
+    </MSBuild>
+    <PropertyGroup>
+      <_McpServerOutputDirectory>@(_McpServerTargetPath->'%(RootDir)%(Directory)')</_McpServerOutputDirectory>
+    </PropertyGroup>
+    <ItemGroup>
+      <_McpServerFiles Include="$(_McpServerOutputDirectory)**/*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_McpServerFiles)" DestinationFiles="@(_McpServerFiles->'$(OutDir)mcp/%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+  <!-- Publish: the proxy goes to <PublishDir>/mcp for the same RID and self-contained mode as the Desktop (it must run
+       on a machine without a shared .NET runtime). Single-file/native-extraction settings of the release flow through. -->
+  <Target Name="PublishMcpServerProxy" AfterTargets="Publish" DependsOnTargets="RestoreMcpServerProxy"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <PropertyGroup>
+      <_McpServerPublishDir>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(PublishDir)', 'mcp'))</_McpServerPublishDir>
+    </PropertyGroup>
+    <MSBuild Projects="$(_McpServerProject)" Targets="Publish"
+             Properties="Configuration=$(Configuration);PublishDir=$(_McpServerPublishDir);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=$(SelfContained)"
+             RemoveProperties="_CommandLineDefinedOutputPath" />
+    <Error Condition="!Exists('$(_McpServerPublishDir)EsilvaSoft.KapibaraStudio.McpServer.exe') And !Exists('$(_McpServerPublishDir)EsilvaSoft.KapibaraStudio.McpServer')"
+           Text="O proxy MCP (mcp/EsilvaSoft.KapibaraStudio.McpServer) não foi publicado." />
+  </Target>
+  <Target Name="RejectBundledAiModels" AfterTargets="ComputeFilesToPublish">
+    <ItemGroup>
+      <BundledAiModel Include="@(ResolvedFileToPublish)" Condition="'%(ResolvedFileToPublish.Extension)' == '.onnx' Or '%(ResolvedFileToPublish.Extension)' == '.safetensors' Or '%(ResolvedFileToPublish.Extension)' == '.gguf'" />
+    </ItemGroup>
+    <Error Condition="'@(BundledAiModel)' != ''" Text="Modelos de IA devem ser instalados externamente; remova os pesos da publicação." />
+  </Target>
+</Project>

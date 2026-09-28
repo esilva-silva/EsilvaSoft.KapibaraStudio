@@ -5,7 +5,7 @@
 
 ###############################################################################
 # Golden fixtures encode their own line-ending semantics (see
-# tests/EsilvaSoft.SlopStudio.UnitTests/Ai/EditorContextV1GoldenTests.cs). Checkout must never rewrite them to
+# tests/EsilvaSoft.KapibaraStudio.UnitTests/Ai/EditorContextV1GoldenTests.cs). Checkout must never rewrite them to
 # CRLF, or the "text=" bodies captured as LF would silently stop matching what is on disk on Windows.
 ###############################################################################
 *.golden text eol=lf

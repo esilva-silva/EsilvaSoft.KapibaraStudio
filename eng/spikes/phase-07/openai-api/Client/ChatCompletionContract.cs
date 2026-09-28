@@ -2,7 +2,7 @@ using System.Text;
 using System.Text.Json;
 using OpenAI.Chat;
 
-namespace EsilvaSoft.SlopStudio.Spikes.OpenAiApi;
+namespace EsilvaSoft.KapibaraStudio.Spikes.OpenAiApi;
 
 public sealed record ProposedFunction(string CallId, string Name, string Arguments);
 public sealed record ObservedTurn(string Text, IReadOnlyList<ProposedFunction> Functions, ChatFinishReason? FinishReason);

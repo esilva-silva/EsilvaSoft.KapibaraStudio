@@ -12,7 +12,7 @@ Lexer/tokens, AST tolerante, cursor, escopo, alvo, shapes, esperados Field/Opera
 
 ## Componentes que pode modificar
 
-Application/SyntaxHighlighting/SyntaxHighlightingService.cs; MongoCompletionTarget.cs; AggregationCompletionContext.cs; AggregationFieldInference.cs; novos Language/Text, Syntax e Context. Caminhos relativos ao projeto EsilvaSoft.SlopStudio indicado; componentes novos estão no plano.
+Application/SyntaxHighlighting/SyntaxHighlightingService.cs; MongoCompletionTarget.cs; AggregationCompletionContext.cs; AggregationFieldInference.cs; novos Language/Text, Syntax e Context. Caminhos relativos ao projeto EsilvaSoft.KapibaraStudio indicado; componentes novos estão no plano.
 
 ## Componentes que não deve modificar
 

@@ -5,7 +5,7 @@
 
 ## Escopo e estado
 
-A direção de UX parte das jornadas do Slop Studio e do [design system](17-design-system-ui-ux.md). Referências comparativas de produtos externos foram retiradas. Não se reproduzem identidade, textos ou telas de outro produto. Dependências técnicas e avisos de terceiros permanecem documentados em seus arquivos próprios.
+A direção de UX parte das jornadas do Kapibara Studio e do [design system](17-design-system-ui-ux.md). Referências comparativas de produtos externos foram retiradas. Não se reproduzem identidade, textos ou telas de outro produto. Dependências técnicas e avisos de terceiros permanecem documentados em seus arquivos próprios.
 
 ✅ Implementado no recorte atual: Explorer, abas com destino fixo, consulta explícita, resultados abaixo do editor, menus contextuais e temas. 🚧 Em desenvolvimento: revisão produtiva das jornadas na v0.6.0; a homologação integral pertence à Fase 9 / v0.13.0. As jornadas abaixo descrevem a experiência alvo; disponibilidade específica está no [inventário](24-inventario-roadmap.md).
 

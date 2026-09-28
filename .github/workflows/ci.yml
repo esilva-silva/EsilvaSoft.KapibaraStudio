@@ -33,9 +33,9 @@ jobs:
           global-json-file: global.json
           cache: true
           cache-dependency-path: '**/packages*.lock.json'
-      - run: dotnet restore EsilvaSoft.SlopStudio.slnx --locked-mode
-      - run: dotnet build EsilvaSoft.SlopStudio.slnx --no-restore -c Release
-      - run: dotnet test EsilvaSoft.SlopStudio.slnx --no-build --no-restore -c Release --logger trx --results-directory TestResults
+      - run: dotnet restore EsilvaSoft.KapibaraStudio.slnx --locked-mode
+      - run: dotnet build EsilvaSoft.KapibaraStudio.slnx --no-restore -c Release
+      - run: dotnet test EsilvaSoft.KapibaraStudio.slnx --no-build --no-restore -c Release --logger trx --results-directory TestResults
       - if: failure()
         uses: actions/upload-artifact@v4
         with:

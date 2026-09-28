@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace EsilvaSoft.SlopStudio.Spikes.McpIndependentClient;
+namespace EsilvaSoft.KapibaraStudio.Spikes.McpIndependentClient;
 
 public static class Program
 {

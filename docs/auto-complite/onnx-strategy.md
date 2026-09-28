@@ -26,12 +26,12 @@ Models/
 │   ├── model.onnx.data
 │   ├── tokenizer.json
 │   ├── tokenizer_config.json
-│   └── slopstudio-model.json      (opcional)
+│   └── kapibarastudio-model.json      (opcional)
 ├── Qwen2.5-Coder-0.5B-onnx-int4-cpu/
 └── OutroModeloQuantizado/
 ```
 
-Campos propostos (todos opcionais, aditivos) em `slopstudio-model.json`:
+Campos propostos (todos opcionais, aditivos) em `kapibarastudio-model.json`:
 
 ```json
 {

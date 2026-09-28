@@ -26,7 +26,7 @@ Herdados do [`AGENTS.md`](../../AGENTS.md) e de [08 — Testes](../08-testes-e-q
 
 ## Fixtures de contexto
 
-Arquivos `tests/EsilvaSoft.SlopStudio.UnitTests/Language/Cases/*.case`, lidos por um runner parametrizado:
+Arquivos `tests/EsilvaSoft.KapibaraStudio.UnitTests/Language/Cases/*.case`, lidos por um runner parametrizado:
 
 ```text
 // case: filter-operator-object-uuid

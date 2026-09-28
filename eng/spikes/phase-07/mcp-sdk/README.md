@@ -2,7 +2,7 @@
 
 **Pesquisa isolada, ampliada em Windows em 23/09/2026.** SDK .NET `10.0.401`, target `net10.0`, MCP C# `2.2.0`: restore locked e build passaram; **10/10 testes passaram**, sem avisos de compilação. São 4 testes originais SDK↔SDK e 6 testes adicionais com cliente BCL independente. Não implementa o servidor MCP do produto nem conclui o lote 0, a fase 7 ou AC-01..AC-20.
 
-`McpSdkSpike.slnx` está fora de `EsilvaSoft.SlopStudio.slnx`. Os arquivos locais `Directory.Build.props` e `Directory.Packages.props` interrompem a herança das configurações/pacotes do produto. Os três `packages.lock.json` são exclusivos do spike. `NuGet.Config` usa somente nuget.org e cache local ignorado. A licença do EsilvaSoft.SlopStudio continua MIT.
+`McpSdkSpike.slnx` está fora de `EsilvaSoft.KapibaraStudio.slnx`. Os arquivos locais `Directory.Build.props` e `Directory.Packages.props` interrompem a herança das configurações/pacotes do produto. Os três `packages.lock.json` são exclusivos do spike. `NuGet.Config` usa somente nuget.org e cache local ignorado. A licença do EsilvaSoft.KapibaraStudio continua MIT.
 
 ## Prova observada
 
@@ -41,9 +41,9 @@ Mensagens observadas e sintéticas foram preservadas em [evidence/windows/indepe
 Após build, execução avulsa em PowerShell:
 
 ```powershell
-$mcpServer = (Resolve-Path eng/spikes/phase-07/mcp-sdk/Server/bin/Debug/net10.0/EsilvaSoft.SlopStudio.Spikes.McpServer.dll).Path
-dotnet eng/spikes/phase-07/mcp-sdk/IndependentClient/bin/Debug/net10.0/EsilvaSoft.SlopStudio.Spikes.McpIndependentClient.dll $mcpServer 2025-11-25 2025-11-25
-dotnet eng/spikes/phase-07/mcp-sdk/IndependentClient/bin/Debug/net10.0/EsilvaSoft.SlopStudio.Spikes.McpIndependentClient.dll $mcpServer 2026-07-28 2026-07-28
+$mcpServer = (Resolve-Path eng/spikes/phase-07/mcp-sdk/Server/bin/Debug/net10.0/EsilvaSoft.KapibaraStudio.Spikes.McpServer.dll).Path
+dotnet eng/spikes/phase-07/mcp-sdk/IndependentClient/bin/Debug/net10.0/EsilvaSoft.KapibaraStudio.Spikes.McpIndependentClient.dll $mcpServer 2025-11-25 2025-11-25
+dotnet eng/spikes/phase-07/mcp-sdk/IndependentClient/bin/Debug/net10.0/EsilvaSoft.KapibaraStudio.Spikes.McpIndependentClient.dll $mcpServer 2026-07-28 2026-07-28
 ```
 
 Omitir o terceiro argumento seleciona o servidor dual-era. Em Linux, fornecer o caminho absoluto equivalente para `server.dll`; execução Linux ainda pendente. O uso do `dotnet` do ambiente é restrito a este harness de desenvolvimento e não define política de descoberta de executáveis para o produto.

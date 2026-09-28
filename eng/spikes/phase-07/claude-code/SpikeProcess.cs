@@ -1,5 +1,5 @@
 // Spike P7-CL0-01 — helper carregado por Add-Type nos scripts PowerShell deste diretório.
-// Fora da solução principal: não é compilado pelo EsilvaSoft.SlopStudio.slnx e não adiciona dependências.
+// Fora da solução principal: não é compilado pelo EsilvaSoft.KapibaraStudio.slnx e não adiciona dependências.
 // Inicia um processo sem shell, com argv estruturado (ArgumentList), captura stdout/stderr por linha com
 // carimbo de tempo relativo e, opcionalmente, coloca o processo num Job Object com KILL_ON_JOB_CLOSE (Windows).
 using System;

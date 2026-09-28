@@ -12,7 +12,7 @@ Linguagem, connections/databases/collections, fields/BSON/indexes/operators/func
 
 ## Componentes que pode modificar
 
-Application/Language/{CatalogModel,KnowledgeCatalog,LanguageDefinition,MetadataModel,MetadataCache,CollectionSchema,NameTable}.cs e mongodb-language.v1.json; Infrastructure/MongoMetadataSource.cs; novos SchemaLearningService/BackgroundSchemaAnalyzer/ILearnedSchemaRepository; partial no proprietário LiteDB existente. Caminhos relativos ao projeto EsilvaSoft.SlopStudio indicado; componentes novos estão no plano.
+Application/Language/{CatalogModel,KnowledgeCatalog,LanguageDefinition,MetadataModel,MetadataCache,CollectionSchema,NameTable}.cs e mongodb-language.v1.json; Infrastructure/MongoMetadataSource.cs; novos SchemaLearningService/BackgroundSchemaAnalyzer/ILearnedSchemaRepository; partial no proprietário LiteDB existente. Caminhos relativos ao projeto EsilvaSoft.KapibaraStudio indicado; componentes novos estão no plano.
 
 ## Componentes que não deve modificar
 

@@ -1,4 +1,4 @@
-# Documentação do EsilvaSoft.SlopStudio
+# Documentação do EsilvaSoft.KapibaraStudio
 
 Referência: **28/09/2026**. Produto desktop .NET 10/Avalonia, Windows/Linux, LiteDB e MIT. A integração Claude já está no código e segue em validação; a [documentação curta do Claude](phases/phase-07-v0.11.0/README.md) registra modalidades, segurança, limites e homologação pendente. A homologação real com Claude Pro não foi executada nesta revisão.
 

@@ -185,16 +185,16 @@
         "resolved": "0.7.3",
         "contentHash": "U9Ix4l4cl58Kzz1rJzj5hoVTjmbx1qGMwzAcbv1j/d3NzrFaESIurQyg+ow4mivCgkE3S413y+U9k4WdnEIkRA=="
       },
-      "esilvasoft.slopstudio.application": {
+      "esilvasoft.kapibarastudio.application": {
         "type": "Project",
         "dependencies": {
-          "EsilvaSoft.SlopStudio.Core": "[1.0.0, )"
+          "EsilvaSoft.KapibaraStudio.Core": "[1.0.0, )"
         }
       },
-      "esilvasoft.slopstudio.core": {
+      "esilvasoft.kapibarastudio.core": {
         "type": "Project"
       },
-      "esilvasoft.slopstudio.desktop": {
+      "esilvasoft.kapibarastudio.desktop": {
         "type": "Project",
         "dependencies": {
           "Avalonia": "[12.1.2, )",
@@ -202,15 +202,15 @@
           "Avalonia.Fonts.Inter": "[12.1.2, )",
           "Avalonia.Themes.Fluent": "[12.1.2, )",
           "CommunityToolkit.Mvvm": "[8.4.0, )",
-          "EsilvaSoft.SlopStudio.Application": "[1.0.0, )",
-          "EsilvaSoft.SlopStudio.Infrastructure": "[1.0.0, )",
+          "EsilvaSoft.KapibaraStudio.Application": "[1.0.0, )",
+          "EsilvaSoft.KapibaraStudio.Infrastructure": "[1.0.0, )",
           "Microsoft.Extensions.DependencyInjection": "[10.0.0, )"
         }
       },
-      "esilvasoft.slopstudio.infrastructure": {
+      "esilvasoft.kapibarastudio.infrastructure": {
         "type": "Project",
         "dependencies": {
-          "EsilvaSoft.SlopStudio.Application": "[1.0.0, )",
+          "EsilvaSoft.KapibaraStudio.Application": "[1.0.0, )",
           "LiteDB": "[5.0.21, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.0, )",
           "MongoDB.Driver": "[3.11.1, )"

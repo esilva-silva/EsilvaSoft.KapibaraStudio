@@ -1,0 +1,68 @@
+// Validating benchmarks:
+// ***** BenchmarkRunner: Start   *****
+// ***** Found 3 benchmark(s) in total *****
+// ***** Building 1 exe(s) in Parallel: Start   *****
+// ***** Done, took 00:00:00 (0.03 sec)   *****
+// Found 3 benchmarks:
+//   CompletionRankerBenchmarks.'CompletionRanker.Rank (top 100)': Job-FGEKWY(IterationCount=3, LaunchCount=1, WarmupCount=1) [CandidateCount=20]
+//   CompletionRankerBenchmarks.'CompletionRanker.Rank (top 100)': Job-FGEKWY(IterationCount=3, LaunchCount=1, WarmupCount=1) [CandidateCount=200]
+//   CompletionRankerBenchmarks.'CompletionRanker.Rank (top 100)': Job-FGEKWY(IterationCount=3, LaunchCount=1, WarmupCount=1) [CandidateCount=2000]
+
+Cannot setup power plan (GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c)
+// Generate Exception: System.UnauthorizedAccessException: Access to the path 'F:\source\SlopDataAdimin\tests\EsilvaSoft.SlopStudio.Benchmarks\bin\Release\net10.0\EsilvaSoft.SlopStudio.Benchmarks-1\EsilvaSoft.SlopStudio.Benchmarks-1.notcs' is denied.
+   at Microsoft.Win32.SafeHandles.SafeFileHandle.CreateFile(String fullPath, FileMode mode, FileAccess access, FileShare share, FileOptions options)
+   at Microsoft.Win32.SafeHandles.SafeFileHandle.Open(String fullPath, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, Nullable`1 unixCreateMode)
+   at System.IO.File.OpenHandle(String path, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize)
+   at System.IO.File.WriteToFile(String path, FileMode mode, ReadOnlySpan`1 contents, Encoding encoding)
+   at System.IO.File.WriteAllText(String path, String contents, Encoding encoding)
+   at BenchmarkDotNet.Toolchains.GeneratorBase.GenerateCode(BuildPartition buildPartition, ArtifactsPaths artifactsPaths)
+   at BenchmarkDotNet.Toolchains.GeneratorBase.GenerateProject(BuildPartition buildPartition, ILogger logger, String rootArtifactsFolderPath)
+
+// BenchmarkDotNet has failed to build the auto-generated boilerplate code.
+// It can be found in F:\source\SlopDataAdimin\tests\EsilvaSoft.SlopStudio.Benchmarks\bin\Release\net10.0\EsilvaSoft.SlopStudio.Benchmarks-1
+// Please follow the troubleshooting guide: https://benchmarkdotnet.org/articles/guides/troubleshooting.html
+
+// ** Remained 0 (0,0%) benchmark(s) to run. Estimated finish 2026-09-15 18:43 (0h 0m from now) **
+// ***** BenchmarkRunner: Finish  *****
+
+// * Export *
+  BenchmarkDotNet.Artifacts\results\EsilvaSoft.SlopStudio.Benchmarks.Completion.CompletionRankerBenchmarks-report.csv
+  BenchmarkDotNet.Artifacts\results\EsilvaSoft.SlopStudio.Benchmarks.Completion.CompletionRankerBenchmarks-report-github.md
+  BenchmarkDotNet.Artifacts\results\EsilvaSoft.SlopStudio.Benchmarks.Completion.CompletionRankerBenchmarks-report.html
+
+// * Detailed results *
+CompletionRankerBenchmarks.'CompletionRanker.Rank (top 100)': Job-FGEKWY(IterationCount=3, LaunchCount=1, WarmupCount=1) [CandidateCount=20]
+Runtime = ; GC = 
+There are not any results runs
+
+// * Summary *
+
+BenchmarkDotNet v0.15.8, Windows 11 (10.0.26200.9457/25H2/2025Update/HudsonValley2)
+Unknown processor
+.NET SDK 10.0.401
+  [Host] : .NET 10.0.12 (10.0.12, 10.0.1226.42308), X64 RyuJIT x86-64-v4
+
+IterationCount=3  LaunchCount=1  WarmupCount=1  
+
+| Method                            | CandidateCount | Mean | Error |
+|---------------------------------- |--------------- |-----:|------:|
+| 'CompletionRanker.Rank (top 100)' | 20             |   NA |    NA |
+
+Benchmarks with issues:
+  CompletionRankerBenchmarks.'CompletionRanker.Rank (top 100)': Job-FGEKWY(IterationCount=3, LaunchCount=1, WarmupCount=1) [CandidateCount=20]
+
+// * Legends *
+  CandidateCount : Value of the 'CandidateCount' parameter
+  Mean           : Arithmetic mean of all measurements
+  Error          : Half of 99.9% confidence interval
+  1 ns           : 1 Nanosecond (0.000000001 sec)
+
+// * Diagnostic Output - MemoryDiagnoser *
+
+
+// ***** BenchmarkRunner: End *****
+Run time: 00:00:00 (0.01 sec), executed benchmarks: 0
+
+Global total time: 00:00:00 (0.48 sec), executed benchmarks: 0
+// * Artifacts cleanup *
+Artifacts cleanup is finished

@@ -23,11 +23,11 @@ Nenhum número final é fixado sem medir a implementação atual e as novas. Est
 Execução de 14/09/2026 em AMD Ryzen 9 7900 (12 núcleos), Windows 11 25H2, .NET 10.0.12 x64, BenchmarkDotNet 0.15.8 com `--job short --inProcess` (3 iterações; o erro fica entre 5% e 50% da média, então as médias indicam ordem de grandeza, não p95). Médias em µs, alocação por chamada entre parênteses. Reproduzir:
 
 ```bash
-dotnet run -c Release --project tests/EsilvaSoft.SlopStudio.Benchmarks -- --filter "*" --job short --inProcess
+dotnet run -c Release --project tests/EsilvaSoft.KapibaraStudio.Benchmarks -- --filter "*" --job short --inProcess
 ```
 
 ```bash
-dotnet run -c Release --project tests/EsilvaSoft.SlopStudio.Benchmarks -- memory
+dotnet run -c Release --project tests/EsilvaSoft.KapibaraStudio.Benchmarks -- memory
 ```
 
 ### Caminho atual por evento do editor
@@ -135,7 +135,7 @@ Referências existentes (pipeline externo, não metas): 0.5B INT4 CPU TTFT ~206 
 
 ## Instrumentação
 
-`System.Diagnostics.Metrics` com `Meter("EsilvaSoft.SlopStudio.Autocomplete")` e `ActivitySource` homônimo para perfis de desenvolvimento. `IAutocompleteDiagnostics` continua existindo para eventos técnicos.
+`System.Diagnostics.Metrics` com `Meter("EsilvaSoft.KapibaraStudio.Autocomplete")` e `ActivitySource` homônimo para perfis de desenvolvimento. `IAutocompleteDiagnostics` continua existindo para eventos técnicos.
 
 | Nome da meta | Instrumento | Tipo | Tags permitidas |
 | --- | --- | --- | --- |
@@ -185,14 +185,14 @@ Regras:
 
 ### Estado da medição de ranking — 15/09/2026 (superada, ver baseline pós-ADR-040 abaixo)
 
-`CompletionRankerBenchmarks` foi ajustado para não ser `sealed`, requisito do BenchmarkDotNet. A execução curta do ranking (20, 200 e 2 000 candidatos) ainda não produziu números: o gerador encontra projetos `EsilvaSoft.SlopStudio.Benchmarks.csproj` homônimos em worktrees `.claude` e recusa escolher um. A tentativa fora do sandbox confirmou que não é limitação de permissão. Executar o job em um checkout sem esses worktrees; resultados `NA` não são métricas e não podem validar o orçamento de ranking.
+`CompletionRankerBenchmarks` foi ajustado para não ser `sealed`, requisito do BenchmarkDotNet. A execução curta do ranking (20, 200 e 2 000 candidatos) ainda não produziu números: o gerador encontra projetos `EsilvaSoft.KapibaraStudio.Benchmarks.csproj` homônimos em worktrees `.claude` e recusa escolher um. A tentativa fora do sandbox confirmou que não é limitação de permissão. Executar o job em um checkout sem esses worktrees; resultados `NA` não são métricas e não podem validar o orçamento de ranking.
 
 ### Baseline pós-ADR-040 (extração de Autocomplete.Core) — 17/09/2026
 
 Medição em AMD Ryzen 9 7900 3.70GHz, Windows 11 25H2, .NET SDK 10.0.401, BenchmarkDotNet 0.15.8, job padrão. O bug de descoberta de projeto descrito acima (múltiplos `.csproj` homônimos por causa dos worktrees `.claude/worktrees/*` de agentes) persiste — não foi corrigido, apenas contornado com `--inProcess`, que evita a resolução externa de projeto. Isso não é uma correção definitiva do bug do gerador; enquanto existirem esses worktrees, `--inProcess` continua necessário para obter qualquer número.
 
 ```bash
-dotnet run -c Release --project tests/EsilvaSoft.SlopStudio.Benchmarks -- --filter "*CompletionRanker*|*MongoLexer*|*SyntaxHighlighting*" --inProcess
+dotnet run -c Release --project tests/EsilvaSoft.KapibaraStudio.Benchmarks -- --filter "*CompletionRanker*|*MongoLexer*|*SyntaxHighlighting*" --inProcess
 ```
 
 | Benchmark | Candidatos/tamanho | Tempo médio | Alocação |
@@ -210,7 +210,7 @@ Leitura: é a primeira baseline numérica de ranking desde a reorganização fí
 
 `CompletionRanker.TryMatch` varria a string duas vezes para candidatos que casavam por camel humps (`HasCamelHumps` seguido de `CamelHighlights`) e alocava um `TextSpan[]` de realce por candidato analisado, inclusive para os que nunca sobreviviam ao heap de top-K. As duas varreduras foram fundidas em `TryCamelHumps(value, prefix, highlights: TextSpan[]?)`: com `highlights` nulo (fase de match) faz uma única varredura sem alocar; com o array informado (materialização final), preenche os realces no mesmo laço. A construção de `Highlights` foi adiada para depois de `heap.Sort`, via `BuildHighlights`, que recalcula o realce determinístico (valor, prefixo, tipo de match) só para os itens que efetivamente saem — os descartados do heap nunca pagam esse custo. `Candidate` deixou de carregar `Highlights`/`Score` no `CompletionItem` clonado; o heap compara por `(Score, Match, Label, SymbolId, Ordinal)` e só o `record` final ganha `with { Score, Highlights }`.
 
-Medição com `dotnet run -c Release --project tests/EsilvaSoft.SlopStudio.Benchmarks -- --filter "*CompletionRanker*" --inProcess` (mesma máquina/config da tabela acima; `--inProcess` continua necessário por causa dos worktrees `.claude` descritos no estado de 15/09/2026, ainda não removidos):
+Medição com `dotnet run -c Release --project tests/EsilvaSoft.KapibaraStudio.Benchmarks -- --filter "*CompletionRanker*" --inProcess` (mesma máquina/config da tabela acima; `--inProcess` continua necessário por causa dos worktrees `.claude` descritos no estado de 15/09/2026, ainda não removidos):
 
 | Candidatos | Alocação antes (baseline 17/09) | Alocação depois (lote 5A) |
 | --- | ---: | ---: |
@@ -223,7 +223,7 @@ Leitura: já estava dentro do orçamento de 64 KB/tecla nesta baseline específi
 ### Projeto
 
 ```text
-tests/EsilvaSoft.SlopStudio.Benchmarks/
+tests/EsilvaSoft.KapibaraStudio.Benchmarks/
   Current/BaselineBenchmarks.cs            caminhos atuais listados na baseline
   Catalog/CatalogQueryBenchmarks.cs
   Catalog/MetadataCacheBenchmarks.cs       single-flight, troca de snapshot, LRU
@@ -312,16 +312,16 @@ A plataforma de aceite é **Windows x64**. Para documentos de até 64 KiB, regis
 O **job completo** do BenchmarkDotNet, sem `--job short`, produz a evidência quantitativa de aceite e regressão. O **job curto** serve somente para diagnóstico rápido e ordem de grandeza; suas médias não são p95 e não aprovam gate. Sequência de reprodução:
 
 ```bash
-dotnet restore EsilvaSoft.SlopStudio.slnx --locked-mode
-dotnet build EsilvaSoft.SlopStudio.slnx --no-restore
-dotnet test EsilvaSoft.SlopStudio.slnx --no-build --no-restore
-dotnet run -c Release --project tests/EsilvaSoft.SlopStudio.Benchmarks -- --filter "*"
+dotnet restore EsilvaSoft.KapibaraStudio.slnx --locked-mode
+dotnet build EsilvaSoft.KapibaraStudio.slnx --no-restore
+dotnet test EsilvaSoft.KapibaraStudio.slnx --no-build --no-restore
+dotnet run -c Release --project tests/EsilvaSoft.KapibaraStudio.Benchmarks -- --filter "*"
 ```
 
 Diagnóstico curto, sempre rotulado como não conclusivo:
 
 ```bash
-dotnet run -c Release --project tests/EsilvaSoft.SlopStudio.Benchmarks -- --filter "*" --job short --inProcess
+dotnet run -c Release --project tests/EsilvaSoft.KapibaraStudio.Benchmarks -- --filter "*" --job short --inProcess
 ```
 
 Estado atual: lexer/highlighting e ranking possuem benchmarks no projeto; parser/cache ainda não têm benchmark dedicado, e contexto, lista visível/refiltro e alocação por tecla ainda não têm medição final da Fase 2. Permanecem pendentes o job completo em Windows x64, a coleta Headless e nativa da UI e a cobertura de 1 KiB, 16 KiB, 64 KiB e 1 MB nas posições início/meio/fim. Os números da Fase 1 acima continuam apenas como baseline histórica; nenhum gate da Fase 2 está declarado aprovado.
@@ -373,7 +373,7 @@ do orçamento. **Nenhuma otimização foi aplicada ao `NameTable` porque a medi�
 o que otimizar** — mudar código que já mede bem só acrescentaria risco.
 
 As três primeiras linhas viraram teste permanente em
-`tests/EsilvaSoft.SlopStudio.UnitTests/NameTableAllocationTests.cs`, que falha se a alocação por consulta ultrapassar
+`tests/EsilvaSoft.KapibaraStudio.UnitTests/NameTableAllocationTests.cs`, que falha se a alocação por consulta ultrapassar
 64 KB. A guarda é de alocação, não de latência: uma regressão de alocação não aparece como erro, só como digitação
 engasgada, e por isso é afirmada em teste e não apenas observada em benchmark.
 
@@ -418,10 +418,10 @@ publica; p95/p99 continuam não medidos**. Desvio padrão entre parênteses; alo
 Reproduzir:
 
 ```bash
-dotnet run -c Release --project tests/EsilvaSoft.SlopStudio.Benchmarks -- --filter "*SchemaLearning*" --job short --inProcess
+dotnet run -c Release --project tests/EsilvaSoft.KapibaraStudio.Benchmarks -- --filter "*SchemaLearning*" --job short --inProcess
 ```
 
-Os lotes sintéticos são gerados por `tests/EsilvaSoft.SlopStudio.Benchmarks/SchemaLearning/SyntheticLearningWorkload.cs`
+Os lotes sintéticos são gerados por `tests/EsilvaSoft.KapibaraStudio.Benchmarks/SchemaLearning/SyntheticLearningWorkload.cs`
 e a forma que eles realmente produzem — profundidade, número de caminhos e tamanho por documento — é afirmada em
 `SyntheticLearningWorkloadTests.cs`, para que o benchmark não possa mentir sobre o cenário que mediu.
 
@@ -526,15 +526,15 @@ também cobre este.
 
 Execução de 19/09/2026 em AMD Ryzen 9 7900 (12 núcleos físicos, 24 lógicos) + AMD Radeon RX 7800 XT, Windows 11
 (10.0.26200), runtime .NET 10.0.12 x64, build `Release`, backend `WinML` (DirectML), GC de estação de trabalho,
-sem depurador. Pacotes reais instalados em `%LOCALAPPDATA%\EsilvaSoft\SlopStudio\Models`. Reproduzir:
+sem depurador. Pacotes reais instalados em `%LOCALAPPDATA%\EsilvaSoft\KapibaraStudio\Models`. Reproduzir:
 
 ```bash
-dotnet test tests/EsilvaSoft.SlopStudio.Benchmarks -c Release --filter "FullyQualifiedName~AiRuntimeRealModelRunner"
-dotnet run -c Release --project tests/EsilvaSoft.SlopStudio.Benchmarks -- --filter "*IncrementalDecode*" --job short --inProcess
+dotnet test tests/EsilvaSoft.KapibaraStudio.Benchmarks -c Release --filter "FullyQualifiedName~AiRuntimeRealModelRunner"
+dotnet run -c Release --project tests/EsilvaSoft.KapibaraStudio.Benchmarks -- --filter "*IncrementalDecode*" --job short --inProcess
 ```
 
-O instrumento é `tests/EsilvaSoft.SlopStudio.Benchmarks/Ai/AiRuntimeHarness.cs`; a saída JSON e Markdown vai para
-`tests/EsilvaSoft.SlopStudio.Benchmarks/Ai/output/ai-runtime-latency.json|.md`, é efêmera e não é commitada — ela só
+O instrumento é `tests/EsilvaSoft.KapibaraStudio.Benchmarks/Ai/AiRuntimeHarness.cs`; a saída JSON e Markdown vai para
+`tests/EsilvaSoft.KapibaraStudio.Benchmarks/Ai/output/ai-runtime-latency.json|.md`, é efêmera e não é commitada — ela só
 vale junto com a máquina, e a máquina está dentro do arquivo.
 
 ### Origem da evidência: o que é modelo real e o que é fake
@@ -565,7 +565,7 @@ geração) = 54 casos por alvo. Working set é do processo inteiro (inclui .NET 
 
 As duas recusas são reais e ficaram no relatório em vez de serem escondidas: o 0.5B INT4 não roda em DirectML nesta
 máquina (`This session cannot use the graph capture feature […] as all compute graph nodes have not been partitioned
-to the DmlExecutionProvider`) e o 1.5B DML-FP16 declara suporte só a GPU em `slopstudio-model.json`. **Metade da
+to the DmlExecutionProvider`) e o 1.5B DML-FP16 declara suporte só a GPU em `kapibarastudio-model.json`. **Metade da
 matriz modelo × hardware desta máquina não existe**, e o relatório marca essas células com `—`, nunca com `0,00 ms`.
 
 ### Latência agregada por alvo (evidência: modelo real)

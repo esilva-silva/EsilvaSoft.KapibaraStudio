@@ -60,11 +60,11 @@ O inventário inicial acima foi preservado. As mudanças de implementação fora
 
 ### Evidência executada
 
-- `dotnet restore EsilvaSoft.SlopStudio.slnx --locked-mode`: aprovado; exigiu acesso de leitura à configuração NuGet do usuário pelo mecanismo de escalonamento, sem exibir seu conteúdo.
-- `dotnet build EsilvaSoft.SlopStudio.slnx --no-restore -p:UsedAvaloniaProducts=`: aprovado, zero avisos/erros. O parâmetro evita a tarefa externa de telemetria Avalonia, preservando analisadores.
-- `dotnet test EsilvaSoft.SlopStudio.slnx --no-build --no-restore` com `SLOP_CONSOLE_MONGOD` apontando para o fixture portátil: **594 aprovados, zero falhas**. Os cenários de IA fora do MVP foram descobertos como ignorados pelo adaptador, sem falha.
+- `dotnet restore EsilvaSoft.KapibaraStudio.slnx --locked-mode`: aprovado; exigiu acesso de leitura à configuração NuGet do usuário pelo mecanismo de escalonamento, sem exibir seu conteúdo.
+- `dotnet build EsilvaSoft.KapibaraStudio.slnx --no-restore -p:UsedAvaloniaProducts=`: aprovado, zero avisos/erros. O parâmetro evita a tarefa externa de telemetria Avalonia, preservando analisadores.
+- `dotnet test EsilvaSoft.KapibaraStudio.slnx --no-build --no-restore` com `SLOP_CONSOLE_MONGOD` apontando para o fixture portátil: **594 aprovados, zero falhas**. Os cenários de IA fora do MVP foram descobertos como ignorados pelo adaptador, sem falha.
 - `ConsoleMongoIntegrationTests`: **dois testes aprovados** com MongoDB portátil **8.0.30** em processos/portas temporários locais Windows; CRUD/Console entre duas origens e novo cenário de paginação, edição/conflito, BSON e exportação. O novo cenário usou 5.000 documentos, duas páginas de 100 e levou **55 ms** na última execução (84 ms em execução anterior). Não é benchmark de produção nem prova de TLS/replica set/latência WAN.
-- `MvpPolishUiTests`: status concorrente, prioridade, progressos determinado/indeterminado, cancelamento independente, troca de aba durante atividade, formatação sem rede e Ctrl+Z usando TextDocument real. PNGs em `tests/EsilvaSoft.SlopStudio.UnitTests/bin/Debug/net10.0/ui-evidence/mvp-status-*.png`. As 18 barras da última execução foram inspecionadas no contato `mvp-status-review.png`, inclusive percentual separado e janela mínima.
+- `MvpPolishUiTests`: status concorrente, prioridade, progressos determinado/indeterminado, cancelamento independente, troca de aba durante atividade, formatação sem rede e Ctrl+Z usando TextDocument real. PNGs em `tests/EsilvaSoft.KapibaraStudio.UnitTests/bin/Debug/net10.0/ui-evidence/mvp-status-*.png`. As 18 barras da última execução foram inspecionadas no contato `mvp-status-review.png`, inclusive percentual separado e janela mínima.
 - `HugeSingleLineKeepsFullTextAndMakesEveryRangeReachableWithoutShapingItAll`: passou sem reduzir a asserção; linha de 2 milhões de caracteres mantém texto/cópia/undo e janela visual limitada. A falha histórica foi corrigida pela transformação visual.
 - `git diff --check`: sem problemas de whitespace. Nenhuma dependência comercial ou nova dependência de pacote foi adicionada.
 

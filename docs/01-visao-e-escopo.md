@@ -4,7 +4,7 @@
 
 Criar uma IDE desktop que permita ao desenvolvedor consultar e editar dados com precisão e ao administrador diagnosticar e operar MongoDB com contexto suficiente para reconhecer o impacto de cada ação.
 
-Requisitos fixos: nome `EsilvaSoft.SlopStudio`, C#/.NET 10, Avalonia, persistência local LiteDB, MIT, documentação em `docs`, testes unitários NUnit e suporte a **Windows e Linux**. Interpretamos “ID” como IDE. Ambos os sistemas participam do desenvolvimento, CI e homologação desde a fundação. O modo script deverá executar JavaScript junto de queries JSON na mesma execução, com variáveis, funções, controle de fluxo e chamadas MongoDB.
+Requisitos fixos: nome `EsilvaSoft.KapibaraStudio`, C#/.NET 10, Avalonia, persistência local LiteDB, MIT, documentação em `docs`, testes unitários NUnit e suporte a **Windows e Linux**. Interpretamos “ID” como IDE. Ambos os sistemas participam do desenvolvimento, CI e homologação desde a fundação. O modo script deverá executar JavaScript junto de queries JSON na mesma execução, com variáveis, funções, controle de fluxo e chamadas MongoDB.
 
 ## Usuários e jornadas
 

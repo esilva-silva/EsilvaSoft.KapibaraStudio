@@ -14,7 +14,7 @@ Requisitos: Windows e PowerShell 7 com uma sessão de logon que tenha acesso ao 
 
 O script compila [CredentialManagerProbe.cs](CredentialManagerProbe.cs) em memória com `Add-Type`, executa os três cenários e grava somente resultados saneados em `evidence.json`. Não exige NuGet, restore, rede ou permissões administrativas. Falha no teste produz código de saída não zero; falha de limpeza não é escondida. Rode em sessão de logon que tenha Credential Manager disponível: execução de serviço/sandbox sem sessão pode falhar `1312`, o que é resultado negativo de disponibilidade, não teste de cofre bloqueado.
 
-Cada cenário cria um target `EsilvaSoft.SlopStudio.Spike.Phase07.Synthetic/<GUID novo>` e 32 bytes gerados por `RandomNumberGenerator`. O alvo não pode ser fornecido externamente, e o valor não sai do método. A API só lê um alvo depois que o próprio teste o gravou. Não há `CredEnumerate`, wildcard, listagem de credenciais ou importação de dados reais. O marcador aleatório é comparado em memória e apagado dos buffers controlados pelo spike, sem conversão para string ou logging.
+Cada cenário cria um target `EsilvaSoft.KapibaraStudio.Spike.Phase07.Synthetic/<GUID novo>` e 32 bytes gerados por `RandomNumberGenerator`. O alvo não pode ser fornecido externamente, e o valor não sai do método. A API só lê um alvo depois que o próprio teste o gravou. Não há `CredEnumerate`, wildcard, listagem de credenciais ou importação de dados reais. O marcador aleatório é comparado em memória e apagado dos buffers controlados pelo spike, sem conversão para string ou logging.
 
 ## Escopo do usuário
 

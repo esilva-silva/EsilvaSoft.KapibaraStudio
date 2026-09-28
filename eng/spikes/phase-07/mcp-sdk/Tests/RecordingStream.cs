@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace EsilvaSoft.SlopStudio.Spikes.McpTests;
+namespace EsilvaSoft.KapibaraStudio.Spikes.McpTests;
 
 // Captura somente o tráfego sintético destas fixtures sobre pipes reais do subprocesso.
 internal sealed class RecordingStream(Stream inner) : Stream

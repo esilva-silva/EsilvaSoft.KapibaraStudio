@@ -7,11 +7,11 @@ Todos os testes .NET usarão **NUnit**, incluindo testes unitários, integraçã
 Na primeira implementação, a suíte NUnit foi criada e já valida modelos, LiteDB e o parser de resultados do modo script. A matriz abaixo continua sendo o escopo de qualidade a repartir pelos gates v0.5.0–v1.0.0; resultados atualizados ficam no [acompanhamento](12-acompanhamento-da-implementacao.md).
 
 ```powershell
-dotnet restore EsilvaSoft.SlopStudio.slnx --locked-mode
-dotnet build EsilvaSoft.SlopStudio.slnx -c Release --no-restore
-dotnet test EsilvaSoft.SlopStudio.slnx -c Release --no-build --filter "TestCategory=Unit"
-dotnet test EsilvaSoft.SlopStudio.slnx -c Release --no-build --filter "TestCategory=Integration"
-dotnet test EsilvaSoft.SlopStudio.slnx -c Release --no-build --filter "TestCategory=UI"
+dotnet restore EsilvaSoft.KapibaraStudio.slnx --locked-mode
+dotnet build EsilvaSoft.KapibaraStudio.slnx -c Release --no-restore
+dotnet test EsilvaSoft.KapibaraStudio.slnx -c Release --no-build --filter "TestCategory=Unit"
+dotnet test EsilvaSoft.KapibaraStudio.slnx -c Release --no-build --filter "TestCategory=Integration"
+dotnet test EsilvaSoft.KapibaraStudio.slnx -c Release --no-build --filter "TestCategory=UI"
 ```
 
 A fundação já contém lockfiles para `--locked-mode`. Testes de arquitetura terão categoria própria e execução obrigatória na CI. Logs TRX e cobertura serão artefatos locais/CI, saneados antes de publicação.

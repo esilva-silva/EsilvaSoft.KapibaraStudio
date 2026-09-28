@@ -69,6 +69,6 @@ Limites: prefixo de até 65.536 caracteres, 8.192 tokens, profundidade de parsin
 | Formatação, destaque e delimitadores | `MvpPolishTests`/`MvpPolishUiTests`, `SyntaxHighlightingTests`/`SyntaxHighlightingUiTests`: tokens BSON, comentários/regex, undo, seleção, delimitadores e AvaloniaEdit atual |
 | Segurança e apresentação | Stages de escrita bloqueados antes do envio; resultados/credenciais fora do histórico; 36 PNGs específicos de diagnóstico/histórico nos dois temas e matrizes do editor atual, com inspeção visual registrada |
 
-Restore locked aprovado; build sem restore com `-p:UsedAvaloniaProducts=` aprovado, sem avisos/erros. **650 testes aprovados, 0 falhas**, `tests/EsilvaSoft.SlopStudio.UnitTests/TestResults/phase2-acceptance.trx`. Testes Explicit de IA estão fora dessa contagem; IA não é necessária para a meta.
+Restore locked aprovado; build sem restore com `-p:UsedAvaloniaProducts=` aprovado, sem avisos/erros. **650 testes aprovados, 0 falhas**, `tests/EsilvaSoft.KapibaraStudio.UnitTests/TestResults/phase2-acceptance.trx`. Testes Explicit de IA estão fora dessa contagem; IA não é necessária para a meta.
 
 O catálogo amplo conserva itens planejados que não fazem parte da meta textual solicitada: exportação C#/mongosh e explain gráfico, entre outros. O explain entregue é bruto em `queryPlanner`, com sua semântica declarada. Homologação nativa Windows/Linux, leitor de tela e cobertura de todas as versões MongoDB não são comprovadas por Headless ou pelo servidor 8.0.30; não se atribui a esta validação uma publicação ou certificação de release.

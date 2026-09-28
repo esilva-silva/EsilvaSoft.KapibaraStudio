@@ -5,7 +5,7 @@ using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 using NUnit.Framework;
 
-namespace EsilvaSoft.SlopStudio.Spikes.McpTests;
+namespace EsilvaSoft.KapibaraStudio.Spikes.McpTests;
 
 [TestFixture]
 public sealed class StdioProtocolTests

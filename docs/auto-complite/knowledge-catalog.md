@@ -86,7 +86,7 @@ Hoje ConnectionIdentity usa Id, TargetHost e hash truncado da URI salva; MongoCl
 
 | Dialeto | Modo da aba | Superfície |
 | --- | --- | --- |
-| `Console` | Console | Proxies de [`ConsoleBootstrap.js`](../../src/EsilvaSoft.SlopStudio.Infrastructure/ConsoleBootstrap.js) |
+| `Console` | Console | Proxies de [`ConsoleBootstrap.js`](../../src/EsilvaSoft.KapibaraStudio.Infrastructure/ConsoleBootstrap.js) |
 | `MongoshScript` | Script | API do mongosh suportada pelo runner (`getSiblingDB`, `print`, `printjson`, cursores) |
 | `AggregationJson` | Agregação | Array de stages como literal JavaScript |
 | `Mql` | Contexto embutido | Filtros, updates, projeções e pipelines dentro de qualquer dialeto |
@@ -132,7 +132,7 @@ A estrutura sugerida na meta, no modelo proposto:
 
 ### Arquivo embutido
 
-[`Application/Language/mongodb-language.v1.json`](../../src/EsilvaSoft.SlopStudio.Autocomplete.Core/mongodb-language.v1.json), recurso embutido carregado uma vez por [`LanguageDefinition`](../../src/EsilvaSoft.SlopStudio.Autocomplete.Core/LanguageDefinition.cs) e congelado (`FrozenDictionary`). Contém grupos de símbolos, assinaturas, shapes e snippets. Descrições em pt-BR; identificadores em inglês. Versão do arquivo e testes de schema garantem integridade.
+[`Application/Language/mongodb-language.v1.json`](../../src/EsilvaSoft.KapibaraStudio.Autocomplete.Core/mongodb-language.v1.json), recurso embutido carregado uma vez por [`LanguageDefinition`](../../src/EsilvaSoft.KapibaraStudio.Autocomplete.Core/LanguageDefinition.cs) e congelado (`FrozenDictionary`). Contém grupos de símbolos, assinaturas, shapes e snippets. Descrições em pt-BR; identificadores em inglês. Versão do arquivo e testes de schema garantem integridade.
 
 O JSON abaixo é ilustrativo; **não substituir o recurso por ele**. O loader atual lê groups, snippets e shapes; preservar schema/versão ou migrar explicitamente.
 
@@ -422,7 +422,7 @@ public interface IMongoMetadataSource
 
 | Existente | Integração |
 | --- | --- |
-| `IMongoWorkspaceService`/`MongoWorkspaceService` | Inalterados; [`MongoMetadataSource`](../../src/EsilvaSoft.SlopStudio.Infrastructure/MongoMetadataSource.cs) reutiliza `MongoClientPool`, `OperationEnvironment` e `ExplorerMetadataService.ParseIndex` |
+| `IMongoWorkspaceService`/`MongoWorkspaceService` | Inalterados; [`MongoMetadataSource`](../../src/EsilvaSoft.KapibaraStudio.Infrastructure/MongoMetadataSource.cs) reutiliza `MongoClientPool`, `OperationEnvironment` e `ExplorerMetadataService.ParseIndex` |
 | `ExplorerMetadataService.ParseIndex` | Reutilizado para `IndexInfo` |
 | `ExplorerNodeViewModel` | Após carregar, escreve no cache; ao atualizar, invalida |
 | `WorkspaceViewModel.KnownSyntaxNamespaces` | Passa a derivar do cache (highlighting mantém `SyntaxContext`) |

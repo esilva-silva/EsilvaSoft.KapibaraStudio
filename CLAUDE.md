@@ -1,4 +1,4 @@
-# EsilvaSoft.SlopStudio — desenvolvimento com Claude Code
+# EsilvaSoft.KapibaraStudio — desenvolvimento com Claude Code
 
 @AGENTS.md
 

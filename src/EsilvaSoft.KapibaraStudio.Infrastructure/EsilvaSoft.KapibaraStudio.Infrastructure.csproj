@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <EmbeddedResource Include="ConsoleBootstrap.js" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Jint" />
+    <PackageReference Include="Tmds.DBus.Protocol" />
+    <ProjectReference Include="../EsilvaSoft.KapibaraStudio.Application/EsilvaSoft.KapibaraStudio.Application.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="LiteDB" />
+    <PackageReference Include="MongoDB.Driver" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+</Project>

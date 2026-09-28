@@ -21,9 +21,9 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
-$Solution = 'EsilvaSoft.SlopStudio.slnx'
-$DesktopProject = 'src/EsilvaSoft.SlopStudio.Desktop/EsilvaSoft.SlopStudio.Desktop.csproj'
-$ExecutableName = 'EsilvaSoft.SlopStudio.Desktop'
+$Solution = 'EsilvaSoft.KapibaraStudio.slnx'
+$DesktopProject = 'src/EsilvaSoft.KapibaraStudio.Desktop/EsilvaSoft.KapibaraStudio.Desktop.csproj'
+$ExecutableName = 'EsilvaSoft.KapibaraStudio.Desktop'
 
 function Invoke-Step([string]$Title, [scriptblock]$Command) {
     Write-Host "`n==> $Title" -ForegroundColor Cyan
@@ -75,7 +75,7 @@ try {
     $publishRoot = Join-Path $artifacts 'publish'
     $distDir = Join-Path $artifacts "release/$Version"
 
-    Write-Host "EsilvaSoft.SlopStudio $Version -> $($Rids -join ', ')" -ForegroundColor Green
+    Write-Host "EsilvaSoft.KapibaraStudio $Version -> $($Rids -join ', ')" -ForegroundColor Green
 
     Remove-Item $distDir -Recurse -Force -ErrorAction Ignore
     New-Item -ItemType Directory -Force $distDir | Out-Null
@@ -88,7 +88,7 @@ try {
 
     foreach ($rid in $Rids) {
         $publishDir = Join-Path $publishRoot $rid
-        $packageName = "EsilvaSoft.SlopStudio-$Version-$rid"
+        $packageName = "EsilvaSoft.KapibaraStudio-$Version-$rid"
         Remove-Item $publishDir -Recurse -Force -ErrorAction Ignore
 
         # Cada família usa seu backend ONNX e lock file (WinML no Windows, CPU no Linux), como no release.yml.

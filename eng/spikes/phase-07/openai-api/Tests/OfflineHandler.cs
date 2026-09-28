@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 
-namespace EsilvaSoft.SlopStudio.Spikes.OpenAiApi.Tests;
+namespace EsilvaSoft.KapibaraStudio.Spikes.OpenAiApi.Tests;
 
 // Não delega a HttpClientHandler/SocketsHttpHandler: não existe caminho de rede.
 internal sealed class OfflineHandler(params string[] streams) : HttpMessageHandler

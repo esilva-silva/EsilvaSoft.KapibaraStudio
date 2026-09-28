@@ -12,7 +12,7 @@ Provider determinístico, fontes/filtros, ranking compartilhado, snippets, UI/li
 
 ## Componentes que pode modificar
 
-Novos Application/CompletionService, TraditionalCompletionProvider, CompletionRanker, SnippetTemplate; Desktop/CompletionWindowPresenter, SnippetInserter, EditorCommandDispatcher; WorkspaceTabView.axaml.cs e preferências em lote reservado. Caminhos relativos ao projeto EsilvaSoft.SlopStudio indicado; componentes novos estão no plano.
+Novos Application/CompletionService, TraditionalCompletionProvider, CompletionRanker, SnippetTemplate; Desktop/CompletionWindowPresenter, SnippetInserter, EditorCommandDispatcher; WorkspaceTabView.axaml.cs e preferências em lote reservado. Caminhos relativos ao projeto EsilvaSoft.KapibaraStudio indicado; componentes novos estão no plano.
 
 ## Componentes que não deve modificar
 

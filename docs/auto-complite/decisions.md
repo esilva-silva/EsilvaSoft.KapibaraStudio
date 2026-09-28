@@ -27,7 +27,7 @@ Estado: **Plano revisado** em 15/09/2026. AC-03/04/05/06/11/14 têm base impleme
 
 **Contexto.** `AGENTS.md` e [05](../05-arquitetura.md) desencorajam projetos paralelos até haver contrato estável.
 **Decisão.** Namespaces `Application.Language.*` sem pacotes, protegidos por teste de arquitetura. Benchmarks em projeto de ferramenta separado.
-**Alternativas.** Projeto `EsilvaSoft.SlopStudio.Language` imediato (adiado até estabilizar a Fase 2).
+**Alternativas.** Projeto `EsilvaSoft.KapibaraStudio.Language` imediato (adiado até estabilizar a Fase 2).
 **Consequências.** Extração futura mecânica se necessária.
 
 ## AC-05 — Política de acesso remoto do autocomplete
@@ -419,12 +419,12 @@ correção acompanha o lote do dono de cada documento. As linhas de `execution-p
 
 **Compatibilidade de contrato de prompt é decidida por três casos, e ausência de declaração nunca é incompatibilidade.**
 Implementa [AC-10](#ac-10--contratos-de-contexto-de-ia-versionados-por-modelo) na validação estrutural do catálogo.
-`slopstudio-model.json` ganha dois campos opcionais e aditivos: `contextContract` (identificador do contrato de prompt
+`kapibarastudio-model.json` ganha dois campos opcionais e aditivos: `contextContract` (identificador do contrato de prompt
 esperado, máximo 64 caracteres, mesma disciplina de `architecture`) e `supportsRepositoryContext` (booleano).
 
 | Caso | Resultado | Razão |
 | --- | --- | --- |
-| Pacote sem `slopstudio-model.json`, ou com metadata sem `contextContract` | `Valid`; contrato efetivo `editor-context-v1` | O pacote real `SlopCoder-Mongo-0.5B-ONNX-int4` não tem manifesto e a pasta continua sendo a identidade do modelo. Silêncio é "não declarado", não "declarou algo que não entendemos" — rejeitar aqui quebraria todo pacote anterior à existência do campo. |
+| Pacote sem `kapibarastudio-model.json`, ou com metadata sem `contextContract` | `Valid`; contrato efetivo `editor-context-v1` | O pacote real `SlopCoder-Mongo-0.5B-ONNX-int4` não tem manifesto e a pasta continua sendo a identidade do modelo. Silêncio é "não declarado", não "declarou algo que não entendemos" — rejeitar aqui quebraria todo pacote anterior à existência do campo. |
 | `contextContract` reconhecido (hoje só `editor-context-v1`) | `Valid` | Contrato congelado por teste-ouro byte a byte; é o contrato de treino dos pacotes SlopCoder. |
 | `contextContract` declarado e desconhecido por esta versão | `Invalid`, com mensagem citando o valor declarado e os contratos suportados | Uma declaração explícita é uma exigência do pacote. Servir o prompt v1 a um modelo treinado em outro formato produziria saída silenciosamente degradada; falhar cedo, com o identificador visível, é o único resultado honesto. |
 
@@ -471,7 +471,7 @@ autônomo é adicionado normalmente, como qualquer outra fonte.
 **Pré-condição operacional.** `LearnedSchemaCatalogSource` precisa rodar depois de `MetadataCatalogSource` na
 ordem de fontes passada a `KnowledgeCatalog` para que o símbolo vivo já esteja no `sink` quando a fonte aprendida
 o varre; isso é responsabilidade da composição. **Atualização (lote de ativação de DI, 19/09/2026): conectado.**
-`ServiceCollectionExtensions.AddSlopStudioInfrastructure` registra `LanguageCatalogSource`, depois
+`ServiceCollectionExtensions.AddKapibaraStudioInfrastructure` registra `LanguageCatalogSource`, depois
 `MetadataCatalogSource`, e só então `LearnedSchemaCatalogSource` (comentário no próprio registro amarra a ordem a
 esta decisão); `KnowledgeCatalog` consome `IEnumerable<ICatalogSource>` na ordem de registro. Se a ordem inverter,
 o pior caso é a duplicata voltar a aparecer — uma regressão visível e coberta por teste dedicado
@@ -497,7 +497,7 @@ no mesmo objeto `WorkspacePreferences`, espelhando `SchemaSamplingProfileIds = M
 Um novo método público `SetLearnedSchemaExcludedAsync(Guid, bool)` (`WorkspaceViewModel.Explorer.cs`) chama
 `SetServingExcluded` e persiste, no mesmo formato de `SetSchemaSamplingAllowedAsync`. `ILearnedSchemaOptOut` chega ao
 `WorkspaceViewModel` por injeção opcional (`ILearnedSchemaOptOut? learnedSchemaOptOut = null`); a composição real
-(`App.axaml.cs`) resolve o singleton já registrado por `AddSlopStudioInfrastructure` automaticamente. **Não existe
+(`App.axaml.cs`) resolve o singleton já registrado por `AddKapibaraStudioInfrastructure` automaticamente. **Não existe
 ainda nenhuma superfície de UI para alternar essa exclusão por conexão** — nem no comportamento do "novo lote", nem
 antes dele; apenas o dado é lido/gravado corretamente e `SetLearnedSchemaExcludedAsync` fica pronto para uma tela
 futura (ou para um comando de teste). Isso é aceitável porque o interruptor geral
@@ -529,7 +529,7 @@ dependa de ser lembrada por um relatório antigo.
 
 Nove regras arquiteturais estavam vivas só como texto de relatório — o pior estado possível para um invariante,
 porque um invariante que só existe em prosa é indistinguível de um que já foi quebrado. O arquivo de destino é
-`tests/EsilvaSoft.SlopStudio.UnitTests/AutocompleteArchitectureTests.cs`, que já era o guarda de fronteira do
+`tests/EsilvaSoft.KapibaraStudio.UnitTests/AutocompleteArchitectureTests.cs`, que já era o guarda de fronteira do
 núcleo determinístico.
 
 | # | Regra | Destino | Resultado |
@@ -537,7 +537,7 @@ núcleo determinístico.
 | 1 | Núcleo de linguagem nunca nomeia o runtime de IA | `LanguageLayerNeverReferencesTheAiRuntime` (estendido) | Travada. A lista de tipos proibidos passou a incluir `ITokenCounter`, `TokenizedBlockCache`, `ITokenBoundaryOracle`, `IAiContextContract`, `AiPromptRequest` e `AiPromptResult`. **Não existe tipo chamado `AiPrompt`**: o que o relatório do lote chamava assim são `AiPromptRequest`/`AiPromptResult`, de `Application/AiContext/AiContextPipeline.cs`. |
 | 2 | `LocalAi.Core` nunca referencia semântica MongoDB | `LocalAiCoreNeverReferencesMongoSemantics` (novo) | Travada, em três frentes: referência de assembly, membro declarado que nomeie tipo de `Autocomplete.Core`, e varredura textual do vocabulário de domínio (`CompletionContext`, `MongoSyntaxTree`, `AiFact`, `CollectionSchema`, `AutocompleteRequest`, `LanguageDefinition`, `SymbolKinds`, `EditorDialects`, `MongoDB`) dentro dos fontes do projeto — a varredura textual existe porque redeclarar o conceito localmente é o jeito de trazer a semântica para dentro sem precisar de referência. |
 | 3 | Contrato de contexto só é composto em `Application` | `AiContextContractIsComposedOnlyInApplication` (novo) | Travada. Os sete tipos (interface, contrato v1, resolver e os quatro experimentais) são declarados em `Application`; nenhum tipo de `Autocomplete.Core`, `LocalAi.Core` ou `Infrastructure.LocalAi` nomeia algo do namespace; e os dois núcleos não referenciam sequer o assembly `Application`. **`Infrastructure.LocalAi` está acima de `Application` na cadeia e pode referenciar o assembly** — o que ele não pode, e é o que o teste afirma, é nomear um contrato. |
-| 4 | Só `editor-context-v1` registrado em produção | `OnlyEditorContextV1IsRegisteredInProduction` (novo) | Travada a partir da raiz de composição real (`AddSlopStudioInfrastructure` + `AddSlopStudioLocalAiInfrastructure`, as mesmas duas chamadas de `App.axaml.cs`). Os descritores são inspecionados **antes** de construir o provedor: a pergunta é sobre registro, não sobre resolução, e assim o teste não precisa abrir o LiteDB do workspace. Complementada pela verificação positiva de que `AiContextContractResolver.Implemented` e `LocalModelContextContracts.Supported` contêm exatamente um item. |
+| 4 | Só `editor-context-v1` registrado em produção | `OnlyEditorContextV1IsRegisteredInProduction` (novo) | Travada a partir da raiz de composição real (`AddKapibaraStudioInfrastructure` + `AddKapibaraStudioLocalAiInfrastructure`, as mesmas duas chamadas de `App.axaml.cs`). Os descritores são inspecionados **antes** de construir o provedor: a pergunta é sobre registro, não sobre resolução, e assim o teste não precisa abrir o LiteDB do workspace. Complementada pela verificação positiva de que `AiContextContractResolver.Implemented` e `LocalModelContextContracts.Supported` contêm exatamente um item. |
 | 5 | Contratos experimentais inalcançáveis por configuração | — | **Já coberta, sem duplicata.** `AiContext/Experimental/ExperimentalContextReachabilityTests.cs` cobre os quatro `ContractId` em `DeclaringTheContractInAPackageIsRefused` (`Resolve` lança, `TryResolve` devolve falso, `IsSupported` falso), `ContractIsNeitherSupportedNorImplemented`, `NoServiceCollectionExtensionMentionsTheExperimentalFormats` e `NoProductionTypeReferencesTheExperimentalContracts`. Nada faltava; repetir aqui só criaria duas verdades para manter. |
 | 6 | Cobertura de todo subespaço do núcleo | `LanguageCoreCoversEverySubNamespace` (estendido) | Travada. O teste é um *guarda do próprio guarda*: ele exige que os subespaços existam, para que o filtro por prefixo dos testes de isolamento nunca varra o vazio e passe por omissão. Passou a exigir `.Facts` ao lado de `.Context`/`.Completion`/`.Syntax`/`.Text`. |
 | 7 | Seleção de fatos síncrona e offline | — | **Já coberta, sem duplicata.** `Facts/AiFactSelectionTests.EverythingUnderFactsIsSynchronousAndOffline` varre **o namespace `Autocomplete.Core.Facts` inteiro** por reflexão, não uma lista de tipos: `EditorWindowBuilder` e `SimilarStatementFinder` (lote A32b) já estão dentro do alcance dela, e `SimilarStatementFinderTests.TheEditorWindowAndTheSimilarityFinderAreSynchronousAndOffline` ainda os nomeia explicitamente. Não há lacuna. |
@@ -618,7 +618,7 @@ recomendação rejeitaria pedidos que o modelo atende. Por isso o serviço não 
 exceção do runtime em motivo tipado e garante que essa tradução não descarrega o modelo nem abre janela de recusa.
 
 **Versão de pacote de modelo ("pacote antigo") não tem equivalente a `SchemaFormatVersion`.** Não existe, e não foi
-criado aqui, um número de formato para o pacote de modelo: `slopstudio-model.json` é inteiramente opcional, campos
+criado aqui, um número de formato para o pacote de modelo: `kapibarastudio-model.json` é inteiramente opcional, campos
 desconhecidos são ignorados por compatibilidade progressiva e `metadata.version` é texto livre do publicador. O
 mecanismo de compatibilidade dos pacotes é o `contextContract` de A31c, que já distingue "não declarou" (válido, v1)
 de "declarou algo que esta versão não implementa" (`ModelInvalid`). Um pacote antigo, portanto, continua válido por
@@ -849,7 +849,7 @@ flags inline de 5.1.
 `AiRequestPriority.Interactive` que chega cancela uma geração `Background` **ativa**
 (`PreemptBackground`, DEC-A43-PREEMPTION), mas nada limitava a espera de um pedido `Background` que chega **depois**
 que um turno `Interactive` já tomou a fila do proprietário único (`PriorityGate` é um mutex de um único titular; ver
-[`LocalAgentProvider`](../../src/EsilvaSoft.SlopStudio.Application/Agents/LocalAgentProvider.cs)). Antes do chat de
+[`LocalAgentProvider`](../../src/EsilvaSoft.KapibaraStudio.Application/Agents/LocalAgentProvider.cs)). Antes do chat de
 agentes local (lote 9) isso não era visível na prática: a única geração interativa concorrente era a proposta curta
 de `LocalModelAiChatService` (até 256–1024 tokens, um bloco só; serviço **removido em 25/09/2026 pela [ADR-055](../10-decisoes-arquiteturais.md#adr-055--remoção-do-assistente-ia-por-aba-25092026)**). O chat de agentes usa o mesmo
 `AiRequestPriority.Interactive` e o mesmo `StreamAsync`, mas em streaming — uma conversa pode segurar a fila por

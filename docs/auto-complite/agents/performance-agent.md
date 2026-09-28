@@ -12,7 +12,7 @@ Latência/alocações/memória/concorrência/cache/Mongo/IA/tokenização/UI; sc
 
 ## Componentes que pode modificar
 
-tests/EsilvaSoft.SlopStudio.Benchmarks; docs/performance e relatórios; instrumentação Application/Language/AutocompleteMetrics.cs em lote acordado. Caminhos relativos ao projeto EsilvaSoft.SlopStudio indicado; componentes novos estão no plano.
+tests/EsilvaSoft.KapibaraStudio.Benchmarks; docs/performance e relatórios; instrumentação Application/Language/AutocompleteMetrics.cs em lote acordado. Caminhos relativos ao projeto EsilvaSoft.KapibaraStudio indicado; componentes novos estão no plano.
 
 ## Componentes que não deve modificar
 

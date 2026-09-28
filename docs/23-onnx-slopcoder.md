@@ -4,7 +4,7 @@
 
 Qwen2.5-Coder continua disponível. O catálogo também aceita `llama` com manifesto `slopcoder_manifest.json` no formato `deepseek-coder-fim`, validando os textos/IDs BOS, EOS, FIM, EOT e os tokens de parada. A exportação SlopCoder exige o decoder e seu arquivo externo `.data`, ambos não vazios. Isso valida o contrato e a presença dos arquivos; não é verificação criptográfica integral dos pesos.
 
-Os pacotes `C:\SlopStudio.MongoAI-artifacts\release\SlopCoder-Mongo-6.7B-v1\onnx-int4-kquant-mixed-cpu` e `F:\models\SlopCoder-Mongo-1.5B-full-ONNX-INT8` ([seção própria](#slopcoder-mongo-15b-full-qwen2--13092026)) não são mais descobertos por caminhos fixos no código: selecione o diretório pai e a pasta, ou use **Outra pasta…** ([catálogo](26-ia-local-multimodelo.md)). Uma preferência de modelo já salva prevalece. Pesos, tokenizer e vetores permanecem externos ao Git e à distribuição; a licença MIT do EsilvaSoft.SlopStudio permanece inalterada.
+Os pacotes `C:\KapibaraStudio.MongoAI-artifacts\release\SlopCoder-Mongo-6.7B-v1\onnx-int4-kquant-mixed-cpu` e `F:\models\SlopCoder-Mongo-1.5B-full-ONNX-INT8` ([seção própria](#slopcoder-mongo-15b-full-qwen2--13092026)) não são mais descobertos por caminhos fixos no código: selecione o diretório pai e a pasta, ou use **Outra pasta…** ([catálogo](26-ia-local-multimodelo.md)). Uma preferência de modelo já salva prevalece. Pesos, tokenizer e vetores permanecem externos ao Git e à distribuição; a licença MIT do EsilvaSoft.KapibaraStudio permanece inalterada.
 
 ## Uso
 
@@ -52,7 +52,7 @@ Integrações reais são `Explicit`: defina `SLOP_DEEPSEEK_MODEL` para o diretó
 ## SlopCoder-Mongo-1.5B-full (Qwen2) — 13/09/2026
 
 Pacote `F:\models\SlopCoder-Mongo-1.5B-full-ONNX-INT8`: Qwen2.5-Coder-1.5B Base (Apache-2.0) ajustado por LoRA e mesclado no pipeline externo
-`SlopStudio.MongoAI-Compact`, com dados destilados do SlopCoder 6.7B e chat bilíngue, exportado com ONNX Runtime GenAI 0.15.2 e quantizado em
+`KapibaraStudio.MongoAI-Compact`, com dados destilados do SlopCoder 6.7B e chat bilíngue, exportado com ONNX Runtime GenAI 0.15.2 e quantizado em
 INT8 (MatMulNBits, blocos de 32). Arquitetura `qwen2`: o catálogo o valida pelo caminho Qwen (tokens FIM do Qwen, `QwenFimPromptBuilder`); o
 `slopcoder_manifest.json` do pacote é metadado e não ativa o caminho DeepSeek. Pesos permanecem fora do Git e da distribuição.
 
@@ -94,7 +94,7 @@ O pipeline externo gerou exportações compatíveis com DirectML, validadas nest
 A falha em `DmlFusedNode_0_0` do pacote INT8 vinha de uma exportação feita para CPU; os pacotes DML são exportados com o provider `dml` do
 builder, e o INT4 mantém a embedding fora da quantização (`GatherBlockQuantized` não roda sob a captura de grafo do DirectML).
 
-Todos os pacotes do pipeline (inclusive os CPU, versão 1.1.0) trazem `slopstudio-model.json`: `hardware` `["gpu"]` nos DML e `["cpu"]` nos
+Todos os pacotes do pipeline (inclusive os CPU, versão 1.1.0) trazem `kapibarastudio-model.json`: `hardware` `["gpu"]` nos DML e `["cpu"]` nos
 INT4/INT8, `capabilities` autocomplete/chat/fim, contexto recomendado 2048, 32 tokens no autocomplete e 256 no chat.
 
 Medições do pipeline externo (um processo por vez na GPU; chat livre nos mesmos 120 pedidos escritos à mão da seção anterior):

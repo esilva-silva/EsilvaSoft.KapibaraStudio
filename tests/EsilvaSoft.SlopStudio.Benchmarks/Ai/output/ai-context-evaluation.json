@@ -1,0 +1,337 @@
+﻿{
+  "version": 1,
+  "generatedAtUtc": "2026-09-19T11:19:41.4774979+00:00",
+  "contractId": "editor-context-v1",
+  "tokenCounter": "DeterministicTokenCounter",
+  "rootSeed": 20260319,
+  "repetitions": 5,
+  "warmupRepetitions": 2,
+  "environment": {
+    "operatingSystem": "Microsoft Windows 10.0.26200",
+    "architecture": "X64",
+    "logicalProcessors": 24,
+    "runtime": ".NET 10.0.12",
+    "serverGarbageCollection": false,
+    "debuggerAttached": false,
+    "configuration": "Release"
+  },
+  "distribution": {
+    "total": 10000,
+    "byShape": {
+      "Filter": 3334,
+      "Aggregation": 3333,
+      "Update": 3333
+    },
+    "bySchemaSize": {
+      "Small": 3334,
+      "Medium": 3333,
+      "Large": 3333
+    },
+    "withLookup": 1667,
+    "withLearnedSchema": 5004,
+    "withoutLookup": 8333,
+    "withoutLearnedSchema": 4996,
+    "distinctCollections": 40
+  },
+  "promptTokens": {
+    "count": 10000,
+    "mean": 580.7968,
+    "standardDeviation": 264.439601308186,
+    "minimum": 289,
+    "median": 479,
+    "percentile95": 1199,
+    "maximum": 1439
+  },
+  "factTokens": {
+    "count": 10000,
+    "mean": 2379.3467,
+    "standardDeviation": 2085.010015125948,
+    "minimum": 141,
+    "median": 1029,
+    "percentile95": 5624,
+    "maximum": 5722
+  },
+  "factCount": {
+    "count": 10000,
+    "mean": 214.8602,
+    "standardDeviation": 189.04806736155422,
+    "minimum": 13,
+    "median": 91,
+    "percentile95": 512,
+    "maximum": 512
+  },
+  "selectionMicroseconds": {
+    "count": 10000,
+    "mean": 51.177259999999876,
+    "standardDeviation": 66.8015016669157,
+    "minimum": 2.3,
+    "median": 15.8,
+    "percentile95": 156.7,
+    "maximum": 960
+  },
+  "assemblyMicroseconds": {
+    "count": 10000,
+    "mean": 5.48442000000004,
+    "standardDeviation": 3.402434851674916,
+    "minimum": 3.4,
+    "median": 5.3,
+    "percentile95": 6.5,
+    "maximum": 40.9
+  },
+  "totalMicroseconds": {
+    "count": 10000,
+    "mean": 56.66167999999999,
+    "standardDeviation": 68.29492557477123,
+    "minimum": 5.8,
+    "median": 21.9,
+    "percentile95": 162,
+    "maximum": 979.4
+  },
+  "budgetOverflowCases": 0,
+  "maximumOverflowTokens": 0,
+  "nonDeterministicCases": 0,
+  "nonDeterministicCaseIds": [],
+  "segments": [
+    {
+      "dimension": "shape",
+      "value": "Aggregation",
+      "cases": 3333,
+      "promptTokens": {
+        "count": 3333,
+        "mean": 624.7185718571857,
+        "standardDeviation": 265.4177142380169,
+        "minimum": 327,
+        "median": 527,
+        "percentile95": 1247,
+        "maximum": 1439
+      },
+      "totalMicroseconds": {
+        "count": 3333,
+        "mean": 79.9706870687068,
+        "standardDeviation": 85.9674932738992,
+        "minimum": 6.1,
+        "median": 80.6,
+        "percentile95": 199.3199999999999,
+        "maximum": 979.4
+      },
+      "budgetOverflowCases": 0
+    },
+    {
+      "dimension": "shape",
+      "value": "Filter",
+      "cases": 3334,
+      "promptTokens": {
+        "count": 3334,
+        "mean": 553.8038392321536,
+        "standardDeviation": 261.1919995698956,
+        "minimum": 289,
+        "median": 457,
+        "percentile95": 1161,
+        "maximum": 1305
+      },
+      "totalMicroseconds": {
+        "count": 3334,
+        "mean": 44.942351529694015,
+        "standardDeviation": 53.64263913401844,
+        "minimum": 5.8,
+        "median": 19.7,
+        "percentile95": 91.835,
+        "maximum": 617.3000000000001
+      },
+      "budgetOverflowCases": 0
+    },
+    {
+      "dimension": "shape",
+      "value": "Update",
+      "cases": 3333,
+      "promptTokens": {
+        "count": 3333,
+        "mean": 563.8760876087608,
+        "standardDeviation": 261.17889637874765,
+        "minimum": 299,
+        "median": 467,
+        "percentile95": 1171,
+        "maximum": 1315
+      },
+      "totalMicroseconds": {
+        "count": 3333,
+        "mean": 45.07551755175514,
+        "standardDeviation": 53.97042135486952,
+        "minimum": 5.8,
+        "median": 19.7,
+        "percentile95": 91.23999999999997,
+        "maximum": 633.2
+      },
+      "budgetOverflowCases": 0
+    },
+    {
+      "dimension": "schemaSize",
+      "value": "Large",
+      "cases": 3333,
+      "promptTokens": {
+        "count": 3333,
+        "mean": 863.1182118211822,
+        "standardDeviation": 279.60422929093534,
+        "minimum": 369,
+        "median": 859,
+        "percentile95": 1295,
+        "maximum": 1439
+      },
+      "totalMicroseconds": {
+        "count": 3333,
+        "mean": 58.166126612661216,
+        "standardDeviation": 71.92428021566974,
+        "minimum": 7.3999999999999995,
+        "median": 21.3,
+        "percentile95": 163.77999999999994,
+        "maximum": 907.5999999999999
+      },
+      "budgetOverflowCases": 0
+    },
+    {
+      "dimension": "schemaSize",
+      "value": "Medium",
+      "cases": 3333,
+      "promptTokens": {
+        "count": 3333,
+        "mean": 479.7830783078308,
+        "standardDeviation": 66.63083908500533,
+        "minimum": 369,
+        "median": 479,
+        "percentile95": 591,
+        "maximum": 671
+      },
+      "totalMicroseconds": {
+        "count": 3333,
+        "mean": 56.23168316831687,
+        "standardDeviation": 62.850344299682774,
+        "minimum": 7.3999999999999995,
+        "median": 22.3,
+        "percentile95": 158.33999999999995,
+        "maximum": 786.1
+      },
+      "budgetOverflowCases": 0
+    },
+    {
+      "dimension": "schemaSize",
+      "value": "Small",
+      "cases": 3334,
+      "promptTokens": {
+        "count": 3334,
+        "mean": 399.54349130173966,
+        "standardDeviation": 66.4810659612308,
+        "minimum": 289,
+        "median": 395,
+        "percentile95": 511,
+        "maximum": 591
+      },
+      "totalMicroseconds": {
+        "count": 3334,
+        "mean": 55.58755248950212,
+        "standardDeviation": 69.77433350301595,
+        "minimum": 5.8,
+        "median": 19.2,
+        "percentile95": 162.90999999999994,
+        "maximum": 979.4
+      },
+      "budgetOverflowCases": 0
+    },
+    {
+      "dimension": "lookup",
+      "value": "com",
+      "cases": 1667,
+      "promptTokens": {
+        "count": 1667,
+        "mean": 657.3611277744451,
+        "standardDeviation": 264.64563568221195,
+        "minimum": 359,
+        "median": 559,
+        "percentile95": 1271,
+        "maximum": 1439
+      },
+      "totalMicroseconds": {
+        "count": 1667,
+        "mean": 111.93233353329343,
+        "standardDeviation": 98.12225477987533,
+        "minimum": 8.6,
+        "median": 102,
+        "percentile95": 209.3,
+        "maximum": 979.4
+      },
+      "budgetOverflowCases": 0
+    },
+    {
+      "dimension": "lookup",
+      "value": "sem",
+      "cases": 8333,
+      "promptTokens": {
+        "count": 8333,
+        "mean": 565.4802592103684,
+        "standardDeviation": 261.73924579543433,
+        "minimum": 289,
+        "median": 465,
+        "percentile95": 1185,
+        "maximum": 1343
+      },
+      "totalMicroseconds": {
+        "count": 8333,
+        "mean": 45.60489619584776,
+        "standardDeviation": 54.21054135567424,
+        "minimum": 5.8,
+        "median": 19.9,
+        "percentile95": 92.5,
+        "maximum": 730.5999999999999
+      },
+      "budgetOverflowCases": 0
+    },
+    {
+      "dimension": "learnedSchema",
+      "value": "com",
+      "cases": 5004,
+      "promptTokens": {
+        "count": 5004,
+        "mean": 585.0143884892086,
+        "standardDeviation": 268.6201335103712,
+        "minimum": 289,
+        "median": 479,
+        "percentile95": 1209,
+        "maximum": 1439
+      },
+      "totalMicroseconds": {
+        "count": 5004,
+        "mean": 62.14006794564352,
+        "standardDeviation": 75.04030188592732,
+        "minimum": 5.9,
+        "median": 28.5,
+        "percentile95": 173.61999999999935,
+        "maximum": 979.4
+      },
+      "budgetOverflowCases": 0
+    },
+    {
+      "dimension": "learnedSchema",
+      "value": "sem",
+      "cases": 4996,
+      "promptTokens": {
+        "count": 4996,
+        "mean": 576.5724579663731,
+        "standardDeviation": 260.1434049619339,
+        "minimum": 289,
+        "median": 475,
+        "percentile95": 1185,
+        "maximum": 1343
+      },
+      "totalMicroseconds": {
+        "count": 4996,
+        "mean": 51.1745196156926,
+        "standardDeviation": 60.30381669162392,
+        "minimum": 5.8,
+        "median": 19.1,
+        "percentile95": 145.725,
+        "maximum": 786.1
+      },
+      "budgetOverflowCases": 0
+    }
+  ],
+  "budgetOverflowRate": 0
+}

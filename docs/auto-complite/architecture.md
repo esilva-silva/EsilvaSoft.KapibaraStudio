@@ -74,7 +74,7 @@ Não se cria novo projeto de domínio nesta meta ([AC-04](decisions.md)). Os com
 | `Infrastructure` | `MongoMetadataSource` (driver), extensões de `OnnxLocalModelRuntime` (prompt pré-tokenizado, `TokenizerStream`, prefix cache), `IModelAdapter` com contratos de contexto |
 | `Desktop` | `AvaloniaTextSnapshot`, `CompletionWindowPresenter`, `SnippetInserter`, `GhostTextElementGenerator`, `EditorCommandDispatcher` |
 | `tests/UnitTests` | Fixtures `Language/Cases/*.case`, testes por componente |
-| `tests/EsilvaSoft.SlopStudio.Benchmarks` (existente) | BenchmarkDotNet — estender o projeto de ferramenta |
+| `tests/EsilvaSoft.KapibaraStudio.Benchmarks` (existente) | BenchmarkDotNet — estender o projeto de ferramenta |
 
 ```mermaid
 flowchart BT
@@ -92,7 +92,7 @@ Regras verificadas por teste de arquitetura (reflexão sobre referências de ass
 - `Application.Language.Catalog` e `.Context` não referenciam `.Ai` nem `ILocalAiModelService`.
 - Nenhum tipo `Microsoft.ML.*` fora de Infrastructure (regra atual mantida).
 
-Extração futura para `EsilvaSoft.SlopStudio.Language`: somente quando os contratos da Fase 2 estiverem estáveis por pelo menos uma versão e houver necessidade real (ex.: reuso em ferramenta de linha de comando).
+Extração futura para `EsilvaSoft.KapibaraStudio.Language`: somente quando os contratos da Fase 2 estiverem estáveis por pelo menos uma versão e houver necessidade real (ex.: reuso em ferramenta de linha de comando).
 
 ## Componentes
 

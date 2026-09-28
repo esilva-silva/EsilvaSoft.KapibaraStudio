@@ -1,10 +1,10 @@
-# EsilvaSoft.SlopStudio
+# EsilvaSoft.KapibaraStudio
 
-EsilvaSoft.SlopStudio is an open-source desktop IDE for MongoDB, built with **.NET 10** and **Avalonia** for **Windows and Linux**. It focuses on a predictable database workflow, BSON-aware results, local LiteDB storage, and optional on-device AI assistance. Licensed under **MIT**.
+EsilvaSoft.KapibaraStudio is an open-source desktop IDE for MongoDB, built with **.NET 10** and **Avalonia** for **Windows and Linux**. It focuses on a predictable database workflow, BSON-aware results, local LiteDB storage, and optional on-device AI assistance. Licensed under **MIT**.
 
 ## MongoDB desktop IDE
 
-Slop Studio is an open-source MongoDB desktop IDE and GUI client for Windows and Linux. It helps developers connect to MongoDB, browse databases and collections, write and run queries, inspect BSON-aware results, edit documents with confirmations, and export result pages.
+Kapibara Studio is an open-source MongoDB desktop IDE and GUI client for Windows and Linux. It helps developers connect to MongoDB, browse databases and collections, write and run queries, inspect BSON-aware results, edit documents with confirmations, and export result pages.
 
 > [!CAUTION]
 > **Experimental project status.** The code, tests, and documentation in this repository were produced with AI-assisted development ("vibe coding") and have not yet undergone a full human code review, security audit, or production hardening. Expect bugs, rough edges, and design decisions that may change.
@@ -26,7 +26,7 @@ Latest automated evidence for this checkout: solution build with **0 warnings an
 
 ## Support the project
 
-If Slop Studio is useful to you, please consider [sponsoring esilva-silva on GitHub Sponsors](https://github.com/sponsors/esilva-silva). Sponsorship helps sustain development, testing, and documentation for this open-source project.
+If Kapibara Studio is useful to you, please consider [sponsoring esilva-silva on GitHub Sponsors](https://github.com/sponsors/esilva-silva). Sponsorship helps sustain development, testing, and documentation for this open-source project.
 
 ## MVP (v0.5.0, archived)
 
@@ -76,10 +76,10 @@ Automated tests (including headless UI rendering) do not replace validation agai
 ## Getting started
 
 ```bash
-git clone https://github.com/esilva-silva/EsilvaSoft.SlopStudio.git
-cd EsilvaSoft.SlopStudio
-dotnet restore EsilvaSoft.SlopStudio.slnx --locked-mode
-dotnet run --project src/EsilvaSoft.SlopStudio.Desktop
+git clone https://github.com/esilva-silva/EsilvaSoft.KapibaraStudio.git
+cd EsilvaSoft.KapibaraStudio
+dotnet restore EsilvaSoft.KapibaraStudio.slnx --locked-mode
+dotnet run --project src/EsilvaSoft.KapibaraStudio.Desktop
 ```
 
 ## How to use
@@ -134,7 +134,7 @@ The editor mode selector is therefore no longer shown: **Console** is the only a
 
 ### Local AI (optional, experimental)
 
-1. Put each model export in its own folder inside a models directory (default `%LOCALAPPDATA%\EsilvaSoft\SlopStudio\Models` on Windows, `$XDG_DATA_HOME/EsilvaSoft/SlopStudio/Models` on Linux). An optional `slopstudio-model.json` can declare a display name, capabilities and supported hardware.
+1. Put each model export in its own folder inside a models directory (default `%LOCALAPPDATA%\EsilvaSoft\KapibaraStudio\Models` on Windows, `$XDG_DATA_HOME/EsilvaSoft/KapibaraStudio/Models` on Linux). An optional `kapibarastudio-model.json` can declare a display name, capabilities and supported hardware.
 2. Open **… → Preferências → Autocomplete…**, choose the models directory, click **Atualizar** and pick a model.
 3. Choose hardware: **Automático** tries NPU → GPU → CPU and falls back automatically; **CPU**, **GPU** or **NPU** use only that backend and report failures instead of silently falling back.
 4. Click **Testar modelo** to validate the folder, tokenizer, ONNX session, provider and a real generation, with load time, first-token latency and tokens per second.
@@ -148,10 +148,10 @@ The local AI assistant's tab context is opt-in globally and per connection. Inpu
 ### Development
 
 ```bash
-dotnet restore EsilvaSoft.SlopStudio.slnx --locked-mode
-dotnet build EsilvaSoft.SlopStudio.slnx --no-restore
-dotnet test EsilvaSoft.SlopStudio.slnx --no-build --no-restore
-dotnet run --project src/EsilvaSoft.SlopStudio.Desktop
+dotnet restore EsilvaSoft.KapibaraStudio.slnx --locked-mode
+dotnet build EsilvaSoft.KapibaraStudio.slnx --no-restore
+dotnet test EsilvaSoft.KapibaraStudio.slnx --no-build --no-restore
+dotnet run --project src/EsilvaSoft.KapibaraStudio.Desktop
 ```
 
 In sandboxed environments that block Avalonia's build telemetry, add `-p:UsedAvaloniaProducts=` to the build. It does not disable analyzers or tests.
@@ -167,8 +167,8 @@ Each build includes exactly one native ONNX Runtime family. Pass the same value 
 | `Cuda` | ONNX Runtime GenAI CUDA (NVIDIA) | — (opt-in) |
 
 ```bash
-dotnet restore EsilvaSoft.SlopStudio.slnx --locked-mode -p:SlopOnnxBackend=Cpu
-dotnet build EsilvaSoft.SlopStudio.slnx --no-restore -p:SlopOnnxBackend=Cpu
+dotnet restore EsilvaSoft.KapibaraStudio.slnx --locked-mode -p:SlopOnnxBackend=Cpu
+dotnet build EsilvaSoft.KapibaraStudio.slnx --no-restore -p:SlopOnnxBackend=Cpu
 ```
 
 ### Tests with real resources
@@ -176,7 +176,7 @@ dotnet build EsilvaSoft.SlopStudio.slnx --no-restore -p:SlopOnnxBackend=Cpu
 Integration tests that need external models are marked `Explicit` and run only when selected by name:
 
 ```bash
-SLOP_QWEN_MODEL=/path/to/model dotnet test tests/EsilvaSoft.SlopStudio.UnitTests --no-build --filter "Name~RealModelTestRunsOnTheRequestedHardware"
+SLOP_QWEN_MODEL=/path/to/model dotnet test tests/EsilvaSoft.KapibaraStudio.UnitTests --no-build --filter "Name~RealModelTestRunsOnTheRequestedHardware"
 ```
 
 `SLOP_QWEN_MODEL` points to a Qwen-compatible ONNX GenAI export and `SLOP_DEEPSEEK_MODEL` to a DeepSeek-Coder FIM export. On Windows PowerShell, set the variable first with `$env:SLOP_QWEN_MODEL = "..."`.
@@ -211,7 +211,7 @@ ARM64 packages are cross-compiled. 32-bit x86 is not built, because ONNX Runtime
 
 ## Local data and privacy
 
-- The workspace (profiles, history, drafts, preferences, audit) is stored in `workspace.db` under `%LOCALAPPDATA%\EsilvaSoft\SlopStudio` (Windows) or `$XDG_DATA_HOME/EsilvaSoft/SlopStudio` (Linux).
+- The workspace (profiles, history, drafts, preferences, audit) is stored in `workspace.db` under `%LOCALAPPDATA%\EsilvaSoft\KapibaraStudio` (Windows) or `$XDG_DATA_HOME/EsilvaSoft/KapibaraStudio` (Linux).
 - Results and resolved credentials are not saved in session snapshots, but tab text is, and it may contain sensitive data you typed.
 - There is no native OS credential vault yet.
 - No code, query, document or credential is sent to **external** AI services. If local AI context is explicitly enabled, selected tab data is reviewed before being sent only to the selected on-device model. Credentials and result values are excluded; Input JSON requires separate opt-in. Optional ONNX and GenAI telemetry is disabled.

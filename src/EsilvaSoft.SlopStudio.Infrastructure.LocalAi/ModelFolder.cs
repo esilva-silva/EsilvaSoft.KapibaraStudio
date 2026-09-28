@@ -1,6 +1,0 @@
-using System.Text.Json;
-
-namespace EsilvaSoft.SlopStudio.Infrastructure.LocalAi;
-
-/// <summary>Files already read by the catalog for one candidate folder.</summary>
-public sealed record ModelFolder(string Root, string ModelType, string DecoderPath, JsonElement Tokenizer);

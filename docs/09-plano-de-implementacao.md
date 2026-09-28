@@ -1,4 +1,4 @@
-# Roadmap de evolução do Slop Studio
+# Roadmap de evolução do Kapibara Studio
 
 Referência: **22/09/2026**. Este plano substitui o cronograma antigo F0–F7 e as numerações anteriores de seis e nove fases. As fases são compromissos de consolidação, não a ordem em que todo código foi escrito. Recursos antecipados continuam disponíveis com seus limites; sua existência não encerra uma fase.
 

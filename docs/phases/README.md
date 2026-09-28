@@ -1,4 +1,4 @@
-# Fases do EsilvaSoft.SlopStudio
+# Fases do EsilvaSoft.KapibaraStudio
 
 Referência: **28/09/2026**. Esta pasta contém o trabalho **planejado ou em execução** por fase. Requisitos concluídos e aceitos são arquivados em [`../done`](../done/README.md); requisitos sem fase definida, adiados ou retirados do escopo ficam em [`../backlog`](../backlog/README.md). Os documentos de planejamento e agentes antigos da Fase 7 foram removidos; o estado atual de Claude está em [`phase-07-v0.11.0/README.md`](phase-07-v0.11.0/README.md).
 

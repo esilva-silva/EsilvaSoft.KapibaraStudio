@@ -1,0 +1,1042 @@
+{
+  "version": 1,
+  "generatedAtUtc": "2026-09-19T21:51:38.5320428+00:00",
+  "repetitions": 9,
+  "warmupRepetitions": 1,
+  "environment": {
+    "operatingSystem": "Microsoft Windows 10.0.26200",
+    "architecture": "X64",
+    "logicalProcessors": 24,
+    "runtime": ".NET 10.0.12",
+    "serverGarbageCollection": false,
+    "debuggerAttached": false,
+    "configuration": "Release"
+  },
+  "detectedHardware": [
+    {
+      "kind": "Cpu",
+      "provider": "CPU",
+      "name": "AMD Ryzen 9 7900 12-Core Processor",
+      "isAvailable": true,
+      "memoryBytes": null,
+      "reason": null
+    },
+    {
+      "kind": "Gpu",
+      "provider": "DirectML",
+      "name": "AMD Radeon RX 7800 XT",
+      "isAvailable": true,
+      "memoryBytes": 16962813952,
+      "reason": null
+    },
+    {
+      "kind": "Npu",
+      "provider": "",
+      "name": "NPU",
+      "isAvailable": false,
+      "memoryBytes": null,
+      "reason": "Nenhum provider de NPU (QNN, OpenVINO ou VitisAI) dispon\u00EDvel nesta distribui\u00E7\u00E3o ou m\u00E1quina."
+    }
+  ],
+  "scenarios": [
+    "curto-g32",
+    "curto-g96",
+    "medio-g32",
+    "medio-g96",
+    "longo-g32",
+    "longo-g96"
+  ],
+  "targets": [
+    {
+      "targetId": "SlopCoder-Mongo-0.5B-ONNX-int4 \u00B7 Cpu",
+      "packageId": "SlopCoder-Mongo-0.5B-ONNX-int4",
+      "requestedHardware": "Cpu",
+      "effectiveProvider": "CPU",
+      "evidence": "RealModel",
+      "loadMilliseconds": 919.8138,
+      "workingSetAfterLoadBytes": 1530359808,
+      "peakWorkingSetBytes": 1864224768,
+      "cases": 54,
+      "generatedCases": 54,
+      "timeToFirstToken": {
+        "count": 54,
+        "mean": 866.4368537037036,
+        "standardDeviation": 987.7814316345933,
+        "minimum": 74.9098,
+        "median": 246.0964,
+        "percentile95": 2254.054545,
+        "maximum": 2282.6761
+      },
+      "observedFirstText": {
+        "count": 54,
+        "mean": 868.4691574074072,
+        "standardDeviation": 990.0379863945524,
+        "minimum": 75.3098,
+        "median": 246.69865,
+        "percentile95": 2259.00279,
+        "maximum": 2287.5463
+      },
+      "total": {
+        "count": 54,
+        "mean": 1165.0207611111111,
+        "standardDeviation": 1046.8377376108367,
+        "minimum": 223.4622,
+        "median": 588.1471,
+        "percentile95": 2631.0567,
+        "maximum": 2652.4123
+      },
+      "tokensPerSecond": {
+        "count": 54,
+        "mean": 79.78688018803521,
+        "standardDeviation": 10.69930808794813,
+        "minimum": 61.794846773240465,
+        "median": 85.0582522369235,
+        "percentile95": 87.9793743885501,
+        "maximum": 108.038321192527
+      },
+      "contextMicroseconds": {
+        "count": 54,
+        "mean": 360.0814814814815,
+        "standardDeviation": 211.24521302967435,
+        "minimum": 135,
+        "median": 270.8,
+        "percentile95": 690.075,
+        "maximum": 695.6
+      },
+      "tokenizationMicroseconds": {
+        "count": 54,
+        "mean": 215.46666666666664,
+        "standardDeviation": 158.2098558578638,
+        "minimum": 70.4,
+        "median": 126.75,
+        "percentile95": 484.56999999999994,
+        "maximum": 493.3
+      },
+      "promptTokens": {
+        "count": 54,
+        "mean": 626,
+        "standardDeviation": 692.5017812115229,
+        "minimum": 85,
+        "median": 199,
+        "percentile95": 1594,
+        "maximum": 1594
+      },
+      "generatedTokens": {
+        "count": 54,
+        "mean": 24,
+        "standardDeviation": 5.404400722541892,
+        "minimum": 17,
+        "median": 25,
+        "percentile95": 30,
+        "maximum": 30
+      },
+      "workingSetBytes": {
+        "count": 54,
+        "mean": 1663220470.5185184,
+        "standardDeviation": 140067028.0644434,
+        "minimum": 1551699968,
+        "median": 1576845312,
+        "percentile95": 1862368256,
+        "maximum": 1864224768
+      },
+      "failures": {},
+      "firstFailureMessage": "",
+      "scenarios": [
+        {
+          "scenarioId": "curto-g32",
+          "cases": 9,
+          "promptTokens": 85,
+          "generatedTokens": {
+            "count": 9,
+            "mean": 17,
+            "standardDeviation": 0,
+            "minimum": 17,
+            "median": 17,
+            "percentile95": 17,
+            "maximum": 17
+          },
+          "timeToFirstToken": {
+            "count": 9,
+            "mean": 102.8587,
+            "standardDeviation": 14.878608605225825,
+            "minimum": 74.9098,
+            "median": 110.0489,
+            "percentile95": 112.08024,
+            "maximum": 112.1332
+          },
+          "observedFirstText": {
+            "count": 9,
+            "mean": 103.19883333333333,
+            "standardDeviation": 14.859441586412323,
+            "minimum": 75.3098,
+            "median": 110.3936,
+            "percentile95": 112.39504,
+            "maximum": 112.4768
+          },
+          "total": {
+            "count": 9,
+            "mean": 282.87322222222224,
+            "standardDeviation": 24.409847004117918,
+            "minimum": 223.4622,
+            "median": 293.4681,
+            "percentile95": 295.83815999999996,
+            "maximum": 295.9174
+          },
+          "tokensPerSecond": {
+            "count": 9,
+            "mean": 89.49959028353607,
+            "standardDeviation": 6.9645050675459,
+            "minimum": 86.4018593680136,
+            "median": 87.41774536522041,
+            "percentile95": 99.86376045873743,
+            "maximum": 108.038321192527
+          }
+        },
+        {
+          "scenarioId": "curto-g96",
+          "cases": 9,
+          "promptTokens": 85,
+          "generatedTokens": {
+            "count": 9,
+            "mean": 17,
+            "standardDeviation": 0,
+            "minimum": 17,
+            "median": 17,
+            "percentile95": 17,
+            "maximum": 17
+          },
+          "timeToFirstToken": {
+            "count": 9,
+            "mean": 110.07805555555554,
+            "standardDeviation": 0.8145468481172711,
+            "minimum": 109.2463,
+            "median": 109.7725,
+            "percentile95": 111.32696,
+            "maximum": 111.4056
+          },
+          "observedFirstText": {
+            "count": 9,
+            "mean": 110.4245,
+            "standardDeviation": 0.7838851334857656,
+            "minimum": 109.5806,
+            "median": 110.1179,
+            "percentile95": 111.62196,
+            "maximum": 111.6994
+          },
+          "total": {
+            "count": 9,
+            "mean": 293.17302222222224,
+            "standardDeviation": 0.865944537452868,
+            "minimum": 291.7316,
+            "median": 293.2606,
+            "percentile95": 294.13804000000005,
+            "maximum": 294.1462
+          },
+          "tokensPerSecond": {
+            "count": 9,
+            "mean": 87.58939109910621,
+            "standardDeviation": 0.32651014145603213,
+            "minimum": 87.12964455461504,
+            "median": 87.61818186796488,
+            "percentile95": 88.05650820583408,
+            "maximum": 88.17992231348845
+          }
+        },
+        {
+          "scenarioId": "medio-g32",
+          "cases": 9,
+          "promptTokens": 199,
+          "generatedTokens": {
+            "count": 9,
+            "mean": 30,
+            "standardDeviation": 0,
+            "minimum": 30,
+            "median": 30,
+            "percentile95": 30,
+            "maximum": 30
+          },
+          "timeToFirstToken": {
+            "count": 9,
+            "mean": 243.54265555555554,
+            "standardDeviation": 6.521509024204274,
+            "minimum": 231.4247,
+            "median": 246.839,
+            "percentile95": 248.31768,
+            "maximum": 248.6806
+          },
+          "observedFirstText": {
+            "count": 9,
+            "mean": 243.99972222222226,
+            "standardDeviation": 6.542645316456061,
+            "minimum": 231.7893,
+            "median": 247.3048,
+            "percentile95": 248.77484,
+            "maximum": 249.1636
+          },
+          "total": {
+            "count": 9,
+            "mean": 583.3910444444444,
+            "standardDeviation": 12.249191445674178,
+            "minimum": 553.5842,
+            "median": 588.4539,
+            "percentile95": 591.4897599999999,
+            "maximum": 591.762
+          },
+          "tokensPerSecond": {
+            "count": 9,
+            "mean": 85.51020240298016,
+            "standardDeviation": 2.0877770547154597,
+            "minimum": 84.09724076953034,
+            "median": 84.67534014668105,
+            "percentile95": 89.05793874996252,
+            "maximum": 90.75216647327068
+          }
+        },
+        {
+          "scenarioId": "medio-g96",
+          "cases": 9,
+          "promptTokens": 199,
+          "generatedTokens": {
+            "count": 9,
+            "mean": 30,
+            "standardDeviation": 0,
+            "minimum": 30,
+            "median": 30,
+            "percentile95": 30,
+            "maximum": 30
+          },
+          "timeToFirstToken": {
+            "count": 9,
+            "mean": 246.12378888888892,
+            "standardDeviation": 2.253546329368693,
+            "minimum": 242.1414,
+            "median": 245.7941,
+            "percentile95": 249.28536,
+            "maximum": 250.3854
+          },
+          "observedFirstText": {
+            "count": 9,
+            "mean": 246.78808888888886,
+            "standardDeviation": 2.26006760432318,
+            "minimum": 243.016,
+            "median": 246.2782,
+            "percentile95": 250.15152,
+            "maximum": 250.7954
+          },
+          "total": {
+            "count": 9,
+            "mean": 587.7038666666667,
+            "standardDeviation": 3.4262500321050693,
+            "minimum": 583.0008,
+            "median": 588.0161,
+            "percentile95": 592.52808,
+            "maximum": 594.215
+          },
+          "tokensPerSecond": {
+            "count": 9,
+            "mean": 85.115700490013,
+            "standardDeviation": 0.4410248796691273,
+            "minimum": 84.38499343833931,
+            "median": 85.20182402415266,
+            "percentile95": 85.58395993026043,
+            "maximum": 85.69119552514667
+          }
+        },
+        {
+          "scenarioId": "longo-g32",
+          "cases": 9,
+          "promptTokens": 1594,
+          "generatedTokens": {
+            "count": 9,
+            "mean": 25,
+            "standardDeviation": 0,
+            "minimum": 25,
+            "median": 25,
+            "percentile95": 25,
+            "maximum": 25
+          },
+          "timeToFirstToken": {
+            "count": 9,
+            "mean": 2245.618466666667,
+            "standardDeviation": 6.964306714598452,
+            "minimum": 2233.7488,
+            "median": 2245.6694,
+            "percentile95": 2254.16672,
+            "maximum": 2254.3462
+          },
+          "observedFirstText": {
+            "count": 9,
+            "mean": 2250.680255555556,
+            "standardDeviation": 6.834606990001617,
+            "minimum": 2239.1067,
+            "median": 2250.7041,
+            "percentile95": 2259.23234,
+            "maximum": 2259.5005
+          },
+          "total": {
+            "count": 9,
+            "mean": 2615.7978333333326,
+            "standardDeviation": 7.542074462142366,
+            "minimum": 2603.397,
+            "median": 2614.3027,
+            "percentile95": 2625.10194,
+            "maximum": 2625.2313
+          },
+          "tokensPerSecond": {
+            "count": 9,
+            "mean": 66.06290461557417,
+            "standardDeviation": 0.44017741994755527,
+            "minimum": 65.50384603102644,
+            "median": 65.90245448199846,
+            "percentile95": 66.70341561179643,
+            "maximum": 66.78123358294674
+          }
+        },
+        {
+          "scenarioId": "longo-g96",
+          "cases": 9,
+          "promptTokens": 1594,
+          "generatedTokens": {
+            "count": 9,
+            "mean": 25,
+            "standardDeviation": 0,
+            "minimum": 25,
+            "median": 25,
+            "percentile95": 25,
+            "maximum": 25
+          },
+          "timeToFirstToken": {
+            "count": 9,
+            "mean": 2250.399455555556,
+            "standardDeviation": 13.73002308101773,
+            "minimum": 2234.0352,
+            "median": 2248.7988,
+            "percentile95": 2271.40558,
+            "maximum": 2282.6761
+          },
+          "observedFirstText": {
+            "count": 9,
+            "mean": 2255.723544444444,
+            "standardDeviation": 13.414319171515084,
+            "minimum": 2239.7945,
+            "median": 2254.4141,
+            "percentile95": 2276.25718,
+            "maximum": 2287.5463
+          },
+          "total": {
+            "count": 9,
+            "mean": 2627.185577777778,
+            "standardDeviation": 13.282566592415236,
+            "minimum": 2605.8297,
+            "median": 2624.5538,
+            "percentile95": 2646.08614,
+            "maximum": 2652.4123
+          },
+          "tokensPerSecond": {
+            "count": 9,
+            "mean": 64.94349223700162,
+            "standardDeviation": 1.3665746153584897,
+            "minimum": 61.794846773240465,
+            "median": 65.32053740294798,
+            "percentile95": 65.99512846726097,
+            "maximum": 66.06512534894085
+          }
+        }
+      ]
+    },
+    {
+      "targetId": "SlopCoder-Mongo-0.5B-ONNX-int4 \u00B7 Gpu",
+      "packageId": "SlopCoder-Mongo-0.5B-ONNX-int4",
+      "requestedHardware": "Gpu",
+      "effectiveProvider": "",
+      "evidence": "RealModel",
+      "loadMilliseconds": 535.546,
+      "workingSetAfterLoadBytes": 867368960,
+      "peakWorkingSetBytes": 867368960,
+      "cases": 1,
+      "generatedCases": 0,
+      "timeToFirstToken": {
+        "count": 0,
+        "mean": 0,
+        "standardDeviation": 0,
+        "minimum": 0,
+        "median": 0,
+        "percentile95": 0,
+        "maximum": 0
+      },
+      "observedFirstText": {
+        "count": 0,
+        "mean": 0,
+        "standardDeviation": 0,
+        "minimum": 0,
+        "median": 0,
+        "percentile95": 0,
+        "maximum": 0
+      },
+      "total": {
+        "count": 0,
+        "mean": 0,
+        "standardDeviation": 0,
+        "minimum": 0,
+        "median": 0,
+        "percentile95": 0,
+        "maximum": 0
+      },
+      "tokensPerSecond": {
+        "count": 0,
+        "mean": 0,
+        "standardDeviation": 0,
+        "minimum": 0,
+        "median": 0,
+        "percentile95": 0,
+        "maximum": 0
+      },
+      "contextMicroseconds": {
+        "count": 0,
+        "mean": 0,
+        "standardDeviation": 0,
+        "minimum": 0,
+        "median": 0,
+        "percentile95": 0,
+        "maximum": 0
+      },
+      "tokenizationMicroseconds": {
+        "count": 0,
+        "mean": 0,
+        "standardDeviation": 0,
+        "minimum": 0,
+        "median": 0,
+        "percentile95": 0,
+        "maximum": 0
+      },
+      "promptTokens": {
+        "count": 0,
+        "mean": 0,
+        "standardDeviation": 0,
+        "minimum": 0,
+        "median": 0,
+        "percentile95": 0,
+        "maximum": 0
+      },
+      "generatedTokens": {
+        "count": 0,
+        "mean": 0,
+        "standardDeviation": 0,
+        "minimum": 0,
+        "median": 0,
+        "percentile95": 0,
+        "maximum": 0
+      },
+      "workingSetBytes": {
+        "count": 0,
+        "mean": 0,
+        "standardDeviation": 0,
+        "minimum": 0,
+        "median": 0,
+        "percentile95": 0,
+        "maximum": 0
+      },
+      "failures": {
+        "Refused": 1
+      },
+      "firstFailureMessage": "N\u00E3o foi poss\u00EDvel executar este modelo utilizando GPU.\nMotivo: falha do provider DirectML: This session cannot use the graph capture feature as requested by the user  as all compute graph nodes have not been partitioned to the DmlExecutionProvider\nVoc\u00EA pode selecionar: Autom\u00E1tico ou CPU.",
+      "scenarios": []
+    },
+    {
+      "targetId": "SlopCoder-Mongo-1.5B-full ONNX DML-FP16 \u00B7 Cpu",
+      "packageId": "SlopCoder-Mongo-1.5B-full ONNX DML-FP16",
+      "requestedHardware": "Cpu",
+      "effectiveProvider": "",
+      "evidence": "RealModel",
+      "loadMilliseconds": 23.8509,
+      "workingSetAfterLoadBytes": 6869045248,
+      "peakWorkingSetBytes": 6869045248,
+      "cases": 1,
+      "generatedCases": 0,
+      "timeToFirstToken": {
+        "count": 0,
+        "mean": 0,
+        "standardDeviation": 0,
+        "minimum": 0,
+        "median": 0,
+        "percentile95": 0,
+        "maximum": 0
+      },
+      "observedFirstText": {
+        "count": 0,
+        "mean": 0,
+        "standardDeviation": 0,
+        "minimum": 0,
+        "median": 0,
+        "percentile95": 0,
+        "maximum": 0
+      },
+      "total": {
+        "count": 0,
+        "mean": 0,
+        "standardDeviation": 0,
+        "minimum": 0,
+        "median": 0,
+        "percentile95": 0,
+        "maximum": 0
+      },
+      "tokensPerSecond": {
+        "count": 0,
+        "mean": 0,
+        "standardDeviation": 0,
+        "minimum": 0,
+        "median": 0,
+        "percentile95": 0,
+        "maximum": 0
+      },
+      "contextMicroseconds": {
+        "count": 0,
+        "mean": 0,
+        "standardDeviation": 0,
+        "minimum": 0,
+        "median": 0,
+        "percentile95": 0,
+        "maximum": 0
+      },
+      "tokenizationMicroseconds": {
+        "count": 0,
+        "mean": 0,
+        "standardDeviation": 0,
+        "minimum": 0,
+        "median": 0,
+        "percentile95": 0,
+        "maximum": 0
+      },
+      "promptTokens": {
+        "count": 0,
+        "mean": 0,
+        "standardDeviation": 0,
+        "minimum": 0,
+        "median": 0,
+        "percentile95": 0,
+        "maximum": 0
+      },
+      "generatedTokens": {
+        "count": 0,
+        "mean": 0,
+        "standardDeviation": 0,
+        "minimum": 0,
+        "median": 0,
+        "percentile95": 0,
+        "maximum": 0
+      },
+      "workingSetBytes": {
+        "count": 0,
+        "mean": 0,
+        "standardDeviation": 0,
+        "minimum": 0,
+        "median": 0,
+        "percentile95": 0,
+        "maximum": 0
+      },
+      "failures": {
+        "Refused": 1
+      },
+      "firstFailureMessage": "N\u00E3o foi poss\u00EDvel executar este modelo utilizando CPU.\nMotivo: O modelo declara suporte apenas a GPU em slopstudio-model.json.\nVoc\u00EA pode selecionar: Autom\u00E1tico.",
+      "scenarios": []
+    },
+    {
+      "targetId": "SlopCoder-Mongo-1.5B-full ONNX DML-FP16 \u00B7 Gpu",
+      "packageId": "SlopCoder-Mongo-1.5B-full ONNX DML-FP16",
+      "requestedHardware": "Gpu",
+      "effectiveProvider": "DirectML",
+      "evidence": "RealModel",
+      "loadMilliseconds": 2333.4967,
+      "workingSetAfterLoadBytes": 6983892992,
+      "peakWorkingSetBytes": 7488294912,
+      "cases": 54,
+      "generatedCases": 54,
+      "timeToFirstToken": {
+        "count": 54,
+        "mean": 202.65226666666672,
+        "standardDeviation": 116.90270796974883,
+        "minimum": 108.0769,
+        "median": 127.6928,
+        "percentile95": 369.637265,
+        "maximum": 394.0642
+      },
+      "observedFirstText": {
+        "count": 54,
+        "mean": 206.62656296296294,
+        "standardDeviation": 118.25061601476354,
+        "minimum": 111.1849,
+        "median": 130.63690000000003,
+        "percentile95": 375.37487,
+        "maximum": 400.1953
+      },
+      "total": {
+        "count": 54,
+        "mean": 647.444874074074,
+        "standardDeviation": 402.6534449270776,
+        "minimum": 299.1182,
+        "median": 503.03815,
+        "percentile95": 1465.08617,
+        "maximum": 1482.9499
+      },
+      "tokensPerSecond": {
+        "count": 54,
+        "mean": 81.09308455638526,
+        "standardDeviation": 9.238000078548225,
+        "minimum": 66.7895913192614,
+        "median": 79.7811522307851,
+        "percentile95": 94.09577149842066,
+        "maximum": 95.20720773844185
+      },
+      "contextMicroseconds": {
+        "count": 54,
+        "mean": 278.20370370370375,
+        "standardDeviation": 182.88565967381274,
+        "minimum": 82.5,
+        "median": 198.85,
+        "percentile95": 537.5649999999999,
+        "maximum": 623.4
+      },
+      "tokenizationMicroseconds": {
+        "count": 54,
+        "mean": 176.91666666666666,
+        "standardDeviation": 149.1552208461386,
+        "minimum": 52,
+        "median": 85.4,
+        "percentile95": 398.62,
+        "maximum": 425.6
+      },
+      "promptTokens": {
+        "count": 54,
+        "mean": 626,
+        "standardDeviation": 692.5017812115229,
+        "minimum": 85,
+        "median": 199,
+        "percentile95": 1594,
+        "maximum": 1594
+      },
+      "generatedTokens": {
+        "count": 54,
+        "mean": 37.666666666666664,
+        "standardDeviation": 26.563558524968638,
+        "minimum": 15,
+        "median": 32,
+        "percentile95": 93,
+        "maximum": 93
+      },
+      "workingSetBytes": {
+        "count": 54,
+        "mean": 7262994659.555555,
+        "standardDeviation": 137144092.58309826,
+        "minimum": 7025455104,
+        "median": 7263201280,
+        "percentile95": 7468103680,
+        "maximum": 7488294912
+      },
+      "failures": {},
+      "firstFailureMessage": "",
+      "scenarios": [
+        {
+          "scenarioId": "curto-g32",
+          "cases": 9,
+          "promptTokens": 85,
+          "generatedTokens": {
+            "count": 9,
+            "mean": 15,
+            "standardDeviation": 0,
+            "minimum": 15,
+            "median": 15,
+            "percentile95": 15,
+            "maximum": 15
+          },
+          "timeToFirstToken": {
+            "count": 9,
+            "mean": 114.65696666666665,
+            "standardDeviation": 4.573738620647228,
+            "minimum": 108.0769,
+            "median": 113.3625,
+            "percentile95": 121.32018,
+            "maximum": 123.7029
+          },
+          "observedFirstText": {
+            "count": 9,
+            "mean": 117.70103333333334,
+            "standardDeviation": 4.673844895533015,
+            "minimum": 111.1849,
+            "median": 116.4422,
+            "percentile95": 124.53452,
+            "maximum": 127.034
+          },
+          "total": {
+            "count": 9,
+            "mean": 312.1151222222222,
+            "standardDeviation": 11.701108436786848,
+            "minimum": 299.1182,
+            "median": 311.2703,
+            "percentile95": 330.85076,
+            "maximum": 336.483
+          },
+          "tokensPerSecond": {
+            "count": 9,
+            "mean": 72.1036633361761,
+            "standardDeviation": 2.6366811632461404,
+            "minimum": 66.7895913192614,
+            "median": 72.2583255784666,
+            "percentile95": 74.79751394625296,
+            "maximum": 74.89767105691848
+          }
+        },
+        {
+          "scenarioId": "curto-g96",
+          "cases": 9,
+          "promptTokens": 85,
+          "generatedTokens": {
+            "count": 9,
+            "mean": 15,
+            "standardDeviation": 0,
+            "minimum": 15,
+            "median": 15,
+            "percentile95": 15,
+            "maximum": 15
+          },
+          "timeToFirstToken": {
+            "count": 9,
+            "mean": 116.39515555555558,
+            "standardDeviation": 6.408268444578286,
+            "minimum": 110.5279,
+            "median": 115.4722,
+            "percentile95": 126.09226,
+            "maximum": 132.5413
+          },
+          "observedFirstText": {
+            "count": 9,
+            "mean": 119.3584555555556,
+            "standardDeviation": 6.428185693512417,
+            "minimum": 113.3854,
+            "median": 118.729,
+            "percentile95": 129.06452,
+            "maximum": 135.5322
+          },
+          "total": {
+            "count": 9,
+            "mean": 314.89343333333335,
+            "standardDeviation": 6.051218907170688,
+            "minimum": 303.8173,
+            "median": 314.5986,
+            "percentile95": 323.88584,
+            "maximum": 325.007
+          },
+          "tokensPerSecond": {
+            "count": 9,
+            "mean": 71.65890910667453,
+            "standardDeviation": 1.9382098100253062,
+            "minimum": 67.88392237182545,
+            "median": 71.57156850114822,
+            "percentile95": 74.42484723451025,
+            "maximum": 75.0232974132503
+          }
+        },
+        {
+          "scenarioId": "medio-g32",
+          "cases": 9,
+          "promptTokens": 199,
+          "generatedTokens": {
+            "count": 9,
+            "mean": 32,
+            "standardDeviation": 0,
+            "minimum": 32,
+            "median": 32,
+            "percentile95": 32,
+            "maximum": 32
+          },
+          "timeToFirstToken": {
+            "count": 9,
+            "mean": 124.74343333333334,
+            "standardDeviation": 3.1805262217909793,
+            "minimum": 119.5949,
+            "median": 126.0772,
+            "percentile95": 128.00924,
+            "maximum": 128.2934
+          },
+          "observedFirstText": {
+            "count": 9,
+            "mean": 127.75491111111111,
+            "standardDeviation": 3.18801497818174,
+            "minimum": 122.683,
+            "median": 129.0854,
+            "percentile95": 131.00706,
+            "maximum": 131.3757
+          },
+          "total": {
+            "count": 9,
+            "mean": 469.43133333333327,
+            "standardDeviation": 8.479461637981508,
+            "minimum": 451.0146,
+            "median": 472.1009,
+            "percentile95": 477.8614,
+            "maximum": 478.3164
+          },
+          "tokensPerSecond": {
+            "count": 9,
+            "mean": 90.76586330180882,
+            "standardDeviation": 1.7522811558941753,
+            "minimum": 89.36112560426858,
+            "median": 90.38459519947006,
+            "percentile95": 93.55169287734243,
+            "maximum": 95.20720773844185
+          }
+        },
+        {
+          "scenarioId": "medio-g96",
+          "cases": 9,
+          "promptTokens": 199,
+          "generatedTokens": {
+            "count": 9,
+            "mean": 39,
+            "standardDeviation": 0,
+            "minimum": 39,
+            "median": 39,
+            "percentile95": 39,
+            "maximum": 39
+          },
+          "timeToFirstToken": {
+            "count": 9,
+            "mean": 127.90005555555555,
+            "standardDeviation": 1.7518725739270478,
+            "minimum": 124.0964,
+            "median": 128.3476,
+            "percentile95": 129.3537,
+            "maximum": 129.4477
+          },
+          "observedFirstText": {
+            "count": 9,
+            "mean": 131.00684444444445,
+            "standardDeviation": 1.7940380947119774,
+            "minimum": 127.0732,
+            "median": 131.6531,
+            "percentile95": 132.48088,
+            "maximum": 132.6082
+          },
+          "total": {
+            "count": 9,
+            "mean": 536.6534222222222,
+            "standardDeviation": 4.44622911065594,
+            "minimum": 527.7599,
+            "median": 538.2466,
+            "percentile95": 540.55144,
+            "maximum": 540.7414
+          },
+          "tokensPerSecond": {
+            "count": 9,
+            "mean": 93.68867572222398,
+            "standardDeviation": 0.6451207083240965,
+            "minimum": 92.8976336528034,
+            "median": 93.50906804187336,
+            "percentile95": 94.74528489192708,
+            "maximum": 94.84237197777294
+          }
+        },
+        {
+          "scenarioId": "longo-g32",
+          "cases": 9,
+          "promptTokens": 1594,
+          "generatedTokens": {
+            "count": 9,
+            "mean": 32,
+            "standardDeviation": 0,
+            "minimum": 32,
+            "median": 32,
+            "percentile95": 32,
+            "maximum": 32
+          },
+          "timeToFirstToken": {
+            "count": 9,
+            "mean": 360.2983555555556,
+            "standardDeviation": 1.7227633203019508,
+            "minimum": 358.6101,
+            "median": 359.9429,
+            "percentile95": 363.0792,
+            "maximum": 364.172
+          },
+          "observedFirstText": {
+            "count": 9,
+            "mean": 366.08709999999996,
+            "standardDeviation": 1.815300003442952,
+            "minimum": 364.2532,
+            "median": 365.971,
+            "percentile95": 369.03618,
+            "maximum": 370.1423
+          },
+          "total": {
+            "count": 9,
+            "mean": 786.8078777777779,
+            "standardDeviation": 4.161720906301192,
+            "minimum": 777.0172,
+            "median": 787.1694,
+            "percentile95": 791.20486,
+            "maximum": 792.8017
+          },
+          "tokensPerSecond": {
+            "count": 9,
+            "mean": 73.69459863482331,
+            "standardDeviation": 0.7017554671221993,
+            "minimum": 73.07728937003606,
+            "median": 73.46998751010211,
+            "percentile95": 74.81527222538436,
+            "maximum": 75.42267108173141
+          }
+        },
+        {
+          "scenarioId": "longo-g96",
+          "cases": 9,
+          "promptTokens": 1594,
+          "generatedTokens": {
+            "count": 9,
+            "mean": 93,
+            "standardDeviation": 0,
+            "minimum": 93,
+            "median": 93,
+            "percentile95": 93,
+            "maximum": 93
+          },
+          "timeToFirstToken": {
+            "count": 9,
+            "mean": 371.91963333333337,
+            "standardDeviation": 8.528882350284832,
+            "minimum": 366.9381,
+            "median": 368.8065,
+            "percentile95": 385.92424,
+            "maximum": 394.0642
+          },
+          "observedFirstText": {
+            "count": 9,
+            "mean": 377.8510333333333,
+            "standardDeviation": 8.652888754340939,
+            "minimum": 372.6038,
+            "median": 374.6831,
+            "percentile95": 392.22473999999994,
+            "maximum": 400.1953
+          },
+          "total": {
+            "count": 9,
+            "mean": 1464.7680555555557,
+            "standardDeviation": 9.119646398313806,
+            "minimum": 1451.6273,
+            "median": 1463.3794,
+            "percentile95": 1479.26042,
+            "maximum": 1482.9499
+          },
+          "tokensPerSecond": {
+            "count": 9,
+            "mean": 84.64679723660481,
+            "standardDeviation": 0.3585845479215283,
+            "minimum": 84.13963337983878,
+            "median": 84.59226390873818,
+            "percentile95": 85.14703653408809,
+            "maximum": 85.26446534824325
+          }
+        }
+      ]
+    }
+  ],
+  "uiFrameBudgetNote": "Este harness \u00E9 um processo de console sem Avalonia: ele n\u00E3o mede or\u00E7amento por quadro da interface durante a gera\u00E7\u00E3o. Aus\u00EAncia de travamento observ\u00E1vel em CPU est\u00E1 coberta pelos testes Headless de A42; a medi\u00E7\u00E3o de quadros exige o aplicativo nativo rodando e \u00E9 evid\u00EAncia manual, n\u00E3o deste relat\u00F3rio."
+}

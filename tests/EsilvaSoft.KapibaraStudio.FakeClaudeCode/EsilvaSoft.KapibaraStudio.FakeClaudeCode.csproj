@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    CLI falso e determinístico do Claude Code para os testes automatizados do modo "Claude (assinatura)" (P7-CL1..CL3).
+    Gera um executável nativo chamado "claude" (apphost PE/ELF, como o binário oficial) que reproduz as fixtures
+    stream-json derivadas dos transcripts sanitizados do spike P7-CL0-01. Nunca contata a Anthropic nem lê ~/.claude.
+    Sem pacotes; não é referenciado por nenhum projeto (os testes o localizam pela pasta de saída).
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>claude</AssemblyName>
+    <RootNamespace>EsilvaSoft.KapibaraStudio.FakeClaudeCode</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <!-- Nunca vai para saída de produto: sem publish/pack; a release publica só o Desktop, que não o referencia. -->
+    <IsPublishable>false</IsPublishable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+</Project>

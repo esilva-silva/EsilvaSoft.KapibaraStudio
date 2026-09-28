@@ -12,7 +12,7 @@ Gatilhos, confidence gate, ranking reutilizado, coalescing/debounce contextual, 
 
 ## Componentes que pode modificar
 
-Novos Application/Language/Inline coordinator/gate/provider; Desktop/InlineCompletionPresenter, WorkspaceTabView.Autocomplete.cs, InlineCompletionTextBlock e MongoTextEditor em lote reservado. Caminhos relativos ao projeto EsilvaSoft.SlopStudio indicado; componentes novos estão no plano.
+Novos Application/Language/Inline coordinator/gate/provider; Desktop/InlineCompletionPresenter, WorkspaceTabView.Autocomplete.cs, InlineCompletionTextBlock e MongoTextEditor em lote reservado. Caminhos relativos ao projeto EsilvaSoft.KapibaraStudio indicado; componentes novos estão no plano.
 
 ## Componentes que não deve modificar
 

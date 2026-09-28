@@ -38,7 +38,7 @@ Pipelines e ferramentas administrativas já disponíveis são antecipações té
 Na raiz do projeto, execute:
 
 ```text
-dotnet run --project src/EsilvaSoft.SlopStudio.Desktop
+dotnet run --project src/EsilvaSoft.KapibaraStudio.Desktop
 ```
 
 Abra **Conexões** na barra superior. Use **Nova conexão**, preencha nome/URI e, se desejar, **Preencher** a partir da URI. Revise ambiente, pasta, favoritos e autenticação e escolha **Salvar perfil**. Na lista, **Testar conexão** verifica o perfil e **Abrir conexão** carrega seus bancos no explorer. Editar, duplicar e remover operam sobre perfis locais; o resumo mostra apenas o host.
@@ -191,7 +191,7 @@ No painel Administração, digite exatamente o banco selecionado antes de usar *
 
 ## Identidade e temas
 
-A barra superior identifica **Slop Studio** pelo símbolo de recipiente com líquido azul/violeta; o título do sistema permanece EsilvaSoft.SlopStudio. Conexões, Nova aba, Abrir, Salvar e Ferramentas agora têm ícones acompanhados dos mesmos nomes e atalhos. Executar e Cancelar continuam explícitos por aba. Use Sistema, Claro ou Escuro no seletor de tema; a preferência continua imediata e persistida. Sem abas, a marca aparece com a ação Nova aba. Consulte as [prévias reais e o manual de identidade](18-identidade-visual.md).
+A barra superior identifica **Kapibara Studio** pelo símbolo de recipiente com líquido azul/violeta; o título do sistema permanece EsilvaSoft.KapibaraStudio. Conexões, Nova aba, Abrir, Salvar e Ferramentas agora têm ícones acompanhados dos mesmos nomes e atalhos. Executar e Cancelar continuam explícitos por aba. Use Sistema, Claro ou Escuro no seletor de tema; a preferência continua imediata e persistida. Sem abas, a marca aparece com a ação Nova aba. Consulte as [prévias reais e o manual de identidade](18-identidade-visual.md).
 
 
 
@@ -210,7 +210,7 @@ Abra **… → Preferências → Autocomplete**. O padrão Automático usa IA qu
 
 ### Autocomplete preditivo no cursor
 
-Em **… → Preferências → Autocomplete**, informe o **Diretório de modelos** (vazio usa `%LOCALAPPDATA%\EsilvaSoft\SlopStudio\Models`; nesta máquina, por exemplo, `F:\models`) e escolha o **Modelo** na lista. Cada subpasta é um modelo; **Atualizar** reescaneia sem descarregar o modelo em uso, e pastas incompletas aparecem em "Pastas ignoradas". **Outra pasta…** usa um modelo fora do diretório. Em **Hardware**, Automático tenta NPU, GPU e CPU conforme o que foi detectado; CPU, GPU ou NPU explícitos não recorrem a outro hardware e explicam a falha. Mantenha contexto 2048, geração 32 e atraso 150 ms, salvo recomendação do próprio modelo. **Testar modelo** salva, recarrega e verifica pasta, tokenizer, sessão, provider e geração, com tempo de carga, primeiro token e tokens/s; a digitação normal solicita sugestões automaticamente, sem clicar nesse botão. A carga aparece na barra inferior. Sessões antigas com um caminho salvo continuam usando essa pasta como externa. [Catálogo, metadata e hardware](26-ia-local-multimodelo.md) e [SlopCoder-Mongo-1.5B-full](23-onnx-slopcoder.md#slopcoder-mongo-15b-full-qwen2--13092026).
+Em **… → Preferências → Autocomplete**, informe o **Diretório de modelos** (vazio usa `%LOCALAPPDATA%\EsilvaSoft\KapibaraStudio\Models`; nesta máquina, por exemplo, `F:\models`) e escolha o **Modelo** na lista. Cada subpasta é um modelo; **Atualizar** reescaneia sem descarregar o modelo em uso, e pastas incompletas aparecem em "Pastas ignoradas". **Outra pasta…** usa um modelo fora do diretório. Em **Hardware**, Automático tenta NPU, GPU e CPU conforme o que foi detectado; CPU, GPU ou NPU explícitos não recorrem a outro hardware e explicam a falha. Mantenha contexto 2048, geração 32 e atraso 150 ms, salvo recomendação do próprio modelo. **Testar modelo** salva, recarrega e verifica pasta, tokenizer, sessão, provider e geração, com tempo de carga, primeiro token e tokens/s; a digitação normal solicita sugestões automaticamente, sem clicar nesse botão. A carga aparece na barra inferior. Sessões antigas com um caminho salvo continuam usando essa pasta como externa. [Catálogo, metadata e hardware](26-ia-local-multimodelo.md) e [SlopCoder-Mongo-1.5B-full](23-onnx-slopcoder.md#slopcoder-mongo-15b-full-qwen2--13092026).
 
 Para instalar um SlopCoder-Mongo, use **Baixar modelo** na mesma janela. A lista reúne as versões ONNX publicadas no Hugging Face, com nomes no formato "família — hardware precisão" e, abaixo, tamanho e quando escolher:
 
@@ -256,7 +256,7 @@ A validação visual Linux está dispensada. O clipboard nativo do Windows foi v
 
 ## Atualizações
 
-Nos pacotes publicados (zip/tar.gz dos releases), o Slop Studio consulta os releases do GitHub 10 s após abrir e a cada 6 h. Havendo versão nova, aparece **Atualizar** à direita da barra superior (só o ícone em janelas estreitas; a dica mostra a versão). Clique para baixar: o progresso e **Cancelar** ficam na barra inferior. Ao concluir, o botão vira **Reiniciar**: escolha **Reiniciar agora** ou **Depois**. Em ambos os casos a nova versão é instalada quando o programa fecha, com as confirmações habituais de execuções e rascunhos.
+Nos pacotes publicados (zip/tar.gz dos releases), o Kapibara Studio consulta os releases do GitHub 10 s após abrir e a cada 6 h. Havendo versão nova, aparece **Atualizar** à direita da barra superior (só o ícone em janelas estreitas; a dica mostra a versão). Clique para baixar: o progresso e **Cancelar** ficam na barra inferior. Ao concluir, o botão vira **Reiniciar**: escolha **Reiniciar agora** ou **Depois**. Em ambos os casos a nova versão é instalada quando o programa fecha, com as confirmações habituais de execuções e rascunhos.
 
 - Instalação estável recebe apenas versões estáveis; instalação em pré-release recebe também pré-releases mais novas.
 - O pacote só é instalado se o SHA-256 conferir com o publicado no release.

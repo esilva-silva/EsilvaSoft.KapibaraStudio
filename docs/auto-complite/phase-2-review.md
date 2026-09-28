@@ -10,26 +10,26 @@ O worktree mudou durante a inspeção: `SyntaxTreeCache`, provider, snippets, us
 
 Arquivos de produto detectados no lote:
 
-- `src/EsilvaSoft.SlopStudio.Application/Language/Syntax/MongoSyntaxTree.cs`
-- `src/EsilvaSoft.SlopStudio.Application/Language/Syntax/TolerantParser.cs`
-- `src/EsilvaSoft.SlopStudio.Application/Language/Syntax/SyntaxTreeCache.cs`
-- `src/EsilvaSoft.SlopStudio.Application/Language/Completion/CompletionContracts.cs`
-- `src/EsilvaSoft.SlopStudio.Application/Language/Completion/CompletionProvider.cs`
-- `src/EsilvaSoft.SlopStudio.Application/Language/Completion/CompletionRanker.cs`
-- `src/EsilvaSoft.SlopStudio.Application/Language/Completion/CompletionService.cs`
-- `src/EsilvaSoft.SlopStudio.Application/Language/Completion/CompletionUsageTracker.cs`
-- `src/EsilvaSoft.SlopStudio.Application/Language/Completion/RankingProfile.cs`
-- `src/EsilvaSoft.SlopStudio.Application/Language/Completion/SnippetTemplate.cs`
+- `src/EsilvaSoft.KapibaraStudio.Application/Language/Syntax/MongoSyntaxTree.cs`
+- `src/EsilvaSoft.KapibaraStudio.Application/Language/Syntax/TolerantParser.cs`
+- `src/EsilvaSoft.KapibaraStudio.Application/Language/Syntax/SyntaxTreeCache.cs`
+- `src/EsilvaSoft.KapibaraStudio.Application/Language/Completion/CompletionContracts.cs`
+- `src/EsilvaSoft.KapibaraStudio.Application/Language/Completion/CompletionProvider.cs`
+- `src/EsilvaSoft.KapibaraStudio.Application/Language/Completion/CompletionRanker.cs`
+- `src/EsilvaSoft.KapibaraStudio.Application/Language/Completion/CompletionService.cs`
+- `src/EsilvaSoft.KapibaraStudio.Application/Language/Completion/CompletionUsageTracker.cs`
+- `src/EsilvaSoft.KapibaraStudio.Application/Language/Completion/RankingProfile.cs`
+- `src/EsilvaSoft.KapibaraStudio.Application/Language/Completion/SnippetTemplate.cs`
 
 Testes detectados no lote:
 
-- `tests/EsilvaSoft.SlopStudio.UnitTests/Language/Syntax/TolerantParserTests.cs`
-- `tests/EsilvaSoft.SlopStudio.UnitTests/Language/Syntax/SyntaxTreeCacheTests.cs`
-- `tests/EsilvaSoft.SlopStudio.UnitTests/Language/Completion/CompletionProviderTests.cs`
-- `tests/EsilvaSoft.SlopStudio.UnitTests/Language/Completion/CompletionRankerTests.cs`
-- `tests/EsilvaSoft.SlopStudio.UnitTests/Language/Completion/CompletionServiceTests.cs`
-- `tests/EsilvaSoft.SlopStudio.UnitTests/Language/Completion/CompletionUsageTrackerTests.cs`
-- `tests/EsilvaSoft.SlopStudio.UnitTests/Language/Completion/SnippetTemplateTests.cs`
+- `tests/EsilvaSoft.KapibaraStudio.UnitTests/Language/Syntax/TolerantParserTests.cs`
+- `tests/EsilvaSoft.KapibaraStudio.UnitTests/Language/Syntax/SyntaxTreeCacheTests.cs`
+- `tests/EsilvaSoft.KapibaraStudio.UnitTests/Language/Completion/CompletionProviderTests.cs`
+- `tests/EsilvaSoft.KapibaraStudio.UnitTests/Language/Completion/CompletionRankerTests.cs`
+- `tests/EsilvaSoft.KapibaraStudio.UnitTests/Language/Completion/CompletionServiceTests.cs`
+- `tests/EsilvaSoft.KapibaraStudio.UnitTests/Language/Completion/CompletionUsageTrackerTests.cs`
+- `tests/EsilvaSoft.KapibaraStudio.UnitTests/Language/Completion/SnippetTemplateTests.cs`
 
 Documentação modificada já presente no worktree: `docs/auto-complite/phases/phase-2-traditional-autocomplete.md` e o índice gerado `docs/assets/documents.js`. O diretório não rastreado `.claude/` foi considerado alheio a esta revisão.
 
@@ -43,7 +43,7 @@ Há dois defeitos estruturais reproduzidos no parser, além de lacunas contratua
 
 ### Críticos/altos
 
-1. **Gate de build vermelho no snapshot mais recente.** `dotnet build EsilvaSoft.SlopStudio.slnx --no-restore -p:UsedAvaloniaProducts=` termina com três erros `CA1861` em `SnippetTemplateTests.cs`. A suíte executada antes da chegada desses arquivos não valida o lote atual.
+1. **Gate de build vermelho no snapshot mais recente.** `dotnet build EsilvaSoft.KapibaraStudio.slnx --no-restore -p:UsedAvaloniaProducts=` termina com três erros `CA1861` em `SnippetTemplateTests.cs`. A suíte executada antes da chegada desses arquivos não valida o lote atual.
 
 2. **Um ponto e vírgula dentro de bloco/grupo quebra a hierarquia de statements e spans.** `TolerantParser.cs:91-96` encerra statement para qualquer `;`, sem exigir `stack.Count == 0`. Reprodução sem alterar testes, com `function f(){ const x=1; return x; }`: três statements foram gerados; o último apresentou quatro filhos fora do span do pai. Isso contradiz o contrato de `MongoSyntaxNode` e invalida consumidores que localizam o statement do cursor.
 
@@ -87,12 +87,12 @@ Há dois defeitos estruturais reproduzidos no parser, além de lacunas contratua
 
 1. Inventário: `git status --short`, `rg --files`, buscas `rg` por C22–T08, parser, completion, cache, Peek, fontes, métricas e integração. Resultado: worktree sujo e lote em expansão durante a revisão.
 2. Leitura integral do texto anexado e dos perfis `testing-agent.md`/`performance-agent.md`; leitura de `execution-plan.md`, `current-state.md`, `architecture.md`, `decisions.md`, `testing.md`, `performance.md`, documentos de contexto/ranking/editor e arquivos do lote.
-3. `dotnet restore EsilvaSoft.SlopStudio.slnx --locked-mode -p:UsedAvaloniaProducts=`: primeira tentativa falhou porque o sandbox não podia ler `%APPDATA%/NuGet/NuGet.Config`; repetição autorizada fora do sandbox passou.
-4. Primeira compilação, antes da chegada dos arquivos adicionais: `dotnet build EsilvaSoft.SlopStudio.slnx --no-restore -p:UsedAvaloniaProducts=` — passou, 0 avisos/0 erros. Não representa o snapshot final.
+3. `dotnet restore EsilvaSoft.KapibaraStudio.slnx --locked-mode -p:UsedAvaloniaProducts=`: primeira tentativa falhou porque o sandbox não podia ler `%APPDATA%/NuGet/NuGet.Config`; repetição autorizada fora do sandbox passou.
+4. Primeira compilação, antes da chegada dos arquivos adicionais: `dotnet build EsilvaSoft.KapibaraStudio.slnx --no-restore -p:UsedAvaloniaProducts=` — passou, 0 avisos/0 erros. Não representa o snapshot final.
 5. `dotnet test ...UnitTests.csproj --no-build --no-restore -p:UsedAvaloniaProducts= --filter FullyQualifiedName~TolerantParserTests` — 8/8 passaram no lote intermediário.
-6. `dotnet test EsilvaSoft.SlopStudio.slnx --no-build --no-restore -p:UsedAvaloniaProducts=` — 1.032 passaram em 52 s no lote intermediário. A saída listou testes opt-in como “Ignorado”, embora o resumo final tenha informado 0 ignorados; não foi investigado antes da mudança do worktree.
+6. `dotnet test EsilvaSoft.KapibaraStudio.slnx --no-build --no-restore -p:UsedAvaloniaProducts=` — 1.032 passaram em 52 s no lote intermediário. A saída listou testes opt-in como “Ignorado”, embora o resumo final tenha informado 0 ignorados; não foi investigado antes da mudança do worktree.
 7. Reprodução por reflexão sobre a DLL de Application, sem criar teste/arquivo: `function f(){ const x=1; return x; }` produziu três statements e quatro violações de contenção; `db.c.find({ a: { b: 1` produziu zero objetos alcançáveis.
-8. Última compilação, após a chegada de cache/provider/snippets/testes: `dotnet build EsilvaSoft.SlopStudio.slnx --no-restore -p:UsedAvaloniaProducts=` — **falhou** com `CA1861` em `SnippetTemplateTests.cs:17`, `:20` e `:34`. Este é o resultado vigente.
+8. Última compilação, após a chegada de cache/provider/snippets/testes: `dotnet build EsilvaSoft.KapibaraStudio.slnx --no-restore -p:UsedAvaloniaProducts=` — **falhou** com `CA1861` em `SnippetTemplateTests.cs:17`, `:20` e `:34`. Este é o resultado vigente.
 
 Não foram executados benchmarks: o snapshot final não compila, não existe benchmark específico de parser/ranking no lote detectado e o pedido de encerramento antecipou inspeções adicionais. Não foram feitas homologação nativa, MongoDB real, leitor de tela ou PNGs; nada disso é declarado aprovado.
 

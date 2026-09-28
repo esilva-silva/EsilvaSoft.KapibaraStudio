@@ -26,8 +26,8 @@ Os provedores explícito e preemptivo, cancelamento, concorrência, namespaces d
 
 **Registro histórico desta data.** Os limites de IME, latência e controles abaixo foram reaudidados e atualizados em 22/09 na seção [Fase 5 / v0.9.0](#fase-5--v090--escopo-automatizável-concluído--22092026); não representam o estado atual.
 
-Build `dotnet build EsilvaSoft.SlopStudio.slnx --no-restore`: **0 avisos, 0 erros**. Suíte
-`dotnet test EsilvaSoft.SlopStudio.slnx --no-build --no-restore`: **1273 aprovados, 0 falhas** (baseline de entrada: 1154).
+Build `dotnet build EsilvaSoft.KapibaraStudio.slnx --no-restore`: **0 avisos, 0 erros**. Suíte
+`dotnet test EsilvaSoft.KapibaraStudio.slnx --no-build --no-restore`: **1273 aprovados, 0 falhas** (baseline de entrada: 1154).
 
 ### Fase 1 — K11–K16 e K16-b
 
@@ -168,8 +168,8 @@ sem ONNX, sem rede e sem consulta MongoDB durante a digitação.
 
 ### Evidência
 
-- `dotnet build EsilvaSoft.SlopStudio.slnx --no-restore` → **0 avisos, 0 erros**.
-- `dotnet test EsilvaSoft.SlopStudio.slnx --no-build --no-restore` → **1 156 aprovados, 0 falhas** (baseline de entrada: 1 127).
+- `dotnet build EsilvaSoft.KapibaraStudio.slnx --no-restore` → **0 avisos, 0 erros**.
+- `dotnet test EsilvaSoft.KapibaraStudio.slnx --no-build --no-restore` → **1 156 aprovados, 0 falhas** (baseline de entrada: 1 127).
 - Alocação remedida por componente em [performance](auto-complite/performance.md); orçamento de 64 KB por tecla
   cumprido com folga em todos os componentes determinísticos medidos.
 
@@ -392,7 +392,7 @@ Limites explícitos: renderização Headless usa os controles reais e dados simu
 99. A criação de índices passou a expor a opção `hidden` do driver MongoDB, permitindo criar um índice mantido pelo servidor mas ignorado pelo otimizador. Foi acrescentado teste NUnit de validação; a compatibilidade por versão do servidor permanece para homologação real.
 100. A Administração passou a expor `compact` para coleções de usuário, com confirmação textual, opção explícita `force`, bloqueio de perfil somente leitura, auditoria LiteDB e testes NUnit das regras de alvo. A operação depende de versão, permissões e topologia, que permanecem pendentes de homologação real.
 101. A criação explícita de banco foi adicionada por meio de uma coleção inicial: a interface exige banco, coleção e confirmação, bloqueia bancos internos/perfis somente leitura e atualiza o explorer após sucesso. O núcleo recebeu testes NUnit para as regras de criação; a execução continua pendente na janela normal do executor.
-102. A janela normal do executor foi restabelecida sem consumo de crédito de reset. `dotnet build EsilvaSoft.SlopStudio.slnx --no-restore -v:minimal` concluiu sem avisos ou erros e `dotnet test EsilvaSoft.SlopStudio.slnx --no-build --no-restore -v:minimal` aprovou 192 de 192 testes NUnit no Windows. Esta evidência valida os incrementos locais 85 a 101, mas não substitui a homologação com MongoDB, `mongosh`, Linux ou interface aberta.
+102. A janela normal do executor foi restabelecida sem consumo de crédito de reset. `dotnet build EsilvaSoft.KapibaraStudio.slnx --no-restore -v:minimal` concluiu sem avisos ou erros e `dotnet test EsilvaSoft.KapibaraStudio.slnx --no-build --no-restore -v:minimal` aprovou 192 de 192 testes NUnit no Windows. Esta evidência valida os incrementos locais 85 a 101, mas não substitui a homologação com MongoDB, `mongosh`, Linux ou interface aberta.
 103. O autocomplete local ganhou sugestões exclusivas de estágios de agregação no editor de pipeline, reutilizando apenas os campos mantidos em memória da coleção atual. Um teste NUnit cobre a exclusão de operadores que não são estágios; a execução desta alteração aguarda a próxima rodada de validação local.
 104. Após o incremento de autocomplete, a solução compilou novamente sem avisos ou erros e a suíte NUnit aprovou 193 de 193 casos no Windows, em 08/09/2026. A homologação externa continua pendente porque este host não possui `mongod`, `mongosh` ou Docker instalados.
 105. A importação lógica passou a oferecer seleção nativa de pasta via `StorageProvider`, preservando a possibilidade de informar o caminho manualmente em Windows e Linux. A próxima validação local deve conferir o handler Avalonia junto da suíte existente.
@@ -460,7 +460,7 @@ Cada mudança deve atualizar esta tabela com estado, evidência e resultado de v
 - Ubuntu/WSL: tentativa de revalidação encontrou ausência do SDK solicitado em global.json (10.0.400). A validação Linux anterior não é reapresentada como prova desta mudança. Shell nativo, leitor de tela e integração MongoDB real permanecem pendentes.
 
 
-TRX final desta identidade: Windows, 244/244 (artefato histórico não disponível neste checkout: `../tests/EsilvaSoft.SlopStudio.UnitTests/TestResults/chuke_ESILVA-PC_2026-09-10_13_34_57_net10.0.trx`). Build do gerador também aprovado sem avisos/erros, com analisadores habilitados.
+TRX final desta identidade: Windows, 244/244 (artefato histórico não disponível neste checkout: `../tests/EsilvaSoft.KapibaraStudio.UnitTests/TestResults/chuke_ESILVA-PC_2026-09-10_13_34_57_net10.0.trx`). Build do gerador também aprovado sem avisos/erros, com analisadores habilitados.
 
 
 ## Estratégia de credenciais — revisão de 10/09/2026
@@ -469,7 +469,7 @@ Esta revisão substitui as restrições históricas descritas nos itens 8, 16, 5
 
 Adicionados módulo Ambientes / Key Vault, ambientes customizados e seleção ativa persistida, `ENV.get()` no editor/URI, compatibilidade `${NOME}`, snapshot por operação e transporte de credenciais ao runner pelo ambiente do processo filho. UI informa ausência de criptografia nativa. Salvar ambientes exige reabrir conexões, preservando textos e execuções iniciadas. Validação desta revisão registrada na matriz; as contagens históricas acima não representam automaticamente o novo código.
 
-Validação final desta revisão: restore travado e build Windows com 0 avisos/erros; **259/259 testes NUnit aprovados**, incluindo renderização. TRX: `tests/EsilvaSoft.SlopStudio.UnitTests/TestResults/chuke_ESILVA-PC_2026-09-10_14_34_49_net10.0.trx`. Bootstrap JS também exercitado com Node/stubs, sem servidor real. PNGs de Ambientes (18 combinações) e formulários de conexão foram inspecionados; uma sobreposição foi corrigida e recebeu verificação geométrica. Linux, MongoDB/mongosh reais, leitor de tela e cofre nativo permanecem pendentes.
+Validação final desta revisão: restore travado e build Windows com 0 avisos/erros; **259/259 testes NUnit aprovados**, incluindo renderização. TRX: `tests/EsilvaSoft.KapibaraStudio.UnitTests/TestResults/chuke_ESILVA-PC_2026-09-10_14_34_49_net10.0.trx`. Bootstrap JS também exercitado com Node/stubs, sem servidor real. PNGs de Ambientes (18 combinações) e formulários de conexão foram inspecionados; uma sobreposição foi corrigida e recebeu verificação geométrica. Linux, MongoDB/mongosh reais, leitor de tela e cofre nativo permanecem pendentes.
 
 ## Database Explorer — revisão de 10/09/2026
 
@@ -477,7 +477,7 @@ Implementação entregue: raízes de todas as conexões, carga progressiva, desc
 
 Documentos possuem página em JSON e árvore estruturada, copiar/abrir no editor, inserir/editar/excluir com confirmação e contexto fixo. Edição relê o documento completo antes de confirmar e detecta conflito; resultados abertos no editor ficam fora dos rascunhos automáticos. Scripts CRUD, índices e administração são gerados sem executar. Serviços de metadados e modelos de apresentação mantêm o driver fora da UI.
 
-Restore travado e build Windows aprovados, 0 avisos/erros; **276/276 testes aprovados**, nenhum ignorado. TRX final (artefato histórico não disponível neste checkout: `../tests/EsilvaSoft.SlopStudio.UnitTests/TestResults/chuke_ESILVA-PC_2026-09-10_23_11_35_net10.0.trx`). Inspecionados 18 PNGs do explorer e editor de documento nos dois temas. Design system, ADR-025, catálogo, plano, guia e matriz atualizados. [Guia e prévias](19-database-explorer.md); [rastreabilidade dos 13 critérios](15-matriz-de-validacao.md#database-explorer--10092026).
+Restore travado e build Windows aprovados, 0 avisos/erros; **276/276 testes aprovados**, nenhum ignorado. TRX final (artefato histórico não disponível neste checkout: `../tests/EsilvaSoft.KapibaraStudio.UnitTests/TestResults/chuke_ESILVA-PC_2026-09-10_23_11_35_net10.0.trx`). Inspecionados 18 PNGs do explorer e editor de documento nos dois temas. Design system, ADR-025, catálogo, plano, guia e matriz atualizados. [Guia e prévias](19-database-explorer.md); [rastreabilidade dos 13 critérios](15-matriz-de-validacao.md#database-explorer--10092026).
 
 Homologação externa permanece pendente: MongoDB/mongosh reais, autenticação/permissões, DNS SRV/TXT e topologias reais, Linux nativo e leitor de tela. A evidência automatizada não equivale a esses cenários.
 
@@ -487,7 +487,7 @@ Console substitui Consulta JSON como modo principal. Entregues runtime Jint/prox
 
 Proteções permanecem por destino efetivo: somente leitura, filtro não vazio, destinos/índices protegidos, confirmação e auditoria. Origem do resultado acompanha edição de documento. O modo Script/mongosh permanece separado. Dependências permissivas Jint 4.16.0 (BSD-2-Clause) e Acornima 1.7.0 (BSD-3-Clause); nome e MIT do produto preservados.
 
-Restore travado e build aprovados, sem avisos/erros. **294/294 testes aprovados**, nenhum ignorado. TRX final (artefato histórico não disponível neste checkout: `../tests/EsilvaSoft.SlopStudio.UnitTests/TestResults/chuke_ESILVA-PC_2026-09-11_07_55_19_net10.0.trx`). Fixture real com dois MongoDB Community 8.0.30 locais validou API/CRUD/índices e integridade BSON; 18 PNGs Console inspecionados. [Guia](20-console.md) e [matriz](15-matriz-de-validacao.md).
+Restore travado e build aprovados, sem avisos/erros. **294/294 testes aprovados**, nenhum ignorado. TRX final (artefato histórico não disponível neste checkout: `../tests/EsilvaSoft.KapibaraStudio.UnitTests/TestResults/chuke_ESILVA-PC_2026-09-11_07_55_19_net10.0.trx`). Fixture real com dois MongoDB Community 8.0.30 locais validou API/CRUD/índices e integridade BSON; 18 PNGs Console inspecionados. [Guia](20-console.md) e [matriz](15-matriz-de-validacao.md).
 
 Linux nativo, leitor de tela, autenticação/TLS e topologias distribuídas permanecem pendentes. Evidência real desta fixture Console não substitui homologações anteriores do runner mongosh.
 
@@ -496,7 +496,7 @@ Linux nativo, leitor de tela, autenticação/TLS e topologias distribuídas perm
 
 Entregue `UuidCodec` como codec único (bytes, subtype, construtores e saída), substituindo `UuidExtendedJson`; a asserção do fixture canônico anterior foi mantida em `UuidCodecTests`. Construtores `UUID`, `CGUUID`, `JUUID` e `GUUID` no Console (inclusive `EJSON.parse`), campos BSON do adaptador, importação e helpers do runner mongosh. Preferência global e sobrescrita por conexão em Preferências e no editor de conexão, com prévia das quatro formas; persistência aditiva e textual em `WorkspacePreferences`. Resultados, árvore, área de transferência, editor de documento, “Abrir no editor” e **Gerar UUID** usam a representação efetiva; `_id`, precondição e exportação continuam canônicos. Métricas identificam a representação e UUIDs legados de origem desconhecida, com texto truncável e dica.
 
-Build Windows `--no-restore -p:UsedAvaloniaProducts=` com **0 avisos e 0 erros**. **369 testes aprovados, 0 falhas, 1 ignorado** (integração MongoDB real sem binário local). TRX: `tests/EsilvaSoft.SlopStudio.UnitTests/TestResults/chuke_ESILVA-PC_2026-09-11_14_50_37_net10.0.trx`. 54 PNGs `uuid-*` gerados; amostras dos dois temas, tamanhos mínimo/máximo e escalas 1, 1,5 e 2 inspecionadas. A inspeção levou a duas correções: métrica cortada em 960 px e literal GUUID quebrado a 460 px.
+Build Windows `--no-restore -p:UsedAvaloniaProducts=` com **0 avisos e 0 erros**. **369 testes aprovados, 0 falhas, 1 ignorado** (integração MongoDB real sem binário local). TRX: `tests/EsilvaSoft.KapibaraStudio.UnitTests/TestResults/chuke_ESILVA-PC_2026-09-11_14_50_37_net10.0.trx`. 54 PNGs `uuid-*` gerados; amostras dos dois temas, tamanhos mínimo/máximo e escalas 1, 1,5 e 2 inspecionadas. A inspeção levou a duas correções: métrica cortada em 960 px e literal GUUID quebrado a 460 px.
 
 Pendências: executar `ConsoleMongoIntegrationTests` com `SLOP_CONSOLE_MONGOD` (bytes gravados e consultas por representação já codificados no teste), helpers com mongosh instalado, Linux nativo, leitor de tela, Python legacy, UUID v7 e migração assistida.
 
@@ -504,14 +504,14 @@ Pendências: executar `ConsoleMongoIntegrationTests` com `SLOP_CONSOLE_MONGOD` (
 
 Entregues `StructuredResultSet` e `StructuredResultDocument` no Core, com origem, posição, `_id`, truncamento e completude, além de `ExtendedJsonFormatter` (altera só espaços), `ExtendedJsonValue` (tipos BSON sem conversão) e `ExtendedJsonComparer`. O painel Resultados ganhou seletor **JSON | Árvore** por aba, **Copiar JSON**, JSON formatado com cursor ligado à seleção, árvore sob demanda com avisos textuais, menu por documento (botão direito, Shift+F10 e tecla Menu), `DocumentJsonWindow` somente leitura e edição a partir do resultado pela modal existente, que relê por `_id` antes de gravar e informa documento alterado ou removido. O runtime do Console passou a conservar a resposta equivalente do driver (ordem de campos) e a informar método e projeção. **Documentos → Editar…** mantém o fluxo anterior.
 
-Build Windows `--no-restore -p:UsedAvaloniaProducts=` com **0 avisos e 0 erros**. **414 testes aprovados, 0 falhas, 1 ignorado** (integração MongoDB real sem binário local); baseline anterior de 369 aprovados. TRX: `tests/EsilvaSoft.SlopStudio.UnitTests/TestResults/chuke_ESILVA-PC_2026-09-11_16_08_39_net10.0.trx`. Foram gerados 72 PNGs `results-*` e `result-document-*`; amostras claro/escuro, 960 e 1366, 100% e 200% foram inspecionadas. Observado e não alterado, por ser comportamento anterior: a barra de rolagem sobreposta do Fluent cruza a última linha em áreas pequenas e o TextBox focado usa o fundo de foco do Fluent no tema escuro.
+Build Windows `--no-restore -p:UsedAvaloniaProducts=` com **0 avisos e 0 erros**. **414 testes aprovados, 0 falhas, 1 ignorado** (integração MongoDB real sem binário local); baseline anterior de 369 aprovados. TRX: `tests/EsilvaSoft.KapibaraStudio.UnitTests/TestResults/chuke_ESILVA-PC_2026-09-11_16_08_39_net10.0.trx`. Foram gerados 72 PNGs `results-*` e `result-document-*`; amostras claro/escuro, 960 e 1366, 100% e 200% foram inspecionadas. Observado e não alterado, por ser comportamento anterior: a barra de rolagem sobreposta do Fluent cruza a última linha em áreas pequenas e o TextBox focado usa o fundo de foco do Fluent no tema escuro.
 
 Pendências: edição e conflito contra MongoDB real, leitor de tela, Linux nativo, área de transferência nativa, virtualização de árvores muito grandes e desempenho do TextBox com páginas próximas do limite de 8 MB.
 ## Autocomplete local Qwen — validação final em 11/09/2026
 
 Entregues contratos em Core/Application, fallback básico, runtime ONNX GenAI 0.15.2/ONNX 1.28.0 isolado em Infrastructure, tokenizer nativo, FIM limitado, cache, serialização de inferências, cancelamento por editor e descarte por versão. Preferências aditivas no proprietário LiteDB, catálogo externo, teste do modelo, prévia com fonte de código e Tab/Esc; Ctrl+Espaço mantém metadados Console/MQL. README, guia, ADR-027, design system e documentação técnica atualizados. [Instalação reproduzível e limites](21-autocomplete-local.md).
 
-Checkout final validado sobre `8fac5c1` (inclui os incrementos de UUID e resultados). Restore `--locked-mode` e build `--no-restore -p:UsedAvaloniaProducts=` aprovados, **0 avisos/erros**. **415 testes regulares aprovados**, 0 falhas; os **2 testes Explicit de Qwen** foram executados separadamente e também passaram. TRX: `autocomplete-current-final.trx` e `qwen-current-final.trx` em `tests/EsilvaSoft.SlopStudio.UnitTests/TestResults`.
+Checkout final validado sobre `8fac5c1` (inclui os incrementos de UUID e resultados). Restore `--locked-mode` e build `--no-restore -p:UsedAvaloniaProducts=` aprovados, **0 avisos/erros**. **415 testes regulares aprovados**, 0 falhas; os **2 testes Explicit de Qwen** foram executados separadamente e também passaram. TRX: `autocomplete-current-final.trx` e `qwen-current-final.trx` em `tests/EsilvaSoft.KapibaraStudio.UnitTests/TestResults`.
 
 Pesos reais Qwen2.5-Coder-0.5B Q4, revisão e SHA-256 registrados no guia, instalados somente como fixture temporária externa. Geração FIM produziu `a + b`, avaliada com a função sintética `add(2, 3) = 5`; sessão reutilizada, cancelamento nativo e geração posterior aprovados. Caminho completo de preferências → serviço → modelo → editor → Tab testado. Inspecionados 18 PNGs do editor, 18 de preferências e 2 com geração Qwen real, nos dois temas; a prévia usa o token CodeFont e entrelinha configurável.
 
@@ -527,7 +527,7 @@ Restore travado e build aprovados, 0 avisos/erros. **431 testes regulares e 2 Ex
 
 Os runs `fix` (34625741076) e `v0.1.0.alpha` (34638550609) falharam só em `ubuntu-latest`, e `uuid` (34632561387) falhou também em `windows-latest`, sempre no mesmo teste: `ContextIsBoundedBeforeItReachesRuntime` (413/415 aprovados no alpha). O stack aponta `RegexMatchTimeoutException` em `CompletionPrivacy.ContainsSensitiveText`, com `MatchTimeout` de 50 ms sobre os 65 536 caracteres do contexto limitado. Não é diferença de sistema operacional: o limite era de tempo de relógio, e pausas de GC e preempção de um runner ocupado contam nele (suíte de 58 s no CI contra 19 s local). A reprodução local com 48 threads concorrentes e alocações grandes causou 21 timeouts em 200 verificações (pior caso 147 ms) com a configuração anterior e nenhum com a nova (pior caso 2,8 ms).
 
-Correção: padrão de privacidade no motor `NonBacktracking` (tempo linear), limite de 1 s como proteção e falha fechada — contexto não verificado a tempo é tratado como sensível e não segue para a IA. A extração de palavras do fallback volta às palavras-chave se atingir o limite, sem propagar exceção ao editor. Testes novos: pior caso sob pressão de CPU/GC, incluindo `-----BEGIN ` repetido (quadrático no motor anterior), e fallback básico sobre o contexto inteiro; o de pior caso falha na implementação anterior. Windows: build com 0 avisos/erros, **416 testes aprovados, 0 falhas, 1 ignorado**, e a classe de autocomplete repetida 5 vezes sem falhas. TRX: `tests/EsilvaSoft.SlopStudio.UnitTests/TestResults/chuke_ESILVA-PC_2026-09-11_16_35_02_net10.0.trx`. Pendente: nova execução do CI em `ubuntu-latest`; o WSL local não tem SDK .NET instalado.
+Correção: padrão de privacidade no motor `NonBacktracking` (tempo linear), limite de 1 s como proteção e falha fechada — contexto não verificado a tempo é tratado como sensível e não segue para a IA. A extração de palavras do fallback volta às palavras-chave se atingir o limite, sem propagar exceção ao editor. Testes novos: pior caso sob pressão de CPU/GC, incluindo `-----BEGIN ` repetido (quadrático no motor anterior), e fallback básico sobre o contexto inteiro; o de pior caso falha na implementação anterior. Windows: build com 0 avisos/erros, **416 testes aprovados, 0 falhas, 1 ignorado**, e a classe de autocomplete repetida 5 vezes sem falhas. TRX: `tests/EsilvaSoft.KapibaraStudio.UnitTests/TestResults/chuke_ESILVA-PC_2026-09-11_16_35_02_net10.0.trx`. Pendente: nova execução do CI em `ubuntu-latest`; o WSL local não tem SDK .NET instalado.
 
 
 ## 12/09/2026 — Syntax highlighting central
@@ -542,7 +542,7 @@ Entregue `IdentifierRepresentationMode` (`Standard`, `ObjectId`, `UuidV4`) acima
 
 Integração: Preferências com **Representação padrão de identificadores**, explicação dinâmica e prévia por modo, acima de **Representação UUID · Binary BSON** (comparação das quatro formas oculta em ObjectId); saída humana com `ObjectId("…")` em Resultados, visualização, Documentos, editor e cópias, revertida com bytes idênticos em campos BSON, importação e `EJSON.parse`; árvore e identidade com “· UUID …” somente em UUID v4; menu **Copiar _id**, **Copiar consulta por _id** e **Copiar UUID equivalente do _id**; **Gerar identificador** e **Interpretar** nas Ferramentas; `_id` de exemplo dos scripts CRUD por modo e representação da conexão; métrica “IDs <modo> · UUID <representação>”. Persistência aditiva `WorkspacePreferences.IdentifierMode`: sessões anteriores recebem Standard e mantêm a `UuidRepresentation`; valor desconhecido fica visível e não é sobrescrito. As expectativas de menu de `ResultPanelUiTests` e o teste do snippet de ferramentas foram atualizados porque a interface mudou intencionalmente (novos itens de cópia e comando renomeado).
 
-Build Windows `--no-restore -p:UsedAvaloniaProducts=` com **0 avisos e 0 erros**. Suíte completa: **504 aprovados, 1 falha, 1 ignorado** (integração MongoDB real sem binário). TRX: `tests/EsilvaSoft.SlopStudio.UnitTests/TestResults/identifier-mode-final.trx`. A falha é `HugeSingleLineKeepsFullTextAndMakesEveryRangeReachableWithoutShapingItAll` (syntax highlighting, `VisualLength` 2000017 para limite 4106); ela falha igualmente em um worktree limpo do commit `f8e7a16`, sem as alterações deste incremento, e não foi alterada. Gerados 72 PNGs (`identifier-results-*` e `identifier-preferences-<modo>-*`); amostras dos dois temas, tamanhos mínimo/máximo e escalas inspecionadas. A inspeção levou a encurtar a anotação da árvore (“· UUID equivalente …” → “· UUID …”), que era cortada pela coluna de valor de 720 px mesmo em 1920 px.
+Build Windows `--no-restore -p:UsedAvaloniaProducts=` com **0 avisos e 0 erros**. Suíte completa: **504 aprovados, 1 falha, 1 ignorado** (integração MongoDB real sem binário). TRX: `tests/EsilvaSoft.KapibaraStudio.UnitTests/TestResults/identifier-mode-final.trx`. A falha é `HugeSingleLineKeepsFullTextAndMakesEveryRangeReachableWithoutShapingItAll` (syntax highlighting, `VisualLength` 2000017 para limite 4106); ela falha igualmente em um worktree limpo do commit `f8e7a16`, sem as alterações deste incremento, e não foi alterada. Gerados 72 PNGs (`identifier-results-*` e `identifier-preferences-<modo>-*`); amostras dos dois temas, tamanhos mínimo/máximo e escalas inspecionadas. A inspeção levou a encurtar a anotação da árvore (“· UUID equivalente …” → “· UUID …”), que era cortada pela coluna de valor de 720 px mesmo em 1920 px.
 
 Pendências: corrigir a regressão do teste de linha longa do syntax highlighting (fora deste escopo), homologação com MongoDB/mongosh reais, Linux nativo, leitor de tela, área de transferência nativa e UUID v7.
 
@@ -553,7 +553,7 @@ Revisão implementada: [contrato, uso, distribuições CPU/WinML/CUDA e limites]
 
 ## Datas BSON — 13/09/2026
 
-Restore locked aprovado; build sem restore com -p:UsedAvaloniaProducts= aprovado, 0 avisos/erros. Suíte final: **530 aprovados, 1 falha preexistente** em HugeSingleLineKeepsFullTextAndMakesEveryRangeReachableWithoutShapingItAll (já registrada na entrega ONNX). TRX: tests/EsilvaSoft.SlopStudio.UnitTests/TestResults/date-format-final.trx.
+Restore locked aprovado; build sem restore com -p:UsedAvaloniaProducts= aprovado, 0 avisos/erros. Suíte final: **530 aprovados, 1 falha preexistente** em HugeSingleLineKeepsFullTextAndMakesEveryRangeReachableWithoutShapingItAll (já registrada na entrega ONNX). TRX: tests/EsilvaSoft.KapibaraStudio.UnitTests/TestResults/date-format-final.trx.
 
 Novos testes verificam bytes BSON com fixture do driver, UTC e offset -03:00, milissegundos negativos/zero, datas inválidas, limite Int64, strings preservadas, argumentos BSON enviados pelo Console e helper mongosh executado em Jint. Resultado visual confirmado na modal de documento: Date legível nos PNGs reais result-document-json-Light-760-1.png e result-document-json-Dark-760-1.png em ui-evidence do diretório de testes. Os testes existentes de resultados/cópia e representações também passaram.
 
@@ -561,7 +561,7 @@ Não homologado nesta alteração: MongoDB/mongosh real, Linux, leitor de tela e
 
 ## Polimento MVP — 13/09/2026
 
-Restore locked e build sem restore com `-p:UsedAvaloniaProducts=` aprovados, zero avisos/erros. Suíte `mvp-polish.trx`: **549 testes executados/aprovados, zero falhas**; 555 descobertos, seis casos explícitos de IA fora desta execução/MVP. Arquivo local: `tests/EsilvaSoft.SlopStudio.UnitTests/TestResults/mvp-polish.trx`.
+Restore locked e build sem restore com `-p:UsedAvaloniaProducts=` aprovados, zero avisos/erros. Suíte `mvp-polish.trx`: **549 testes executados/aprovados, zero falhas**; 555 descobertos, seis casos explícitos de IA fora desta execução/MVP. Arquivo local: `tests/EsilvaSoft.KapibaraStudio.UnitTests/TestResults/mvp-polish.trx`.
 
 Inclui dois testes de integração com MongoDB portátil 8.0.30 em Windows, paginação/CRUD protegido/conflito/exportação, 18 PNGs da barra concorrente nos temas/tamanhos/escalas declarados, undo real de formatação e correção do teste de linha com dois milhões de caracteres antes falho. Nenhuma asserção de limite visual foi enfraquecida. Startup Headless quente: 9 ms na última execução, 464 ms em execução anterior isolada; cenário de duas páginas de 100 em 5.000 documentos com edição/conflito/exportação: 55 ms (anterior 84 ms). Esses números são observações locais, não benchmark de produção.
 
@@ -591,7 +591,7 @@ GPU/DirectML, Linux e latência no editor desta máquina (a do pipeline externo 
 ## IA local multimodelo — 13/09/2026
 
 Supersede a entrada anterior quanto à descoberta: `LocalModelCatalog.KnownWindowsModels` e `PreferredModelPath` foram removidos. Modelos passam a
-ser subpastas de um diretório configurável, com `slopstudio-model.json` opcional, validade `Valid`/`Invalid`/`Unsupported`/`MissingFiles` e
+ser subpastas de um diretório configurável, com `kapibarastudio-model.json` opcional, validade `Valid`/`Invalid`/`Unsupported`/`MissingFiles` e
 adapters por arquitetura. `ILocalAiModelService` centraliza descoberta, carga sob demanda desacoplada do editor, troca com descarga prévia, fila com
 prioridade, capacidades, barra de atividades e teste completo; autocomplete e chat o reutilizam. `OnnxHardwareProbe` usa `GetEpDevices`; Automático
 faz NPU → GPU → CPU com fallback, escolha explícita não faz fallback. Preferências aditivas (`ModelDirectory`, `SelectedModel`, `ChatModel`,
@@ -635,7 +635,7 @@ Não homologado: abertura real da pasta pelo gerenciador de arquivos (Windows/Li
 
 ## Pacotes SlopCoder-Mongo DirectML homologados em GPU — 14/09/2026
 
-Sem alteração de código. O pipeline externo produziu pacotes `-ONNX-DML-FP16` e `-ONNX-DML-INT4` (1.5B-full e 0.5B) com `slopstudio-model.json`
+Sem alteração de código. O pipeline externo produziu pacotes `-ONNX-DML-FP16` e `-ONNX-DML-INT4` (1.5B-full e 0.5B) com `kapibarastudio-model.json`
 (`hardware` `["gpu"]`); os pacotes CPU passaram a declarar `["cpu"]`. Com o build Debug WinML existente (sem rebuild) e `SLOP_QWEN_MODEL`
 apontando para cada pacote: `RealModelTestRunsOnTheRequestedHardware(Gpu)` **aprovado** em DirectML para 1.5B-full DML-FP16, 1.5B-full DML-INT4
 e 0.5B DML-FP16; `(Auto)` aprovado em DirectML com o 1.5B-full DML-FP16 e direto em CPU com o 1.5B-full INT8. Isso resolve, para esses pacotes,
@@ -650,7 +650,7 @@ DirectML no mesmo processo, download pelo **Baixar modelo**, NPU e CUDA.
 
 ## Núcleos isolados de autocomplete e IA local — 17/09/2026
 
-Reestruturação puramente física, sem mudança de regra de negócio: extração de `EsilvaSoft.SlopStudio.Autocomplete.Core`, `EsilvaSoft.SlopStudio.LocalAi.Core` e `EsilvaSoft.SlopStudio.Infrastructure.LocalAi` a partir de `Core`/`Application`/`Infrastructure`, isolando fisicamente o núcleo de autocomplete determinístico e o de IA/ML local do domínio MongoDB/LiteDB/UI. `Infrastructure` mantém MongoDB, LiteDB, console Jint e atualização de aplicativo; `Infrastructure.LocalAi` leva os adaptadores ONNX e os pacotes `Microsoft.ML.OnnxRuntime*`. O composition root do Desktop passa a chamar `AddSlopStudioInfrastructure` e `AddSlopStudioLocalAiInfrastructure`. Namespaces dos tipos movidos acompanham o novo assembly. Detalhes, grafo de dependências final (nove projetos sem ciclo) e os seis desvios aceitos em relação ao desenho original: [ADR-040](10-decisoes-arquiteturais.md).
+Reestruturação puramente física, sem mudança de regra de negócio: extração de `EsilvaSoft.KapibaraStudio.Autocomplete.Core`, `EsilvaSoft.KapibaraStudio.LocalAi.Core` e `EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi` a partir de `Core`/`Application`/`Infrastructure`, isolando fisicamente o núcleo de autocomplete determinístico e o de IA/ML local do domínio MongoDB/LiteDB/UI. `Infrastructure` mantém MongoDB, LiteDB, console Jint e atualização de aplicativo; `Infrastructure.LocalAi` leva os adaptadores ONNX e os pacotes `Microsoft.ML.OnnxRuntime*`. O composition root do Desktop passa a chamar `AddKapibaraStudioInfrastructure` e `AddKapibaraStudioLocalAiInfrastructure`. Namespaces dos tipos movidos acompanham o novo assembly. Detalhes, grafo de dependências final (nove projetos sem ciclo) e os seis desvios aceitos em relação ao desenho original: [ADR-040](10-decisoes-arquiteturais.md).
 
 Evidência: build e suíte completa verdes, **1127/1127 testes aprovados**, sem regressão de performance observada. Nenhum requisito muda de status por esta entrada: é reorganização estrutural de projetos existentes, não nova funcionalidade — os status ✅/🚧/📋/🧪 do catálogo funcional permanecem os mesmos de antes da extração.
 

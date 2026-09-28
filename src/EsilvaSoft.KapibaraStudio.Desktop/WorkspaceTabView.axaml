@@ -1,0 +1,246 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui" xmlns:syntax="using:EsilvaSoft.KapibaraStudio.Desktop.SyntaxHighlighting" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:EsilvaSoft.KapibaraStudio.Desktop" xmlns:core="using:EsilvaSoft.KapibaraStudio.Core" xmlns:vm="using:EsilvaSoft.KapibaraStudio.Desktop.ViewModels" xmlns:completion="using:EsilvaSoft.KapibaraStudio.Autocomplete.Core.Completion" x:Class="EsilvaSoft.KapibaraStudio.Desktop.WorkspaceTabView" x:DataType="vm:WorkspaceTabViewModel">
+  <Grid RowDefinitions="Auto,*">
+    <Border Padding="12,6" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" Background="{DynamicResource SecondaryBackground}">
+      <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="4">
+        <TextBlock Text="{Binding Context}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Context}" />
+        <Button Grid.Column="1" Grid.RowSpan="2" Click="ChooseTarget" IsEnabled="{Binding CanEditContext}" AutomationProperties.Name="{local:Loc Key=target}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <Path Classes="command-icon" Data="{StaticResource TargetIcon}" />
+            <TextBlock Text="{local:Loc Key=target}" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
+        <TextBlock Grid.Row="1" Text="{Binding AccessHint}" Classes="metadata" />
+      </Grid>
+    </Border>
+    <Grid x:Name="SplitGrid" Grid.Row="1">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="3*" MinHeight="180" />
+        <RowDefinition Height="5" />
+        <RowDefinition Height="2*" MinHeight="140" />
+      </Grid.RowDefinitions>
+      <Grid RowDefinitions="Auto,*,Auto" Margin="8,4,8,0">
+        <WrapPanel Orientation="Horizontal" Margin="0,0,0,4">
+            <Button Margin="0,0,6,4" Classes="primary" Command="{Binding ExecuteCommand}" ToolTip.Tip="{local:Loc Key=executeFullTip}" AutomationProperties.Name="{local:Loc Key=execute}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Path Classes="command-icon" Data="{StaticResource PlayIcon}" />
+              <TextBlock Text="{local:Loc Key=execute}" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+          <Button Margin="0,0,6,4" Command="{Binding CancelCommand}" IsEnabled="{Binding IsRunning}" ToolTip.Tip="{local:Loc Key=cancelRunTip}" AutomationProperties.Name="{local:Loc Key=cancel}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Path Classes="command-icon" Data="{StaticResource StopIcon}" />
+              <TextBlock Text="{local:Loc Key=cancel}" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+          <Button Margin="0,0,6,4" AutomationProperties.Name="{local:Loc Key=options}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Path Classes="command-icon" Data="{StaticResource CodeIcon}" />
+              <TextBlock Text="{local:Loc Key=options}" VerticalAlignment="Center" />
+            </StackPanel>
+            <Button.Flyout>
+              <Flyout>
+                <ScrollViewer MaxHeight="340" Width="480" VerticalScrollBarVisibility="Auto">
+                  <StackPanel Spacing="6" Margin="8" IsEnabled="{Binding CanEditContext}">
+                    <Button x:Name="FormatCodeButton" Content="{local:Loc Key=formatCode}" Click="FormatCode" ToolTip.Tip="{local:Loc Key=formatCodeTip}" />
+                    <Button x:Name="ValidateCodeButton" Content="{local:Loc Key=validateSyntax}" Click="ValidateCode" ToolTip.Tip="{local:Loc Key=validateSyntaxTip}" />
+                    <Button Content="{local:Loc Key=analyzePipeline}" Command="{Binding ExplainAggregationCommand}" IsVisible="{Binding IsAggregation}" ToolTip.Tip="{local:Loc Key=analyzePipelineTip}" />
+                    <Grid IsVisible="{Binding IsScript}" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8">
+                      <TextBlock Text="{local:Loc Key=inputExtendedJson}" />
+                      <syntax:MongoTextEditor syntax:SyntaxSettings.Language="Json" Grid.Row="1" Text="{Binding InputJson}" Classes="code syntax" AutomationProperties.Name="{local:Loc Key=inputExtendedJson}" />
+                      <CheckBox Grid.Row="1" Grid.Column="1" Content="{local:Loc Key=persistInput}" IsChecked="{Binding PersistInput}" />
+                    </Grid>
+                    <Grid IsVisible="{Binding IsQuery}" RowDefinitions="Auto,Auto,Auto,Auto" ColumnDefinitions="*,*" ColumnSpacing="8" RowSpacing="4">
+                      <TextBlock Text="{local:Loc Key=projection}" />
+                      <TextBlock Grid.Column="1" Text="{local:Loc Key=sorting}" />
+                      <syntax:MongoTextEditor Classes="syntax" syntax:SyntaxSettings.Language="Json" Grid.Row="1" Text="{Binding Projection}" />
+                      <syntax:MongoTextEditor Classes="syntax" syntax:SyntaxSettings.Language="Json" Grid.Row="1" Grid.Column="1" Text="{Binding Sort}" />
+                      <TextBlock Grid.Row="2" Text="{local:Loc Key=limit}" />
+                      <TextBlock Grid.Row="2" Grid.Column="1" Text="{local:Loc Key=skipDocuments}" />
+                      <NumericUpDown Grid.Row="3" Value="{Binding Limit}" Minimum="1" Maximum="1000" />
+                      <NumericUpDown Grid.Row="3" Grid.Column="1" Value="{Binding Skip}" Minimum="0" Maximum="1000000" />
+                    </Grid>
+                    <Grid IsVisible="{Binding IsQuery}" ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="8" RowSpacing="4">
+                      <TextBlock Text="{local:Loc Key=hintBson}" />
+                      <TextBlock Grid.Column="1" Text="{local:Loc Key=collationBson}" />
+                      <syntax:MongoTextEditor Classes="syntax" syntax:SyntaxSettings.Language="Json" Grid.Row="1" Text="{Binding Hint}" />
+                      <syntax:MongoTextEditor Classes="syntax" syntax:SyntaxSettings.Language="Json" Grid.Row="1" Grid.Column="1" Text="{Binding Collation}" />
+                      <TextBlock Grid.Row="2" Text="{local:Loc Key=batchSize}" />
+                      <TextBlock Grid.Row="2" Grid.Column="1" Text="{local:Loc Key=maxTimeMs}" />
+                      <NumericUpDown Grid.Row="3" Value="{Binding BatchSize}" Minimum="1" Maximum="10000" />
+                      <NumericUpDown Grid.Row="3" Grid.Column="1" Value="{Binding MaxTimeMs}" Minimum="1" Maximum="600000" />
+                      <TextBlock Grid.Row="4" Text="{local:Loc Key=queryComment}" />
+                      <TextBox Grid.Row="5" Grid.ColumnSpan="2" Text="{Binding Comment}" />
+                    </Grid>
+                    <WrapPanel>
+                      <Button x:Name="ShowTraditionalCompletionButton" Content="{local:Loc Key=suggestions}" Click="ShowTraditionalCompletionList" />
+                      <Button Content="{local:Loc Key=firstDocuments}" Command="{Binding FirstDocumentsCommand}" IsVisible="{Binding IsQuery}" />
+                    </WrapPanel>
+                    <StackPanel IsVisible="{Binding IsConsole}" Spacing="4">
+                      <TextBlock Text="{local:Loc Key=consoleFilterNote}" TextWrapping="Wrap"/>
+                      <TextBlock Text="{local:Loc Key=consoleShortcuts}" TextWrapping="Wrap"/>
+                      <TextBlock Text="{local:Loc Key=cursorSafetyLimit}"/>
+                      <NumericUpDown Value="{Binding Limit}" Minimum="1" Maximum="1000"/>
+                      <TextBlock Text="{local:Loc Key=executionMaxTime}"/>
+                      <NumericUpDown Value="{Binding MaxTimeMs}" Minimum="1" Maximum="300000"/>
+                      <CheckBox Content="{local:Loc Key=persistConsoleHistory}" IsChecked="{Binding HistoryEnabled}"/>
+                    </StackPanel>
+                  </StackPanel>
+                </ScrollViewer>
+              </Flyout>
+            </Button.Flyout>
+          </Button>
+          <Button Margin="0,0,6,4" Click="OpenHistory" AutomationProperties.Name="{local:Loc Key=history}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Path Classes="command-icon" Data="{StaticResource HistoryIcon}" />
+              <TextBlock Text="{local:Loc Key=history}" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+        </WrapPanel>
+        <Grid Grid.Row="1" ClipToBounds="True">
+          <syntax:MongoTextEditor x:Name="CodeEditor" Text="{Binding Text}" Classes="code syntax" FontSize="{Binding CodeFontSize}" LineHeight="{Binding CodeLineHeight}" AcceptsReturn="True" AcceptsTab="True" TextWrapping="NoWrap" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" AutomationProperties.Name="{local:Loc Key=scriptEditor}" />
+          <Canvas x:Name="GhostLayer" IsHitTestVisible="False" ClipToBounds="True">
+            <Border x:Name="CompletionPanel" IsVisible="False" Background="{Binding #CodeEditor.Background}" ClipToBounds="True">
+              <local:InlineCompletionTextBlock x:Name="CompletionText" VerticalAlignment="Top" FontFamily="{StaticResource CodeFont}" FontSize="{Binding CodeFontSize}" LineHeight="{Binding CodeLineHeight}" TextWrapping="NoWrap" Foreground="{DynamicResource Syntax.GhostText}" AutomationProperties.Name="{local:Loc Key=suggestion}"/>
+            </Border>
+            <Border x:Name="GhostCaret" IsVisible="{Binding #CompletionPanel.IsVisible}" Width="1" Height="{Binding CodeLineHeight}" Background="{DynamicResource PrimaryText}"/>
+          </Canvas>
+          <Canvas x:Name="TraditionalCompletionLayer" ClipToBounds="True">
+            <Border x:Name="TraditionalCompletionPanel" IsVisible="False" Width="400" MaxHeight="180" Background="{DynamicResource PanelBackground}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="4" BoxShadow="0 4 12 0 #40000000" AutomationProperties.Name="{local:Loc Key=contextualSuggestions}">
+              <Grid RowDefinitions="Auto,*,Auto">
+                <TextBlock x:Name="TraditionalCompletionStatus" Classes="metadata" Margin="8,4" TextTrimming="CharacterEllipsis" />
+                <ListBox x:Name="TraditionalCompletionList" Grid.Row="1" MaxHeight="80" SelectionChanged="TraditionalCompletionSelectionChanged" DoubleTapped="AcceptTraditionalCompletion">
+                  <ListBox.ItemsPanel>
+                    <ItemsPanelTemplate>
+                      <VirtualizingStackPanel />
+                    </ItemsPanelTemplate>
+                  </ListBox.ItemsPanel>
+                  <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="completion:CompletionItem">
+                      <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" Margin="6,3" AutomationProperties.Name="{Binding AccessibleName}">
+                        <TextBlock Grid.Column="0" Text="{Binding Kind}" Classes="metadata" />
+                        <TextBlock Grid.Column="1" Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Grid.Column="2" Text="{Binding LabelDetail}" Classes="metadata" TextTrimming="CharacterEllipsis" MaxWidth="130" />
+                      </Grid>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+                <TextBlock x:Name="TraditionalCompletionDocumentation" Grid.Row="2" Classes="metadata" Margin="8,6,8,4" MaxHeight="54" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" AutomationProperties.Name="{local:Loc Key=selectedSuggestionDetails}" />
+              </Grid>
+            </Border>
+          </Canvas>
+          <Canvas x:Name="AiCompletionLayer" ClipToBounds="True">
+            <Border x:Name="AiCompletionPanel" IsVisible="False" Width="400" MaxHeight="180" Background="{DynamicResource PanelBackground}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="4" BoxShadow="0 4 12 0 #40000000" AutomationProperties.Name="{local:Loc Key=aiSuggestion}">
+              <Grid RowDefinitions="Auto,*">
+                <StackPanel Orientation="Horizontal" Spacing="8" Margin="8,4">
+                  <Border x:Name="AiCompletionIndicator" Width="8" Height="8" CornerRadius="4" VerticalAlignment="Center" Background="{DynamicResource AccentBrush}" AutomationProperties.Name="{local:Loc Key=generating}" />
+                  <TextBlock x:Name="AiCompletionStatus" Classes="metadata" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+                <ScrollViewer Grid.Row="1" IsVisible="{Binding #AiCompletionPreview.IsVisible}" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                  <TextBlock x:Name="AiCompletionPreview" FontFamily="{StaticResource CodeFont}" FontSize="{Binding CodeFontSize}" LineHeight="{Binding CodeLineHeight}" Margin="8,0,8,4" TextWrapping="NoWrap" Foreground="{DynamicResource Syntax.GhostText}" AutomationProperties.Name="{local:Loc Key=aiPreview}" />
+                </ScrollViewer>
+              </Grid>
+            </Border>
+          </Canvas>
+        </Grid>
+      </Grid>
+      <GridSplitter Grid.Row="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" DragCompleted="SplitResized" />
+      <Grid Grid.Row="2" RowDefinitions="Auto,*" Margin="8,0,8,8">
+        <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto" ColumnSpacing="6" Margin="0,4">
+            <StackPanel x:Name="ResultViewChoice" Orientation="Horizontal" VerticalAlignment="Center" AutomationProperties.Name="{local:Loc Key=resultVisualization}">
+            <RadioButton x:Name="JsonViewButton" Classes="segment" Content="JSON" CornerRadius="4,0,0,4" IsChecked="{Binding IsJsonResultView}" ToolTip.Tip="{local:Loc Key=formattedJsonResults}" AutomationProperties.Name="{local:Loc Key=formattedJsonResults}" />
+            <RadioButton x:Name="TreeViewButton" Classes="segment" Content="{local:Loc Key=treeResults}" CornerRadius="0,4,4,0" Margin="-1,0,0,0" IsChecked="{Binding IsTreeResultView}" ToolTip.Tip="{local:Loc Key=treeResults}" AutomationProperties.Name="{local:Loc Key=treeResults}" />
+          </StackPanel>
+          <TextBlock Grid.Column="1" Text="{Binding Metrics}" Classes="metadata" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Metrics}" />
+          <Button Grid.Column="2" x:Name="CopyResultJsonButton" Content="{local:Loc Key=copyJsonDocument}" Click="CopySelectedResultJson" IsEnabled="{Binding HasSelectedDocument}" ToolTip.Tip="{Binding CopyJsonHint}" ToolTip.ShowOnDisabled="True" AutomationProperties.Name="{local:Loc Key=copyJsonDocument}" />
+          <Button Grid.Column="3" Content="{local:Loc Key=previous}" Command="{Binding PreviousPageCommand}" IsVisible="{Binding IsQuery}" IsEnabled="{Binding CanExecute}" />
+          <Button Grid.Column="4" Content="{local:Loc Key=next}" Command="{Binding NextPageCommand}" IsVisible="{Binding IsQuery}" IsEnabled="{Binding CanExecute}" />
+          <Button Grid.Column="5" Click="ExportResults" IsEnabled="{Binding CanExport}" ToolTip.Tip="{local:Loc Key=exportPageTip}" AutomationProperties.Name="{local:Loc Key=exportPage}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Path Classes="command-icon" Data="{StaticResource ExportIcon}" />
+              <TextBlock Text="{local:Loc Key=exportPage}" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+        </Grid>
+        <TabControl Grid.Row="1" SelectedIndex="{Binding ResultTabIndex}">
+          <TabItem AutomationProperties.Name="{local:Loc Key=results}">
+            <TabItem.Header>
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <Path Classes="command-icon" Data="{StaticResource ResultsIcon}" />
+                <TextBlock Text="{local:Loc Key=results}" />
+              </StackPanel>
+            </TabItem.Header>
+            <Grid>
+              <syntax:MongoTextEditor syntax:SyntaxSettings.Language="Json" x:Name="ResultJson" IsVisible="{Binding IsJsonResultView}" Text="{Binding Results}" Classes="code syntax" FontSize="{Binding CodeFontSize}" LineHeight="{Binding CodeLineHeight}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" ContextFlyout="{x:Null}" AutomationProperties.Name="{local:Loc Key=formattedJsonResults}" />
+              <Grid IsVisible="{Binding IsTreeResultView}">
+                <TreeView x:Name="ResultTree" Classes="results" ItemsSource="{Binding ResultTree}" SelectedItem="{Binding SelectedResultNode}" AutomationProperties.Name="{local:Loc Key=treeResults}">
+                  <TreeView.Styles>
+                    <Style Selector="TreeViewItem" x:DataType="vm:ResultNodeViewModel">
+                      <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                      <Setter Property="AutomationProperties.Name" Value="{Binding AutomationName}" />
+                    </Style>
+                  </TreeView.Styles>
+                  <TreeView.ItemTemplate>
+                    <TreeDataTemplate x:DataType="vm:ResultNodeViewModel" ItemsSource="{Binding Children}">
+                      <StackPanel Orientation="Horizontal" Spacing="8" ToolTip.Tip="{Binding ToolTip}">
+                        <TextBlock Text="{Binding Name}" Classes.heading="{Binding IsHeading}" Classes.notice="{Binding IsNotice}" VerticalAlignment="Center" />
+                        <Border Classes="type-chip" IsVisible="{Binding HasType}">
+                          <TextBlock Text="{Binding TypeName}" Classes="metadata" />
+                        </Border>
+                        <syntax:SyntaxTextBlock Text="{Binding Value}" Classes="result-value" Classes.notice="{Binding IsNotice}" FontSize="{Binding $parent[TreeView].((vm:WorkspaceTabViewModel)DataContext).CodeFontSize}" MaxWidth="720" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                      </StackPanel>
+                    </TreeDataTemplate>
+                  </TreeView.ItemTemplate>
+                </TreeView>
+                <TextBlock Text="{Binding ResultTreeStatus}" IsVisible="{Binding !HasResultTree}" Classes="muted" Margin="12,8" TextWrapping="Wrap" />
+              </Grid>
+            </Grid>
+          </TabItem>
+          <TabItem AutomationProperties.Name="{local:Loc Key=messages}">
+            <TabItem.Header>
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <Path Classes="command-icon" Data="{StaticResource MessageIcon}" />
+                <TextBlock Text="{local:Loc Key=messages}" />
+              </StackPanel>
+            </TabItem.Header>
+            <TextBox Text="{Binding Messages}" Classes="code" FontSize="{Binding CodeFontSize}" LineHeight="{Binding CodeLineHeight}" IsReadOnly="True" AcceptsReturn="True" ScrollViewer.VerticalScrollBarVisibility="Auto" AutomationProperties.Name="{local:Loc Key=executionMessages}" />
+          </TabItem>
+          <TabItem AutomationProperties.Name="{local:Loc Key=errors}">
+            <TabItem.Header>
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <Path Classes="command-icon" Data="{StaticResource WarningIcon}" />
+                <TextBlock Text="{local:Loc Key=errors}" />
+              </StackPanel>
+            </TabItem.Header>
+            <TextBox Text="{Binding Errors}" Classes="code" FontSize="{Binding CodeFontSize}" LineHeight="{Binding CodeLineHeight}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" ScrollViewer.VerticalScrollBarVisibility="Auto" AutomationProperties.Name="{local:Loc Key=executionErrors}" />
+          </TabItem>
+          <TabItem Header="{local:Loc Key=structuredDocuments}" AutomationProperties.Name="{local:Loc Key=structuredDocumentsAccessible}">
+            <Grid RowDefinitions="Auto,*" RowSpacing="4">
+              <StackPanel>
+              <ComboBox ItemsSource="{Binding LocalizedConsoleResults}" SelectedItem="{Binding SelectedLocalizedConsoleResult}" IsVisible="{Binding IsConsole}" AutomationProperties.Name="{local:Loc Key=executionResult}">
+                <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:LocalizedConsoleResultItem"><TextBlock Text="{Binding DisplayText}"/></DataTemplate></ComboBox.ItemTemplate>
+              </ComboBox>
+              <WrapPanel>
+                <Button Content="{local:Loc Key=copy}" Click="CopySelectedDocument"/>
+                <Button Content="{local:Loc Key=openInEditor}" Click="OpenSelectedDocument"/>
+                <Button Content="{local:Loc Key=insertEllipsis}" Click="MutateDocument" Tag="Inserir"/>
+                <Button Content="{local:Loc Key=editEllipsis}" Click="MutateDocument" Tag="Editar"/>
+                <Button Content="{local:Loc Key=deleteEllipsis}" Click="MutateDocument" Tag="Excluir" Classes="danger"/>
+                <Button Content="{local:Loc Key=refreshPage}" Command="{Binding ExecuteCommand}" IsVisible="{Binding !IsConsole}"/>
+                <Button Content="{local:Loc Key=runScript}" Command="{Binding ExecuteCommand}" IsVisible="{Binding IsConsole}" ToolTip.Tip="{local:Loc Key=runScriptTip}"/>
+              </WrapPanel>
+              </StackPanel>
+              <Grid Grid.Row="1" ColumnDefinitions="150,*" ColumnSpacing="8">
+                <ListBox ItemsSource="{Binding ResultDocuments}" SelectedItem="{Binding SelectedDocument}" AutomationProperties.Name="{local:Loc Key=documentsOnPage}">
+                  <ListBox.ItemTemplate><DataTemplate x:DataType="vm:ResultDocumentViewModel"><TextBlock Text="{Binding Label}"/></DataTemplate></ListBox.ItemTemplate>
+                </ListBox>
+                <TreeView Grid.Column="1" ItemsSource="{Binding SelectedDocument.Fields}" AutomationProperties.Name="{local:Loc Key=documentFields}">
+                  <TreeView.ItemTemplate><TreeDataTemplate x:DataType="vm:ResultFieldViewModel" ItemsSource="{Binding Children}"><syntax:SyntaxTextBlock Text="{Binding Label}" MaxWidth="720" ToolTip.Tip="{Binding Json}" TextTrimming="CharacterEllipsis"/></TreeDataTemplate></TreeView.ItemTemplate>
+                </TreeView>
+              </Grid>
+            </Grid>
+          </TabItem>
+        </TabControl>
+      </Grid>
+    </Grid>
+  </Grid>
+</UserControl>

@@ -6,11 +6,11 @@ O aceite atual cobre contratos, análise incremental, opt-outs, geração/retent
 
 ## Base real e pontos de integração
 
-[StructuredResultSet.cs](../../src/EsilvaSoft.SlopStudio.Core/StructuredResultSet.cs), [StructuredResultDocument.cs](../../src/EsilvaSoft.SlopStudio.Core/StructuredResultDocument.cs) e [ResultOrigin.cs](../../src/EsilvaSoft.SlopStudio.Core/ResultOrigin.cs) já oferecem `StructuredResultSet`, `ResultOrigin` (ProfileId, perfil capturado, banco/coleção), Method, Completeness, IsTruncated e documentos EJSON. Console classifica find/findOne como Complete ou PartialProjection; aggregate como Derived. Reutilizar esses contratos, sem deduzir namespace da seleção atual do Explorer.
+[StructuredResultSet.cs](../../src/EsilvaSoft.KapibaraStudio.Core/StructuredResultSet.cs), [StructuredResultDocument.cs](../../src/EsilvaSoft.KapibaraStudio.Core/StructuredResultDocument.cs) e [ResultOrigin.cs](../../src/EsilvaSoft.KapibaraStudio.Core/ResultOrigin.cs) já oferecem `StructuredResultSet`, `ResultOrigin` (ProfileId, perfil capturado, banco/coleção), Method, Completeness, IsTruncated e documentos EJSON. Console classifica find/findOne como Complete ou PartialProjection; aggregate como Derived. Reutilizar esses contratos, sem deduzir namespace da seleção atual do Explorer.
 
-[CollectionSchema.cs](../../src/EsilvaSoft.SlopStudio.Autocomplete.Core/CollectionSchema.cs) já conhece nomes, tipos BSON, arrays, evidência e ocorrência em amostras, mas não FirstSeen/LastSeen persistentes, deltas duráveis ou aprendizado por execução. Sua Merge atual reconstrói por união; não usá-la para somar todo o histórico a cada consulta.
+[CollectionSchema.cs](../../src/EsilvaSoft.KapibaraStudio.Autocomplete.Core/CollectionSchema.cs) já conhece nomes, tipos BSON, arrays, evidência e ocorrência em amostras, mas não FirstSeen/LastSeen persistentes, deltas duráveis ou aprendizado por execução. Sua Merge atual reconstrói por união; não usá-la para somar todo o histórico a cada consulta.
 
-[LiteDbConnectionProfileRepository](../../src/EsilvaSoft.SlopStudio.Infrastructure/LiteDbConnectionProfileRepository.cs) é proprietário único do arquivo e possui caminho assíncrono com sincronização. Estender esse proprietário (preferencialmente partial com arquivo específico), registrando `ILearnedSchemaRepository` na **mesma instância**. Não criar `new LiteDatabase`, segundo arquivo de sessão ou dependência comercial.
+[LiteDbConnectionProfileRepository](../../src/EsilvaSoft.KapibaraStudio.Infrastructure/LiteDbConnectionProfileRepository.cs) é proprietário único do arquivo e possui caminho assíncrono com sincronização. Estender esse proprietário (preferencialmente partial com arquivo específico), registrando `ILearnedSchemaRepository` na **mesma instância**. Não criar `new LiteDatabase`, segundo arquivo de sessão ou dependência comercial.
 
 ## Fluxo e isolamento
 

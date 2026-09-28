@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using NUnit.Framework;
 
-namespace EsilvaSoft.SlopStudio.Spikes.McpTests;
+namespace EsilvaSoft.KapibaraStudio.Spikes.McpTests;
 
 [TestFixture]
 public sealed class IndependentClientTests

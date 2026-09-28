@@ -1,0 +1,232 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:syntax="using:EsilvaSoft.KapibaraStudio.Desktop.SyntaxHighlighting" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:EsilvaSoft.KapibaraStudio.Desktop.ViewModels" xmlns:local="using:EsilvaSoft.KapibaraStudio.Desktop" x:Class="EsilvaSoft.KapibaraStudio.Desktop.MainWindow" x:DataType="vm:WorkspaceViewModel" Title="{x:Static local:Branding.ProductName}" Width="1440" Height="900" MinWidth="960" MinHeight="620">
+  <Grid RowDefinitions="40,*,36">
+    <Border Background="{DynamicResource PanelBackground}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" Padding="8,3">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto,Auto,Auto,Auto" ColumnSpacing="4">
+        <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,0,12,0" VerticalAlignment="Center" AutomationProperties.Name="{x:Static local:Branding.ProductName}">
+          <Image Source="{StaticResource BrandSymbol}" Width="32" Height="32" />
+          <TextBlock Text="{x:Static local:Branding.ProductName}" FontWeight="Bold" FontSize="14" VerticalAlignment="Center" />
+        </StackPanel>
+        <Button Grid.Column="1" x:Name="ConnectionsButton" Click="OpenConnections" ToolTip.Tip="{Binding Localization.OpenManageConnections}" AutomationProperties.Name="{Binding Localization.Connections}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <Path Classes="command-icon" Data="{StaticResource DatabaseIcon}" />
+            <TextBlock Text="{Binding Localization.Connections}" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
+        <Button Grid.Column="2" Command="{Binding NewTabCommand}" ToolTip.Tip="{Binding Localization.NewScriptShortcut}" AutomationProperties.Name="{Binding Localization.NewTab}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <Path Classes="command-icon" Data="{StaticResource PlusIcon}" />
+            <TextBlock Text="{Binding Localization.NewTab}" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
+        <Button Grid.Column="3" Click="OpenFile" ToolTip.Tip="{Binding Localization.OpenShortcut}" AutomationProperties.Name="{Binding Localization.Open}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <Path Classes="command-icon" Data="{StaticResource OpenIcon}" />
+            <TextBlock Text="{Binding Localization.Open}" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
+        <Button Grid.Column="4" Click="SaveFile" IsEnabled="{Binding HasActiveTab}" ToolTip.Tip="{Binding Localization.SaveShortcut}" AutomationProperties.Name="{Binding Localization.Save}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <Path Classes="command-icon" Data="{StaticResource SaveIcon}" />
+            <TextBlock Text="{Binding Localization.Save}" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
+        <Button Grid.Column="5" x:Name="UpdateButton" Classes="primary" Click="UpdateButtonClick" IsVisible="{Binding Updates.IsVisible}" ToolTip.Tip="{Binding Updates.ToolTip}" AutomationProperties.Name="{local:Loc Key=refresh}" AutomationProperties.HelpText="{Binding Updates.ToolTip}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <Path Classes="command-icon" Data="{StaticResource DownloadIcon}" />
+            <TextBlock Classes="command-label" Text="{Binding Updates.Label}" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
+        <Button Grid.Column="6" x:Name="AgentPanelButton" Command="{Binding ToggleAgentPanelCommand}" ToolTip.Tip="{local:Loc Key=agentPanelToggleHint}" AutomationProperties.Name="{local:Loc Key=agentPanelToggle}" AutomationProperties.HelpText="{local:Loc Key=agentPanelToggleHint}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <Path Classes="command-icon" Data="{StaticResource MessageIcon}" />
+            <TextBlock Classes="command-label" Text="{local:Loc Key=agentPanelToggle}" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
+        <ComboBox Grid.Column="7" ItemsSource="{Binding Languages}" SelectedValue="{Binding Language}" SelectedValueBinding="{Binding Code}" Width="132" AutomationProperties.Name="{Binding Localization.LanguageLabel}" ToolTip.Tip="{Binding Localization.InterfaceLanguage}" />
+        <ComboBox Grid.Column="8" ItemsSource="{Binding Themes}" SelectedItem="{Binding Theme}" Width="100" AutomationProperties.Name="{Binding Localization.ThemeLabel}" />
+        <Button Grid.Column="9" Content="···" ToolTip.Tip="{Binding Localization.MoreActions}" AutomationProperties.Name="{Binding Localization.MoreActions}">
+          <Button.Flyout>
+            <MenuFlyout>
+              <MenuItem Header="Abrir pasta como workspace" Click="OpenFolder" />
+              <MenuItem Header="{Binding Localization.SaveAs}" Click="SaveAs" />
+              <MenuItem Header="{Binding Localization.Preferences}" Click="OpenPreferences" />
+            </MenuFlyout>
+          </Button.Flyout>
+        </Button>
+      </Grid>
+    </Border>
+    <Grid x:Name="WorkspaceGrid" Grid.Row="1">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="40" />
+        <ColumnDefinition Width="260" MinWidth="200" MaxWidth="420" />
+        <ColumnDefinition Width="5" />
+        <ColumnDefinition Width="*" MinWidth="500" />
+        <ColumnDefinition Width="0" />
+        <ColumnDefinition Width="0" />
+      </Grid.ColumnDefinitions>
+      <Border Grid.Column="0" Background="{DynamicResource SecondaryBackground}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,1,0">
+        <StackPanel Spacing="4" Margin="4,8">
+          <RadioButton GroupName="Sidebar" Classes="segment" IsChecked="{Binding IsConnectionsSidebar, Mode=OneWay}" Click="ShowConnectionsPanel" ToolTip.Tip="Conexões" AutomationProperties.Name="Conexões" Padding="5" MinWidth="28"><Path Classes="command-icon" Data="{StaticResource DatabaseIcon}" /></RadioButton>
+          <RadioButton GroupName="Sidebar" Classes="segment" IsChecked="{Binding IsFilesSidebar, Mode=OneWay}" Click="ShowFilesPanel" ToolTip.Tip="Arquivos" AutomationProperties.Name="Arquivos" Padding="5" MinWidth="28"><Path Classes="command-icon" Data="{StaticResource OpenIcon}" /></RadioButton>
+        </StackPanel>
+      </Border>
+      <Border x:Name="ConnectionsPanel" Grid.Column="1" Background="{DynamicResource SecondaryBackground}" IsVisible="{Binding IsConnectionsSidebar}">
+        <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="8" RowSpacing="8">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Text="{Binding Localization.Databases}" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <Button Grid.Column="1" Command="{Binding RefreshExplorerCommand}" ToolTip.Tip="{Binding Localization.RefreshSelectedNode}" AutomationProperties.Name="{Binding Localization.RefreshDatabases}">
+              <Path Classes="command-icon" Data="{StaticResource RefreshIcon}" />
+            </Button>
+          </Grid>
+          <TextBox Grid.Row="1" Text="{Binding Search}" PlaceholderText="{Binding Localization.SearchLoadedItems}" AutomationProperties.Name="{Binding Localization.SearchLoadedItems}" />
+          <Grid Grid.Row="2">
+            <TreeView x:Name="Explorer" ItemsSource="{Binding Roots}" SelectedItem="{Binding SelectedNode}" DoubleTapped="OpenExplorerCollection" KeyDown="ExplorerKeyDown">
+              <TreeView.Styles>
+                <Style Selector="TreeViewItem" x:DataType="vm:ExplorerNodeViewModel">
+                  <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                  <Setter Property="IsVisible" Value="{Binding IsVisible}" />
+                </Style>
+              </TreeView.Styles>
+              <TreeView.ItemTemplate>
+                <TreeDataTemplate x:DataType="vm:ExplorerNodeViewModel" ItemsSource="{Binding Children}">
+                  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" ContextRequested="ExplorerContextRequested">
+                    <Grid.ContextMenu>
+                      <ContextMenu>
+                        <MenuItem Header="{local:Loc Key=connect}" Click="ExplorerConnect" IsVisible="{Binding IsConnection}"/>
+                        <MenuItem Header="{local:Loc Key=instanceInfo}" Click="ExplorerServerInfo" IsVisible="{Binding IsConnection}"/>
+                        <MenuItem Header="{local:Loc Key=disconnect}" Click="ExplorerDisconnect" IsVisible="{Binding IsConnection}"/>
+                        <MenuItem Header="{local:Loc Key=refresh}" Click="ExplorerRefresh"/>
+                        <MenuItem Header="{local:Loc Key=openDocumentsQuery}" Click="ExplorerOpenDocuments" IsVisible="{Binding IsCollection}"/>
+                        <MenuItem Header="{local:Loc Key=viewIndexes}" Click="ExplorerViewIndexes" IsVisible="{Binding HasCollection}"/>
+                        <MenuItem Header="{local:Loc Key=detailsStats}" Click="ExplorerDetails"/>
+                        <MenuItem Header="{local:Loc Key=openShellScript}" Click="ExplorerGenerate" Tag="Shell"/>
+                        <MenuItem Header="{local:Loc Key=createCollectionScript}" Click="ExplorerGenerate" Tag="CreateCollection" IsVisible="{Binding IsDatabase}"/>
+                        <MenuItem Header="{local:Loc Key=dropDatabaseScript}" Click="ExplorerGenerate" Tag="DropDatabase" IsVisible="{Binding IsDatabase}"/>
+                        <MenuItem Header="{local:Loc Key=generateCrudScript}" IsVisible="{Binding HasCollection}">
+                          <MenuItem Header="{local:Loc Key=find}" Click="ExplorerGenerate" Tag="Find"/>
+                          <MenuItem Header="{local:Loc Key=insertScript}" Click="ExplorerGenerate" Tag="Insert"/>
+                          <MenuItem Header="{local:Loc Key=updateScript}" Click="ExplorerGenerate" Tag="Update"/>
+                          <MenuItem Header="{local:Loc Key=deleteScript}" Click="ExplorerGenerate" Tag="Delete"/>
+                          <MenuItem Header="{local:Loc Key=createIndexScript}" Click="ExplorerGenerate" Tag="CreateIndex"/>
+                          <MenuItem Header="{local:Loc Key=dropCollectionScript}" Click="ExplorerGenerate" Tag="DropCollection"/>
+                          <MenuItem Header="{local:Loc Key=statisticsScript}" Click="ExplorerGenerate" Tag="Statistics"/>
+                        </MenuItem>
+                        <MenuItem Header="{local:Loc Key=createIndexScript}" Click="ExplorerGenerate" Tag="CreateIndex" IsVisible="{Binding IsIndex}"/>
+                        <MenuItem Header="{local:Loc Key=removeIndexEllipsis}" Click="ExplorerDropIndex" IsVisible="{Binding IsIndex}"/>
+                        <MenuItem Header="{local:Loc Key=copyDefinition}" Click="ExplorerCopyDefinition" IsVisible="{Binding IsIndex}"/>
+                      </ContextMenu>
+                    </Grid.ContextMenu>
+                    <Path Width="16" Height="16" Stretch="Uniform" Stroke="{DynamicResource AccentBrush}" StrokeThickness="1.75" Data="{StaticResource DatabaseIcon}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="{Binding Label}" ToolTip.Tip="{Binding Message}" TextTrimming="CharacterEllipsis" />
+                  </Grid>
+                </TreeDataTemplate>
+              </TreeView.ItemTemplate>
+            </TreeView>
+            <StackPanel IsVisible="{Binding HasNoConnections}" Margin="12,32" Spacing="12">
+              <TextBlock Text="{local:Loc Key=noConnectionsHeading}" FontWeight="Medium" TextWrapping="Wrap" />
+              <TextBlock Text="{local:Loc Key=noConnectionsNote}" Classes="muted" TextWrapping="Wrap" />
+              <Button Content="{local:Loc Key=openConnection}" Click="OpenConnections" />
+            </StackPanel>
+          </Grid>
+          <Expander Grid.Row="3" Header="{local:Loc Key=itemDetails}" IsExpanded="True" MaxHeight="240">
+            <StackPanel Spacing="4">
+              <TextBlock Text="{Binding Details.Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+              <TextBlock Text="{local:Loc Key=loading}" IsVisible="{Binding Details.IsLoading}" Classes="metadata"/>
+              <Button Content="{local:Loc Key=instanceTopology}" IsVisible="{Binding Details.IsConnection}" Click="SelectExplorerInstance"/>
+              <syntax:MongoTextEditor syntax:SyntaxSettings.Language="Json" Classes="syntax" Text="{Binding Details.Text}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" Height="120" ScrollViewer.VerticalScrollBarVisibility="Auto" FontSize="12" AutomationProperties.Name="{local:Loc Key=explorerDetails}"/>
+            </StackPanel>
+          </Expander>
+          <TextBlock Grid.Row="4" Text="{Binding ExplorerStatus}" Classes="metadata" TextWrapping="Wrap" MaxHeight="40" />
+        </Grid>
+      </Border>
+      <Border x:Name="FilesPanel" Grid.Column="1" Background="{DynamicResource SecondaryBackground}" IsVisible="{Binding IsFilesSidebar}">
+        <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="8" RowSpacing="8">
+          <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+            <TextBlock Text="Arquivos" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <Button Grid.Column="1" Content="+" Click="NewWorkspaceFile" ToolTip.Tip="Novo arquivo" AutomationProperties.Name="Novo arquivo" IsEnabled="{Binding HasWorkspace}" Padding="5" />
+            <Button Grid.Column="2" Click="NewWorkspaceFolder" ToolTip.Tip="Nova pasta" AutomationProperties.Name="Nova pasta" IsEnabled="{Binding HasWorkspace}" Padding="5"><Path Classes="command-icon" Data="{StaticResource OpenIcon}" /></Button>
+            <Button Grid.Column="3" Content="↻" Click="RefreshWorkspace" ToolTip.Tip="Atualizar" AutomationProperties.Name="Atualizar arquivos" IsEnabled="{Binding HasWorkspace}" Padding="5" />
+          </Grid>
+          <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="4">
+            <Button Content="{Binding OpenWorkspaceLabel}" Click="OpenFolder" Padding="6,4" />
+            <Button Content="Fechar" Click="CloseFolder" Classes="quiet" IsEnabled="{Binding HasWorkspace}" Padding="6,4" />
+          </StackPanel>
+          <TreeView x:Name="WorkspaceTree" Grid.Row="2" ItemsSource="{Binding WorkspaceFiles}" SelectedItem="{Binding SelectedWorkspaceFile}" DoubleTapped="OpenWorkspaceFile" KeyDown="WorkspaceFileKeyDown" AutomationProperties.Name="Arquivos do workspace">
+            <TreeView.Styles>
+              <Style Selector="TreeViewItem" x:DataType="vm:WorkspaceFileNodeViewModel">
+                <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                <Setter Property="IsEnabled" Value="{Binding IsActionable}" />
+              </Style>
+            </TreeView.Styles>
+            <TreeView.ItemTemplate>
+              <TreeDataTemplate x:DataType="vm:WorkspaceFileNodeViewModel" ItemsSource="{Binding Children}">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6" ContextRequested="WorkspaceFileContextRequested">
+                  <TextBlock Text="{Binding Icon}" Classes="metadata" />
+                  <TextBlock Grid.Column="1" Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Status}" />
+                  <Grid.ContextMenu>
+                    <ContextMenu>
+                      <MenuItem Header="Novo arquivo" Click="NewWorkspaceFile" />
+                      <MenuItem Header="Nova pasta" Click="NewWorkspaceFolder" />
+                      <MenuItem Header="Atualizar" Click="RefreshWorkspace" />
+                      <MenuItem Header="Renomear" Click="RenameWorkspaceFile" IsEnabled="{Binding CanModify}" />
+                      <MenuItem Header="Excluir" Click="DeleteWorkspaceFile" IsEnabled="{Binding CanModify}" />
+                    </ContextMenu>
+                  </Grid.ContextMenu>
+                </Grid>
+              </TreeDataTemplate>
+            </TreeView.ItemTemplate>
+          </TreeView>
+          <TextBlock Grid.Row="3" Text="{Binding WorkspaceStatus}" Classes="metadata" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding WorkspaceStatus}" />
+        </Grid>
+      </Border>
+      <GridSplitter Grid.Column="2" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" DragCompleted="ExplorerResized" />
+      <Grid x:Name="TabsArea" Grid.Column="3">
+        <TabControl ItemsSource="{Binding Tabs}" SelectedItem="{Binding ActiveTab}" Background="{DynamicResource PanelBackground}" IsVisible="{Binding HasActiveTab}">
+          <TabControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:WorkspaceTabViewModel">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="{Binding Title}" MaxWidth="190" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" ToolTip.Tip="{Binding Context}" />
+                <Button Content="×" Classes="quiet" Padding="4,0" MinHeight="28" Click="CloseTab" AutomationProperties.Name="{local:Loc Key=closeTab}" />
+              </StackPanel>
+            </DataTemplate>
+          </TabControl.ItemTemplate>
+          <TabControl.ContentTemplate>
+            <DataTemplate x:DataType="vm:WorkspaceTabViewModel">
+              <local:WorkspaceTabView />
+            </DataTemplate>
+          </TabControl.ContentTemplate>
+        </TabControl>
+        <StackPanel IsVisible="{Binding !HasActiveTab}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+          <Image x:Name="WelcomeBrandLogo" Source="{DynamicResource BrandLogo}" Width="320" Height="100" Stretch="Uniform" HorizontalAlignment="Left" AutomationProperties.Name="{x:Static local:Branding.ProductName}" />
+          <TextBlock Text="{local:Loc Key=workspace}" Classes="section-title" />
+          <TextBlock Text="{local:Loc Key=workspaceNote}" Classes="muted" />
+          <Button Command="{Binding NewTabCommand}" AutomationProperties.Name="{local:Loc Key=newTab}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Path Classes="command-icon" Data="{StaticResource PlusIcon}" />
+              <TextBlock Text="{local:Loc Key=newTab}" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+        </StackPanel>
+      </Grid>
+      <!-- P7-L06-HOST: collapsible AI Agent surface. Docked at the right with its own 5-unit divider when the tabs keep
+           their 500 minimum; otherwise it replaces the tab area as its own surface, with "×" returning to the editor. -->
+      <GridSplitter x:Name="AgentPanelSplitter" Grid.Column="4" IsVisible="False" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" DragCompleted="AgentPanelResized" />
+      <Border x:Name="AgentPanelHost" Grid.Column="5" IsVisible="False" Background="{DynamicResource PanelBackground}">
+        <local:AgentChatPanel x:Name="AgentChat" DataContext="{Binding ActiveAgentChat}" />
+      </Border>
+    </Grid>
+    <Border Grid.Row="2" Background="{DynamicResource SecondaryBackground}" Padding="8,3">
+      <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto" ColumnSpacing="8" VerticalAlignment="Center">
+        <TextBlock Text="{Binding Operations.State}" Classes="metadata" VerticalAlignment="Center" />
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" IsVisible="{Binding Operations.IsRunning}" VerticalAlignment="Center">
+          <ProgressBar MinWidth="0" Width="100" Height="6" IsIndeterminate="{Binding Operations.IsIndeterminate}" Value="{Binding Operations.Progress}" Minimum="0" Maximum="100" AutomationProperties.Name="{local:Loc Key=operationProgress}" />
+          <TextBlock Text="{Binding Operations.ProgressLabel}" Classes="metadata" VerticalAlignment="Center" />
+        </StackPanel>
+        <TextBlock Grid.Column="2" Text="{Binding Operations.Description}" Classes="metadata" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Operations.Description}" VerticalAlignment="Center" />
+        <TextBlock Grid.Column="3" Text="{Binding Operations.Additional}" Classes="metadata" VerticalAlignment="Center" />
+        <Button Grid.Column="4" Content="{local:Loc Key=cancel}" Command="{Binding Operations.CancelCommand}" IsVisible="{Binding Operations.CanCancel}" MinHeight="28" Height="28" Padding="8,0" AutomationProperties.Name="{local:Loc Key=cancelHighlightedOperation}" />
+        <TextBlock Grid.Column="5" Text="{Binding SessionStatus}" MaxWidth="230" Classes="metadata" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding SessionStatus}" VerticalAlignment="Center" />
+      </Grid>
+    </Border>
+  </Grid>
+</Window>

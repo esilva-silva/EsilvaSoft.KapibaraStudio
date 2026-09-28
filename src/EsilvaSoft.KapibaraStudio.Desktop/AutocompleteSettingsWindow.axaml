@@ -1,0 +1,150 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:EsilvaSoft.KapibaraStudio.Desktop.ViewModels" xmlns:local="using:EsilvaSoft.KapibaraStudio.Desktop" x:Class="EsilvaSoft.KapibaraStudio.Desktop.AutocompleteSettingsWindow" x:DataType="vm:AutocompleteSettingsViewModel" Title="{local:Loc Key=autocompleteTitle}" Width="660" Height="680" MinWidth="520" MinHeight="420" WindowStartupLocation="CenterOwner">
+  <Grid Margin="20" RowDefinitions="Auto,*,Auto" RowSpacing="12">
+    <StackPanel Spacing="4">
+      <TextBlock Text="{local:Loc Key=autocompleteTitle}" Classes="section-title"/>
+      <TextBlock Text="{local:Loc Key=localProcessingNote}" Classes="muted" TextWrapping="Wrap"/>
+    </StackPanel>
+    <ScrollViewer Grid.Row="1">
+      <StackPanel Spacing="8" Margin="0,0,16,0" IsEnabled="{Binding !IsBusy}">
+        <CheckBox x:Name="EnableAutocomplete" Content="{local:Loc Key=enableAutocomplete}" IsChecked="{Binding Enabled}"/>
+        <CheckBox Content="{local:Loc Key=useLocalDictionary}" IsChecked="{Binding UseDictionary}"/>
+        <CheckBox Content="{local:Loc Key=useInputContext}" IsChecked="{Binding UseInputPanelContext}"/>
+        <CheckBox Content="{local:Loc Key=useResultFields}" IsChecked="{Binding UseResultPanelContext}"/>
+        <CheckBox Content="{local:Loc Key=useEditorHistoryContext}" IsChecked="{Binding UseEditorContext}"/>
+        <CheckBox Content="{local:Loc Key=acceptPartialTab}" IsChecked="{Binding IncrementalTab}"/>
+        <CheckBox Content="{local:Loc Key=useLocalModelAssistant}" IsChecked="{Binding ChatEnabled}"/>
+
+        <TextBlock Text="{local:Loc Key=inlineSuggestion}" Classes="section-title"/>
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+          <CheckBox Content="{local:Loc Key=suggestAfterPause}" IsChecked="{Binding InlineEnabledEffective}" AutomationProperties.Name="{local:Loc Key=suggestAfterPause}"/>
+          <Button Grid.Column="1" Content="{local:Loc Key=useDefault}" Command="{Binding ResetInlineEnabledCommand}" IsVisible="{Binding InlineEnabledIsOverridden}" ToolTip.Tip="{local:Loc Key=resetInlineEnabledTip}" AutomationProperties.Name="{local:Loc Key=useDefault}"/>
+        </Grid>
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" IsEnabled="{Binding InlineEnabledEffective}">
+          <CheckBox Content="{local:Loc Key=useDeterministicSuggestions}" IsChecked="{Binding InlineUseTraditionalEffective}" AutomationProperties.Name="{local:Loc Key=deterministicSuggestionsAccessible}"/>
+          <Button Grid.Column="1" Content="{local:Loc Key=useDefault}" Command="{Binding ResetInlineUseTraditionalCommand}" IsVisible="{Binding InlineUseTraditionalIsOverridden}" ToolTip.Tip="{local:Loc Key=resetDictionaryTip}" AutomationProperties.Name="{local:Loc Key=useDefault}"/>
+        </Grid>
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" IsEnabled="{Binding InlineEnabledEffective}">
+          <CheckBox Content="{local:Loc Key=useAiSuggestions}" IsChecked="{Binding InlineUseAiEffective}" AutomationProperties.Name="{local:Loc Key=aiSuggestionsAccessible}"/>
+          <Button Grid.Column="1" Content="{local:Loc Key=useDefault}" Command="{Binding ResetInlineUseAiCommand}" IsVisible="{Binding InlineUseAiIsOverridden}" ToolTip.Tip="{local:Loc Key=resetAiTip}" AutomationProperties.Name="{local:Loc Key=useDefault}"/>
+        </Grid>
+        <TextBlock Text="{local:Loc Key=inlineDisabledNote}" Classes="metadata" TextWrapping="Wrap" IsVisible="{Binding !InlineEnabledEffective}"/>
+        <TextBlock Text="{local:Loc Key=inlineAiLoadNote}" Classes="metadata" TextWrapping="Wrap"/>
+
+        <TextBlock Text="{local:Loc Key=suggestionList}" Classes="section-title"/>
+        <CheckBox Content="{local:Loc Key=openOnTrigger}" IsChecked="{Binding CompletionAutoOpenOnTrigger}" AutomationProperties.Name="{local:Loc Key=openOnTriggerAccessible}"/>
+        <CheckBox Content="{local:Loc Key=enterAccepts}" IsChecked="{Binding CompletionEnterAccepts}" AutomationProperties.Name="{local:Loc Key=enterAccepts}"/>
+        <TextBlock Text="{local:Loc Key=mode}"/>
+        <ComboBox ItemsSource="{Binding Modes}" SelectedIndex="{Binding ModeIndex}" HorizontalAlignment="Stretch" AutomationProperties.Name="{local:Loc Key=autocompleteMode}"/>
+        <TextBlock Text="{local:Loc Key=modelsDirectory}"/>
+        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+          <TextBox Text="{Binding ModelDirectory}" PlaceholderText="{Binding DefaultDirectory}" AutomationProperties.Name="{local:Loc Key=modelsDirectory}"/>
+          <Button Grid.Column="1" Content="{local:Loc Key=browse}" Click="ChooseModelsDirectory"/>
+          <Button Grid.Column="2" Content="{local:Loc Key=openFolder}" Click="OpenModelsDirectory" ToolTip.Tip="{local:Loc Key=openModelsFolderTip}" AutomationProperties.Name="{local:Loc Key=openModelsDirectoryAccessible}"/>
+        </Grid>
+        <TextBlock Text="{local:Loc Key=modelsDirectoryNote}" Classes="metadata" TextWrapping="Wrap"/>
+        <TextBlock Text="{local:Loc Key=model}"/>
+        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+          <ComboBox ItemsSource="{Binding Models}" SelectedItem="{Binding SelectedModelOption}" PlaceholderText="{local:Loc Key=noModelSelected}" HorizontalAlignment="Stretch" ToolTip.Tip="{Binding SelectedModelOption.Title, FallbackValue={x:Null}}" AutomationProperties.Name="{local:Loc Key=model}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:LocalModelOption">
+                <StackPanel Spacing="1">
+                  <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis"/>
+                  <TextBlock Text="{Binding Subtitle}" Classes="metadata" TextTrimming="CharacterEllipsis" IsVisible="{Binding HasSubtitle}"/>
+                </StackPanel>
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+            <ComboBox.SelectionBoxItemTemplate>
+              <DataTemplate x:DataType="vm:LocalModelOption">
+                <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis"/>
+              </DataTemplate>
+            </ComboBox.SelectionBoxItemTemplate>
+          </ComboBox>
+          <Button Grid.Column="1" Content="{local:Loc Key=update}" Command="{Binding RefreshModelsCommand}"/>
+          <Button Grid.Column="2" Content="{local:Loc Key=otherFolder}" Click="ChooseExternalModel" AutomationProperties.Name="{local:Loc Key=externalModelFolder}"/>
+        </Grid>
+        <TextBlock Text="{Binding ModelDetails}" Classes="metadata" TextWrapping="Wrap" IsVisible="{Binding HasModelDetails}"/>
+        <TextBlock Text="{Binding ModelDiagnostics}" Classes="metadata" TextWrapping="Wrap" IsVisible="{Binding HasModelDiagnostics}"/>
+        <TextBlock Text="{local:Loc Key=downloadModel}" IsVisible="{Binding HasRemoteSource}"/>
+        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" IsVisible="{Binding HasRemoteSource}">
+          <ComboBox ItemsSource="{Binding RemoteModels}" SelectedItem="{Binding SelectedRemoteModel}" PlaceholderText="{Binding RemoteModelsPlaceholder}" HorizontalAlignment="Stretch" ToolTip.Tip="{Binding SelectedRemoteModel.Title, FallbackValue={x:Null}}" AutomationProperties.Name="{local:Loc Key=downloadModel}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:RemoteModelOption">
+                <StackPanel Spacing="1">
+                  <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis"/>
+                  <TextBlock Text="{Binding Subtitle}" Classes="metadata" TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+            <ComboBox.SelectionBoxItemTemplate>
+              <DataTemplate x:DataType="vm:RemoteModelOption">
+                <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis"/>
+              </DataTemplate>
+            </ComboBox.SelectionBoxItemTemplate>
+          </ComboBox>
+          <Button Grid.Column="1" Content="{local:Loc Key=download}" Command="{Binding DownloadModelCommand}" IsVisible="{Binding !IsDownloadingModel}" ToolTip.Tip="{local:Loc Key=downloadTip}" AutomationProperties.Name="{local:Loc Key=downloadModel}"/>
+          <Button Grid.Column="1" Content="{local:Loc Key=cancel}" Command="{Binding DownloadModelCancelCommand}" IsVisible="{Binding IsDownloadingModel}" AutomationProperties.Name="{local:Loc Key=cancelDownload}"/>
+          <Button Grid.Column="2" Content="{local:Loc Key=updateList}" Command="{Binding LoadRemoteModelsCommand}" IsEnabled="{Binding !IsDownloadingModel}" AutomationProperties.Name="{local:Loc Key=refreshDownloadModels}"/>
+        </Grid>
+        <TextBlock Text="{Binding SelectedRemoteModel.Subtitle, FallbackValue=''}" Classes="metadata" TextWrapping="Wrap" IsVisible="{Binding HasSelectedRemoteModel}"/>
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" IsVisible="{Binding IsDownloadingModel}">
+          <ProgressBar MinWidth="0" Height="6" Minimum="0" Maximum="100" Value="{Binding DownloadProgress}" VerticalAlignment="Center" AutomationProperties.Name="{local:Loc Key=downloadProgress}"/>
+          <TextBlock Grid.Column="1" Text="{Binding DownloadPercent}" Classes="metadata" VerticalAlignment="Center"/>
+        </Grid>
+        <TextBlock Text="{Binding RemoteModelDetails}" Classes="metadata" TextWrapping="Wrap" IsVisible="{Binding HasRemoteModelDetails}"/>
+        <HyperlinkButton Content="{local:Loc Key=modelDetailsHuggingFace}" NavigateUri="{Binding SelectedRemoteModelCardUrl}" IsVisible="{Binding HasSelectedRemoteModel}" Padding="0" AutomationProperties.Name="{local:Loc Key=modelDetailsHuggingFace}"/>
+        <TextBlock Text="{Binding DownloadStatus}" TextWrapping="Wrap" IsVisible="{Binding HasDownloadStatus}" AutomationProperties.Name="{local:Loc Key=modelDownloadStatus}"/>
+        <TextBlock Text="{Binding RemoteSourceNotice}" Classes="metadata" TextWrapping="Wrap" IsVisible="{Binding HasRemoteSource}"/>
+        <TextBlock Text="{local:Loc Key=hardware}"/>
+        <ComboBox ItemsSource="{Binding HardwareOptions}" SelectedIndex="{Binding HardwareIndex}" HorizontalAlignment="Stretch" AutomationProperties.Name="{local:Loc Key=localAiHardware}">
+          <ComboBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:HardwareOption">
+              <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis"/>
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+          <ComboBox.Styles>
+            <Style Selector="ComboBoxItem" x:DataType="vm:HardwareOption">
+              <Setter Property="IsEnabled" Value="{Binding IsAvailable}"/>
+            </Style>
+          </ComboBox.Styles>
+        </ComboBox>
+        <TextBlock Text="{local:Loc Key=detected}"/>
+        <TextBlock Text="{Binding DetectedHardware}" Classes="metadata" TextWrapping="Wrap"/>
+        <TextBlock Text="{local:Loc Key=hardwareDetectionNote}" Classes="metadata" TextWrapping="Wrap"/>
+        <TextBlock Text="{local:Loc Key=estimationProfile}"/>
+        <ComboBox ItemsSource="{Binding HardwareProfiles}" SelectedItem="{Binding SelectedHardwareProfile}" PlaceholderText="{local:Loc Key=useDetectedHardware}" AutomationProperties.Name="{local:Loc Key=hardwareProfile}">
+        </ComboBox>
+        <TextBlock Text="{Binding HardwareProfileSummary}" Classes="metadata" TextWrapping="Wrap"/>
+        <Grid ColumnDefinitions="*,*,Auto,Auto" ColumnSpacing="8">
+          <TextBox Text="{Binding HardwareProfileVendor}" PlaceholderText="{local:Loc Key=vendor}" AutomationProperties.Name="{local:Loc Key=vendor}"/>
+          <TextBox Grid.Column="1" Text="{Binding HardwareProfileName}" PlaceholderText="{local:Loc Key=gpuProfile}" AutomationProperties.Name="{local:Loc Key=gpuProfile}"/>
+          <TextBox Grid.Column="2" Text="{Binding HardwareProfileMemoryGiB}" PlaceholderText="GiB" Width="70" AutomationProperties.Name="{local:Loc Key=gpuMemory}"/>
+          <Button Grid.Column="3" Content="{local:Loc Key=add}" Command="{Binding AddHardwareProfileCommand}" AutomationProperties.Name="{local:Loc Key=addHardwareProfile}"/>
+        </Grid>
+        <Button Content="{local:Loc Key=removeSelectedProfile}" Command="{Binding RemoveHardwareProfileCommand}" IsVisible="{Binding HasSelectedHardwareProfile}" HorizontalAlignment="Left"/>
+        <TextBlock Text="{local:Loc Key=hardwareMemoryNote}" Classes="metadata" TextWrapping="Wrap"/>
+        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="4">
+          <TextBlock Text="{local:Loc Key=contextTokens}"/>
+          <TextBlock Grid.Column="1" Text="{local:Loc Key=maximumGeneratedTokens}"/>
+          <ComboBox x:Name="ContextTokenBox" Grid.Row="1" ItemsSource="{Binding ContextTokenSuggestions}" Text="{Binding ContextTokensText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsEditable="True" PlaceholderText="{local:Loc Key=typeOrSelect}" SelectionChanged="TokenSuggestionChanged" LostFocus="TokenEditorLostFocus" AutomationProperties.Name="{local:Loc Key=contextTokens}"/>
+          <ComboBox x:Name="MaximumTokenBox" Grid.Row="1" Grid.Column="1" ItemsSource="{Binding MaximumTokenSuggestions}" Text="{Binding MaximumTokensText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsEditable="True" PlaceholderText="{local:Loc Key=typeOrSelect}" SelectionChanged="TokenSuggestionChanged" LostFocus="TokenEditorLostFocus" AutomationProperties.Name="{local:Loc Key=maximumGeneratedTokens}"/>
+          <TextBlock Grid.Row="2" Text="{local:Loc Key=inlineDelay}" TextWrapping="Wrap"/>
+          <NumericUpDown Grid.Row="3" Minimum="50" Maximum="2000" Value="{Binding DelayMilliseconds}" ToolTip.Tip="{local:Loc Key=inlineDelayTip}" AutomationProperties.Name="{local:Loc Key=inlineDelay}"/>
+        </Grid>
+        <TextBlock Text="{Binding TokenBudgetWarning}" Classes="warning" TextWrapping="Wrap" IsVisible="{Binding HasTokenBudgetWarning}" AutomationProperties.Name="{local:Loc Key=tokenBudgetValidation}"/>
+        <TextBlock Text="{local:Loc Key=inlineHint}" Classes="metadata" TextWrapping="Wrap"/>
+        <TextBlock Text="{local:Loc Key=modelState}" Classes="section-title"/>
+        <TextBlock Text="{Binding Status}" TextWrapping="Wrap" AutomationProperties.Name="{local:Loc Key=modelState}"/>
+        <TextBlock Text="{local:Loc Key=testResult}" Classes="section-title" IsVisible="{Binding HasTestReport}"/>
+        <SelectableTextBlock Text="{Binding TestReport}" TextWrapping="Wrap" IsVisible="{Binding HasTestReport}" AutomationProperties.Name="{local:Loc Key=modelTestResult}"/>
+      </StackPanel>
+    </ScrollViewer>
+    <StackPanel Grid.Row="2" Spacing="8">
+      <TextBlock Text="{Binding OperationStatus}" TextWrapping="Wrap" MaxLines="3" TextTrimming="CharacterEllipsis"/>
+      <WrapPanel HorizontalAlignment="Right">
+        <Button Content="{local:Loc Key=closeWindow}" Click="CloseDialog" Margin="0,0,8,0"/>
+        <Button Content="{local:Loc Key=testModel}" Command="{Binding TestCommand}" IsEnabled="{Binding !IsBusy}" Margin="0,0,8,0"/>
+        <Button Content="{local:Loc Key=save}" Classes="primary" Command="{Binding ApplyCommand}" IsEnabled="{Binding !IsBusy}"/>
+      </WrapPanel>
+    </StackPanel>
+  </Grid>
+</Window>

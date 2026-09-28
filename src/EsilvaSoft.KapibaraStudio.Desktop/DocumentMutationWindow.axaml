@@ -1,0 +1,14 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:syntax="using:EsilvaSoft.KapibaraStudio.Desktop.SyntaxHighlighting" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:EsilvaSoft.KapibaraStudio.Desktop.ViewModels" xmlns:local="using:EsilvaSoft.KapibaraStudio.Desktop" x:Class="EsilvaSoft.KapibaraStudio.Desktop.DocumentMutationWindow" x:DataType="vm:DocumentMutationViewModel" Title="{local:Loc Key=documentTitle}" Width="760" Height="560" MinWidth="600" MinHeight="420" WindowStartupLocation="CenterOwner">
+  <Grid RowDefinitions="Auto,Auto,Auto,*,Auto,Auto" RowSpacing="8" Margin="20">
+    <TextBlock Text="{Binding Context}" TextWrapping="Wrap" FontWeight="SemiBold"/>
+    <TextBlock Grid.Row="1" Text="{Binding Identity}" TextWrapping="Wrap" MaxHeight="60" Classes="metadata"/>
+    <TextBlock Grid.Row="2" x:Name="PolicyText" Text="{Binding Policy}" TextWrapping="Wrap" Classes="metadata"/>
+    <syntax:MongoTextEditor syntax:SyntaxSettings.Language="Json" Grid.Row="3" Text="{Binding Text}" IsReadOnly="{Binding IsDelete}" IsEnabled="{Binding !IsRunning}" Classes="code syntax" AcceptsReturn="True" AcceptsTab="True" TextWrapping="NoWrap" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" AutomationProperties.Name="{local:Loc Key=documentExtendedJson}"/>
+    <TextBlock Grid.Row="4" x:Name="StatusText" Text="{Binding Status}" TextWrapping="Wrap"/>
+    <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button Content="{local:Loc Key=cancelOperation}" Click="CancelOperation" IsEnabled="{Binding IsRunning}"/>
+      <Button Content="{local:Loc Key=close}" Click="CloseDialog" IsEnabled="{Binding !IsRunning}"/>
+      <Button x:Name="ApplyButton" Content="{Binding ApplyLabel}" Click="Apply" IsEnabled="{Binding CanApply}" Classes="primary" ToolTip.Tip="{Binding WriteBlockReason}" ToolTip.ShowOnDisabled="True"/>
+    </StackPanel>
+  </Grid>
+</Window>

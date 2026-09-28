@@ -1,8 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <ItemGroup>
-    <ProjectReference Include="../EsilvaSoft.SlopStudio.Core/EsilvaSoft.SlopStudio.Core.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="mongodb-language.v1.json" LogicalName="EsilvaSoft.SlopStudio.Autocomplete.Core.mongodb-language.v1.json" />
-  </ItemGroup>
-</Project>

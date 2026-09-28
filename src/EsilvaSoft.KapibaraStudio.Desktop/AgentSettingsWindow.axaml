@@ -1,0 +1,135 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:EsilvaSoft.KapibaraStudio.Desktop.ViewModels" xmlns:local="using:EsilvaSoft.KapibaraStudio.Desktop" x:Class="EsilvaSoft.KapibaraStudio.Desktop.AgentSettingsWindow" x:DataType="vm:AgentSettingsViewModel" x:CompileBindings="True" Title="{local:Loc Key=agentSettingsTitle}" Width="660" Height="560" MinWidth="520" MinHeight="420" WindowStartupLocation="CenterOwner">
+  <Window.Styles>
+    <Style Selector="TextBlock.error">
+      <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}" />
+    </Style>
+    <Style Selector="Border.type-chip">
+      <Setter Property="Background" Value="{DynamicResource HoverBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="Border.blocked-notice">
+      <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="8,4" />
+    </Style>
+  </Window.Styles>
+  <Grid RowDefinitions="Auto,*,Auto" RowSpacing="12" Margin="20">
+    <StackPanel Spacing="4">
+      <TextBlock Text="{local:Loc Key=agentSettingsTitle}" Classes="section-title" />
+      <TextBlock Text="{local:Loc Key=agentSettingsIntro}" Classes="metadata" TextWrapping="Wrap" />
+    </StackPanel>
+    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Spacing="12" Margin="0,0,16,0">
+        <StackPanel Spacing="4">
+          <TextBlock Text="{local:Loc Key=agentSettingsProviders}" FontWeight="SemiBold" />
+          <TextBlock x:Name="NoProvidersText" Text="{local:Loc Key=agentSettingsNoProviders}" TextWrapping="Wrap" IsVisible="{Binding !HasProviders}" />
+          <ListBox x:Name="ProviderList" ItemsSource="{Binding Providers}" SelectedItem="{Binding SelectedProvider}" IsVisible="{Binding HasProviders}" IsEnabled="{Binding IsIdle}" MaxHeight="140" AutomationProperties.Name="{local:Loc Key=agentSettingsProviders}">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:AgentProviderOption">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                  <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Label}" VerticalAlignment="Center" />
+                  <Border Grid.Column="1" Classes="type-chip" IsVisible="{Binding HasModeText}">
+                    <TextBlock Text="{Binding ModeText}" Classes="metadata" Foreground="{DynamicResource PrimaryText}" />
+                  </Border>
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </StackPanel>
+        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="6" IsVisible="{Binding HasSelection}">
+          <TextBlock Text="{local:Loc Key=agentSettingsDestination}" Classes="metadata" />
+          <StackPanel Grid.Column="1" Spacing="2">
+            <WrapPanel Orientation="Horizontal">
+              <TextBlock Text="{Binding SelectedProvider.DestinationText, FallbackValue=''}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0" />
+              <Border x:Name="SelectedModeChip" Classes="type-chip" IsVisible="{Binding HasSelectedModeText}" ToolTip.Tip="{local:Loc Key=agentModeChipHint}">
+                <TextBlock Text="{Binding SelectedModeText}" Classes="metadata" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryText}" />
+              </Border>
+            </WrapPanel>
+            <TextBlock Text="{Binding SelectedProvider.DestinationHint, FallbackValue=''}" Classes="metadata" TextWrapping="Wrap" />
+          </StackPanel>
+          <TextBlock Grid.Row="1" Text="{local:Loc Key=agentSettingsAuth}" Classes="metadata" />
+          <StackPanel Grid.Row="1" Grid.Column="1" Spacing="2">
+            <TextBlock x:Name="AuthMethodsText" Text="{Binding SelectedProvider.AuthMethodsText, FallbackValue=''}" TextWrapping="Wrap" />
+            <TextBlock x:Name="AuthStateText" Text="{Binding SelectedProvider.AuthStateText, FallbackValue=''}" Classes="metadata" TextWrapping="Wrap" />
+          </StackPanel>
+          <TextBlock Grid.Row="2" Text="{local:Loc Key=agentSettingsModels}" Classes="metadata" />
+          <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedProvider.ModelsText, FallbackValue=''}" TextWrapping="Wrap" />
+          <TextBlock Grid.Row="3" Text="{local:Loc Key=agentSettingsCapabilities}" Classes="metadata" />
+          <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedProvider.CapabilitiesText, FallbackValue=''}" TextWrapping="Wrap" />
+          <TextBlock Grid.Row="4" Text="{local:Loc Key=agentSettingsAvailability}" Classes="metadata" />
+          <StackPanel Grid.Row="4" Grid.Column="1" Spacing="2">
+            <TextBlock x:Name="AvailabilityText" Text="{Binding SelectedProvider.AvailabilityText, FallbackValue=''}" TextWrapping="Wrap" />
+            <TextBlock x:Name="UnavailableReasonText" Text="{Binding SelectedProvider.UnavailableSentence, FallbackValue=''}" Classes="metadata" TextWrapping="Wrap" IsVisible="{Binding !SelectedProvider.Presentation.IsAvailable, FallbackValue=False}" />
+          </StackPanel>
+          <TextBlock Grid.Row="5" Text="{local:Loc Key=agentAccountType}" Classes="metadata" IsVisible="{Binding IsApiKeyProvider}" />
+          <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding SelectedProvider.ApiAccountTypeText, FallbackValue=''}" TextWrapping="Wrap" IsVisible="{Binding IsApiKeyProvider}" />
+        </Grid>
+        <StackPanel Spacing="4" IsVisible="{Binding HasSelection}">
+          <Button x:Name="TestConnectionButton" Content="{local:Loc Key=agentTestConnection}" Command="{Binding TestConnectionCommand}" ToolTip.Tip="{local:Loc Key=agentTestConnectionHint}" AutomationProperties.HelpText="{local:Loc Key=agentTestConnectionHint}" />
+          <TextBlock Text="{local:Loc Key=agentTestConnectionHint}" Classes="metadata" TextWrapping="Wrap" />
+        </StackPanel>
+        <TextBlock x:Name="CliUnmanagedText" Text="{local:Loc Key=agentCliUnmanaged}" TextWrapping="Wrap" IsVisible="{Binding IsCliUnmanaged}" />
+        <StackPanel x:Name="CliSection" Spacing="8" IsVisible="{Binding IsCliProvider}">
+          <TextBlock Text="{local:Loc Key=agentCliSectionTitle}" FontWeight="SemiBold" />
+          <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="6">
+            <TextBlock Text="{local:Loc Key=agentCliStatusLabel}" Classes="metadata" />
+            <StackPanel Grid.Column="1" Spacing="2">
+              <TextBlock x:Name="CliInstallText" Text="{Binding CliInstallText}" TextWrapping="Wrap" />
+              <TextBlock x:Name="CliExecutableText" Text="{Binding CliExecutableText}" Classes="metadata" TextWrapping="Wrap" IsVisible="{Binding HasCliExecutable}" />
+            </StackPanel>
+            <TextBlock Grid.Row="1" Text="{local:Loc Key=agentSettingsAuth}" Classes="metadata" />
+            <StackPanel Grid.Row="1" Grid.Column="1" Spacing="4">
+              <TextBlock x:Name="CliAuthText" Text="{Binding CliAuthText}" FontWeight="SemiBold" TextWrapping="Wrap" Classes.error="{Binding IsCliAuthBlocked}" />
+              <Border x:Name="CliBlockedNotice" Classes="blocked-notice" IsVisible="{Binding HasCliAuthExplanation}">
+                <TextBlock Text="{Binding CliAuthExplanation}" Classes="metadata" Foreground="{DynamicResource PrimaryText}" TextWrapping="Wrap" />
+              </Border>
+            </StackPanel>
+            <TextBlock Grid.Row="2" Text="{local:Loc Key=agentAccountType}" Classes="metadata" />
+            <TextBlock Grid.Row="2" Grid.Column="1" x:Name="CliAccountTypeText" Text="{Binding CliAccountTypeText}" TextWrapping="Wrap" />
+          </Grid>
+          <WrapPanel Orientation="Horizontal">
+            <Button x:Name="SignInButton" Content="{Binding SignInButtonText}" Classes="primary" Command="{Binding SignInCommand}" Margin="0,0,8,8" AutomationProperties.HelpText="{Binding SignInHint}" />
+            <Button x:Name="StopWaitingButton" Content="{local:Loc Key=agentCliStopWaiting}" Command="{Binding StopWaitingCommand}" IsVisible="{Binding IsWaitingForSignIn}" Margin="0,0,8,8" ToolTip.Tip="{local:Loc Key=agentCliStopWaitingHint}" />
+            <Button x:Name="SignOutButton" Content="{local:Loc Key=agentCliSignOut}" Command="{Binding SignOutCommand}" Margin="0,0,8,8" AutomationProperties.HelpText="{Binding SignOutHint}" />
+          </WrapPanel>
+          <TextBlock Text="{Binding SignInHint}" Classes="metadata" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding SignOutHint}" Classes="metadata" TextWrapping="Wrap" />
+          <StackPanel x:Name="ManualCommandPanel" Spacing="4" IsVisible="{Binding ShowManualCommand}">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+              <TextBox x:Name="ManualCommandBox" Text="{Binding ManualCommand}" IsReadOnly="True" FontFamily="{StaticResource CodeFont}" AutomationProperties.Name="{local:Loc Key=agentCliManualCommand}" />
+              <Button Grid.Column="1" x:Name="CopyCommandButton" Content="{local:Loc Key=agentCliCopyCommand}" Click="CopyManualCommand" />
+            </Grid>
+          </StackPanel>
+          <TextBlock Text="{local:Loc Key=agentCliNoticesTitle}" FontWeight="SemiBold" />
+          <Border x:Name="ReadScopeNotice" Classes="blocked-notice">
+            <TextBlock Text="{Binding ReadScopeText}" Classes="metadata" Foreground="{DynamicResource PrimaryText}" TextWrapping="Wrap" />
+          </Border>
+          <TextBlock x:Name="UserRulesNotice" Text="{Binding UserRulesNotice}" Classes="metadata" TextWrapping="Wrap" IsVisible="{Binding HasUserRulesNotice}" />
+          <TextBlock Text="{Binding EnvironmentNotice}" Classes="metadata" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding TranscriptNotice}" Classes="metadata" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding CredentialNotice}" Classes="metadata" TextWrapping="Wrap" />
+        </StackPanel>
+        <StackPanel Spacing="6" IsVisible="{Binding IsApiKeyProvider}">
+          <TextBlock Text="{local:Loc Key=agentAuthApiKey}" FontWeight="SemiBold" />
+          <TextBox x:Name="ApiKeyInput" Text="{Binding ApiKey}" PasswordChar="•" RevealPassword="False" IsEnabled="{Binding CanSetUpCredentials}" PlaceholderText="{local:Loc Key=agentSettingsApiKeyPlaceholder}" AutomationProperties.Name="{local:Loc Key=agentAuthApiKey}" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button x:Name="SaveKeyButton" Content="{local:Loc Key=agentSettingsSaveKey}" Command="{Binding SaveApiKeyCommand}" />
+            <Button x:Name="RemoveKeyButton" Content="{local:Loc Key=agentSettingsRemoveKey}" Command="{Binding RemoveApiKeyCommand}" />
+          </StackPanel>
+          <TextBlock Text="{Binding CredentialSetupNote}" Classes="metadata" TextWrapping="Wrap" />
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+    <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
+      <ProgressBar x:Name="BusyIndicator" IsIndeterminate="{Binding ShowProgress}" IsVisible="{Binding ShowProgress}" Width="48" MinWidth="48" VerticalAlignment="Center" />
+      <StackPanel Grid.Column="1" VerticalAlignment="Center">
+        <TextBlock x:Name="ProgressLine" Text="{Binding ProgressText}" IsVisible="{Binding ShowProgress}" TextWrapping="Wrap" MaxLines="3" AutomationProperties.LiveSetting="Polite" />
+        <TextBlock x:Name="StatusLine" Text="{Binding StatusText}" Classes.error="{Binding IsStatusError}" TextWrapping="Wrap" MaxLines="3" AutomationProperties.LiveSetting="Polite" />
+      </StackPanel>
+      <Button Grid.Column="2" x:Name="PermissionsButton" Content="Permissões…" IsVisible="{Binding IsCliProvider}" Click="OpenPermissions" />
+      <Button Grid.Column="3" x:Name="CloseButton" Content="{local:Loc Key=close}" Click="CloseDialog" ToolTip.Tip="{local:Loc Key=closeEsc}" />
+    </Grid>
+  </Grid>
+</Window>

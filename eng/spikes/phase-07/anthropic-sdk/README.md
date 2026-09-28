@@ -1,6 +1,6 @@
 # Spike Anthropic C# — lote 0 da Fase 7
 
-**Resultado parcial em 22/09/2026 (America/Sao_Paulo):** versão oficial publicada selecionada, origem/tag/licenças registradas, restore travado e fluxo de configuração/streaming **compilado**. Nenhuma chamada à Claude API, API key, login, modelo, tool calling ou comportamento de streaming foi homologado. Este projeto não integra a solução nem o produto EsilvaSoft.SlopStudio.
+**Resultado parcial em 22/09/2026 (America/Sao_Paulo):** versão oficial publicada selecionada, origem/tag/licenças registradas, restore travado e fluxo de configuração/streaming **compilado**. Nenhuma chamada à Claude API, API key, login, modelo, tool calling ou comportamento de streaming foi homologado. Este projeto não integra a solução nem o produto EsilvaSoft.KapibaraStudio.
 
 ## Versão e origem
 

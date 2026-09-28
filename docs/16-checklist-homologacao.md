@@ -30,8 +30,8 @@ Este checklist complementa a matriz de validação e separa evidência local de 
 ## Fundação e LiteDB
 
 - [ ] `dotnet restore --locked-mode`.
-- [ ] `dotnet build EsilvaSoft.SlopStudio.slnx --no-restore -v:minimal`.
-- [ ] `dotnet test EsilvaSoft.SlopStudio.slnx --no-build --no-restore -v:minimal`.
+- [ ] `dotnet build EsilvaSoft.KapibaraStudio.slnx --no-restore -v:minimal`.
+- [ ] `dotnet test EsilvaSoft.KapibaraStudio.slnx --no-build --no-restore -v:minimal`.
 - [ ] Criar dois perfis, organizar por pasta, reiniciar a aplicação e confirmar a persistência no LiteDB.
 - [ ] Confirmar que histórico, consultas salvas e auditoria não contêm URI resolvida, senha ou documentos completos.
 

@@ -10,10 +10,10 @@ Nenhuma parte da aplicação fora de `LocalAiModelService` e `OnnxLocalModelRunt
 
 ## Diretório e seleção
 
-- **Diretório de modelos**: padrão `%LOCALAPPDATA%\EsilvaSoft\SlopStudio\Models` (Linux: `$XDG_DATA_HOME/EsilvaSoft/SlopStudio/Models`). Pode ser trocado em Preferências; vazio usa o padrão.
+- **Diretório de modelos**: padrão `%LOCALAPPDATA%\EsilvaSoft\KapibaraStudio\Models` (Linux: `$XDG_DATA_HOME/EsilvaSoft/KapibaraStudio/Models`). Pode ser trocado em Preferências; vazio usa o padrão.
 - **Modelo**: cada subpasta do diretório é um candidato. O nome exibido é o nome da pasta, ou `name` do metadata opcional.
 - **Pasta externa** (**Outra pasta…**): aceita um modelo fora do diretório. Se a pasta escolhida estiver diretamente dentro do diretório de modelos, é gravada pelo nome, não pelo caminho absoluto.
-- **Baixar modelo** (14/09/2026, [ADR-039](10-decisoes-arquiteturais.md)): lista as variantes publicadas em `esilva/SlopCoder-Mongo-0.5B-ONNX` e `esilva/SlopCoder-Mongo-1.5B-full-ONNX` (pastas de primeiro nível com `genai_config.json`) e instala a escolhida no diretório efetivo como `<repositório>-<variante>`. Baixa em `.<pasta>.download`, verifica cada arquivo pelo hash do hub, move a pasta pronta e reescaneia; nunca sobrescreve uma pasta existente. As variantes trazem `slopstudio-model.json` (hardware, capacidades e orçamentos). **Abrir pasta** abre o diretório efetivo, criando-o se necessário.
+- **Baixar modelo** (14/09/2026, [ADR-039](10-decisoes-arquiteturais.md)): lista as variantes publicadas em `esilva/SlopCoder-Mongo-0.5B-ONNX` e `esilva/SlopCoder-Mongo-1.5B-full-ONNX` (pastas de primeiro nível com `genai_config.json`) e instala a escolhida no diretório efetivo como `<repositório>-<variante>`. Baixa em `.<pasta>.download`, verifica cada arquivo pelo hash do hub, move a pasta pronta e reescaneia; nunca sobrescreve uma pasta existente. As variantes trazem `kapibarastudio-model.json` (hardware, capacidades e orçamentos). **Abrir pasta** abre o diretório efetivo, criando-o se necessário.
 - **Nomes**: seleção e download mostram "família — hardware precisão" (ex.: `SlopCoder-Mongo-1.5B-full — GPU DirectML FP16`), derivado da pasta `<família>-ONNX-<variante>` ou do `name` do metadata; a segunda linha traz parâmetros, arquitetura e pasta. Modelos fora dessa convenção continuam com o nome do metadata ou da pasta.
 
 ```text
@@ -47,7 +47,7 @@ O contexto do Assistente exige consentimento global e por conexão; `UseEditorCo
 
 `ConnectionProfile.LocalAiContextEnabled` é aditivo (padrão `true` para preservar a preferência histórica por conexão); `AutocompleteSettings.LocalAiContextEnabled` é o opt-in global desligado por padrão, então uma instalação antiga não passa a enviar contexto automaticamente.
 
-**Migração:** a lista de caminhos conhecidos desta máquina (`F:\models\…`, `C:\SlopStudio.MongoAI-artifacts\…`) e a sugestão automática de caminho foram removidas. Um `ModelPath` já salvo continua funcionando como pasta externa. Para usar o catálogo, informe o diretório pai (por exemplo `F:\models`) e escolha a pasta.
+**Migração:** a lista de caminhos conhecidos desta máquina (`F:\models\…`, `C:\KapibaraStudio.MongoAI-artifacts\…`) e a sugestão automática de caminho foram removidas. Um `ModelPath` já salvo continua funcionando como pasta externa. Para usar o catálogo, informe o diretório pai (por exemplo `F:\models`) e escolha a pasta.
 
 ## Validação
 
@@ -58,13 +58,13 @@ Validação estrutural, sem carregar pesos. Uma pasta inválida nunca impede a l
 | `Valid` | `genai_config.json` legível, decoder contido na pasta, `tokenizer.json`/`tokenizer_config.json` legíveis e aceitos por um adapter |
 | `MissingFiles` | Falta `genai_config.json`, o decoder, um arquivo do tokenizer ou os pesos externos exigidos (`model.onnx.data` do DeepSeek); a mensagem lista os arquivos |
 | `Unsupported` | Nenhum adapter aceita a arquitetura, ou o tokenizer não tem os tokens FIM exigidos |
-| `Invalid` | JSON malformado, decoder fora da pasta, manifesto com IDs incorretos ou `slopstudio-model.json` inválido |
+| `Invalid` | JSON malformado, decoder fora da pasta, manifesto com IDs incorretos ou `kapibarastudio-model.json` inválido |
 
 Diferenças de arquitetura ficam em `IModelAdapter` (`Infrastructure.LocalAi` desde a ADR-040, 17/09/2026; antes em `Infrastructure`): validação específica, tokenizer, prompt e tokens de parada. Hoje existem `QwenCoderModelAdapter` (`qwen2`) e `DeepSeekCoderModelAdapter` (`llama` com `slopcoder_manifest.json`). Cada modelo usa sempre o próprio tokenizer. Uma nova família é um novo adapter, não um `if` espalhado.
 
 ## Metadata opcional
 
-`slopstudio-model.json` na pasta do modelo. Todos os campos são opcionais; o arquivo inteiro também. Nomes desconhecidos de capacidade ou hardware são ignorados; tipos errados ou valores fora dos limites tornam a pasta `Invalid`.
+`kapibarastudio-model.json` na pasta do modelo. Todos os campos são opcionais; o arquivo inteiro também. Nomes desconhecidos de capacidade ou hardware são ignorados; tipos errados ou valores fora dos limites tornam a pasta `Invalid`.
 
 ```json
 {

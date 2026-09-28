@@ -6,7 +6,7 @@ using OpenAI;
 using OpenAI.Chat;
 using NUnit.Framework;
 
-namespace EsilvaSoft.SlopStudio.Spikes.OpenAiApi.Tests;
+namespace EsilvaSoft.KapibaraStudio.Spikes.OpenAiApi.Tests;
 
 [TestFixture]
 public sealed class ChatCompletionTests

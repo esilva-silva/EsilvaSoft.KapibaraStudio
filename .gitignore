@@ -14,7 +14,7 @@ workspace.db-*
 *.gguf
 artifacts/
 /logs/
-/tests/EsilvaSoft.SlopStudio.Benchmarks/BenchmarkDotNet.Artifacts
+/tests/EsilvaSoft.KapibaraStudio.Benchmarks/BenchmarkDotNet.Artifacts
 /BenchmarkDotNet.Artifacts
 /BenchmarkDotNet.Artifacts.*
 /.codex-build/

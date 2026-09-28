@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 
-namespace EsilvaSoft.SlopStudio.Spikes.McpIndependentClient;
+namespace EsilvaSoft.KapibaraStudio.Spikes.McpIndependentClient;
 
 public sealed record ProbeResult(string ProtocolVersion, string? ServerPin, int ServerExitCode,
     IReadOnlyList<JsonElement> ClientMessages, IReadOnlyList<JsonElement> ServerMessages);

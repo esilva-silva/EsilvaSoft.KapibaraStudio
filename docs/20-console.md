@@ -109,13 +109,13 @@ Padrões: 100 documentos por cursor, máximo configurável 1000; 30 segundos por
 
 `ConsoleRuntime` interpreta JavaScript em thread de trabalho; `ConnectionProxy`, `DatabaseProxy`, `CollectionProxy` e `CursorProxy` são closures/proxies JavaScript que encaminham operações tipadas a `IConsoleDatabaseSession`. O adaptador `ConsoleDatabaseSession` valida novamente e usa MongoDB.Driver, tokens e clientes por execução. `ENV` e `console` são objetos congelados. O parser Acornima identifica statements e expressões; não há divisão ingênua por ponto e vírgula.
 
-Dependências adicionadas: [Jint 4.16.0](https://github.com/sebastienros/jint), BSD-2-Clause, e Acornima 1.7.0, BSD-3-Clause. EsilvaSoft.SlopStudio continua MIT. [Avisos de terceiros](../THIRD-PARTY-NOTICES.md).
+Dependências adicionadas: [Jint 4.16.0](https://github.com/sebastienros/jint), BSD-2-Clause, e Acornima 1.7.0, BSD-3-Clause. EsilvaSoft.KapibaraStudio continua MIT. [Avisos de terceiros](../THIRD-PARTY-NOTICES.md).
 
 ## Verificação
 
 Testes cobrem interpretação JavaScript, as três sintaxes de acesso, duas conexões, cursores, ambiente estável, opt-out de histórico, cancelamento, proteção de escrita, escaping, autocomplete assíncrono, conversão de rascunho, atalhos e confirmação real Avalonia. O teste `ConsoleMongoIntegrationTests` inicia dois processos MongoDB Community descartáveis ligados apenas a `127.0.0.1`, sem serviços instalados ou conexões do usuário. Nesta revisão foi usado MongoDB 8.0.30 Windows, ZIP oficial, SHA-256 `e2f8c977faadd15572fda5d16bfd9370a017504e3081f76af504ec69fc7bf509`.
 
-Para repetir a integração, defina `SLOP_CONSOLE_MONGOD` para o executável MongoDB Community ou disponibilize-o em `.cache/console-mongo/server`. Sem binário, o teste registra integração ignorada; isso não é aprovação real. Execute `dotnet test EsilvaSoft.SlopStudio.slnx --no-build --no-restore --filter FullyQualifiedName~ConsoleMongoIntegrationTests`. Dados e logs sintéticos ficam em `console-real-*` no diretório de execução dos testes; processos são encerrados ao terminar.
+Para repetir a integração, defina `SLOP_CONSOLE_MONGOD` para o executável MongoDB Community ou disponibilize-o em `.cache/console-mongo/server`. Sem binário, o teste registra integração ignorada; isso não é aprovação real. Execute `dotnet test EsilvaSoft.KapibaraStudio.slnx --no-build --no-restore --filter FullyQualifiedName~ConsoleMongoIntegrationTests`. Dados e logs sintéticos ficam em `console-real-*` no diretório de execução dos testes; processos são encerrados ao terminar.
 
 PNGs reais nos dois temas, três tamanhos e três escalas ficam em `ui-evidence/console-*.png`. Contagens e evidência final: [matriz](15-matriz-de-validacao.md). Linux nativo, leitor de tela, TLS/autenticação e topologias distribuídas não são provados pela fixture standalone local.
 

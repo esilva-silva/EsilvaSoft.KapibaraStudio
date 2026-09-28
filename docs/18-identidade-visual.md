@@ -1,27 +1,27 @@
-# Identidade visual — Slop Studio
+# Identidade visual — Kapibara Studio
 
-Implementada em 10/09/2026. Nome de produto: **Slop Studio**. Nome técnico e título da janela: **EsilvaSoft.SlopStudio**. Código e assets próprios permanecem sob a licença MIT do repositório.
+Implementada em 10/09/2026. Nome de produto: **Kapibara Studio**. Nome técnico e título da janela: **EsilvaSoft.KapibaraStudio**. Código e assets próprios permanecem sob a licença MIT do repositório.
 
 ## Referências e conceito
 
-As imagens originais [logo claro](ui/slopstudio-logo-claro.png), [logo escuro](ui/slopstudio-logo-escuro.png), [IDE clara](ui/ide-clara.png) e [IDE escura](ui/ide-escuro.png) são referências, não capturas da aplicação entregue. Foram preservadas sem alterações.
+As imagens originais [logo claro](ui/kapibarastudio-logo-claro.png), [logo escuro](ui/kapibarastudio-logo-escuro.png), [IDE clara](ui/ide-clara.png) e [IDE escura](ui/ide-escuro.png) são referências, não capturas da aplicação entregue. Foram preservadas sem alterações.
 
 O símbolo transforma o recipiente inclinado e o líquido das referências em curvas vetoriais simples: corpo cilíndrico, abertura escura, aro ciano e poça azul/violeta. A simplificação elimina brilho e detalhes tridimensionais que se perderiam na barra de 40 unidades. O nome permanece texto legível, separado do símbolo.
 
-![Símbolo](../src/EsilvaSoft.SlopStudio.Desktop/Assets/slop-icon-128.png)
+![Símbolo](../src/EsilvaSoft.KapibaraStudio.Desktop/Assets/slop-icon-128.png)
 
 ## Assets entregues
 
-Diretório: [Assets](../src/EsilvaSoft.SlopStudio.Desktop/Assets/Brand.axaml).
+Diretório: [Assets](../src/EsilvaSoft.KapibaraStudio.Desktop/Assets/Brand.axaml).
 
 | Asset | Uso |
 | --- | --- |
-| [slop-symbol.svg](../src/EsilvaSoft.SlopStudio.Desktop/Assets/slop-symbol.svg) | Símbolo escalável com transparência |
-| [slop-logo-light.svg](../src/EsilvaSoft.SlopStudio.Desktop/Assets/slop-logo-light.svg) | Assinatura horizontal sobre fundo claro |
-| [slop-logo-dark.svg](../src/EsilvaSoft.SlopStudio.Desktop/Assets/slop-logo-dark.svg) | Assinatura horizontal sobre fundo escuro |
+| [slop-symbol.svg](../src/EsilvaSoft.KapibaraStudio.Desktop/Assets/slop-symbol.svg) | Símbolo escalável com transparência |
+| [slop-logo-light.svg](../src/EsilvaSoft.KapibaraStudio.Desktop/Assets/slop-logo-light.svg) | Assinatura horizontal sobre fundo claro |
+| [slop-logo-dark.svg](../src/EsilvaSoft.KapibaraStudio.Desktop/Assets/slop-logo-dark.svg) | Assinatura horizontal sobre fundo escuro |
 | slop-icon-{16,24,32,48,64,128,256,512}.png | Ícones transparentes em pixels físicos |
-| [slop-studio.ico](../src/EsilvaSoft.SlopStudio.Desktop/Assets/slop-studio.ico) | Contêiner com sete tamanhos, 16 a 256; executável Windows e Window.Icon |
-| [Icons](../src/EsilvaSoft.SlopStudio.Desktop/Assets/Icons/database.svg) | 15 SVGs de comandos, grade de 24, traço 1,75, cor herdada |
+| [kapibara-studio.ico](../src/EsilvaSoft.KapibaraStudio.Desktop/Assets/kapibara-studio.ico) | Contêiner com sete tamanhos, 16 a 256; executável Windows e Window.Icon |
+| [Icons](../src/EsilvaSoft.KapibaraStudio.Desktop/Assets/Icons/database.svg) | 15 SVGs de comandos, grade de 24, traço 1,75, cor herdada |
 | Brand.axaml | Fonte vetorial do símbolo, gradiente e geometrias consumidas pelo Avalonia |
 
 Ícones: banco, nova aba, abrir, salvar, ferramentas, atualizar, executar, cancelar, destino, histórico, exportar, código/opções, resultados, mensagens e alerta. Os botões mantêm rótulos em pt-BR, dicas, nomes acessíveis e comandos existentes. A cor do ícone acompanha o controle, inclusive o texto escuro do botão primário no tema escuro. Ícones desabilitados recebem opacidade reduzida.

@@ -1,7 +1,7 @@
 using System.Xml.Linq;
 using SkiaSharp;
 var root = args[0];
-var assets = Path.Combine(root, "src/EsilvaSoft.SlopStudio.Desktop/Assets");
+var assets = Path.Combine(root, "src/EsilvaSoft.KapibaraStudio.Desktop/Assets");
 Directory.CreateDirectory(assets);
 var resources = XDocument.Load(Path.Combine(assets, "Brand.axaml"));
 XNamespace avalonia = "https://github.com/avaloniaui";
@@ -17,7 +17,7 @@ string Svg(string body, int width = 64, int height = 64) => $"<svg xmlns=\"http:
 var symbol = string.Concat(paths.Select(p => $"<path d=\"{p.Path}\" fill=\"{(p.Color == "gradient" ? "url(#brand)" : p.Color)}\"/>"));
 File.WriteAllText(Path.Combine(assets, "slop-symbol.svg"), Svg(symbol));
 foreach (var (theme, color) in new[] { ("light", "#162033"), ("dark", "#F1F5F9") })
-    File.WriteAllText(Path.Combine(assets, $"slop-logo-{theme}.svg"), Svg(symbol + $"<text x=\"76\" y=\"32\" font-family=\"Inter, sans-serif\" font-size=\"26\" font-weight=\"700\" fill=\"{color}\">slop studio</text><text x=\"77\" y=\"51\" font-family=\"Inter, sans-serif\" font-size=\"12\" fill=\"{color}\">EsilvaSoft · IDE para MongoDB</text>", 310));
+    File.WriteAllText(Path.Combine(assets, $"slop-logo-{theme}.svg"), Svg(symbol + $"<text x=\"76\" y=\"32\" font-family=\"Inter, sans-serif\" font-size=\"26\" font-weight=\"700\" fill=\"{color}\">kapibara studio</text><text x=\"77\" y=\"51\" font-family=\"Inter, sans-serif\" font-size=\"12\" fill=\"{color}\">EsilvaSoft · IDE para MongoDB</text>", 310));
 var images = new List<(int Size, byte[] Data)>();
 foreach (var size in new[] {16, 24, 32, 48, 64, 128, 256, 512})
 {
@@ -38,7 +38,7 @@ foreach (var size in new[] {16, 24, 32, 48, 64, 128, 256, 512})
     File.WriteAllBytes(Path.Combine(assets, $"slop-icon-{size}.png"), bytes);
     if (size <= 256) images.Add((size, bytes));
 }
-using var stream = File.Create(Path.Combine(assets, "slop-studio.ico"));
+using var stream = File.Create(Path.Combine(assets, "kapibara-studio.ico"));
 using var writer = new BinaryWriter(stream);
 writer.Write((ushort)0); writer.Write((ushort)1); writer.Write((ushort)images.Count);
 var offset = 6 + 16 * images.Count;

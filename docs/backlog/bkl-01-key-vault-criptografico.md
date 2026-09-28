@@ -6,10 +6,10 @@
 
 O armazenamento local de ambientes é **necessário ao funcionamento atual** e foi preservado integralmente:
 
-- `EsilvaSoft.SlopStudio.Core` — `EnvironmentVault`, `EnvironmentDefinition`, `EnvironmentSnapshot`.
-- `EsilvaSoft.SlopStudio.Application` — `IEnvironmentVaultRepository` e a fachada em `WorkspaceService`.
-- `EsilvaSoft.SlopStudio.Infrastructure` — `LiteDbConnectionProfileRepository.EnvironmentVault` e `OperationEnvironment`, que resolve `${ENV.get("...")}` nas URIs antes do primeiro `await`.
-- `EsilvaSoft.SlopStudio.Desktop` — `EnvironmentsWindow` e `EnvironmentsViewModel`, preservados **sem ponto de entrada na interface**.
+- `EsilvaSoft.KapibaraStudio.Core` — `EnvironmentVault`, `EnvironmentDefinition`, `EnvironmentSnapshot`.
+- `EsilvaSoft.KapibaraStudio.Application` — `IEnvironmentVaultRepository` e a fachada em `WorkspaceService`.
+- `EsilvaSoft.KapibaraStudio.Infrastructure` — `LiteDbConnectionProfileRepository.EnvironmentVault` e `OperationEnvironment`, que resolve `${ENV.get("...")}` nas URIs antes do primeiro `await`.
+- `EsilvaSoft.KapibaraStudio.Desktop` — `EnvironmentsWindow` e `EnvironmentsViewModel`, preservados **sem ponto de entrada na interface**.
 
 A separação de camadas já está correta; nenhum código precisou mudar de projeto.
 

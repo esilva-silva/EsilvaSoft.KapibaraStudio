@@ -21,25 +21,25 @@ As setas representam dependências de código. O composition root no desktop reg
 ## Solução atual e extensão prevista
 
 ```text
-EsilvaSoft.SlopStudio.slnx
+EsilvaSoft.KapibaraStudio.slnx
 global.json
 Directory.Build.props
 Directory.Packages.props
 src/
-  EsilvaSoft.SlopStudio.Core/                 # domínio Mongo, workspace, update, UUID, Extended JSON
-  EsilvaSoft.SlopStudio.Autocomplete.Core/    # núcleo determinístico de completion e highlighting
-  EsilvaSoft.SlopStudio.LocalAi.Core/         # contratos e políticas puras de IA local
-  EsilvaSoft.SlopStudio.Application/          # casos de uso e orquestração
-  EsilvaSoft.SlopStudio.Infrastructure/       # LiteDB, MongoDB.Driver, console Jint, mongosh, update
-  EsilvaSoft.SlopStudio.Infrastructure.LocalAi/ # ONNX Runtime GenAI, adaptadores e fonte remota de modelos
-  EsilvaSoft.SlopStudio.Atlas/                # planejado no backlog sem versão
-  EsilvaSoft.SlopStudio.Desktop/              # Avalonia MVVM e composition root
+  EsilvaSoft.KapibaraStudio.Core/                 # domínio Mongo, workspace, update, UUID, Extended JSON
+  EsilvaSoft.KapibaraStudio.Autocomplete.Core/    # núcleo determinístico de completion e highlighting
+  EsilvaSoft.KapibaraStudio.LocalAi.Core/         # contratos e políticas puras de IA local
+  EsilvaSoft.KapibaraStudio.Application/          # casos de uso e orquestração
+  EsilvaSoft.KapibaraStudio.Infrastructure/       # LiteDB, MongoDB.Driver, console Jint, mongosh, update
+  EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi/ # ONNX Runtime GenAI, adaptadores e fonte remota de modelos
+  EsilvaSoft.KapibaraStudio.Atlas/                # planejado no backlog sem versão
+  EsilvaSoft.KapibaraStudio.Desktop/              # Avalonia MVVM e composition root
 tests/
-  EsilvaSoft.SlopStudio.UnitTests/
-  EsilvaSoft.SlopStudio.Benchmarks/
-  EsilvaSoft.SlopStudio.IntegrationTests/     # planejado
-  EsilvaSoft.SlopStudio.UiTests/              # planejado
-  EsilvaSoft.SlopStudio.ArchitectureTests/    # planejado
+  EsilvaSoft.KapibaraStudio.UnitTests/
+  EsilvaSoft.KapibaraStudio.Benchmarks/
+  EsilvaSoft.KapibaraStudio.IntegrationTests/     # planejado
+  EsilvaSoft.KapibaraStudio.UiTests/              # planejado
+  EsilvaSoft.KapibaraStudio.ArchitectureTests/    # planejado
   Fixtures/
 tools/
   BrandAssets/
@@ -76,7 +76,7 @@ As setas apontam para a dependência. O grafo não tem ciclo: `Core` não refere
 | `Application` | Casos de uso, validações, serviços de linguagem e orquestração de IA (implementações concretas), barra de operações, caminhos do workspace | Referência a `Infrastructure`, `Infrastructure.LocalAi` ou `Desktop` |
 | `Infrastructure` | Adaptadores MongoDB.Driver, proprietário único LiteDB, console Jint, runner mongosh, atualização por GitHub Releases | ONNX Runtime e qualquer tipo de Avalonia |
 | `Infrastructure.LocalAi` | Adaptadores ONNX Runtime GenAI, adaptadores por arquitetura de modelo, catálogo/metadados locais, download Hugging Face, seleção de provider | MongoDB.Driver, LiteDB e qualquer tipo de Avalonia |
-| `Desktop` | Apresentação Avalonia MVVM e composition root (`AddSlopStudioInfrastructure` + `AddSlopStudioLocalAiInfrastructure`) | Uso direto de driver concreto de banco |
+| `Desktop` | Apresentação Avalonia MVVM e composition root (`AddKapibaraStudioInfrastructure` + `AddKapibaraStudioLocalAiInfrastructure`) | Uso direto de driver concreto de banco |
 
 O isolamento é verificado pelo compilador, não por convenção: o autocomplete determinístico não tem como alcançar metadados reais, persistência ou inferência, e o runtime de IA não tem como alcançar `MongoDB.Driver`. Consulte [ADR-040](10-decisoes-arquiteturais.md) para a decisão completa e os desvios aceitos.
 

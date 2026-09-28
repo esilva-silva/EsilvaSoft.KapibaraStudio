@@ -5,7 +5,7 @@
 - Leia `docs/17-design-system-ui-ux.md` antes de alterar UI, navegação, temas, sessão ou atalhos.
 - Consulte o catálogo funcional, os ADRs e a matriz de validação para distinguir implementado de planejado.
 - Produto: IDE desktop MongoDB em .NET 10/Avalonia; Windows e Linux; interface e documentação em pt-BR, identificadores em inglês.
-- Mantenha o nome EsilvaSoft.SlopStudio e a licença MIT. Não transformar o desktop em site ou adicionar dependência comercial sem pedido específico.
+- Mantenha o nome EsilvaSoft.KapibaraStudio e a licença MIT. Não transformar o desktop em site ou adicionar dependência comercial sem pedido específico.
 
 ## Integração Claude
 
@@ -27,9 +27,9 @@
 
 ## Verificação e documentação
 
-- Restore: `dotnet restore EsilvaSoft.SlopStudio.slnx --locked-mode`.
-- Build: `dotnet build EsilvaSoft.SlopStudio.slnx --no-restore`.
-- Testes: `dotnet test EsilvaSoft.SlopStudio.slnx --no-build --no-restore`.
+- Restore: `dotnet restore EsilvaSoft.KapibaraStudio.slnx --locked-mode`.
+- Build: `dotnet build EsilvaSoft.KapibaraStudio.slnx --no-restore`.
+- Testes: `dotnet test EsilvaSoft.KapibaraStudio.slnx --no-build --no-restore`.
 - Em ambientes isolados que bloqueiam a telemetria de build do Avalonia, `-p:UsedAvaloniaProducts=` permite validar sem essa tarefa externa; não desabilita analisadores nem testes.
 - Alterações de sessão/contexto exigem testes de falha, concorrência e recuperação. Alterações visuais exigem inspeção dos PNGs reais gerados pelos testes de renderização.
 - Não alterar golden files ou asserções apenas para esconder regressões. Não criar testes que apenas repitam a implementação.

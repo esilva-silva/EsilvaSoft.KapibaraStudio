@@ -56,9 +56,9 @@ Substitui a sobreposição `InlineCompletionTextBlock` + `Canvas` ([preemptive-a
 
 **Estado: implementado (lote W0, 18/09/2026).** Build 0 avisos; suíte 1170 aprovados, 0 falhas.
 
-`EditorCommandScope { Global, List, Snippet, Inline }` substitui a tabela de precedência descritiva por resolução por escopo: `EditorCommandDispatcher.Match(keyEvent, scope)` responde só dentro do escopo consultado, e quem decide qual escopo consultar primeiro é o chamador do editor (lista aberta › sessão de snippet › ghost visível › global). O mesmo gesto pode ser o padrão de comandos diferentes em escopos diferentes — é isso que permite `Tab` aceitar item da lista, avançar placeholder de snippet e aceitar ghost, e `Esc` fechar cada um desses três estados; duplicidade **dentro do mesmo escopo** é inválida e nunca é resolvida silenciosamente ([`EditorKeyBindings`](../../src/EsilvaSoft.SlopStudio.Core/EditorKeyBindings.cs)).
+`EditorCommandScope { Global, List, Snippet, Inline }` substitui a tabela de precedência descritiva por resolução por escopo: `EditorCommandDispatcher.Match(keyEvent, scope)` responde só dentro do escopo consultado, e quem decide qual escopo consultar primeiro é o chamador do editor (lista aberta › sessão de snippet › ghost visível › global). O mesmo gesto pode ser o padrão de comandos diferentes em escopos diferentes — é isso que permite `Tab` aceitar item da lista, avançar placeholder de snippet e aceitar ghost, e `Esc` fechar cada um desses três estados; duplicidade **dentro do mesmo escopo** é inválida e nunca é resolvida silenciosamente ([`EditorKeyBindings`](../../src/EsilvaSoft.KapibaraStudio.Core/EditorKeyBindings.cs)).
 
-Doze comandos ([`EditorCommandIds`](../../src/EsilvaSoft.SlopStudio.Core/EditorCommandIds.cs)), todos rebindáveis:
+Doze comandos ([`EditorCommandIds`](../../src/EsilvaSoft.KapibaraStudio.Core/EditorCommandIds.cs)), todos rebindáveis:
 
 | Comando | Escopo | Padrão |
 | --- | --- | --- |
