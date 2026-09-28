@@ -4,19 +4,29 @@ Estado revisado em **28/09/2026**. Esta página descreve o comportamento present
 
 ## Plano e andamento
 
+**Correção de composição (28/09/2026):** o chat mostrava “armazenamento de permissões indisponível” porque `App` não preenchia `AgentChatServices.Permissions`; o bloqueio era causado por uma porta nula, não por falha do LiteDB. A fábrica agora entrega permissões e conversas pelo repositório já registrado, que continua sendo o único proprietário LiteDB, além do provisionador MCP existente. `AgentChatHostTests` verifica identidade desses serviços na composição real (8 testes aprovados). A inspeção visual em execução ficou limitada neste ambiente: o processo não conseguiu abrir `%LocalAppData%\EsilvaSoft\SlopStudio\workspace.db` por acesso negado; não foi usado nem alterado esse arquivo.
+
+**Diagnóstico real e correção da divergência (28/09/2026):** o log Debug de duas tentativas com Claude Code 2.1.268 registrou MCP conectado, modo `default`, origem de API Key `none`, modelo solicitado e nenhuma ferramenta inesperada. Faltavam quatro nomes em `system/init.tools`: `EndConversation`, a ferramenta interna `approve`, `get_workspace_context` e `propose_file_edit`. O Desktop não havia registrado as portas de workspace/propostas/confirmação na composição; agora elas alimentam o registry e o chat. A validação mantém obrigatórias as ferramentas de produto do plano, mas aceita `EndConversation` e `approve` presentes ou ausentes no inventário inicial quando o canal MCP é exigido. `approve` continua configurada como `--permission-prompt-tool` e não pode ser chamada diretamente pelo modelo; `EndConversation` é controle da CLI. A [referência oficial](https://code.claude.com/docs/en/cli-reference#cli-flags) afirma que `--tools` não remove `EndConversation` com MCP, mas não promete que ela conste em `init.tools`. Ferramentas inesperadas continuam bloqueadas.
+
+**Verificação no Windows com a CLI real (28/09/2026):** após abrir o binário Debug corrigido, `Testar conexão` detectou Claude Code 2.1.268 instalado e informou que a sessão OAuth anterior não estava autenticada. O login foi iniciado pela janela oficial; depois, a configuração mostrou **Autenticado com assinatura**, **Assinatura (Pro)**, streaming e ferramentas disponíveis, sem API Key. Um envio curto não repetiu `ClaudeCodeInitMismatch`: a CLI retornou `ClaudeCodeRateLimited`, apresentado sem fallback para Anthropic API. O usuário confirmou que esse limite da assinatura era esperado. Isso confirma a passagem pelo `init` nessa tentativa, mas **não** comprova resposta em streaming, execução MCP, aprovações, cancelamento ou retomada. Um resultado anterior, antes do novo login, trouxe erro genérico e a sessão agora consulta novamente `auth status` após erro genérico para classificar uma sessão expirada, sem fallback. A implementação do log Debug também registra o código de saída tipado, sem texto bruto; o processo de reteste anterior foi encerrado e o binário Debug recompilado foi iniciado em 28/09. Nenhum novo turno foi enviado nessa instância.
+
+**Estado oficial da conta (28/09/2026):** executei `claude auth status` pelo binário instalado da Anthropic; ele retornou `loggedIn=true`, `authMethod=claude.ai`, `apiProvider=firstParty` e `subscriptionType=pro`. E-mail, organização e diretórios foram suprimidos. Isso confirma autenticação Pro atual sem leitura de arquivos de credenciais; o limite retornado no turno anterior continua impedindo nova validação de resposta.
+
+Antes de iniciar a CLI para um turno com ferramentas, o provisionador confere se cada ferramenta planejada existe no registry; ausência bloqueia o envio. Os rótulos do painel que apareciam como `[[chave]]` foram completados nos quatro idiomas.
+
 | Ordem | Entrega | Andamento nesta revisão |
 | --- | --- | --- |
-| 1–3 | Detectar Claude Code, login Anthropic e validar autenticação sem receber credenciais | Implementado; testes automatizados, homologação real pendente |
-| 4–6 | Reutilizar providers atuais, chat e streaming assíncrono | Implementado; homologação real pendente |
+| 1–3 | Detectar Claude Code, login Anthropic e validar autenticação sem receber credenciais | Implementado; detecção e login confirmados com Claude Pro real no Windows; rechecagem após expiração coberta por teste |
+| 4–6 | Reutilizar providers atuais, chat e streaming assíncrono | Implementado; `init` passou na tentativa real, mas resposta em streaming ficou limitada pela cota da assinatura |
 | 7 | Retomar sessão oficial e avisar quando o contexto anterior se perdeu | Implementado; testes automatizados, homologação após reinício pendente |
 | 8–9 | Aprovar ferramentas, negar desconhecidas e registrar auditoria | Implementado para capacidades mediadas; escrita nativa direta desabilitada para proteger buffers |
 | 10 | Cancelar processo/turno sem alegar rollback | Implementado; homologação real pendente |
 | 11 | Vincular workspace ao envio e detectar conflitos em propostas | Implementado e coberto por testes; homologação visual/manual pendente |
-| 12–13 | Exibir estado, permissões e erros na interface | Implementado; PNGs claro/escuro revisados |
-| 14 | Restore, build e testes | Restore locked e build passaram sem avisos/erros; testes de agents 246/246, unitários 3.774 aprovados/12 falhos/23 ignorados, benchmarks 43/43. As falhas reportam indisponibilidade do Credential Manager (`CredentialStoreFailed`/`NoLogonSession`) neste ambiente. Testes de Claude focados passaram. |
+| 12–13 | Exibir estado, permissões e erros na interface | Implementado; chaves de localização ausentes corrigidas e teste de catálogo passou. PNGs gerados nesta revisão para configuração e cartão de aprovação foram inspecionados nos temas claro/escuro; o painel completo ainda requer inspeção visual após reiniciar o executável atualizado. |
+| 14 | Restore, build e testes | Build Debug da solução sem avisos; 253/253 testes de agents e 56/56 testes focados de chat/MCP/localização passaram. Na última execução completa, 3.776 testes unitários passaram, 23 foram ignorados e 12 falharam; todas as 12 falhas dependeram do Windows Credential Manager, indisponível neste ambiente (`CredentialStoreFailed`). Os 43 testes de benchmarks passaram. O restore locked continua impedido pelo acesso negado ao NuGet.Config do perfil, mesmo com `--configfile` local. |
 | 15 | Documentação concisa e fontes oficiais | Esta página é o documento atual da fase; homologação real ainda aberta |
 
-O aceite Windows ainda depende de login Claude Pro real, conversa com streaming, permitir/negar, ferramenta MCP com MongoDB, cancelamento e retomada após reinício. A Fase 7 não será declarada homologada antes desses cenários.
+O login Claude Pro real foi concluído no Windows. O aceite ainda depende de conversa com streaming, permitir/negar, ferramenta MCP com MongoDB, cancelamento e retomada após reinício; a tentativa atual atingiu o limite esperado da assinatura. A Fase 7 não será declarada homologada antes desses cenários.
 
 ## Escolher a modalidade
 
@@ -38,6 +48,8 @@ As ferramentas nativas habilitadas dependem das permissões persistidas do provi
 Comandos aprovados executam com os privilégios da conta do usuário; a aprovação não cria sandbox para arquivos ou rede. MCP e ferramentas externas são limitados ao registry já integrado. Ferramentas desconhecidas são negadas. No Linux, a integração MCP/aprovações ainda está indisponível nesta entrega.
 
 ## Configurar e validar
+
+Para investigar um erro do Claude Code em uma **compilação Debug**, feche e reinicie o aplicativo recompilado, reproduza uma vez e consulte `logs/claude-code-debug.jsonl` na raiz do repositório. O arquivo registra o estágio, o código da falha e, quando disponível, o código de saída do processo; para `ClaudeCodeInitMismatch`, registra as verificações que divergiram, contagens e nomes limitados de ferramentas ausentes/inesperadas, estado MCP, modo de permissão, origem de API Key (nome da origem, nunca o valor), modelo e versão. Não contém prompt, resposta, argumentos de ferramentas, token, ID da sessão, saída bruta nem caminho do workspace. O limite é 1 MiB, com uma cópia anterior `claude-code-debug.1.jsonl`; `logs/` é ignorado pelo Git. Em Release, esse log não é compilado. Examine o arquivo antes de compartilhá-lo, pois nomes de ferramentas podem revelar integrações locais.
 
 Em **Configurações → Agentes → Claude**, escolha a modalidade antes de testar. Em assinatura, **Verificar conexão** consulta instalação e autenticação e não envia mensagem. **Login** abre o fluxo oficial; aguarde a conclusão na janela do Claude Code. A tela não exibe tokens nem dados sensíveis da conta. Para sair, use o comando oficial de logout pela mesma tela.
 

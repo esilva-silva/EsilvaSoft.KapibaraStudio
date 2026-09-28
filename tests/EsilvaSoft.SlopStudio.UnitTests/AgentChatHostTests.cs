@@ -85,13 +85,29 @@ public sealed class AgentChatHostTests
             {
                 Assert.That(chat, Is.Not.Null);
                 Assert.That(chat.IsFeatureAvailable, Is.True);
+                Assert.That(chat.SendBlock, Is.Not.EqualTo(AgentSendBlock.PermissionsUnavailable),
+                    "A composed Desktop chat must not block on an absent permission repository.");
                 Assert.That(chatServices.ApprovalDetails, Is.SameAs(provider.GetRequiredService<AgentWriteApprovalCoordinator>()),
                     "P7-L10-WIRE: approval details come only from the composed write approval coordinator.");
                 Assert.That(chatServices.Credentials, Is.InstanceOf<DesktopAgentApiKeyStore>());
+                var liteDbOwner = provider.GetRequiredService<LiteDbConnectionProfileRepository>();
+                Assert.That(chatServices.Permissions, Is.SameAs(liteDbOwner),
+                    "The chat permission port must use the existing LiteDB owner; otherwise every external send is blocked.");
+                Assert.That(chatServices.Conversations, Is.SameAs(liteDbOwner),
+                    "Conversation history must use the same LiteDB owner.");
+                Assert.That(chatServices.McpChannels, Is.SameAs(provider.GetRequiredService<IAgentMcpChannelProvisioner>()));
+                Assert.That(chatServices.Proposals, Is.SameAs(provider.GetRequiredService<IAgentEditProposalSink>()));
+                Assert.That(chatServices.Confirmations, Is.SameAs(provider.GetRequiredService<IAgentToolConfirmationPrompt>()));
+                Assert.That(chatServices.Availability, Is.SameAs(provider.GetRequiredService<AgentProviderAvailabilityService>()));
+                Assert.That(provider.GetRequiredService<IAgentWorkspaceContextSource>(),
+                    Is.SameAs(provider.GetRequiredService<DesktopAgentWorkspaceContextSource>()));
+                Assert.That(provider.GetRequiredService<IAgentToolRegistry>().GetChannelDescriptors().Select(item => item.Name),
+                    Is.SupersetOf(new[] { AgentToolRegistry.GetWorkspaceContextToolName,
+                        AgentToolRegistry.ProposeFileEditToolName, AgentToolRegistry.ApproveToolName }));
                 Assert.That(chat.Providers.Select(option => option.ProviderId),
                     Is.EquivalentTo(new[] { LocalAgentProvider.Id, OpenAiAgentProvider.Id, ClaudeAgentProvider.Id, ClaudeCodeAgentProvider.Id }));
                 Assert.That(chat.Providers.All(option => option.IsNotChecked), Is.True, "Listing is cache-only before a check.");
-                Assert.That(chat.ShowRefreshProviders, Is.True);
+                Assert.That(chat.ShowAvailabilityRetry, Is.True);
                 Assert.That(AgentSlotReads(), Is.Zero, "Opening the panel lists without reading the vault.");
             });
 

@@ -18,8 +18,12 @@ internal sealed partial class ClaudeCodeAgentSession
         ClaudeCodeStreamTranslator? translator = null;
         AgentMcpChannelStatus? mcpStatus = null;
         string? error = null;
+#if DEBUG
+        var stage = "Validation";
+#endif
         var resultReceived = false;
         var discarded = 0;
+        int? processExitCode = null;
         // Prazo esgotado também encerra a árvore; o cancelamento do usuário já a encerra em TurnContext.Cancel.
         using var killOnDeadline = turn.WorkToken.Register(static state => ((TurnContext)state!).KillProcessTree(), turn);
         try
@@ -31,21 +35,30 @@ internal sealed partial class ClaudeCodeAgentSession
                 // O --settings do turno (ask/deny/allow do plano) também vai para o auth status preventivo: o init só
                 // chega depois da primeira mensagem (H-21), então o método efetivo é verificado com o mesmo binário, env,
                 // cwd e flags globais antes de qualquer escrita no stdin.
+#if DEBUG
+                stage = "AuthenticationCheck";
+#endif
                 turnProfile = _profile with { SettingsJson = setup!.SettingsJson };
                 error = await _provider.CheckTurnPreconditionsAsync(turnProfile, turn.WorkToken).ConfigureAwait(false);
             }
 
             if (error is null)
             {
+#if DEBUG
+                stage = "McpProvisioning";
+#endif
                 (error, setup, mcpStatus) = await PrepareMcpChannelAsync(setup!, input, turn.WorkToken).ConfigureAwait(false);
             }
 
             if (error is null)
             {
+#if DEBUG
+                stage = "Process";
+#endif
                 PublishPendingNotice();
                 var line = BuildUserMessageLine(input.UserMessage, input.AuthorizedContext, input.Attachments);
                 translator = NewTranslator(turn, setup!);
-                (error, resultReceived, discarded) = await RunProcessAsync(turn, turnProfile!, setup!, input.SystemPrompt!, translator,
+                (error, resultReceived, discarded, processExitCode) = await RunProcessAsync(turn, turnProfile!, setup!, input.SystemPrompt!, translator,
                     line, writer).ConfigureAwait(false);
                 if (error == ClaudeCodeErrorCodes.SessionNotFound && turn.PersistedResume && !translator.InitValidated &&
                     !turn.WorkToken.IsCancellationRequested)
@@ -53,11 +66,27 @@ internal sealed partial class ClaudeCodeAgentSession
                     // A sessão persistida não existe mais na CLI (falha antes do modelo, sem init): continua numa sessão
                     // nova, uma única vez, com aviso visível. O contexto anterior do lado da CLI não é transportado.
                     StartFallbackSession(turn);
+#if DEBUG
+                    stage = "ResumeFallback";
+#endif
                     translator = NewTranslator(turn, setup!);
                     int retryDiscarded;
-                    (error, resultReceived, retryDiscarded) = await RunProcessAsync(turn, turnProfile!, setup!, input.SystemPrompt!,
+                    (error, resultReceived, retryDiscarded, processExitCode) = await RunProcessAsync(turn, turnProfile!, setup!, input.SystemPrompt!,
                         translator, line, writer).ConfigureAwait(false);
                     discarded += retryDiscarded;
+                }
+
+                if (error == ClaudeCodeErrorCodes.ExecutionError && resultReceived && !turn.WorkToken.IsCancellationRequested)
+                {
+                    // A sessão OAuth pode expirar entre o auth status preventivo e a resposta do modelo. Consulte
+                    // novamente apenas a CLI oficial; um estado não autenticado explica o erro genérico sem ler
+                    // credenciais, stderr ou o texto da resposta e sem tentar a modalidade API.
+                    var currentAuth = await _provider.CheckTurnPreconditionsAsync(turnProfile!, turn.WorkToken)
+                        .ConfigureAwait(false);
+                    if (currentAuth == ClaudeCodeErrorCodes.NotLoggedIn)
+                    {
+                        error = ClaudeCodeErrorCodes.AuthenticationFailed;
+                    }
                 }
             }
         }
@@ -95,6 +124,9 @@ internal sealed partial class ClaudeCodeAgentSession
 
             if (error is not null)
             {
+#if DEBUG
+                ClaudeCodeDebugLog.TurnFailure(_options.DebugLogDirectory, error, stage, resultReceived, discarded, processExitCode);
+#endif
                 await EmitErrorAsync(writer, turn, error).ConfigureAwait(false);
             }
 
@@ -115,7 +147,11 @@ internal sealed partial class ClaudeCodeAgentSession
     }
 
     private ClaudeCodeStreamTranslator NewTranslator(TurnContext turn, ClaudeCodeTurnSetup setup) =>
+#if DEBUG
+        new(turn.CliSessionId, _options.MinimumVersion, _profile.Model, setup, _options.DebugLogDirectory);
+#else
         new(turn.CliSessionId, _options.MinimumVersion, _profile.Model, setup);
+#endif
 
     /// <summary>Validação sem processo: plano, prompt de sistema, mensagem e tamanho (mensagem + contexto + anexos).</summary>
     private string? Validate(TurnInput input, out ClaudeCodeTurnSetup? setup)
@@ -329,7 +365,7 @@ internal sealed partial class ClaudeCodeAgentSession
             ClaudeCodeErrorCodes.ResumeSessionNotFoundNotice));
     }
 
-    private async Task<(string? Error, bool ResultReceived, int Discarded)> RunProcessAsync(
+    private async Task<(string? Error, bool ResultReceived, int Discarded, int? ExitCode)> RunProcessAsync(
         TurnContext turn, ClaudeCodeLaunchProfile turnProfile, ClaudeCodeTurnSetup setup, string systemPrompt,
         ClaudeCodeStreamTranslator translator, string messageLine, ChannelWriter<AgentProviderEvent> writer)
     {
@@ -341,7 +377,7 @@ internal sealed partial class ClaudeCodeAgentSession
         }
         catch (Exception exception) when (exception is InvalidOperationException or Win32Exception or IOException or UnauthorizedAccessException)
         {
-            return (ClaudeCodeErrorCodes.StartFailed, false, 0);
+            return (ClaudeCodeErrorCodes.StartFailed, false, 0, null);
         }
 
         await using (process.ConfigureAwait(false))
@@ -376,19 +412,20 @@ internal sealed partial class ClaudeCodeAgentSession
                         {
                             case TranslationKind.Invalid when ++discarded > _options.MaxDiscardedLines:
                                 process.KillTree();
-                                return (ClaudeCodeErrorCodes.ProtocolViolation, false, discarded);
+                                return (ClaudeCodeErrorCodes.ProtocolViolation, false, discarded, process.ExitCode);
                             case TranslationKind.Abort:
                                 process.KillTree();
-                                return (step.ErrorCode, false, discarded);
+                                return (step.ErrorCode, false, discarded, process.ExitCode);
                             case TranslationKind.Result:
                                 await FinishProcessAsync(process).ConfigureAwait(false);
+                                var resultExitCode = process.ExitCode;
                                 var resultError = translator.ResultErrorCode();
                                 if (resultError == ClaudeCodeErrorCodes.ExecutionError && StderrSaysSessionMissing(process))
                                 {
                                     resultError = ClaudeCodeErrorCodes.SessionNotFound;
                                 }
 
-                                return (resultError, true, discarded);
+                                return (resultError, true, discarded, resultExitCode);
                         }
 
                         break;
@@ -396,13 +433,13 @@ internal sealed partial class ClaudeCodeAgentSession
                         if (++discarded > _options.MaxDiscardedLines)
                         {
                             process.KillTree();
-                            return (ClaudeCodeErrorCodes.ProtocolViolation, false, discarded);
+                            return (ClaudeCodeErrorCodes.ProtocolViolation, false, discarded, process.ExitCode);
                         }
 
                         break;
                     case LineReadKind.TotalLimitExceeded:
                         process.KillTree();
-                        return (ClaudeCodeErrorCodes.OutputLimitExceeded, false, discarded);
+                        return (ClaudeCodeErrorCodes.OutputLimitExceeded, false, discarded, process.ExitCode);
                     default:
                         // Fim do stdout sem result: processo encerrado (crash, kill) ou saída truncada.
                         translator.CloseOpenMessages(events);
@@ -415,9 +452,10 @@ internal sealed partial class ClaudeCodeAgentSession
                         }
 
                         turn.WorkToken.ThrowIfCancellationRequested();
+                        var exitCode = process.ExitCode;
                         return (StderrSaysSessionMissing(process) ? ClaudeCodeErrorCodes.SessionNotFound
-                            : exited && process.ExitCode is not 0 ? ClaudeCodeErrorCodes.ProcessFailed
-                            : ClaudeCodeErrorCodes.StreamIncomplete, false, discarded);
+                            : exited && exitCode is not 0 ? ClaudeCodeErrorCodes.ProcessFailed
+                            : ClaudeCodeErrorCodes.StreamIncomplete, false, discarded, exitCode);
                 }
             }
         }

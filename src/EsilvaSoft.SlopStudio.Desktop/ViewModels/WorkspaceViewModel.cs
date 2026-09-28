@@ -84,12 +84,16 @@ public sealed partial class WorkspaceViewModel : ObservableObject, IDisposable
         IKnowledgeCatalog? knowledgeCatalog = null,
         ILocalAiModelService? localModels = null, IAppUpdateService? updates = null, IRemoteModelSource? remoteModels = null, IMetadataCache? metadata = null,
         ILearnedSchemaOptOut? learnedSchemaOptOut = null, IAiCompletionProvider? aiCompletion = null, IWorkspaceFileService? workspaceFiles = null,
-        Agents.AgentChatServicesFactory? agentChat = null, IConnectionProfileCredentialStatusProvider? credentialStatus = null)
+        Agents.AgentChatServicesFactory? agentChat = null, IConnectionProfileCredentialStatusProvider? credentialStatus = null,
+        Agents.DesktopAgentWorkspaceContextSource? agentWorkspaceContext = null,
+        Agents.AgentEditProposalStore? agentEditProposals = null)
     {
         _workspace = workspace;
         // P7-L06-HOST: both optional. The chat factory is only invoked when the agent panel is opened; the credential
         // status is read once in the background after startup, through the operation coordinator.
         _agentChatServices = agentChat;
+        _agentWorkspaceContextAttachment = agentWorkspaceContext?.Attach(CaptureWorkspace);
+        _agentProposalTextAttachment = agentEditProposals?.AttachTextResolver(ResolveAgentProposalText);
         _credentialStatus = credentialStatus;
         WorkspaceFileService = workspaceFiles;
         _workspace.OperationLocalizer = LocalizationViewModel.Current.ResolveOperationText;
@@ -278,6 +282,8 @@ public sealed partial class WorkspaceViewModel : ObservableObject, IDisposable
         Details.Clear();
         foreach (var tab in Tabs) { tab.DraftChanged -= OnDraftChanged; tab.CancelCommand.Execute(null); ReleaseAgentChat(tab); tab.Dispose(); }
         _ = DisposeAgentChatAsync();
+        _agentWorkspaceContextAttachment?.Dispose();
+        _agentProposalTextAttachment?.Dispose();
         Metadata.Changed -= OnMetadataChanged;
         if (_ownsMetadata && Metadata is IDisposable metadata) metadata.Dispose();
         _saveGate.Dispose();

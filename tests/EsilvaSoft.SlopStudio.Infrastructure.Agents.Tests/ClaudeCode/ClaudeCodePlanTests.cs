@@ -414,7 +414,53 @@ public sealed class ClaudeCodePlanTests
         Assert.That(ClaudeCodeFixture.Error(events), Is.EqualTo(ClaudeCodeErrorCodes.InitMismatch));
     }
 
+    [Test]
+    public async Task EndConversationInInitWithoutMcpIsAMismatch()
+    {
+        using var fixture = new ClaudeCodeFixture().Turn("plan-turn.jsonl").ExtraInitTools("EndConversation");
+        await using var session = await SessionAsync(fixture, null, workspace: null);
+
+        var events = await ClaudeCodeFixture.RunAsync(session);
+
+        Assert.That(ClaudeCodeFixture.Error(events), Is.EqualTo(ClaudeCodeErrorCodes.InitMismatch));
+    }
+
     // tool_use MCP ---------------------------------------------------------------------------------------------------------
+
+    [Test]
+    public async Task OfficialEndConversationControlIsAllowedWithMcpAndIsNotDispatchedAsProductTool()
+    {
+        using var fixture = new ClaudeCodeFixture().Turn("end-conversation.jsonl");
+        var plan = PlanFor(AgentOperationMode.Agent);
+        fixture.McpTools(McpToolsOf(plan));
+        var workspace = Workspace(fixture);
+        await using var session = await SessionAsync(fixture, new FakeMcpChannel(fixture.Root), workspace);
+
+        var events = await ClaudeCodeFixture.RunAsync(session, Request(plan));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(ClaudeCodeFixture.Error(events), Is.Null);
+            Assert.That(events.Any(static item => item.Kind is AgentEventKind.ToolStarted or AgentEventKind.ToolCompleted), Is.False,
+                "EndConversation is handled by the official CLI and must never enter the product registry.");
+            Assert.That(session.LastTurn!.ProductToolCalls, Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task InternalPermissionAndHostControlToolsMayBeAbsentFromInitInventory()
+    {
+        using var fixture = new ClaudeCodeFixture().Turn("plan-turn.jsonl");
+        var plan = PlanFor(AgentOperationMode.Agent);
+        fixture.McpTools(McpToolsOf(plan)).OmitInitTools(
+            "EndConversation", ClaudeCodeCommandLine.PermissionPromptToolName);
+        await using var session = await SessionAsync(fixture, new FakeMcpChannel(fixture.Root), Workspace(fixture));
+
+        var events = await ClaudeCodeFixture.RunAsync(session, Request(plan));
+
+        Assert.That(ClaudeCodeFixture.Error(events), Is.Null);
+        Assert.That(session.CliSession.Established, Is.True);
+    }
 
     [Test]
     public async Task ProductToolCallIsObservedByRegistryNameWithoutArgumentsOrContent()

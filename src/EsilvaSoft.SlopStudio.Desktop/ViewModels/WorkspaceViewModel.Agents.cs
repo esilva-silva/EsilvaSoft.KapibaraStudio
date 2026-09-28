@@ -13,6 +13,8 @@ namespace EsilvaSoft.SlopStudio.Desktop.ViewModels;
 public sealed partial class WorkspaceViewModel : IAgentChatHost
 {
     private readonly AgentChatServicesFactory? _agentChatServices;
+    private readonly IDisposable? _agentWorkspaceContextAttachment;
+    private readonly IDisposable? _agentProposalTextAttachment;
     private AgentChatViewModel? _agentChat;
     private AgentPanelPreferences? _agentPanelPreferences;
     private bool _restoringAgentPanel;
@@ -84,6 +86,14 @@ public sealed partial class WorkspaceViewModel : IAgentChatHost
             string.IsNullOrWhiteSpace(tab?.Database) ? null : tab!.Database,
             tab is { IsConsole: false } && !string.IsNullOrWhiteSpace(tab.Collection) ? tab.Collection : null);
         return context;
+    }
+
+    private string? ResolveAgentProposalText(string path, string? tabId)
+    {
+        var tab = Tabs.FirstOrDefault(candidate =>
+            string.Equals(candidate.FilePath, path, FilePathComparison) &&
+            (tabId is null || string.Equals(candidate.Id.ToString("N"), tabId, StringComparison.OrdinalIgnoreCase)));
+        return tab?.Text;
     }
 
     public string? WorkspaceFolder => WorkspaceRootPath;

@@ -21,6 +21,7 @@ internal static class Program
 {
     private const string ScenarioFile = "fake-claude.json";
     private const string LogFile = "fake-claude.log.jsonl";
+    private const string TurnStartedFile = ".fake-claude-turn-started";
     private static readonly UTF8Encoding Utf8 = new(encoderShouldEmitUTF8Identifier: false);
     private static readonly Lock LogGate = new();
 
@@ -58,7 +59,9 @@ internal static class Program
             if (subcommand == "status")
             {
                 Sleep(scenario, "authDelayMs");
-                WriteStdout(scenario.TryGetProperty("authStatus", out var status) ? status.GetRawText() : "{\"loggedIn\":false}");
+                var hasChangedStatus = scenario.TryGetProperty("authStatusAfterTurn", out var changed);
+                WriteStdout(hasChangedStatus && File.Exists(TurnStartedFile) ? changed.GetRawText()
+                    : scenario.TryGetProperty("authStatus", out var status) ? status.GetRawText() : "{\"loggedIn\":false}");
                 return Int(scenario, "authExitCode") ?? 0;
             }
 
@@ -92,6 +95,11 @@ internal static class Program
         if (first is null)
         {
             return 0;
+        }
+
+        if (scenario.TryGetProperty("authStatusAfterTurn", out _))
+        {
+            File.WriteAllText(TurnStartedFile, string.Empty);
         }
 
         if (resume && scenario.TryGetProperty("resumeMissing", out var missing) && missing.ValueKind == JsonValueKind.True)
@@ -218,6 +226,13 @@ internal static class Program
             }
         }
 
+        // The CLI may keep this host control available without listing it in init.tools. Fixtures can omit it to
+        // reproduce the observed Windows CLI inventory.
+        if (names.Any(static name => name.StartsWith("mcp__", StringComparison.Ordinal)))
+        {
+            names.Add("EndConversation");
+        }
+
         if (ValueAfter(args, "--permission-prompt-tool") is { } promptTool &&
             !serverList.Any(server => promptTool.StartsWith("mcp__" + server["name"] + "__", StringComparison.Ordinal)))
         {
@@ -234,6 +249,12 @@ internal static class Program
         if (scenario.TryGetProperty("extraInitTools", out var extraTools))
         {
             names.AddRange(extraTools.EnumerateArray().Select(static tool => tool.GetString()!));
+        }
+
+        if (scenario.TryGetProperty("omitInitTools", out var omittedTools))
+        {
+            var omitted = omittedTools.EnumerateArray().Select(static tool => tool.GetString()!).ToHashSet(StringComparer.Ordinal);
+            names.RemoveAll(omitted.Contains);
         }
 
         if (scenario.TryGetProperty("extraMcpServers", out var extraServers))

@@ -44,7 +44,10 @@ internal sealed record ClaudeCodeTurnSetup
 
     public string? PermissionPromptTool => RequiresPermissionPromptTool ? ClaudeCodeCommandLine.PermissionPromptToolName : null;
 
-    /// <summary>Conjunto exato esperado em <c>init.tools</c>: nativas ∪ MCP do produto ∪ aprovação (quando exigida).</summary>
+    /// <summary>
+    /// Ferramentas do modelo esperadas em <c>init.tools</c>: nativas ∪ MCP do produto. A ferramenta usada internamente
+    /// pelo permission prompt e EndConversation podem não ser anunciadas nesse inventário.
+    /// </summary>
     public IReadOnlySet<string> ExpectedInitTools
     {
         get
@@ -55,14 +58,15 @@ internal sealed record ClaudeCodeTurnSetup
                 tools.Add(McpServerLaunchSpec.ToolName(tool));
             }
 
-            if (RequiresPermissionPromptTool)
-            {
-                tools.Add(ClaudeCodeCommandLine.PermissionPromptToolName);
-            }
-
             return tools;
         }
     }
+
+    public IReadOnlySet<string> OptionalInitTools => RequiresMcpChannel
+        ? new HashSet<string>(RequiresPermissionPromptTool
+            ? [ClaudeCodeCommandLine.PermissionPromptToolName, "EndConversation"]
+            : ["EndConversation"], StringComparer.Ordinal)
+        : new HashSet<string>(StringComparer.Ordinal);
 
     /// <summary>
     /// Nome no <c>tool_use</c> → nome publicado no evento. A ferramenta de aprovação não está aqui de propósito: só a CLI a

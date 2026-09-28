@@ -62,6 +62,12 @@ public sealed class ClaudeCodeAgentProviderOptions
     public int MaxUserInputChars { get; init; } = 100_000;
 
     /// <summary>
+    /// Pasta de diagnósticos do Claude Code em compilações Debug. Nula desliga o registro (incluindo testes que não
+    /// optam por ele). A composição Desktop aponta para logs/ na raiz do repositório quando ela existe.
+    /// </summary>
+    public string? DebugLogDirectory { get; init; }
+
+    /// <summary>
     /// Compatibilidade: fonte da pasta de workspace quando o chamador não informa
     /// <c>AgentSessionOptions.WorkingDirectory</c> (o contrato preferido, capturado na thread de UI). Só é invocada de
     /// forma síncrona no início de <c>CreateSessionAsync</c>, antes do primeiro await; consultas de estado nunca a leem.
@@ -134,7 +140,7 @@ public sealed class ClaudeCodeAgentProviderOptions
             throw new ArgumentException("Prazos do Claude Code inválidos.");
         }
 
-        foreach (var path in new[] { DedicatedWorkingDirectory, AppDataDirectory, DatabasePath })
+        foreach (var path in new[] { DedicatedWorkingDirectory, AppDataDirectory, DatabasePath, DebugLogDirectory })
         {
             if (path is not null && !Path.IsPathFullyQualified(path))
             {

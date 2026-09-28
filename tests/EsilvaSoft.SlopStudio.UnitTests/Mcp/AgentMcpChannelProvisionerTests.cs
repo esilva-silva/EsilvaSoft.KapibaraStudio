@@ -67,7 +67,11 @@ public sealed class AgentMcpChannelProvisionerTests
             var permissions = AgentProviderPermissions.Default("claude-code") with
             {
                 ExternalDestinationConsentAt = DateTimeOffset.UtcNow,
-                ConnectionScope = AgentConnectionScope.Selected, SelectedConnectionIds = [rig.Allowed.Id]
+                ConnectionScope = AgentConnectionScope.Selected, SelectedConnectionIds = [rig.Allowed.Id],
+                // This rig intentionally has no Desktop workspace/proposal ports. Keep the turn plan to the
+                // metadata tools whose broker behavior this test exercises.
+                EnabledReadTools = ["list_connections", "list_databases", "list_collections", "get_indexes"],
+                EditProposals = new AgentEditProposalPermissions { ActiveFile = false },
             };
             var plan = AgentModePolicy.Plan(AgentOperationMode.AskConfirmations, permissions, new AgentPlatformFacts(true, true));
             Assert.That(await provisioner.UpdateTurnAsync(opened.Handle, plan, permissions), Is.EqualTo(AgentMcpChannelStatus.Ready));
@@ -103,6 +107,29 @@ public sealed class AgentMcpChannelProvisionerTests
                 AgentTurnBlockReason.ConsentMissing), AgentProviderPermissions.Default("claude-code")),
                 Is.EqualTo(AgentMcpChannelStatus.UnknownSession));
         });
+    }
+
+    [Test]
+    public async Task MissingPlannedToolStopsTheTurnBeforeTheClaudeProcess()
+    {
+        await using var rig = new ProvisionerRig();
+        var provisioner = rig.Create();
+        var opened = await provisioner.OpenSessionAsync("claude-code", Guid.NewGuid());
+        Assert.That(opened.IsReady, Is.True);
+        var permissions = AgentProviderPermissions.Default("claude-code") with
+        {
+            ExternalDestinationConsentAt = DateTimeOffset.UtcNow,
+        };
+        var plan = AgentModePolicy.Plan(AgentOperationMode.AskConfirmations, permissions,
+            new AgentPlatformFacts(true, true)) with
+        {
+            ProductTools = ["get_workspace_context"],
+        };
+
+        var status = await provisioner.UpdateTurnAsync(opened.Handle!, plan, permissions);
+
+        Assert.That(status, Is.EqualTo(AgentMcpChannelStatus.RequiredToolUnavailable));
+        await provisioner.CloseSessionAsync(opened.Handle!);
     }
 
     [Test]

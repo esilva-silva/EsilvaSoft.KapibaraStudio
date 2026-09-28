@@ -47,9 +47,14 @@ internal sealed record ClaudeCodeResultInfo(
 /// (texto vazio + assinatura opaca) são descartados.
 /// </summary>
 internal sealed class ClaudeCodeStreamTranslator(
-    string expectedSessionId, ClaudeCodeVersion minimumVersion, string requestedModel, ClaudeCodeTurnSetup setup)
+    string expectedSessionId, ClaudeCodeVersion minimumVersion, string requestedModel, ClaudeCodeTurnSetup setup
+#if DEBUG
+    , string? debugLogDirectory = null
+#endif
+    )
 {
     private readonly IReadOnlySet<string> _expectedTools = setup.ExpectedInitTools;
+    private readonly IReadOnlySet<string> _optionalTools = setup.OptionalInitTools;
     private readonly IReadOnlyDictionary<string, string> _callableTools = setup.CallableTools;
     private readonly bool _expectsMcpServer = setup.RequiresMcpChannel;
 
@@ -189,34 +194,55 @@ internal sealed class ClaudeCodeStreamTranslator(
     /// </summary>
     private bool IsExpectedInit(JsonElement root)
     {
-        if (!string.Equals(String(root, "session_id"), expectedSessionId, StringComparison.Ordinal) ||
-            !string.Equals(String(root, "permissionMode"), "default", StringComparison.Ordinal) ||
-            !string.Equals(String(root, "apiKeySource"), "none", StringComparison.Ordinal))
+        var reasons = new List<string>();
+        if (!string.Equals(String(root, "session_id"), expectedSessionId, StringComparison.Ordinal))
         {
-            return false;
+            reasons.Add("SessionId");
         }
 
-        if (!root.TryGetProperty("tools", out var tools) || tools.ValueKind != JsonValueKind.Array)
-        {
-            return false;
-        }
+        var permissionMode = String(root, "permissionMode");
+        if (!string.Equals(permissionMode, "default", StringComparison.Ordinal)) reasons.Add("PermissionMode");
+        var apiKeySource = String(root, "apiKeySource");
+        if (!string.Equals(apiKeySource, "none", StringComparison.Ordinal)) reasons.Add("ApiKeySource");
 
         var names = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var tool in tools.EnumerateArray())
+        if (!root.TryGetProperty("tools", out var tools) || tools.ValueKind != JsonValueKind.Array)
         {
-            if (tool.ValueKind != JsonValueKind.String || !names.Add(tool.GetString()!))
+            reasons.Add("ToolsFormat");
+        }
+        else
+        {
+            foreach (var tool in tools.EnumerateArray())
             {
-                return false;
+                if (tool.ValueKind != JsonValueKind.String || tool.GetString() is not { Length: > 0 } name || !names.Add(name))
+                {
+                    reasons.Add("ToolsFormatOrDuplicate");
+                    break;
+                }
             }
         }
 
-        if (!names.SetEquals(_expectedTools) || !IsExpectedMcpServers(root))
-        {
-            return false;
-        }
+        var missingTools = _expectedTools.Except(names, StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
+        var unexpectedTools = names.Except(_expectedTools, StringComparer.Ordinal)
+            .Except(_optionalTools, StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
+        if (missingTools.Length > 0 || unexpectedTools.Length > 0) reasons.Add("Tools");
+        if (!IsExpectedMcpServers(root)) reasons.Add("McpServers");
+        var versionText = String(root, "claude_code_version");
+        if (!ClaudeCodeVersion.TryParse(versionText, out var version) || version < minimumVersion) reasons.Add("Version");
+        var model = String(root, "model");
+        if (!IsRequestedModel(model)) reasons.Add("Model");
 
-        return ClaudeCodeVersion.TryParse(String(root, "claude_code_version"), out var version) && version >= minimumVersion &&
-            IsRequestedModel(String(root, "model"));
+#if DEBUG
+        if (reasons.Count > 0)
+        {
+            var servers = root.TryGetProperty("mcp_servers", out var value) && value.ValueKind == JsonValueKind.Array ? value : default;
+            var serverCount = servers.ValueKind == JsonValueKind.Array ? servers.GetArrayLength() : -1;
+            var serverStatus = serverCount > 0 && servers[0].ValueKind == JsonValueKind.Object ? String(servers[0], "status") : null;
+            ClaudeCodeDebugLog.InitMismatch(debugLogDirectory, reasons, missingTools, unexpectedTools, names.Count,
+                _expectsMcpServer, serverCount, serverStatus, permissionMode, apiKeySource, model, versionText);
+        }
+#endif
+        return reasons.Count == 0;
     }
 
     /// <summary>
@@ -348,8 +374,11 @@ internal sealed class ClaudeCodeStreamTranslator(
                 return TranslationStep.Continue;
             case "tool_use":
                 // O nome parcial já permite recusar cedo uma ferramenta fora do plano (inclui a de aprovação, que o modelo
-                // nunca chama diretamente) antes que a CLI a execute.
-                return IsCallableTool(String(block, "name"), out _) ? TranslationStep.Continue : TranslationStep.Abort(ClaudeCodeErrorCodes.ToolOutsideAllowlist);
+                // nunca chama diretamente) antes que a CLI a execute. EndConversation é controle interno documentado da
+                // CLI e aparece quando há MCP; não é despachado pelo produto.
+                return IsHostControlTool(String(block, "name")) || IsCallableTool(String(block, "name"), out _)
+                    ? TranslationStep.Continue
+                    : TranslationStep.Abort(ClaudeCodeErrorCodes.ToolOutsideAllowlist);
             default:
                 return TranslationStep.Continue;
         }
@@ -379,6 +408,12 @@ internal sealed class ClaudeCodeStreamTranslator(
             switch (String(block, "type"))
             {
                 case "tool_use":
+                    if (IsHostControlTool(String(block, "name")))
+                    {
+                        // A CLI executa este controle internamente; não o publique como tool call do registry.
+                        break;
+                    }
+
                     if (!IsCallableTool(String(block, "name"), out var name))
                     {
                         return TranslationStep.Abort(ClaudeCodeErrorCodes.ToolOutsideAllowlist);
@@ -508,6 +543,9 @@ internal sealed class ClaudeCodeStreamTranslator(
         displayName = mapped;
         return true;
     }
+
+    private bool IsHostControlTool(string? name) => _expectsMcpServer &&
+        string.Equals(name, "EndConversation", StringComparison.Ordinal);
 
     /// <summary>Chamadas de tools do produto via MCP observadas neste turno (diagnóstico; nomes nunca persistidos).</summary>
     public int ProductToolCalls => _tools.Values.Count(static tool => !IsNativeTool(tool.Name));

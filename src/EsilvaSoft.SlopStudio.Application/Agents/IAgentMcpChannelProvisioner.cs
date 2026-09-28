@@ -27,6 +27,9 @@ public enum AgentMcpChannelStatus
 
     /// <summary>Unknown or already closed session handle.</summary>
     UnknownSession = 7,
+
+    /// <summary>A tool required by this turn is not published by the registry/broker; no process should start.</summary>
+    RequiredToolUnavailable = 8,
 }
 
 /// <summary>

@@ -40,7 +40,7 @@ public partial class App : Avalonia.Application
         services.AddSlopStudioLocalAiInfrastructure();
         // The chat captures the Files panel folder on the UI thread (read notice and session start) and passes it in
         // AgentSessionOptions.WorkingDirectory; nothing in the agent platform reads UI state by itself.
-        AddDesktopAgentServices(services);
+        AddDesktopAgentServices(services, DebugLogDirectoryForDesktop());
         services.AddSingleton<WorkspaceService>();
         services.AddSingleton<WorkspaceViewModel>();
         _serviceProvider = services.BuildServiceProvider();
@@ -64,7 +64,7 @@ public partial class App : Avalonia.Application
     /// awaits: without a stored API Key, network or reachable service each provider only reports itself unavailable
     /// with a safe code through the same runtime/catalog (AC-15).
     /// </summary>
-    public static void AddDesktopAgentServices(IServiceCollection services)
+    public static void AddDesktopAgentServices(IServiceCollection services, string? debugLogDirectory = null)
     {
         ArgumentNullException.ThrowIfNull(services);
         services.AddSlopStudioOpenAiAgentProvider();
@@ -76,7 +76,11 @@ public partial class App : Avalonia.Application
         // Product tools (ADR-056) reach the CLI only through the per-session MCP channel composed by the infrastructure
         // (lazy: nothing starts until a turn needs it). The input budget covers the message plus the resolved chips.
         services.AddSlopStudioClaudeCodeAgentProvider(
-            new ClaudeCodeAgentProviderOptions { MaxUserInputChars = AgentAttachmentResolver.MaximumMessageBytes },
+            new ClaudeCodeAgentProviderOptions
+            {
+                MaxUserInputChars = AgentAttachmentResolver.MaximumMessageBytes,
+                DebugLogDirectory = debugLogDirectory,
+            },
             static provider => provider.GetService<IAgentMcpChannelProvisioner>());
         // Production, provider-neutral view for the chat UI (AC-04/AC-09): built only from the shared
         // AgentProviderCatalog/capabilities, with no branch by provider brand.
@@ -101,6 +105,13 @@ public partial class App : Avalonia.Application
                 [OpenAiAgentProvider.Id] = OpenAiAgentProviderOptions.DefaultCredentialReference,
                 [ClaudeAgentProvider.Id] = ClaudeApiKeySlot,
             }));
+        services.AddSingleton<DesktopAgentWorkspaceContextSource>();
+        services.AddSingleton<IAgentWorkspaceContextSource>(provider => provider.GetRequiredService<DesktopAgentWorkspaceContextSource>());
+        services.AddSingleton<AgentEditProposalStore>();
+        services.AddSingleton<IAgentEditProposalSink>(provider => provider.GetRequiredService<AgentEditProposalStore>());
+        services.AddSingleton<DesktopAgentToolConfirmationPrompt>();
+        services.AddSingleton<IAgentToolConfirmationPrompt>(provider => provider.GetRequiredService<DesktopAgentToolConfirmationPrompt>());
+        services.AddSingleton<AgentProviderAvailabilityService>();
         // Resolved only when the user first opens the AI Agent panel. Approval details come from the write approval
         // coordinator composed by the infrastructure (the trusted source of pending registry proposals); no write tool
         // is exposed yet, so in practice no approval is ever requested until lote 10 releases a write source.
@@ -110,7 +121,32 @@ public partial class App : Avalonia.Application
             provider.GetRequiredService<IAgentContextProvider>(),
             ApprovalDetails: provider.GetRequiredService<IAgentApprovalDetailsSource>(),
             Credentials: provider.GetRequiredService<IAgentApiKeyStore>(),
-            CliAccounts: provider.GetRequiredService<IAgentCliAccountManager>())));
+            CliAccounts: provider.GetRequiredService<IAgentCliAccountManager>())
+        {
+            Conversations = provider.GetRequiredService<IAgentConversationRepository>(),
+            Permissions = provider.GetRequiredService<IAgentProviderPermissionsRepository>(),
+            McpChannels = provider.GetRequiredService<IAgentMcpChannelProvisioner>(),
+            Proposals = provider.GetRequiredService<AgentEditProposalStore>(),
+            Confirmations = provider.GetRequiredService<DesktopAgentToolConfirmationPrompt>(),
+            Availability = provider.GetRequiredService<AgentProviderAvailabilityService>(),
+        }));
+    }
+
+    private static string? DebugLogDirectoryForDesktop()
+    {
+#if DEBUG
+        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "EsilvaSoft.SlopStudio.slnx")))
+            {
+                return Path.Combine(directory.FullName, "logs");
+            }
+        }
+
+        return Path.Combine(AppContext.BaseDirectory, "logs");
+#else
+        return null;
+#endif
     }
 
     private static async Task<AgentCliAccountStatus> CheckClaudeCodeAsync(ClaudeCodeAgentProvider provider, CancellationToken cancellationToken)

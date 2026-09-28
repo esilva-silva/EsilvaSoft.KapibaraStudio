@@ -18,6 +18,8 @@ public sealed class ClaudeCodeSessionTests
 {
     private static readonly string[] TurnPrefix = ["-p", "--input-format", "stream-json"];
     private static readonly string[] AuthStatusPair = ["auth", "status"];
+    private static readonly string[] TurnFailureFields =
+        ["timestampUtc", "eventType", "errorCode", "stage", "resultReceived", "discardedLines", "exitCode"];
 
     private static async Task<ClaudeCodeAgentSession> SessionAsync(ClaudeCodeAgentProvider provider, string? model = null) =>
         (ClaudeCodeAgentSession)await provider.CreateSessionAsync(new AgentSessionOptions(ClaudeCodeAgentProvider.Id, model), CancellationToken.None);
@@ -146,6 +148,75 @@ public sealed class ClaudeCodeSessionTests
             Assert.That(session.CliSession.Established, Is.False);
         });
     }
+
+#if DEBUG
+    [Test]
+    public async Task InitMismatchWritesBoundedDiagnosticWithoutPromptOrRawFrame()
+    {
+        using var fixture = new ClaudeCodeFixture().Turn("init-mismatch-tools.jsonl");
+        var logDirectory = Path.Combine(fixture.Root, "logs");
+        await using var session = await SessionAsync(fixture.Provider(fixture.Options(debugLogDirectory: logDirectory)));
+
+        var events = await ClaudeCodeFixture.RunAsync(session, "PROMPT-CANARIO-PRIVATE-6391");
+        var logPath = Path.Combine(logDirectory, "claude-code-debug.jsonl");
+        var lines = File.ReadAllLines(logPath);
+        using var init = JsonDocument.Parse(lines[0]);
+        var diagnostic = init.RootElement;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(ClaudeCodeFixture.Error(events), Is.EqualTo(ClaudeCodeErrorCodes.InitMismatch));
+            Assert.That(diagnostic.GetProperty("eventType").GetString(), Is.EqualTo("ClaudeCodeInitMismatch"));
+            Assert.That(diagnostic.GetProperty("reasons").EnumerateArray().Select(static value => value.GetString()),
+                Does.Contain("Tools"));
+            Assert.That(diagnostic.GetProperty("unexpectedToolCount").GetInt32(), Is.GreaterThan(0));
+            Assert.That(lines.Any(static line => line.Contains("ClaudeCodeTurnFailure", StringComparison.Ordinal)), Is.True);
+            Assert.That(string.Join('\n', lines), Does.Not.Contain("PROMPT-CANARIO-PRIVATE-6391")
+                .And.Not.Contain(fixture.Root).And.Not.Contain("session_id").And.Not.Contain("orgId")
+                .And.Not.Contain("<PIPE>"));
+        });
+    }
+
+    [Test]
+    public void DebugLogRedactsCredentialShapedToolNames()
+    {
+        using var fixture = new ClaudeCodeFixture();
+        var logDirectory = Path.Combine(fixture.Root, "logs");
+        ClaudeCodeDebugLog.InitMismatch(logDirectory, ["Tools"], [], ["sk-ant-CANARY-PRIVATE-6391"], 1,
+            expectsMcp: false, observedMcpServerCount: 0, observedMcpStatus: null, permissionMode: "default",
+            apiKeySource: "none", model: "haiku", version: "2.1.268");
+
+        var text = File.ReadAllText(Path.Combine(logDirectory, "claude-code-debug.jsonl"));
+        using var entry = JsonDocument.Parse(text);
+        Assert.Multiple(() =>
+        {
+            Assert.That(entry.RootElement.GetProperty("unexpectedTools")[0].GetString(), Is.EqualTo("<redacted>"));
+            Assert.That(text, Does.Not.Contain("CANARY-PRIVATE-6391"));
+        });
+    }
+
+    [Test]
+    public void TurnFailureLogsOnlyKnownCategoriesAndTypedResultMetadata()
+    {
+        using var fixture = new ClaudeCodeFixture();
+        var logDirectory = Path.Combine(fixture.Root, "logs");
+        ClaudeCodeDebugLog.TurnFailure(logDirectory, ClaudeCodeErrorCodes.ExecutionError, "Process", true, 0, 23);
+
+        var text = File.ReadAllText(Path.Combine(logDirectory, "claude-code-debug.jsonl"));
+        using var entry = JsonDocument.Parse(text);
+        var diagnostic = entry.RootElement;
+        Assert.Multiple(() =>
+        {
+            Assert.That(diagnostic.GetProperty("errorCode").GetString(), Is.EqualTo(ClaudeCodeErrorCodes.ExecutionError));
+            Assert.That(diagnostic.GetProperty("stage").GetString(), Is.EqualTo("Process"));
+            Assert.That(diagnostic.GetProperty("resultReceived").GetBoolean(), Is.True);
+            Assert.That(diagnostic.GetProperty("discardedLines").GetInt32(), Is.Zero);
+            Assert.That(diagnostic.GetProperty("exitCode").GetInt32(), Is.EqualTo(23));
+            Assert.That(diagnostic.EnumerateObject().Select(static property => property.Name),
+                Is.EquivalentTo(TurnFailureFields));
+        });
+    }
+#endif
 
     [Test]
     public async Task ToolOutsideTheAllowlistAbortsTheTurn()
@@ -293,6 +364,25 @@ public sealed class ClaudeCodeSessionTests
         {
             Assert.That(ClaudeCodeFixture.Error(events), Is.EqualTo(code));
             Assert.That(fixture.TurnInvocations(), Has.Count.EqualTo(1), "Nenhuma repetição automática.");
+        });
+    }
+
+    [Test]
+    public async Task ExpiredSubscriptionAfterPreflightIsClassifiedThroughOfficialAuthStatus()
+    {
+        using var fixture = new ClaudeCodeFixture().Turn("result-auth-expired-no-status.jsonl")
+            .AuthStatusAfterTurn("""{"loggedIn":false}""");
+        await using var session = await SessionAsync(fixture.Provider());
+
+        var events = await ClaudeCodeFixture.RunAsync(session);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(ClaudeCodeFixture.Error(events), Is.EqualTo(ClaudeCodeErrorCodes.AuthenticationFailed));
+            Assert.That(fixture.TurnInvocations(), Has.Count.EqualTo(1), "Não há retry ou troca para API.");
+            Assert.That(fixture.Invocations().Count(args => args.Length >= 2 &&
+                args[^2] == AuthStatusPair[0] && args[^1] == AuthStatusPair[1]),
+                Is.GreaterThanOrEqualTo(3), "Criação da sessão, pré-envio e rechecagem após o erro.");
         });
     }
 

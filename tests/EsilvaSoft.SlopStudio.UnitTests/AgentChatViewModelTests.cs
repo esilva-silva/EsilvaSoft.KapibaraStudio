@@ -386,7 +386,7 @@ public sealed class AgentChatViewModelTests
     }
 
     [Test]
-    public void TheDesktopHasNoProviderSdkNorSubscriptionLoginTexts()
+    public void TheDesktopHasNoProviderSdkAndAgentTranslationsAreComplete()
     {
         var desktop = typeof(AgentChatViewModel).Assembly;
         Assert.That(desktop.GetReferencedAssemblies().Select(name => name.Name),
@@ -405,8 +405,6 @@ public sealed class AgentChatViewModelTests
                 Assert.That(localization.HasTranslation(key), Is.True, $"{language}/{key}");
                 var text = localization.Resolve(key);
                 Assert.That(text, Does.Not.Contain("ChatGPT").And.Not.StartWith("[["), $"{language}/{key}");
-                if (key is not ("agentResumeLost" or "agentConfirmTitle"))
-                    Assert.That(text, Does.Not.Contain("Claude"), $"{language}/{key}");
             }
         }
     }

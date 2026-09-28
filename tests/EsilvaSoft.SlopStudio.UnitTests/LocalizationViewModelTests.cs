@@ -9,6 +9,26 @@ namespace EsilvaSoft.SlopStudio.UnitTests;
 [TestFixture]
 public sealed class LocalizationViewModelTests
 {
+    private static readonly string[] AgentPanelKeys =
+    [
+        "agentAvailabilityRetry", "agentAvailabilityAvailable", "agentAvailabilityChecking", "agentAvailabilityCliMissing",
+        "agentAvailabilityFailed", "agentAvailabilityNotConnected", "agentAvailabilityTimedOut", "agentChipActive",
+        "agentChipQualified", "agentChipRemove", "agentChipSize", "agentChipUntitled", "agentChipKindActive",
+        "agentChipKindWorkspace", "agentChipKindExternal", "agentChipKindTab", "agentConversationUntitled",
+        "agentMessageAttachments", "agentSummaryUnreadable", "agentSummaryMongoRead", "agentSummaryWorkspaceFiles",
+        "agentSummaryExternalFiles", "agentSummaryToolsUnavailable", "agentSummaryNoHistory", "agentHistoryEmpty",
+        "agentHistoryLimit", "agentHistoryListFailed", "agentHistoryMeta", "agentHistoryNewerVersion", "agentHistoryNoDate",
+        "agentHistoryNoStore", "agentHistoryOpen", "agentHistoryOpenFailed", "agentHistoryOpenMissing",
+        "agentHistoryOpenNewerVersion", "agentHistoryOpenUnreadable", "agentHistoryPermissionsUnknown", "agentHistoryRename",
+        "agentHistoryRenameConflict", "agentHistoryRenameFailed", "agentHistoryToday", "agentHistoryUnreadable",
+        "agentHistoryYesterday", "agentHistoryDeleteBusy", "agentHistoryDeleteConflict", "agentHistoryDeleteFailed",
+        "agentHistoryDeleted", "agentHistoryDisabled", "agentPersistenceConflict", "agentPersistenceConflictMerged",
+        "agentPersistenceFailed", "agentPersistenceLimit", "agentPersistenceStoredUnreadable", "agentPickerEmpty",
+        "agentPickerFailed", "agentPickerInvalidExclusion", "agentPickerLoading", "agentPickerNotPermitted",
+        "agentPickerNoWorkspace", "agentPickerTruncated", "agentStateAttachmentsRefused", "agentBlockConsent",
+        "agentBlockInvalid", "agentBlockLoading", "agentBlockUnreadable", "agentBlockConfigure", "agentBlockOpenPermissions",
+    ];
+
     [TestCase("pt-BR", "Conexões")]
     [TestCase("en", "Connections")]
     [TestCase("es", "Conexiones")]
@@ -51,6 +71,20 @@ public sealed class LocalizationViewModelTests
             localization.Language = language.Code;
             foreach (var key in LocalizationViewModel.TranslationKeys)
                 Assert.That(localization.HasTranslation(key), Is.True, $"{language.Code}/{key}");
+        }
+    }
+
+    [Test]
+    public void AgentPanelRuntimeKeysResolveInEverySupportedLanguage()
+    {
+        var localization = new LocalizationViewModel();
+        foreach (var language in ApplicationLanguages.All)
+        {
+            localization.Language = language.Code;
+            foreach (var key in AgentPanelKeys)
+            {
+                Assert.That(localization.Resolve(key), Does.Not.Contain("[["), $"{language.Code}/{key}");
+            }
         }
     }
 

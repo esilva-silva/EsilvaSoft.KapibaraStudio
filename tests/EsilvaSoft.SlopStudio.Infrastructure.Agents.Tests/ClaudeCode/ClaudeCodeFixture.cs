@@ -116,6 +116,18 @@ internal sealed class ClaudeCodeFixture : IDisposable
         return Save();
     }
 
+    public ClaudeCodeFixture AuthStatusAfterTurn(string json)
+    {
+        _scenario["authStatusAfterTurn"] = JsonNode.Parse(json);
+        return Save();
+    }
+
+    public ClaudeCodeFixture OmitInitTools(params string[] tools)
+    {
+        _scenario["omitInitTools"] = new JsonArray([.. tools.Select(static tool => (JsonNode)JsonValue.Create(tool)!)]);
+        return Save();
+    }
+
     public ClaudeCodeFixture ExtraMcpServer(string name, string status)
     {
         _scenario["extraMcpServers"] = new JsonArray(new JsonObject { ["name"] = name, ["status"] = status });
@@ -130,7 +142,7 @@ internal sealed class ClaudeCodeFixture : IDisposable
 
     public ClaudeCodeAgentProviderOptions Options(
         Func<string, bool>? environment = null, TimeSpan? turnDuration = null, Func<string?>? workspace = null,
-        string? executable = null) => new()
+        string? executable = null, string? debugLogDirectory = null) => new()
     {
         ExecutablePath = executable ?? FakeExecutable,
         // As fixtures do spike foram gravadas com haiku; o init é validado contra o modelo pedido (M4).
@@ -142,6 +154,7 @@ internal sealed class ClaudeCodeFixture : IDisposable
         ProbeTimeout = TimeSpan.FromSeconds(15),
         MaxTurnDuration = turnDuration ?? TimeSpan.FromSeconds(60),
         IsEnvironmentVariableSet = environment ?? (static _ => false),
+        DebugLogDirectory = debugLogDirectory,
     };
 
     public ClaudeCodeAgentProvider Provider(ClaudeCodeAgentProviderOptions? options = null) => new(options ?? Options());
