@@ -50,6 +50,20 @@ public sealed class AgentModePolicyTests
     }
 
     [Test]
+    public void LocalDestinationDoesNotRequireExternalDestinationConsent()
+    {
+        var plan = AgentModePolicy.Plan(AgentOperationMode.Agent,
+            AgentProviderPermissions.Default("local-cli"), Windows, requireExternalDestinationConsent: false);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(plan.IsBlocked, Is.False);
+            Assert.That(plan.ProductTools, Is.Not.Empty);
+            Assert.That(plan.ProposalHandling, Is.EqualTo(AgentProposalHandling.ReviewRequired));
+        });
+    }
+
+    [Test]
     public void AgentModeReadsAndProposesWithReview()
     {
         var plan = AgentModePolicy.Plan(AgentOperationMode.Agent, Consented(), Windows);

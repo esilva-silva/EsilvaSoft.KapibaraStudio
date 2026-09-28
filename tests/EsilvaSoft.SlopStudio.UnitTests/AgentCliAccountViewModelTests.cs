@@ -14,6 +14,15 @@ namespace EsilvaSoft.SlopStudio.UnitTests;
 [TestFixture, NonParallelizable]
 public sealed class AgentCliAccountViewModelTests
 {
+    private static readonly string[] RuntimeCodes = ["CancelledAfterSend", "ObservedToolUnconfirmed", "NativeToolFailed"];
+    private static readonly string[] Locales = ["pt-BR", "en", "es", "zh-CN"];
+    private static readonly string[] UnavailableCodes =
+    [
+        "ExecutableNotFound", "UnsupportedExecutable", "VersionTooLow", "VersionUnreadable", "ProbeTimedOut",
+        "ProbeFailed", "NotLoggedIn", "NonSubscriptionAuthentication", "BlockedEnvironment", "AuthStatusUnreadable",
+        "InvalidConfiguration", "ModelNotAllowed", "NoModelSelected",
+    ];
+
     private static Task<bool> RunOnUiAsync(Func<Task> body)
     {
         var session = HeadlessUnitTestSession.GetOrStartForAssembly(typeof(UiTestApp).Assembly);
@@ -27,6 +36,12 @@ public sealed class AgentCliAccountViewModelTests
 
     private static AgentSettingsViewModel Settings(MutableAgentCatalog catalog, FakeCliAccountManager accounts) =>
         new(catalog, new RecordingCredentialSetup(), FakeCliAccountManager.ProviderId, accounts);
+
+    private static FakeAgentPermissionsRepository ConsentedPermissions() => new(
+        AgentProviderPermissions.Default(FakeCliAccountManager.ProviderId) with
+        {
+            ExternalDestinationConsentAt = DateTimeOffset.UtcNow,
+        });
 
     [Test]
     public async Task OpeningSettingsRunsNothingAndShowsNotCheckedStates()
@@ -269,7 +284,6 @@ public sealed class AgentCliAccountViewModelTests
             await using var chat = new AgentChatViewModel(
                 new AgentChatServices(runtime, catalog, new FakeAgentContextProvider(), CliAccounts: accounts), tab.Capture);
             chat.SelectedProvider = chat.Providers.Single(p => p.ProviderId == FakeCliAccountManager.ProviderId);
-            chat.DestinationConsent = true;
             chat.ComposerText = "resuma a coleção";
 
             Assert.Multiple(() =>
@@ -279,8 +293,7 @@ public sealed class AgentCliAccountViewModelTests
                 Assert.That(chat.State, Is.EqualTo(AgentChatState.CredentialExpired));
                 Assert.That(chat.StatusText, Does.Contain("bloqueado, envio desabilitado").And.Contain("ANTHROPIC_API_KEY").And.Contain("modo Anthropic API"));
                 Assert.That(chat.IsStatusError, Is.True);
-                Assert.That(chat.ReviewCommand.CanExecute(null), Is.False, "Bloqueado: sem fallback e sem envio.");
-                Assert.That(chat.PrimaryActionCommand.CanExecute(null), Is.False);
+                Assert.That(chat.SendCommand.CanExecute(null), Is.False, "Bloqueado: sem fallback e sem envio.");
             });
 
             accounts.WorkspaceDirectory = Path.Combine(Path.GetTempPath(), "workspace-sintetico");
@@ -307,18 +320,20 @@ public sealed class AgentCliAccountViewModelTests
             var catalog = new MutableAgentCatalog(MutableAgentCatalog.Subscription());
             var folderA = Path.Combine(Path.GetTempPath(), "workspace-a");
             var folderB = Path.Combine(Path.GetTempPath(), "workspace-b");
-            var folder = folderA;
-            var tab = new AgentChatTabFixture();
+            var tab = new AgentChatTabFixture { WorkspaceFolder = folderA };
             await using var chat = new AgentChatViewModel(
-                new AgentChatServices(runtime, catalog, new FakeAgentContextProvider(), CliAccounts: new FakeCliAccountManager()),
-                tab.Capture, () => folder);
-            chat.DestinationConsent = true;
+                new AgentChatServices(runtime, catalog, new FakeAgentContextProvider(), CliAccounts: new FakeCliAccountManager())
+                {
+                    Permissions = ConsentedPermissions(),
+                }, tab.Capture);
+            await chat.Initialization;
             chat.ComposerText = "leia o arquivo";
-            await chat.ReviewCommand.ExecuteAsync(null);
+            Assert.That(chat.SendCommand.CanExecute(null), Is.True,
+                $"state={chat.State}; block={chat.SendBlock}; permissions={chat.CurrentPermissions is not null}; scope={chat.ReadScopeText}");
             _ = chat.SendCommand.ExecuteAsync(null);
 
             // The folder changes while the session start is still awaiting: the session keeps the captured value.
-            folder = folderB;
+            tab.WorkspaceFolder = folderB;
             chat.RefreshReadScope();
             runtime.SessionGate.SetResult();
             await PumpUntilAsync(() => runtime.LastRequest is not null);
@@ -333,7 +348,6 @@ public sealed class AgentCliAccountViewModelTests
             runtime.Push(runtime.LastRequest!.TurnId, AgentEventKind.TaskCompleted, outcome: AgentTurnOutcome.Completed);
             await PumpUntilAsync(() => chat.State == AgentChatState.Completed);
             chat.ComposerText = "e agora?";
-            await chat.ReviewCommand.ExecuteAsync(null);
             _ = chat.SendCommand.ExecuteAsync(null);
             await PumpUntilAsync(() => chat.State is AgentChatState.Generating);
             Assert.That(runtime.SessionOptions, Has.Count.EqualTo(1), "A sessão existente é reutilizada com a pasta original.");
@@ -351,10 +365,9 @@ public sealed class AgentCliAccountViewModelTests
             var tab = new AgentChatTabFixture();
             await using var chat = new AgentChatViewModel(new AgentChatServices(runtime,
                 new MutableAgentCatalog(MutableAgentCatalog.Subscription()), new FakeAgentContextProvider(),
-                CliAccounts: new FakeCliAccountManager()), tab.Capture, () => "   ");
-            chat.DestinationConsent = true;
+                CliAccounts: new FakeCliAccountManager()) { Permissions = ConsentedPermissions() }, tab.Capture);
+            await chat.Initialization;
             chat.ComposerText = "oi";
-            await chat.ReviewCommand.ExecuteAsync(null);
             _ = chat.SendCommand.ExecuteAsync(null);
             await PumpUntilAsync(() => runtime.LastRequest is not null);
             Assert.That(runtime.SessionOptions.Single().WorkingDirectory, Is.Null);
@@ -391,18 +404,17 @@ public sealed class AgentCliAccountViewModelTests
                     AgentCliReadScopeRejection.ProtectedArea, AgentCliProtectedArea.SshKeys, AgentCliProtectedRelation.Contains),
             };
             var runtime = new ChannelAgentRuntime();
-            var tab = new AgentChatTabFixture();
+            var tab = new AgentChatTabFixture { WorkspaceFolder = folder };
             await using var chat = new AgentChatViewModel(new AgentChatServices(runtime,
                 new MutableAgentCatalog(MutableAgentCatalog.Subscription()), new FakeAgentContextProvider(), CliAccounts: accounts),
-                tab.Capture, () => folder);
-            chat.DestinationConsent = true;
+                tab.Capture);
             chat.ComposerText = "leia";
             Assert.Multiple(() =>
             {
                 Assert.That(chat.ReadScopeText, Does.Contain("A pasta " + folder + " foi recusada porque contém ~/.ssh")
                     .And.Contain("pasta dedicada vazia").And.Contain("toda leitura pedirá aprovação"));
                 Assert.That(chat.IsReadScopeBlocked, Is.False, "Recusa com pasta dedicada utilizável não bloqueia.");
-                Assert.That(chat.ReviewCommand.CanExecute(null), Is.True);
+                Assert.That(chat.IsReadScopeBlocked, Is.False);
             });
 
             accounts.ScopeFor = candidate => new AgentCliReadScope(candidate, null, false, AgentCliReadScopeRejection.ProtectedArea,
@@ -414,7 +426,7 @@ public sealed class AgentCliAccountViewModelTests
                 Assert.That(chat.State, Is.EqualTo(AgentChatState.ReadScopeUnavailable));
                 Assert.That(chat.StatusText, Does.Contain("sem pasta de trabalho utilizável, envio desabilitado"));
                 Assert.That(chat.IsStatusError, Is.True);
-                Assert.That(chat.ReviewCommand.CanExecute(null), Is.False, "Sem fallback: o envio fica desabilitado.");
+                Assert.That(chat.SendCommand.CanExecute(null), Is.False, "Sem fallback: o envio fica desabilitado.");
                 Assert.That(chat.ReadScopeText, Does.Contain("Nenhuma pasta de trabalho utilizável"));
             });
             Assert.That(accounts.ScopeCandidates, Is.All.EqualTo(folder), "A candidata é a pasta capturada na UI.");
@@ -438,42 +450,47 @@ public sealed class AgentCliAccountViewModelTests
     }
 
     [Test]
-    public void EveryTypedTurnCodeOfTheSubscriptionModeIsLocalizedInFourLanguages()
+    public async Task EveryTypedTurnCodeOfTheSubscriptionModeIsLocalizedInFourLanguages()
     {
-        string[] runtimeCodes = ["CancelledAfterSend", "ObservedToolUnconfirmed", "NativeToolFailed"];
-        foreach (var language in new[] { "pt-BR", "en", "es", "zh-CN" })
+        await RunOnUiAsync(() =>
         {
-            LocalizationViewModel.Current.Language = language;
-            foreach (var code in EsilvaSoft.SlopStudio.Infrastructure.Agents.ClaudeCode.ClaudeCodeErrorCodes.TurnErrorCodes.Concat(runtimeCodes))
+            foreach (var language in Locales)
             {
-                Assert.That(LocalizationViewModel.Current.HasTranslation(AgentChatViewModel.ErrorCodePrefix + code), Is.True, language + ": " + code);
+                LocalizationViewModel.Current.Language = language;
+                foreach (var code in EsilvaSoft.SlopStudio.Infrastructure.Agents.ClaudeCode.ClaudeCodeErrorCodes.TurnErrorCodes.Concat(RuntimeCodes))
+                {
+                    Assert.That(LocalizationViewModel.Current.HasTranslation(AgentChatViewModel.ErrorCodePrefix + code), Is.True, language + ": " + code);
+                }
             }
-        }
 
-        LocalizationViewModel.Current.Language = "pt-BR";
+            LocalizationViewModel.Current.Language = "pt-BR";
+            return Task.CompletedTask;
+        });
     }
 
     [Test]
-    public void UnknownAndKnownUnavailableCodesAreLocalizedNeverRaw()
+    public async Task UnknownAndKnownUnavailableCodesAreLocalizedNeverRaw()
     {
-        LocalizationViewModel.Current.Language = "pt-BR";
-        foreach (var code in new[] { "ExecutableNotFound", "UnsupportedExecutable", "VersionTooLow", "VersionUnreadable", "ProbeTimedOut",
-                     "ProbeFailed", "NotLoggedIn", "NonSubscriptionAuthentication", "BlockedEnvironment", "AuthStatusUnreadable",
-                     "InvalidConfiguration", "ModelNotAllowed", "NoModelSelected" })
+        await RunOnUiAsync(() =>
         {
-            var option = new AgentProviderOption(MutableAgentCatalog.Subscription(false, AgentProviderAuthState.Unknown, code));
-            Assert.That(option.UnavailableText, Is.Not.EqualTo(code).And.Not.StartWith("[["), code);
-        }
+            LocalizationViewModel.Current.Language = "pt-BR";
+            foreach (var code in UnavailableCodes)
+            {
+                var option = new AgentProviderOption(MutableAgentCatalog.Subscription(false, AgentProviderAuthState.Unknown, code));
+                Assert.That(option.UnavailableText, Is.Not.EqualTo(code).And.Not.StartWith("[["), code);
+            }
 
-        var unknown = new AgentProviderOption(MutableAgentCatalog.Subscription(false, AgentProviderAuthState.Unknown, "SomeFutureCode"));
-        Assert.That(unknown.UnavailableText, Does.Contain("não descreve").And.Contain("SomeFutureCode"));
-        foreach (var language in new[] { "en", "es", "zh-CN" })
-        {
-            LocalizationViewModel.Current.Language = language;
-            Assert.That(new AgentProviderOption(MutableAgentCatalog.Subscription(false, AgentProviderAuthState.Unknown, "BlockedEnvironment"))
-                .UnavailableText, Does.Contain("ANTHROPIC_API_KEY"), language);
-        }
+            var unknown = new AgentProviderOption(MutableAgentCatalog.Subscription(false, AgentProviderAuthState.Unknown, "SomeFutureCode"));
+            Assert.That(unknown.UnavailableText, Does.Contain("não descreve").And.Contain("SomeFutureCode"));
+            foreach (var language in Locales.Skip(1))
+            {
+                LocalizationViewModel.Current.Language = language;
+                Assert.That(new AgentProviderOption(MutableAgentCatalog.Subscription(false, AgentProviderAuthState.Unknown, "BlockedEnvironment"))
+                    .UnavailableText, Does.Contain("ANTHROPIC_API_KEY"), language);
+            }
 
-        LocalizationViewModel.Current.Language = "pt-BR";
+            LocalizationViewModel.Current.Language = "pt-BR";
+            return Task.CompletedTask;
+        });
     }
 }

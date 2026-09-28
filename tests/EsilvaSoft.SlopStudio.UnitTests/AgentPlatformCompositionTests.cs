@@ -58,8 +58,9 @@ public sealed class AgentPlatformCompositionTests
             Assert.That(registry, Is.InstanceOf<AgentToolRegistry>());
             // ADR-056: default stage Metadata. Releasing it authorizes nothing: every call still needs a grant.
             Assert.That(((AgentToolRegistry)registry).ExposureStage, Is.EqualTo(AgentToolExposureStage.Metadata));
-            Assert.That(registry.GetDescriptors().Select(descriptor => descriptor.Name), Is.EquivalentTo(
-                DefaultMetadataTools), "Só metadados por padrão.");
+            Assert.That(registry.GetDescriptors(), Is.Empty, "Providers in-process não recebem grant implícito.");
+            Assert.That(registry.GetChannelDescriptors().Select(descriptor => descriptor.Name), Is.SupersetOf(
+                DefaultMetadataTools), "O canal autenticado pode anunciar as tools de metadados liberadas.");
             Assert.That(registry.FindDescriptor(AgentToolRegistry.MongoFindToolName), Is.Null);
             // write:null: no write tool exists at any ingress, per-session tools included.
             Assert.That(registry.GetChannelDescriptors().Select(descriptor => descriptor.Risk), Is.All.EqualTo(AgentToolRisk.ReadOnly));

@@ -19,6 +19,8 @@ public sealed class ClaudeCodePlanTests
 {
     private static readonly Guid Conversation = Guid.Parse("7a1f0c2e-5b0d-4c55-9e1a-3d2f00c0ffee");
 
+    private static readonly string[] LegacyReadRules = ["Read", "Glob", "Grep"];
+
     private static readonly string[] FixedDenyCount = [];
 
     private static AgentProviderPermissions Permissions(Func<AgentProviderPermissions, AgentProviderPermissions>? change = null)
@@ -224,7 +226,7 @@ public sealed class ClaudeCodePlanTests
         Assert.Multiple(() =>
         {
             Assert.That(error, Is.Null);
-            Assert.That(setup!.AskRules, Is.EqualTo(new[] { "Read", "Glob", "Grep" }));
+            Assert.That(setup!.AskRules, Is.EqualTo(LegacyReadRules));
             Assert.That(setup.AllowRules, Is.Empty);
             Assert.That(setup.McpConfigJson, Is.Null);
             Assert.That(setup.PermissionPromptTool, Is.Null);
@@ -248,7 +250,7 @@ public sealed class ClaudeCodePlanTests
         {
             Assert.That(ClaudeCodeFixture.Error(events),
                 Is.EqualTo(blocked ? ClaudeCodeErrorCodes.TurnBlocked : ClaudeCodeErrorCodes.TurnPlanMissing));
-            Assert.That(fixture.Invocations(), Is.Empty, "Nem auth status nem turno.");
+            AssertNoTurnInvocation(fixture);
         });
     }
 
@@ -260,7 +262,7 @@ public sealed class ClaudeCodePlanTests
     [TestCase("linha\u0000nula")]
     [TestCase("escape\u001b[31m")]
     [TestCase("surrogate \ud800 isolado")]
-    public async Task InvalidSystemPromptFailsTypedWithoutAnyProcess(string? prompt)
+    public async Task InvalidSystemPromptFailsTypedWithoutStartingATurn(string? prompt)
     {
         using var fixture = new ClaudeCodeFixture().Turn("plan-turn.jsonl");
         await using var session = await SessionAsync(fixture, null, workspace: null);
@@ -270,8 +272,15 @@ public sealed class ClaudeCodePlanTests
         Assert.Multiple(() =>
         {
             Assert.That(ClaudeCodeFixture.Error(events), Is.EqualTo(ClaudeCodeErrorCodes.SystemPromptInvalid));
-            Assert.That(fixture.Invocations(), Is.Empty);
+            AssertNoTurnInvocation(fixture);
         });
+    }
+
+    private static void AssertNoTurnInvocation(ClaudeCodeFixture fixture)
+    {
+        // Automatic provider availability is allowed to run --version / auth status before this turn is submitted.
+        // Invalid plans/prompts must still prevent the actual turn invocation.
+        Assert.That(fixture.Invocations().SelectMany(static invocation => invocation), Does.Not.Contain("--output-format"));
     }
 
     [Test]

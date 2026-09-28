@@ -13,6 +13,7 @@ namespace EsilvaSoft.SlopStudio.Desktop;
 /// </summary>
 public partial class AgentSettingsWindow : Window
 {
+    public event EventHandler? PermissionsRequested;
     public AgentSettingsWindow()
     {
         InitializeComponent();
@@ -98,4 +99,6 @@ public partial class AgentSettingsWindow : Window
     }
 
     private void CloseDialog(object? sender, RoutedEventArgs e) => Close();
+
+    private void OpenPermissions(object? sender, RoutedEventArgs e) => PermissionsRequested?.Invoke(this, EventArgs.Empty);
 }

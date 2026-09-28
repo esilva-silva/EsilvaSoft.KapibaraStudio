@@ -19,7 +19,21 @@ public interface IAgentBufferEditor
     /// false (and changes nothing) when the editor is no longer showing the tab.
     /// </summary>
     bool TryApply(IReadOnlyList<LineDiffTextEdit> edits);
+
+    /// <summary>Applies one reviewed hunk so editor adapters can retain a document anchor for a later Revert.</summary>
+    bool TryApplyHunk(Guid proposalId, int hunkIndex, bool reverting, LineDiffTextEdit edit) =>
+        TryApplyHunks([new AgentHunkTextEdit(proposalId, hunkIndex, edit)], reverting);
+
+    /// <summary>Applies ordered edits while retaining the identity of each hunk for editor anchors.</summary>
+    bool TryApplyHunks(IReadOnlyList<AgentHunkTextEdit> edits, bool reverting) =>
+        TryApply(edits.Select(static item => item.Edit).ToArray());
+
+    /// <summary>Current zero-based line tracked for a hunk, when the editor has a live document anchor.</summary>
+    int? GetHunkLineHint(Guid proposalId, int hunkIndex) => null;
 }
+
+/// <summary>One sequential batch edit associated with the proposal hunk whose anchor it creates or removes.</summary>
+public sealed record AgentHunkTextEdit(Guid ProposalId, int HunkIndex, LineDiffTextEdit Edit);
 
 /// <summary>Outcome of an apply/revert of a whole proposal.</summary>
 public sealed record AgentEditApplyOutcome(bool Succeeded, IReadOnlyList<AgentEditHunkState> States, int Changed, int Stale, string? ErrorCode = null);
@@ -32,6 +46,59 @@ public sealed record AgentEditApplyOutcome(bool Succeeded, IReadOnlyList<AgentEd
 /// </summary>
 public static class AgentEditProposalApplier
 {
+    /// <summary>Applies one pending hunk to the editor buffer. A mismatch marks only that hunk stale.</summary>
+    public static AgentEditApplyOutcome ApplyHunk(IAgentBufferEditor editor, AgentEditProposalEntry entry, int hunkIndex)
+    {
+        ArgumentNullException.ThrowIfNull(editor);
+        ArgumentNullException.ThrowIfNull(entry);
+        if ((uint)hunkIndex >= (uint)entry.Proposal.Hunks.Count || entry.HunkStates[hunkIndex] != AgentEditHunkState.Pending)
+            return new AgentEditApplyOutcome(false, entry.HunkStates, 0, 0, "HunkUnavailable");
+
+        var states = entry.HunkStates.ToArray();
+        var hunk = entry.Proposal.Hunks[hunkIndex];
+        var trackedHint = editor.GetHunkLineHint(entry.Id, hunkIndex);
+        var hint = trackedHint ??
+                   hunk.OriginalStartLine + ShiftAbove(entry.Proposal.Hunks, states, hunkIndex, applied: true);
+        var result = LineDiff.ApplyHunk(editor.Text, hunk, hint, allowShiftedBoundaryAnchor: trackedHint.HasValue);
+        if (!result.Succeeded || result.Edit is null)
+        {
+            states[hunkIndex] = AgentEditHunkState.Stale;
+            return new AgentEditApplyOutcome(true, states, 0, 1);
+        }
+
+        if (!editor.TryApplyHunk(entry.Id, hunkIndex, reverting: false, edit: result.Edit))
+            return new AgentEditApplyOutcome(false, entry.HunkStates, 0, 0, "EditorUnavailable");
+        states[hunkIndex] = AgentEditHunkState.Applied;
+        return new AgentEditApplyOutcome(true, states, 1, 0);
+    }
+
+    /// <summary>Reverts one applied/kept hunk. It never forces an edit when the buffer has diverged.</summary>
+    public static AgentEditApplyOutcome RevertHunk(IAgentBufferEditor editor, AgentEditProposalEntry entry, int hunkIndex)
+    {
+        ArgumentNullException.ThrowIfNull(editor);
+        ArgumentNullException.ThrowIfNull(entry);
+        if ((uint)hunkIndex >= (uint)entry.Proposal.Hunks.Count ||
+            entry.HunkStates[hunkIndex] is not (AgentEditHunkState.Applied or AgentEditHunkState.Kept))
+            return new AgentEditApplyOutcome(false, entry.HunkStates, 0, 0, "HunkUnavailable");
+
+        var states = entry.HunkStates.ToArray();
+        var hunk = entry.Proposal.Hunks[hunkIndex];
+        var trackedHint = editor.GetHunkLineHint(entry.Id, hunkIndex);
+        var hint = trackedHint ??
+                   hunk.ProposedStartLine - ShiftAbove(entry.Proposal.Hunks, states, hunkIndex, applied: false);
+        var result = LineDiff.RevertHunk(editor.Text, hunk, hint, allowShiftedBoundaryAnchor: trackedHint.HasValue);
+        if (!result.Succeeded || result.Edit is null)
+        {
+            states[hunkIndex] = AgentEditHunkState.Stale;
+            return new AgentEditApplyOutcome(true, states, 0, 1);
+        }
+
+        if (!editor.TryApplyHunk(entry.Id, hunkIndex, reverting: true, edit: result.Edit))
+            return new AgentEditApplyOutcome(false, entry.HunkStates, 0, 0, "EditorUnavailable");
+        states[hunkIndex] = AgentEditHunkState.Reverted;
+        return new AgentEditApplyOutcome(true, states, 1, 0);
+    }
+
     /// <summary>
     /// Applies every pending hunk. With <paramref name="skipRedactionMarkers"/> (automatic application) a hunk that
     /// would write a redaction marker absent from the original stays pending for human review.
@@ -43,7 +110,7 @@ public static class AgentEditProposalApplier
         var hunks = entry.Proposal.Hunks;
         var states = entry.HunkStates.ToArray();
         var text = editor.Text;
-        var edits = new List<LineDiffTextEdit>();
+        var edits = new List<AgentHunkTextEdit>();
         var stale = 0;
         for (var index = hunks.Count - 1; index >= 0; index--)
         {
@@ -54,8 +121,9 @@ public static class AgentEditProposalApplier
                 continue;
             }
 
-            var hint = hunk.OriginalStartLine + ShiftAbove(hunks, states, index, applied: true);
-            var result = LineDiff.ApplyHunk(text, hunk, hint);
+            var trackedHint = editor.GetHunkLineHint(entry.Id, index);
+            var hint = trackedHint ?? hunk.OriginalStartLine + ShiftAbove(hunks, states, index, applied: true);
+            var result = LineDiff.ApplyHunk(text, hunk, hint, allowShiftedBoundaryAnchor: trackedHint.HasValue);
             if (!result.Succeeded || result.Edit is null || result.Text is null)
             {
                 states[index] = AgentEditHunkState.Stale;
@@ -63,7 +131,7 @@ public static class AgentEditProposalApplier
                 continue;
             }
 
-            edits.Add(result.Edit);
+            edits.Add(new AgentHunkTextEdit(entry.Id, index, result.Edit));
             text = result.Text;
             states[index] = AgentEditHunkState.Applied;
         }
@@ -83,7 +151,7 @@ public static class AgentEditProposalApplier
         var hunks = entry.Proposal.Hunks;
         var states = entry.HunkStates.ToArray();
         var text = editor.Text;
-        var edits = new List<LineDiffTextEdit>();
+        var edits = new List<AgentHunkTextEdit>();
         var stale = 0;
         for (var index = hunks.Count - 1; index >= 0; index--)
         {
@@ -94,8 +162,9 @@ public static class AgentEditProposalApplier
             }
 
             // ProposedStartLine assumes every hunk above is applied: remove the shift of those that are not.
-            var hint = hunk.ProposedStartLine - ShiftAbove(hunks, states, index, applied: false);
-            var result = LineDiff.RevertHunk(text, hunk, hint);
+            var trackedHint = editor.GetHunkLineHint(entry.Id, index);
+            var hint = trackedHint ?? hunk.ProposedStartLine - ShiftAbove(hunks, states, index, applied: false);
+            var result = LineDiff.RevertHunk(text, hunk, hint, allowShiftedBoundaryAnchor: trackedHint.HasValue);
             if (!result.Succeeded || result.Edit is null || result.Text is null)
             {
                 states[index] = AgentEditHunkState.Stale;
@@ -103,7 +172,7 @@ public static class AgentEditProposalApplier
                 continue;
             }
 
-            edits.Add(result.Edit);
+            edits.Add(new AgentHunkTextEdit(entry.Id, index, result.Edit));
             text = result.Text;
             states[index] = AgentEditHunkState.Reverted;
         }
@@ -116,7 +185,7 @@ public static class AgentEditProposalApplier
             }
         }
 
-        return Commit(editor, entry, states, edits, stale);
+        return Commit(editor, entry, states, edits, stale, reverting: true);
     }
 
     /// <summary>Marks every pending hunk as discarded without touching the buffer (nothing was applied).</summary>
@@ -134,9 +203,9 @@ public static class AgentEditProposalApplier
     }
 
     private static AgentEditApplyOutcome Commit(IAgentBufferEditor editor, AgentEditProposalEntry entry,
-        AgentEditHunkState[] states, List<LineDiffTextEdit> edits, int stale)
+        AgentEditHunkState[] states, List<AgentHunkTextEdit> edits, int stale, bool reverting = false)
     {
-        if (edits.Count > 0 && !editor.TryApply(edits))
+        if (edits.Count > 0 && !editor.TryApplyHunks(edits, reverting))
         {
             return new AgentEditApplyOutcome(false, entry.HunkStates, 0, 0, "EditorUnavailable");
         }

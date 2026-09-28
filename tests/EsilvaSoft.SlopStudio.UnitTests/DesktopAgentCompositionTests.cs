@@ -68,8 +68,9 @@ public sealed class DesktopAgentCompositionTests
             // ADR-056: the default stage is Metadata; still no document, write or per-session tool for in-process
             // providers, and every call needs a persisted grant.
             Assert.That(((AgentToolRegistry)registry).ExposureStage, Is.EqualTo(AgentToolExposureStage.Metadata));
-            Assert.That(registry.GetDescriptors().Select(descriptor => descriptor.Name), Is.EquivalentTo(
-                DefaultMetadataTools), "Só metadados por padrão, mesmo com OpenAI/Claude compostos.");
+            Assert.That(registry.GetDescriptors(), Is.Empty, "OpenAI/Claude in-process não recebem grant implícito.");
+            Assert.That(registry.GetChannelDescriptors().Select(descriptor => descriptor.Name), Is.SupersetOf(
+                DefaultMetadataTools), "As tools de metadados liberadas seguem disponíveis nos canais autenticados.");
             Assert.That(registry.FindDescriptor(AgentToolRegistry.InsertOneToolName), Is.Null, "write:null.");
             Assert.That(appCatalog.List().Select(entry => entry.Descriptor.ProviderId), Is.EquivalentTo(
                 new[] { LocalAgentProvider.Id, OpenAiAgentProvider.Id, ClaudeAgentProvider.Id }));

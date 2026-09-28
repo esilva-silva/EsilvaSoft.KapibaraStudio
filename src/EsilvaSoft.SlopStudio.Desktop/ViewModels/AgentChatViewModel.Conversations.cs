@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Collections.Concurrent;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -14,6 +15,7 @@ public sealed partial class AgentChatViewModel
     public const int MaximumStoredConversations = 200;
 
     private IReadOnlyList<AgentHistoryItemViewModel> _history = [];
+    private readonly ConcurrentDictionary<Guid, byte> _erasedConversationIds = new();
 
     // ---- Lifecycle. ----
 
@@ -49,10 +51,12 @@ public sealed partial class AgentChatViewModel
         {
             proposals.ProposalAdded += OnProposalAdded;
             proposals.ProposalUpdated += OnProposalUpdated;
+            proposals.ReviewRequested += OnProposalReviewRequested;
             _attachments.Add(new Unsubscriber(() =>
             {
                 proposals.ProposalAdded -= OnProposalAdded;
                 proposals.ProposalUpdated -= OnProposalUpdated;
+                proposals.ReviewRequested -= OnProposalReviewRequested;
             }));
         }
 
@@ -80,7 +84,7 @@ public sealed partial class AgentChatViewModel
     private AgentChatConversation CreateConversation(string providerId, string? modelId)
     {
         var conversation = new AgentChatConversation(Guid.NewGuid(), providerId, modelId,
-            _selectedMode?.Mode ?? AgentOperationMode.Agent, _services.Clock.GetUtcNow());
+            SelectedMode.Mode, _services.Clock.GetUtcNow());
         _conversations[conversation.Id] = conversation;
         return conversation;
     }
@@ -483,27 +487,39 @@ public sealed partial class AgentChatViewModel
         HistoryStatusIsError = false;
     }
 
-    /// <summary>"Apagar histórico" in the Permissions window succeeded: stored copies of that provider are gone.</summary>
-    private void OnHistoryErased(string providerId)
+    /// <summary>Erases persisted and in-flight copies without letting cancelled turns recreate the deleted history.</summary>
+    private async Task OnHistoryErased(string providerId)
     {
-        foreach (var conversation in _conversations.Values.Where(c => c.ProviderId == providerId).ToArray())
+        var erased = _conversations.Values.Where(c => c.ProviderId == providerId).ToArray();
+        foreach (var conversation in erased)
         {
-            if (conversation.IsBusy)
-            {
-                // Keeps running in memory; it is stored again only as a new conversation.
-                conversation.Revision = 0;
-                continue;
-            }
+            _erasedConversationIds.TryAdd(conversation.Id, 0);
+            if (conversation.Turn is { } turn) await turn.RequestCancellationAsync();
+        }
 
+        // Drain saves that began before the erase request. Suppressed turns cannot write again after this point.
+        foreach (var conversation in erased)
+        {
+            await conversation.SaveGate.WaitAsync();
+            conversation.SaveGate.Release();
+        }
+
+        if (_services.Conversations is { } repository)
+        {
+            var result = await repository.DeleteAllAsync(providerId, _lifetime.Token);
+            if (!result.Succeeded)
+                throw new InvalidOperationException("AgentHistoryEraseFailed:" + SafeCode(result.ErrorCode ?? result.Status.ToString()));
+        }
+
+        foreach (var conversation in erased)
+        {
             _conversations.Remove(conversation.Id);
-            _ = CloseSessionAsync(conversation);
             _services.Proposals?.ForgetConversation(conversation.Id);
+            _ = CloseSessionAsync(conversation);
         }
 
         if (!_conversations.ContainsKey(ActiveConversation.Id))
-        {
             ActivateConversation(CreateConversation(SelectedProvider?.ProviderId ?? "", SelectedModel));
-        }
 
         _history = [.. _history.Where(item => item.Summary.ProviderId != providerId)];
         ApplyHistoryFilter();
@@ -534,7 +550,8 @@ public sealed partial class AgentChatViewModel
 
     private async Task SaveConversationCoreAsync(AgentChatConversation conversation)
     {
-        if (_disposed || conversation.IsEmpty || string.IsNullOrWhiteSpace(conversation.ProviderId))
+        if (_disposed || _erasedConversationIds.ContainsKey(conversation.Id) || conversation.IsEmpty ||
+            string.IsNullOrWhiteSpace(conversation.ProviderId))
         {
             return;
         }
@@ -545,22 +562,8 @@ public sealed partial class AgentChatViewModel
             return;
         }
 
-        if (!_permissions.TryGetValue(conversation.ProviderId, out var slot) || slot.Value is not { } permissions)
+        if (!MaySaveHistory(conversation))
         {
-            if (slot?.Failure is not null || _services.Permissions is null)
-            {
-                // Without readable permissions the opt-out is unknown: nothing is written (privacy first), visibly.
-                SetPersistence(conversation, Text.Resolve("agentHistoryPermissionsUnknown"), isError: true);
-            }
-
-            return; // Still loading: saved when the permissions arrive (OnPermissionsChanged).
-        }
-
-        if (!permissions.KeepHistory)
-        {
-            SetPersistence(conversation, null, isError: false);
-            OnPropertyChanged(nameof(ActivePersistenceText));
-            OnPropertyChanged(nameof(HasActivePersistenceText));
             return;
         }
 
@@ -572,12 +575,15 @@ public sealed partial class AgentChatViewModel
         await conversation.SaveGate.WaitAsync();
         try
         {
+            // Permission changes can arrive while this save waits behind another save of the same conversation.
+            if (_erasedConversationIds.ContainsKey(conversation.Id) || !MaySaveHistory(conversation)) return;
             var result = await repository.SaveAsync(conversation.ToRecord(_services.Clock.GetUtcNow()), conversation.Revision, _lifetime.Token);
             if (result.Status == AgentPersistenceStatus.Conflict)
             {
                 // Someone else wrote this conversation: adopt the stored revision and keep this window's rows (the
                 // in-memory conversation is the one the user sees), with a visible notice.
                 var stored = await repository.GetAsync(conversation.Id, _lifetime.Token);
+                if (!MaySaveHistory(conversation)) return;
                 if (stored.Succeeded)
                 {
                     result = await repository.SaveAsync(conversation.ToRecord(_services.Clock.GetUtcNow()), stored.Value!.Revision, _lifetime.Token);
@@ -605,6 +611,13 @@ public sealed partial class AgentChatViewModel
                         _host.OnPanelPreferencesChanged(); // The active conversation can now be restored.
                     }
 
+                    break;
+                case AgentPersistenceStatus.Invalid when result.ErrorCode == "HistoryDisabled":
+                    SetPersistence(conversation, null, isError: false);
+                    break;
+                case AgentPersistenceStatus.Unreadable when result.ErrorCode == "PermissionsUnreadable":
+                case AgentPersistenceStatus.UnsupportedVersion when result.ErrorCode == "PermissionsUnsupportedVersion":
+                    SetPersistence(conversation, Text.Resolve("agentHistoryPermissionsUnknown"), isError: true);
                     break;
                 case AgentPersistenceStatus.Unreadable or AgentPersistenceStatus.UnsupportedVersion:
                     conversation.IsWriteBlocked = true; // Never overwrite a stored copy this version cannot read.
@@ -637,6 +650,30 @@ public sealed partial class AgentChatViewModel
         }
     }
 
+    private bool MaySaveHistory(AgentChatConversation conversation)
+    {
+        if (!_permissions.TryGetValue(conversation.ProviderId, out var slot) || slot.Value is not { } permissions)
+        {
+            if (slot?.Failure is not null || _services.Permissions is null)
+            {
+                // Without readable permissions the opt-out is unknown: nothing is written (privacy first), visibly.
+                SetPersistence(conversation, Text.Resolve("agentHistoryPermissionsUnknown"), isError: true);
+            }
+
+            return false; // Still loading: saved when the permissions arrive (OnPermissionsChanged).
+        }
+
+        if (!permissions.KeepHistory)
+        {
+            SetPersistence(conversation, null, isError: false);
+            OnPropertyChanged(nameof(ActivePersistenceText));
+            OnPropertyChanged(nameof(HasActivePersistenceText));
+            return false;
+        }
+
+        return true;
+    }
+
     private static void Adopt(AgentChatConversation conversation, AgentConversation stored)
     {
         conversation.Revision = stored.Revision;
@@ -650,7 +687,7 @@ public sealed partial class AgentChatViewModel
     }
 
     /// <summary>The provider reported its own session ID (resume after restart); persisted with the conversation.</summary>
-    internal void ReportProviderSessionId(AgentChatConversation conversation, string? providerSessionId)
+    internal static void ReportProviderSessionId(AgentChatConversation conversation, string? providerSessionId)
     {
         if (string.IsNullOrWhiteSpace(providerSessionId) || providerSessionId.Length > 256 || providerSessionId.Any(char.IsControl) ||
             conversation.ProviderSessionId == providerSessionId)

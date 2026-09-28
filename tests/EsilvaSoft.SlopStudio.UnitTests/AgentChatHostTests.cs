@@ -73,7 +73,7 @@ public sealed class AgentChatHostTests
                 Assert.That(vm.IsAgentPlatformComposed, Is.True);
                 Assert.That(vm.IsAgentPanelOpen, Is.False, "The panel starts collapsed.");
                 Assert.That(factory.IsCreated, Is.False, "Runtime/catalog/credentials are resolved only when the panel opens.");
-                Assert.That(vm.Tabs.All(tab => tab.AgentChat is null), Is.True);
+                Assert.That(vm.ActiveAgentChat, Is.Null);
                 Assert.That(AgentSlotReads(), Is.Zero);
                 Assert.That(vm.PendingCredentialRecoveryCount, Is.EqualTo(0));
             });
@@ -131,7 +131,7 @@ public sealed class AgentChatHostTests
     }
 
     [Test]
-    public async Task EachTabOwnsItsChatAndTheContextComesFromTheTabNeverFromTheExplorer()
+    public async Task GlobalChatSurvivesTabNavigationAndCapturesTheActiveTabNotExplorer()
     {
         await RunOnUiAsync(async () =>
         {
@@ -153,10 +153,11 @@ public sealed class AgentChatHostTests
             Assert.That(factory.IsCreated, Is.False);
             vm.IsAgentPanelOpen = true;
             var chatA = vm.ActiveAgentChat!;
+            await chatA.Initialization;
             Assert.Multiple(() =>
             {
-                Assert.That(chatA, Is.SameAs(tabA.AgentChat));
-                Assert.That(chatA.TabContextText, Does.Contain("Desenvolvimento · Loja › loja"));
+                Assert.That(vm.CaptureWorkspace().DatabaseName, Is.EqualTo("loja"));
+                Assert.That(vm.CaptureWorkspace().ConnectionName, Is.EqualTo("Desenvolvimento · Loja"));
             });
 
             Assert.That(mongoCalls.Count, Is.EqualTo(queriesBefore), "Opening the panel issues no MongoDB call.");
@@ -169,23 +170,14 @@ public sealed class AgentChatHostTests
             queriesBefore = mongoCalls.Count;
             Assert.Multiple(() =>
             {
-                Assert.That(chatA.TabContextText, Does.Contain("› loja").And.Not.Contain("auditoria"));
-                Assert.That(tabA.CaptureAgentChatSnapshot().Database, Is.EqualTo("loja"));
+                Assert.That(vm.CaptureWorkspace().DatabaseName, Is.EqualTo("loja"));
+                Assert.That(tabA.CaptureAgentChatSnapshot().DatabaseName, Is.EqualTo("loja"));
                 Assert.That(tabA.IsRunning, Is.False);
             });
 
             chatA.ComposerText = "explique";
-            chatA.SelectedScope = chatA.ContextScopes.Single(option => option.Scope == AgentContextScope.Metadata);
-            await chatA.ReviewCommand.ExecuteAsync(null);
-            Assert.That(chatA.HasPreview, Is.True);
-
-            // Changing the tab's own destination is explicit: the fixed context follows and the reviewed package is dropped.
             tabA.Database = "auditoria";
-            Assert.Multiple(() =>
-            {
-                Assert.That(chatA.TabContextText, Does.Contain("auditoria"));
-                Assert.That(chatA.HasPreview, Is.False);
-            });
+            Assert.That(vm.CaptureWorkspace().DatabaseName, Is.EqualTo("auditoria"));
 
             vm.NewTabCommand.Execute(null);
             var tabB = vm.ActiveTab!;
@@ -193,23 +185,24 @@ public sealed class AgentChatHostTests
             Assert.Multiple(() =>
             {
                 Assert.That(tabB, Is.Not.SameAs(tabA));
-                Assert.That(chatB, Is.Not.SameAs(chatA), "One chat per tab.");
-                Assert.That(chatB.ComposerText, Is.Empty, "Nothing is transferred between tabs.");
+                Assert.That(chatB, Is.SameAs(chatA), "The panel belongs to the workspace.");
+                Assert.That(chatB.ComposerText, Is.EqualTo("explique"), "Draft survives tab navigation.");
             });
 
             vm.ActiveTab = tabA;
-            Assert.That(vm.ActiveAgentChat, Is.SameAs(chatA), "Returning to a tab restores its own chat.");
+            Assert.That(vm.ActiveAgentChat, Is.SameAs(chatA));
             Assert.That(chatA.ComposerText, Is.EqualTo("explique"));
 
             vm.IsAgentPanelOpen = false;
             Assert.That(vm.ActiveAgentChat, Is.Null);
-            Assert.That(tabA.AgentChat, Is.SameAs(chatA), "Collapsing keeps the conversation of each tab.");
+            vm.IsAgentPanelOpen = true;
+            Assert.That(vm.ActiveAgentChat, Is.SameAs(chatA), "Collapsing preserves the global chat.");
             Assert.That(mongoCalls.Count, Is.EqualTo(queriesBefore));
         });
     }
 
     [Test]
-    public async Task ClosingATabEndsOnlyItsTurnAndSessionWhileAnotherTabKeepsRunning()
+    public async Task ClosingTheOriginTabDoesNotCancelTheGlobalConversationTurn()
     {
         await RunOnUiAsync(async () =>
         {
@@ -218,45 +211,41 @@ public sealed class AgentChatHostTests
             var provider = new ScriptedAgentProvider("local") { Script = (_, request, token) => Slow(release.Task, token) };
             await using var runtime = new AgentRuntime([provider], new AllowingInteractionAuthority());
             var factory = new AgentChatServicesFactory(() => new AgentChatServices(runtime,
-                new FakeAgentCatalog(FakeAgentCatalog.Local("local", "Local de teste")), new FakeAgentContextProvider()));
+                new FakeAgentCatalog(FakeAgentCatalog.Local("local", "Local de teste")), new FakeAgentContextProvider())
+            {
+                Permissions = new FakeAgentPermissionsRepository(),
+            });
             using var vm = new WorkspaceViewModel(context.Workspace, context.Repository, agentChat: factory);
             await vm.InitializeAsync();
             vm.IsAgentPanelOpen = true;
             var tabA = vm.ActiveTab!;
-            var chatA = vm.ActiveAgentChat!;
+            var chat = vm.ActiveAgentChat!;
+            await chat.Initialization;
+            chat.ComposerText = "trabalho da aba A";
+            var send = chat.SendCommand.ExecuteAsync(null);
+            await AgentChatWait.UntilAsync(() => provider.Sessions.Count == 1 && chat.IsBusy);
+            var session = provider.Sessions.Single();
+            Assert.That(session.Requests.Single().TabId, Is.EqualTo(tabA.Id.ToString("N")));
+
             vm.NewTabCommand.Execute(null);
-            var chatB = vm.ActiveAgentChat!;
-
-            foreach (var (chat, text) in new[] { (chatA, "trabalho da aba A"), (chatB, "trabalho da aba B") })
-            {
-                chat.ComposerText = text;
-                await chat.ReviewCommand.ExecuteAsync(null);
-                _ = chat.SendCommand.ExecuteAsync(null);
-            }
-
-            await AgentChatWait.UntilAsync(() => provider.Sessions.Count == 2 && chatA.IsBusy && chatB.IsBusy &&
-                chatA.Items.OfType<AgentChatMessageItem>().Any(item => item.Content.Length > 0) &&
-                provider.Sessions.All(session => !session.Requests.IsEmpty));
-            var sessionA = provider.Sessions.Single(session => session.Requests.Any(r => r.UserMessage.EndsWith(" A", StringComparison.Ordinal)));
-            var sessionB = provider.Sessions.Single(session => !ReferenceEquals(session, sessionA));
+            Assert.That(vm.ActiveAgentChat, Is.SameAs(chat));
 
             vm.RemoveTab(tabA);
-            await AgentChatWait.UntilAsync(() => sessionA.Disposed);
             Assert.Multiple(() =>
             {
-                Assert.That(tabA.AgentChat, Is.Null, "The closed tab released its chat.");
-                Assert.That(chatB.IsBusy, Is.True, "The other tab's turn is not affected.");
-                Assert.That(sessionB.Disposed, Is.False);
+                Assert.That(chat.IsBusy, Is.True, "Closing the tab does not cancel a workspace conversation.");
+                Assert.That(session.Disposed, Is.False);
             });
 
             release.SetResult();
-            await AgentChatWait.UntilAsync(() => chatB.State == AgentChatState.Completed);
-            Assert.That(chatB.Items.OfType<AgentChatMessageItem>().Last().Content, Does.EndWith("fim"));
+            await send;
+            Assert.That(chat.State, Is.EqualTo(AgentChatState.Completed));
+            Assert.That(chat.Items.OfType<AgentChatMessageItem>().Last().Content, Does.EndWith("fim"));
         });
     }
 
     [Test]
-    public async Task ExplicitCheckUpdatesStatusAndAnotherTabPicksTheSharedListingWithoutResettingATerminalState()
+    public async Task ExplicitCheckUpdatesTheGlobalChatAcrossTabNavigation()
     {
         await RunOnUiAsync(async () =>
         {
@@ -268,12 +257,16 @@ public sealed class AgentChatHostTests
                     UnavailableReason: AgentProviderStatus.NotReported.UnavailableCode),
             ]);
             await using var runtime = new AgentRuntime([new ScriptedAgentProvider("ext")], new AllowingInteractionAuthority());
-            var factory = new AgentChatServicesFactory(() => new AgentChatServices(runtime, catalog, new FakeAgentContextProvider()));
+            var factory = new AgentChatServicesFactory(() => new AgentChatServices(runtime, catalog, new FakeAgentContextProvider())
+            {
+                Permissions = new FakeAgentPermissionsRepository(),
+            });
             using var vm = new WorkspaceViewModel(context.Workspace, context.Repository, agentChat: factory);
             await vm.InitializeAsync();
             vm.IsAgentPanelOpen = true;
             var chatA = vm.ActiveAgentChat!;
 
+            await chatA.Initialization;
             Assert.Multiple(() =>
             {
                 Assert.That(chatA.State, Is.EqualTo(AgentChatState.ProviderUnavailable));
@@ -298,17 +291,19 @@ public sealed class AgentChatHostTests
 
             vm.NewTabCommand.Execute(null);
             var chatB = vm.ActiveAgentChat!;
+            Assert.That(chatB, Is.SameAs(chatA));
             catalog.Next = [FakeAgentCatalog.External("ext", "Externo A")];
             await chatB.RefreshProvidersCommand.ExecuteAsync(null);
             Assert.That(chatB.State, Is.EqualTo(AgentChatState.Ready));
 
-            // Back to tab A: the shared listing changed, so A picks it up from the cache (no refresh of its own).
+            // Switching tabs preserves the workspace-global panel and its current provider state.
             vm.ActiveTab = vm.Tabs[0];
             Assert.Multiple(() =>
             {
                 Assert.That(chatA.State, Is.EqualTo(AgentChatState.Ready));
                 Assert.That(catalog.Refreshes, Is.EqualTo(2));
-                Assert.That(chatA.DestinationConsent, Is.False, "A refreshed listing never grants consent.");
+                Assert.That(chatA.CurrentPermissions?.HasExternalDestinationConsent, Is.False,
+                    "A refreshed listing never grants consent.");
             });
 
             // Unchanged listing: returning to B keeps its state untouched.

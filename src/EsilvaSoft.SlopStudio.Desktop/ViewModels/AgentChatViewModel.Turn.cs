@@ -7,13 +7,8 @@ namespace EsilvaSoft.SlopStudio.Desktop.ViewModels;
 
 public sealed partial class AgentChatViewModel
 {
-    private AgentSessionId? _sessionId;
-    private string? _sessionProviderId;
-    private string? _sessionModelId;
-    private TurnRun? _turn;
-
     /// <summary>State of one turn. Each turn owns its CTS; nothing is shared with other tabs or turns.</summary>
-    private sealed class TurnRun(AgentTurnId turnId, CancellationTokenSource cancellation)
+    internal sealed class TurnRun(AgentTurnId turnId, CancellationTokenSource cancellation)
     {
         // Guards the CTS so a concurrent cancel request and the turn's own disposal never race: once disposed, a
         // cancel request is a silent no-op instead of an ObjectDisposedException.
@@ -22,6 +17,8 @@ public sealed partial class AgentChatViewModel
         private bool _disposed;
 
         public AgentTurnId TurnId { get; } = turnId;
+        public required AgentChatConversation Conversation { get; init; }
+        public Task? Completion { get; set; }
 
         public CancellationTokenSource Cancellation { get; } = cancellation;
 
@@ -67,82 +64,114 @@ public sealed partial class AgentChatViewModel
     }
 
     /// <summary>Completion of the running turn, for hosts and tests; null when idle.</summary>
-    public Task? CurrentTurnCompletion { get; private set; }
+    private bool CanSend() => !string.IsNullOrWhiteSpace(ComposerText) && IsIdle && IsProviderUsable &&
+        SelectedProvider is { } provider &&
+        (CurrentPermissions is { IsWellFormed: true } || !provider.IsExternal) && SendBlock == AgentSendBlock.None;
 
-    public AgentTurnId? ActiveTurnId => _turn?.TurnId;
-
-    private bool CanSend() =>
-        Preview is { } preview && IsIdle && IsProviderUsable && SelectedProvider!.ProviderId == preview.ProviderId &&
-        (!IsExternalDestination || DestinationConsent);
-
+    /// <summary>Direct send. Message, provider, mode, permissions, chips and active tab are snapshotted before awaiting.</summary>
     [RelayCommand(CanExecute = nameof(CanSend))]
-    private Task SendAsync()
+    private async Task SendAsync()
     {
-        var preview = Preview!;
-        // The reviewed package must still describe the tab: any change since the review requires a new preview.
-        var current = _captureTab();
-        if (!MatchesReviewedTab(preview, current))
+        if (!CanSend() || SelectedProvider is not { } provider)
+            return;
+        var permissions = CurrentPermissions ?? (provider.IsExternal ? null : AgentProviderPermissions.Default(provider.ProviderId));
+        if (permissions is not { IsWellFormed: true }) return;
+        var message = ComposerText.Trim();
+        var mode = SelectedMode.Mode;
+        var modelId = SelectedModel;
+        var conversation = ActiveConversation;
+        var context = _host.CaptureWorkspace();
+        if (!permissions.Workspace.UseFilesFolder)
+            context = context with { WorkspaceFolder = null };
+        var requests = Chips.Select(static chip => chip.ToRequest()).ToArray();
+        var workingDirectory = context.WorkspaceFolder;
+        var turnId = AgentTurnId.New();
+        var facts = CapturePlatformFacts(workingDirectory);
+        var plan = AgentModePolicy.Plan(mode, permissions, facts, requireExternalDestinationConsent: provider.IsExternal);
+        if (plan.IsBlocked)
         {
-            InvalidatePreview();
-            return Task.CompletedTask;
+            RefreshSendBlock();
+            return;
         }
 
-        // Snapshot on the UI thread before any await: the Files panel folder a new session would use. Changing the
-        // folder later only affects sessions started after that; a running/reused session keeps its own folder.
-        var workingDirectory = CaptureWorkspaceFolder();
-        var run = new TurnRun(AgentTurnId.New(), CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token))
+        var run = new TurnRun(turnId, CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token))
         {
-            ProviderId = preview.ProviderId,
+            ProviderId = provider.ProviderId,
+            Conversation = conversation,
         };
-        var request = preview.Snapshot.ToTurnRequest(run.TurnId, preview.Message);
-        _turn = run;
-        _suppressInvalidation = true;
+        conversation.Turn = run;
+        conversation.ProviderId = provider.ProviderId;
+        conversation.ModelId = modelId;
+        conversation.Mode = mode;
+        ComposerText = "";
+        StatusDetail = null;
+        State = AgentChatState.Connecting;
+        ComposerFocusRequested?.Invoke(this, EventArgs.Empty);
+        run.Completion = RunPreparedTurnAsync(run, provider.ProviderId, modelId, workingDirectory,
+            message, mode, permissions, plan, context, requests);
+        await run.Completion;
+    }
+
+    private async Task RunPreparedTurnAsync(TurnRun run, string providerId, string? modelId, string? workingDirectory,
+        string message, AgentOperationMode mode, AgentProviderPermissions permissions, AgentTurnPlan plan,
+        AgentWorkspaceContext context, IReadOnlyList<AgentAttachmentRequest> requests)
+    {
         try
         {
-            Preview = null;
-            ComposerText = "";
-            StatusDetail = null;
+            var resolution = await AgentAttachmentResolver.ResolveAsync(requests, context, permissions, message, run.Cancellation.Token);
+            if (!resolution.Succeeded)
+            {
+                foreach (var failure in resolution.Failures)
+                    if (failure.RequestIndex < Chips.Count) Chips[failure.RequestIndex].Error = failure.Error;
+                run.ErrorCode = "AttachmentsRefused";
+                Finish(run, AgentTurnOutcome.Failed);
+                return;
+            }
+            run.Conversation.Items.Add(new AgentChatMessageItem(AgentChatRole.User, message,
+                attachments: resolution.Attachments.Select(static attachment => attachment.ToDescriptor()).ToArray()));
+            foreach (var chip in Chips.Where(static chip => !chip.IsAutomatic).ToArray()) Chips.Remove(chip);
+            OnPropertyChanged(nameof(HasChips));
+            var systemPrompt = AgentSystemPromptBuilder.Build(new AgentSystemPromptContext(plan,
+                context.WorkspaceFolder, permissions.DataSending.ActiveFile ? context.ActiveFileName : null));
+            var request = new AgentTurnRequest(run.TurnId, message, context.TabId ?? "", context.DocumentVersion ?? 0)
+            {
+                Plan = plan, SystemPrompt = systemPrompt, Attachments = resolution.Attachments,
+                ConversationId = run.Conversation.Id, Permissions = permissions,
+            };
+            await RunTurnAsync(run, providerId, modelId, workingDirectory, request);
+        }
+        catch (OperationCanceledException) when (run.Cancellation.IsCancellationRequested)
+        {
+            if (run.Conversation.Turn == run) Finish(run, AgentTurnOutcome.Cancelled);
+        }
+        catch (Exception)
+        {
+            run.ErrorCode = "ContextPreparationFailed";
+            Finish(run, AgentTurnOutcome.Failed);
         }
         finally
         {
-            _suppressInvalidation = false;
+            if (run.Conversation.Turn == run) run.Conversation.Turn = null;
+            run.DisposeCancellation();
+            if (ReferenceEquals(ActiveConversation, run.Conversation))
+            {
+                UpdateIdleState();
+                NotifyCommands();
+            }
+            _ = SaveConversationAsync(run.Conversation);
         }
-
-        Items.Add(new AgentChatMessageItem(AgentChatRole.User, preview.Message));
-        State = AgentChatState.Connecting;
-        ComposerFocusRequested?.Invoke(this, EventArgs.Empty);
-        var completion = RunTurnAsync(run, preview.ProviderId, preview.ModelId, workingDirectory, request);
-        CurrentTurnCompletion = completion;
-        return completion;
-    }
-
-    private static bool MatchesReviewedTab(AgentChatPreview preview, AgentChatTabSnapshot current)
-    {
-        var reviewed = preview.Tab;
-        if (reviewed.TabId != current.TabId)
-        {
-            return false;
-        }
-
-        if (preview.Scope != AgentContextScope.None &&
-            (reviewed.ConnectionId != current.ConnectionId || reviewed.Database != current.Database ||
-             reviewed.Collection != current.Collection))
-        {
-            return false;
-        }
-
-        return preview.Scope != AgentContextScope.Selection ||
-               (reviewed.DocumentVersion == current.DocumentVersion && reviewed.SelectedText == current.SelectedText);
     }
 
     private async Task RunTurnAsync(TurnRun run, string providerId, string? modelId, string? workingDirectory, AgentTurnRequest request)
     {
         var runtime = _services.Runtime!;
+        var terminalEventReceived = false;
         try
         {
-            var sessionId = await EnsureSessionAsync(runtime, providerId, modelId, workingDirectory, run.Cancellation.Token);
+            var sessionId = await EnsureSessionAsync(runtime, run.Conversation, providerId, modelId, workingDirectory, run.Cancellation.Token);
             run.SessionId = sessionId;
-            if (!ReferenceEquals(_turn, run))
+            run.Conversation.SessionId = sessionId;
+            if (!ReferenceEquals(run.Conversation.Turn, run))
             {
                 return;
             }
@@ -151,17 +180,18 @@ public sealed partial class AgentChatViewModel
             await foreach (var item in runtime.RunTurnAsync(sessionId, request, run.Cancellation.Token))
             {
                 // Events of another session/turn, or arriving after this turn stopped being current, are discarded.
-                if (!ReferenceEquals(_turn, run) || item.SessionId != sessionId || item.TurnId != run.TurnId)
+                if (!ReferenceEquals(run.Conversation.Turn, run) || item.SessionId != sessionId || item.TurnId != run.TurnId)
                 {
                     continue;
                 }
 
                 Apply(run, item);
+                terminalEventReceived |= item.Kind == AgentEventKind.TaskCompleted;
             }
         }
         catch (OperationCanceledException) when (run.Cancellation.IsCancellationRequested)
         {
-            if (ReferenceEquals(_turn, run) && IsBusy)
+            if (ReferenceEquals(run.Conversation.Turn, run) && run.Conversation.IsBusy)
             {
                 Finish(run, AgentTurnOutcome.Cancelled);
             }
@@ -170,11 +200,11 @@ public sealed partial class AgentChatViewModel
         {
             if (exception.Code == "SessionBusy" || exception.Code == "UnknownSession")
             {
-                ForgetSession();
+                ForgetSession(run.Conversation);
             }
 
             run.ErrorCode = SafeCode(exception.Code);
-            if (ReferenceEquals(_turn, run))
+            if (ReferenceEquals(run.Conversation.Turn, run))
             {
                 Finish(run, AgentTurnOutcome.Failed);
             }
@@ -182,46 +212,57 @@ public sealed partial class AgentChatViewModel
         catch (Exception)
         {
             run.ErrorCode = "RuntimeFailure";
-            if (ReferenceEquals(_turn, run))
+            if (ReferenceEquals(run.Conversation.Turn, run))
             {
                 Finish(run, AgentTurnOutcome.Failed);
             }
         }
         finally
         {
-            if (ReferenceEquals(_turn, run))
+            if (ReferenceEquals(run.Conversation.Turn, run))
             {
-                if (IsBusy)
+                if (run.Conversation.IsBusy && !terminalEventReceived)
                 {
                     // The stream ended without a terminal event: never report success.
                     Finish(run, AgentTurnOutcome.OutcomeUnknown);
                 }
 
-                _turn = null;
-                CurrentTurnCompletion = null;
+                run.Conversation.Turn = null;
             }
 
             run.DisposeCancellation();
-            OnStateChanged(State);
+            if (ReferenceEquals(ActiveConversation, run.Conversation)) OnStateChanged(State);
         }
     }
 
     private async Task<AgentSessionId> EnsureSessionAsync(
-        IAgentRuntime runtime, string providerId, string? modelId, string? workingDirectory, CancellationToken cancellationToken)
+        IAgentRuntime runtime, AgentChatConversation conversation, string providerId, string? modelId, string? workingDirectory, CancellationToken cancellationToken)
     {
-        if (_sessionId is { } existing && _sessionProviderId == providerId && _sessionModelId == modelId)
+        if (conversation.SessionId is { } existing && conversation.SessionProviderId == providerId &&
+            conversation.SessionModelId == modelId &&
+            !(workingDirectory is null && conversation.SessionWorkingDirectory is not null))
         {
             return existing;
         }
 
-        await CloseSessionAsync();
-        var created = await runtime.StartSessionAsync(new AgentSessionOptions(providerId, modelId, workingDirectory), cancellationToken);
-        _sessionId = created;
-        SessionWorkingDirectory = workingDirectory;
-        HasSessionWorkingDirectory = true;
+        await CloseSessionAsync(conversation);
+        var created = await runtime.StartSessionAsync(new AgentSessionOptions(providerId, modelId, workingDirectory)
+        {
+            ResumeProviderSessionId = conversation.ProviderSessionId,
+            ConversationId = conversation.Id,
+            Mode = conversation.Mode,
+            ProviderSessionObserver = update => AgentUiDispatch.Post(() =>
+            {
+                if (update.ProviderSessionId is { } id) ReportProviderSessionId(conversation, id);
+                if (update.Change == AgentProviderSessionChange.ResumeFallback) { conversation.ResumeLost = true; conversation.ProviderSessionId = null; }
+            }),
+        }, cancellationToken);
+        conversation.SessionId = created;
+        conversation.SessionWorkingDirectory = workingDirectory;
+        conversation.HasSessionWorkingDirectory = true;
         RefreshReadScope();
-        _sessionProviderId = providerId;
-        _sessionModelId = modelId;
+        conversation.SessionProviderId = providerId;
+        conversation.SessionModelId = modelId;
         return created;
     }
 
@@ -251,9 +292,9 @@ public sealed partial class AgentChatViewModel
                 if (!run.Tools.ContainsKey(callId))
                 {
                     var tool = new AgentToolCallItem(callId, item.ToolName, item.ToolDestination, item.ToolOrigin,
-                        item.ToolOrigin == AgentToolOrigin.ProviderObserved ? ObservedToolExecutor(run) : null);
+                        item.ToolOrigin == AgentToolOrigin.ProviderObserved ? ObservedToolExecutor(run.ProviderId) : null);
                     run.Tools.Add(callId, tool);
-                    Items.Add(tool);
+                    run.Conversation.Items.Add(tool);
                 }
 
                 RefreshRunningState(run);
@@ -292,18 +333,18 @@ public sealed partial class AgentChatViewModel
                 Finish(run, item.Outcome ?? AgentTurnOutcome.OutcomeUnknown);
                 break;
             case AgentEventKind.SessionCompleted:
-                ForgetSession();
+                ForgetSession(run.Conversation);
                 break;
         }
     }
 
-    private AgentChatMessageItem GetOrAddMessage(TurnRun run, AgentMessageId id)
+    private static AgentChatMessageItem GetOrAddMessage(TurnRun run, AgentMessageId id)
     {
         if (!run.Messages.TryGetValue(id, out var message))
         {
             message = new AgentChatMessageItem(AgentChatRole.Agent, "", id);
             run.Messages.Add(id, message);
-            Items.Add(message);
+            run.Conversation.Items.Add(message);
         }
 
         return message;
@@ -322,14 +363,16 @@ public sealed partial class AgentChatViewModel
 
     private void RefreshRunningState(TurnRun run)
     {
-        if (!ReferenceEquals(_turn, run) || State == AgentChatState.Cancelling)
+        if (!ReferenceEquals(run.Conversation.Turn, run) || run.Conversation.TurnState == AgentChatState.Cancelling)
         {
             return;
         }
 
-        State = run.Approvals.Values.Any(static card => card.IsPending) ? AgentChatState.WaitingApproval
+        var state = run.Approvals.Values.Any(static card => card.IsPending) ? AgentChatState.WaitingApproval
             : run.Tools.Values.Any(static tool => !tool.IsTerminal) ? AgentChatState.WaitingTool
             : AgentChatState.Generating;
+        run.Conversation.TurnState = state;
+        if (ReferenceEquals(ActiveConversation, run.Conversation)) State = state;
     }
 
     private void RequestApproval(TurnRun run, AgentApprovalId approvalId, DateTimeOffset? runtimeExpiresAtUtc)
@@ -348,7 +391,7 @@ public sealed partial class AgentChatViewModel
             RefreshRunningState(run);
         };
         run.Approvals.Add(approvalId, card);
-        Items.Add(card);
+        run.Conversation.Items.Add(card);
         RefreshRunningState(run);
         _ = approval.LoadAsync(run.Cancellation.Token);
         ApprovalRequested?.Invoke(this, approval);
@@ -376,8 +419,7 @@ public sealed partial class AgentChatViewModel
             card.Approval.CloseByRuntime(AgentApprovalOutcome.Denied, "ApprovalCancelled");
         }
 
-        StatusDetail = run.ErrorCode;
-        State = outcome switch
+        var state = outcome switch
         {
             AgentTurnOutcome.Completed => AgentChatState.Completed,
             AgentTurnOutcome.Cancelled => AgentChatState.Cancelled,
@@ -385,15 +427,18 @@ public sealed partial class AgentChatViewModel
             AgentTurnOutcome.Failed => AgentChatState.Failed,
             _ => AgentChatState.OutcomeUnknown,
         };
+        run.Conversation.TurnState = state;
+        run.Conversation.TurnDetail = run.ErrorCode;
+        if (ReferenceEquals(ActiveConversation, run.Conversation)) { StatusDetail = run.ErrorCode; State = state; }
     }
 
-    private bool CanCancelTurn() => _turn is not null && State is not AgentChatState.Cancelling && IsBusy;
+    private bool CanCancelTurn() => ActiveConversation.Turn is not null && State is not AgentChatState.Cancelling && IsBusy;
 
     /// <summary>Cancels only this tab's turn. Anything already dispatched may have taken effect: no rollback is shown.</summary>
     [RelayCommand(CanExecute = nameof(CanCancelTurn))]
     private async Task CancelTurnAsync()
     {
-        if (_turn is not { } run)
+        if (ActiveConversation.Turn is not { } run)
         {
             return;
         }
@@ -422,25 +467,25 @@ public sealed partial class AgentChatViewModel
         }
     }
 
-    private void ForgetSession()
+    private void ForgetSession(AgentChatConversation conversation)
     {
-        _sessionId = null;
-        _sessionProviderId = null;
-        _sessionModelId = null;
-        SessionWorkingDirectory = null;
-        HasSessionWorkingDirectory = false;
-        RefreshReadScope();
+        conversation.SessionId = null;
+        conversation.SessionProviderId = null;
+        conversation.SessionModelId = null;
+        conversation.SessionWorkingDirectory = null;
+        conversation.HasSessionWorkingDirectory = false;
+        if (ReferenceEquals(ActiveConversation, conversation)) RefreshReadScope();
     }
 
-    private async Task CloseSessionAsync()
+    private async Task CloseSessionAsync(AgentChatConversation conversation)
     {
-        if (_sessionId is not { } sessionId || _services.Runtime is not { } runtime)
+        if (conversation.SessionId is not { } sessionId || _services.Runtime is not { } runtime)
         {
-            ForgetSession();
+            ForgetSession(conversation);
             return;
         }
 
-        ForgetSession();
+        ForgetSession(conversation);
         try
         {
             await runtime.CloseSessionAsync(sessionId, CancellationToken.None);

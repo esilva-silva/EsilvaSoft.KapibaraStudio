@@ -1,101 +1,138 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using EsilvaSoft.SlopStudio.Core;
+using EsilvaSoft.SlopStudio.Core.Agents;
 using EsilvaSoft.SlopStudio.Desktop.Agents;
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Threading;
 
 namespace EsilvaSoft.SlopStudio.Desktop.ViewModels;
 
-/// <summary>
-/// Hosting of the native agent chat in the main window (P7-L06-HOST). The panel is collapsed at startup and the chat
-/// services are requested only when the user opens it; each workspace tab owns one <see cref="AgentChatViewModel"/>
-/// (session, turn and cancellation included), created lazily. The panel always shows the chat of the active tab, and
-/// the chat context comes only from that tab's snapshot — never from the explorer selection. Without composed services
-/// the panel shows the unavailable state while the rest of the IDE keeps working.
-/// </summary>
-public sealed partial class WorkspaceViewModel
+/// <summary>Workspace-global agent panel; tab changes update captured context without replacing its conversation.</summary>
+public sealed partial class WorkspaceViewModel : IAgentChatHost
 {
     private readonly AgentChatServicesFactory? _agentChatServices;
+    private AgentChatViewModel? _agentChat;
+    private AgentPanelPreferences? _agentPanelPreferences;
+    private bool _restoringAgentPanel;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ActiveAgentChat))]
     private bool _isAgentPanelOpen;
 
-    /// <summary>Chat shown by the panel: the active tab's, only while the panel is open.</summary>
-    public AgentChatViewModel? ActiveAgentChat => IsAgentPanelOpen ? ActiveTab?.AgentChat : null;
+    public AgentChatViewModel? ActiveAgentChat => IsAgentPanelOpen ? EnsureAgentChat() : null;
 
-    /// <summary>Whether the composition root supplied chat services (false in hosts without the agent platform).</summary>
     public bool IsAgentPlatformComposed => _agentChatServices is not null;
 
     [RelayCommand]
     private void ToggleAgentPanel() => IsAgentPanelOpen = !IsAgentPanelOpen;
 
+    public void InitializeAgentPanel(WorkspacePreferences preferences)
+    {
+        _agentPanelPreferences = preferences.AgentPanel;
+        if (_agentPanelPreferences is { } saved)
+        {
+            try { saved.Validate(); _restoringAgentPanel = true; IsAgentPanelOpen = saved.IsOpen ?? false; }
+            catch (InvalidDataException) { _agentPanelPreferences = null; IsAgentPanelOpen = false; }
+        }
+        _restoringAgentPanel = false;
+        OnPropertyChanged(nameof(ActiveAgentChat));
+    }
+
     partial void OnIsAgentPanelOpenChanged(bool value)
     {
-        if (value)
+        if (value) EnsureAgentChat();
+        OnPropertyChanged(nameof(ActiveAgentChat));
+        OnPanelPreferencesChanged();
+    }
+
+    private AgentChatViewModel EnsureAgentChat()
+    {
+        if (_agentChat is not null)
         {
-            EnsureAgentChat(ActiveTab);
+            _agentChat.ReloadProvidersIfChanged();
+            return _agentChat;
         }
 
-        OnPropertyChanged(nameof(ActiveAgentChat));
+        var services = _agentChatServices?.GetServices() ?? AgentChatServices.Unavailable;
+        _agentChat = new AgentChatViewModel(services, this, _agentPanelPreferences);
+        return _agentChat;
     }
 
     private void OnActiveTabChangedForAgent(WorkspaceTabViewModel? tab)
     {
-        if (IsAgentPanelOpen)
-        {
-            EnsureAgentChat(tab);
-        }
-
+        _agentChat?.OnWorkspaceContextChanged();
         OnPropertyChanged(nameof(ActiveAgentChat));
     }
 
-    private void EnsureAgentChat(WorkspaceTabViewModel? tab)
+    private void RefreshAgentReadScopes() => _agentChat?.RefreshReadScope();
+
+    public AgentWorkspaceContext CaptureWorkspace()
     {
-        if (tab is null || _disposed)
-        {
-            return;
-        }
-
-        if (tab.AgentChat is { } existing)
-        {
-            // Another tab may have re-checked the shared catalog: pick up the cached listing (no vault, no network).
-            existing.ReloadProvidersIfChanged();
-            return;
-        }
-
-        var services = _agentChatServices?.GetServices() ?? AgentChatServices.Unavailable;
-        tab.AttachAgentChat(new AgentChatViewModel(services, tab.CaptureAgentChatSnapshot, () => WorkspaceRootPath));
+        var tab = ActiveTab;
+        var path = tab?.FilePath;
+        var context = new AgentWorkspaceContext(DateTimeOffset.UtcNow,
+            WorkspaceRootPath,
+            path,
+            path is null ? null : Path.GetFileName(path),
+            tab?.Id.ToString("N"),
+            tab?.EditorRevision,
+            tab?.Text,
+            tab?.Profile?.Id.ToString("D"),
+            tab?.Profile?.Name,
+            string.IsNullOrWhiteSpace(tab?.Database) ? null : tab!.Database,
+            tab is { IsConsole: false } && !string.IsNullOrWhiteSpace(tab.Collection) ? tab.Collection : null);
+        return context;
     }
 
-    /// <summary>
-    /// The Files panel folder is the read scope of CLI-delegated providers in new sessions: every open chat refreshes
-    /// its permanent read notice (text only; running sessions keep the folder fixed at their creation).
-    /// </summary>
-    private void RefreshAgentReadScopes()
+    public string? WorkspaceFolder => WorkspaceRootPath;
+
+    public IReadOnlyList<AgentConnectionChoice> ListConnections() =>
+        Profiles.Select(static profile => new AgentConnectionChoice(profile.Id, profile.Name)).ToArray();
+
+    public async Task<IAgentBufferEditor?> OpenEditorAsync(string targetPath, string? tabId)
     {
-        foreach (var tab in Tabs)
+        if (string.IsNullOrWhiteSpace(targetPath) || !File.Exists(targetPath) || tabId is { Length: 0 }) return null;
+        var pathComparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        var tab = tabId is null
+            ? Tabs.FirstOrDefault(candidate => string.Equals(candidate.FilePath, targetPath, pathComparison))
+            : Tabs.FirstOrDefault(candidate =>
+                string.Equals(candidate.Id.ToString("N"), tabId, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(candidate.FilePath, targetPath, pathComparison));
+        if (tab is null && tabId is not null) return null;
+        if (tab is null) tab = await OpenTextFileAsync(targetPath);
+        if (tab is null || !Tabs.Contains(tab)) return null;
+        ActiveTab = tab;
+
+        var desktop = Avalonia.Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+        if (desktop?.MainWindow is MainWindow mainWindow) mainWindow.FocusEditorForAgent(tab);
+        for (var attempt = 0; attempt < 40; attempt++)
         {
-            tab.AgentChat?.RefreshReadScope();
+            if (!Tabs.Contains(tab) || !string.Equals(tab.FilePath, targetPath, pathComparison)) return null;
+            var editor = await Dispatcher.UIThread.InvokeAsync(() => tab.EditorBufferProvider?.Invoke());
+            if (editor is not null && Tabs.Contains(tab) && string.Equals(tab.FilePath, targetPath, pathComparison)) return editor;
+            await Task.Delay(25);
         }
+        return null;
     }
 
-    /// <summary>Closing a tab ends its chat: the running turn is cancelled and its session closed.</summary>
-    private static void ReleaseAgentChat(WorkspaceTabViewModel tab)
+    public void OnPanelPreferencesChanged()
     {
-        if (tab.DetachAgentChat() is { } chat)
+        if (_restoringAgentPanel) return;
+        _agentPanelPreferences = (_agentChat?.CapturePreferences() ?? _agentPanelPreferences ?? new AgentPanelPreferences()) with
         {
-            _ = DisposeAgentChatAsync(chat);
-        }
+            IsOpen = IsAgentPanelOpen,
+        };
+        ScheduleSave();
     }
 
-    private static async Task DisposeAgentChatAsync(AgentChatViewModel chat)
+    private async Task DisposeAgentChatAsync()
     {
-        try
-        {
-            await chat.DisposeAsync();
-        }
-        catch (Exception)
-        {
-            // Closing is best effort; the runtime disposes sessions that do not confirm shutdown.
-        }
+        if (_agentChat is not { } chat) return;
+        _agentChat = null;
+        try { await chat.DisposeAsync(); } catch { /* Runtime cleanup is best effort on workspace close. */ }
     }
+
+    private static void ReleaseAgentChat(WorkspaceTabViewModel tab) { }
 }

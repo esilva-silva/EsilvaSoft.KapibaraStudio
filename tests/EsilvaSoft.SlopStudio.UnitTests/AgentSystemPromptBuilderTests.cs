@@ -34,8 +34,24 @@ public sealed class AgentSystemPromptBuilderTests
             Assert.That(prompt, Does.Contain("Modo: " + modeLabel));
             Assert.That(prompt, Does.Contain("list_collections").And.Contain("get_indexes"));
             Assert.That(prompt, Does.Contain("não peça ao usuário o que uma ferramenta responde"));
-            Assert.That(prompt, Does.Contain(@"F:\mongows").And.Contain("clientes.json"));
+            Assert.That(prompt, Does.Contain("Workspace: mongows").And.Contain("Arquivo ativo: clientes.json"));
+            Assert.That(prompt, Does.Not.Contain(@"F:\mongows"));
             Assert.That(prompt, Does.Contain("escrita no MongoDB indisponível"));
+        });
+    }
+
+    [TestCase(@"C:\Users\WorkspaceUserCanary_47a1\Projects\analytics\", "analytics", "WorkspaceUserCanary_47a1")]
+    [TestCase("/home/WorkspaceUserCanary_47a1/projects/analytics/", "analytics", "WorkspaceUserCanary_47a1")]
+    public void WorkspaceIdentityUsesOnlyTheFolderNameAcrossPathFormats(string path, string name, string canary)
+    {
+        var prompt = Build(AgentOperationMode.Agent, path, "active-query.js");
+        Assert.Multiple(() =>
+        {
+            Assert.That(prompt, Does.Contain("Workspace: " + name));
+            Assert.That(prompt, Does.Contain("Arquivo ativo: active-query.js"));
+            Assert.That(prompt, Does.Contain("Modo: Agente").And.Contain("get_indexes"));
+            Assert.That(prompt, Does.Not.Contain(canary).And.Not.Contain(path));
+            Assert.That(Encoding.UTF8.GetByteCount(prompt), Is.LessThanOrEqualTo(AgentSystemPromptBuilder.MaximumUtf8Bytes));
         });
     }
 

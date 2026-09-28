@@ -7,8 +7,8 @@ using EsilvaSoft.SlopStudio.Desktop.Agents;
 
 namespace EsilvaSoft.SlopStudio.UnitTests;
 
-/// <summary>Mutable tab state; the chat only sees it through its synchronous capture delegate.</summary>
-internal sealed class AgentChatTabFixture
+/// <summary>Mutable active-tab state exposed to the global chat through the workspace host contract.</summary>
+internal sealed class AgentChatTabFixture : IAgentChatHost
 {
     public string TabId { get; init; } = "tab-a";
     public long Version { get; set; } = 1;
@@ -17,12 +17,46 @@ internal sealed class AgentChatTabFixture
     public string? Database { get; set; } = "shop";
     public string? Collection { get; set; } = "orders";
     public string? Selection { get; set; }
+    public string? WorkspaceFolder { get; set; }
     public int Captures { get; private set; }
 
-    public AgentChatTabSnapshot Capture()
+    // Keep the existing test call sites readable while the chat takes a workspace host.
+    public IAgentChatHost Capture => this;
+
+    public AgentWorkspaceContext CaptureWorkspace()
     {
         Captures++;
-        return new(TabId, Version, ConnectionId, ConnectionLabel, Database, Collection, Selection);
+        return new(DateTimeOffset.UtcNow, WorkspaceFolder: WorkspaceFolder, TabId: TabId, DocumentVersion: Version,
+            BufferText: Selection, ConnectionId: ConnectionId, ConnectionName: ConnectionLabel,
+            DatabaseName: Database, CollectionName: Collection);
+    }
+
+    public IReadOnlyList<AgentConnectionChoice> ListConnections() => [];
+
+    public Task<IAgentBufferEditor?> OpenEditorAsync(string targetPath, string? tabId) => Task.FromResult<IAgentBufferEditor?>(null);
+
+    public void OnPanelPreferencesChanged() { }
+}
+
+internal sealed class FakeAgentPermissionsRepository(params AgentProviderPermissions[] initial) : IAgentProviderPermissionsRepository
+{
+    private readonly Dictionary<string, AgentProviderPermissions> _values = initial.ToDictionary(
+        static permissions => permissions.ProviderId, StringComparer.Ordinal);
+
+    public Task<AgentPersistenceResult<AgentProviderPermissions>> LoadAsync(string providerId,
+        CancellationToken cancellationToken) => Task.FromResult(_values.TryGetValue(providerId, out var value)
+            ? AgentPersistenceResult.Success(value)
+            : AgentPersistenceResult.Failure<AgentProviderPermissions>(AgentPersistenceStatus.NotFound));
+
+    public Task<AgentPersistenceResult<AgentProviderPermissions>> SaveAsync(AgentProviderPermissions permissions,
+        long expectedRevision, CancellationToken cancellationToken)
+    {
+        var revision = _values.TryGetValue(permissions.ProviderId, out var current) ? current.Revision : 0;
+        if (revision != expectedRevision)
+            return Task.FromResult(AgentPersistenceResult.Failure<AgentProviderPermissions>(AgentPersistenceStatus.Conflict));
+        var saved = permissions with { Revision = expectedRevision + 1 };
+        _values[permissions.ProviderId] = saved;
+        return Task.FromResult(AgentPersistenceResult.Success(saved));
     }
 }
 
@@ -172,6 +206,8 @@ internal sealed class ChannelAgentRuntime : IAgentRuntime
     /// <summary>Options of every session start, in order (e.g. the captured working directory).</summary>
     public ConcurrentQueue<AgentSessionOptions> SessionOptions { get; } = new();
 
+    public ConcurrentQueue<AgentEvent> YieldedEvents { get; } = new();
+
     /// <summary>When set, session start waits for it (lets tests change UI state during the await).</summary>
     public TaskCompletionSource? SessionGate { get; set; }
 
@@ -195,6 +231,7 @@ internal sealed class ChannelAgentRuntime : IAgentRuntime
         {
             while (reader.TryRead(out var item))
             {
+                YieldedEvents.Enqueue(item);
                 yield return item;
                 if (item.Kind == AgentEventKind.TaskCompleted && item.TurnId == request.TurnId)
                 {

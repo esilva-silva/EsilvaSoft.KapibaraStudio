@@ -43,37 +43,39 @@ public sealed class AgentChatEditorRevisionTests
     }
 
     [Test]
-    public async Task EditingTheRealTabAfterReviewDiscardsTheReviewedSelectionPackage()
+    public async Task DirectSendCapturesTheCurrentRevisionOfTheRealEditor()
     {
         await RunOnUiAsync(async () =>
         {
             using var context = new WorkspaceTestContext();
             using var tab = new WorkspaceTabViewModel(context.Workspace) { Text = Selection };
-            tab.EditorSelectionProvider = () => Selection;
             var provider = new ScriptedAgentProvider("local");
             await using var runtime = new AgentRuntime([provider], new AllowingInteractionAuthority());
             await using var chat = new AgentChatViewModel(
                 new AgentChatServices(runtime, new FakeAgentCatalog(FakeAgentCatalog.Local("local", "Local de teste")),
-                    new FakeAgentContextProvider(), null, null, null),
-                tab.CaptureAgentChatSnapshot);
-            chat.SelectedScope = chat.ContextScopes.Single(option => option.Scope == AgentContextScope.Selection);
+                    new FakeAgentContextProvider(), null, null, null)
+                {
+                    Permissions = new FakeAgentPermissionsRepository(),
+                },
+                new RealTabHost(tab));
+            await chat.Initialization;
 
             chat.ComposerText = "revise a seleção";
-            await chat.ReviewCommand.ExecuteAsync(null);
-            Assert.That(chat.HasPreview, Is.True);
-
-            // Same selection text, but the document changed after the review: the package must not be sent.
             tab.Text = Selection + "\n// editado";
+            var revisionAtSend = tab.EditorRevision;
             await chat.SendCommand.ExecuteAsync(null);
 
-            Assert.That(chat.HasPreview, Is.False);
-            Assert.That(chat.StatusText, Does.Contain("prévia foi descartada"));
-            Assert.That(provider.Sessions, Is.Empty, "A package reviewed against an older editor revision is never sent.");
-
-            // Control: without an edit between review and send, the same flow is sent.
-            await chat.ReviewCommand.ExecuteAsync(null);
-            await chat.SendCommand.ExecuteAsync(null);
-            Assert.That(provider.Sessions.Single().Requests.Single().AuthorizedContext, Does.Contain(Selection));
+            Assert.That(provider.Sessions.Single().Requests.Single().DocumentVersion, Is.EqualTo(revisionAtSend));
         });
+    }
+
+    private sealed class RealTabHost(WorkspaceTabViewModel tab) : IAgentChatHost
+    {
+        public AgentWorkspaceContext CaptureWorkspace() => tab.CaptureAgentChatSnapshot();
+        public string? WorkspaceFolder => null;
+        public IReadOnlyList<AgentConnectionChoice> ListConnections() => [];
+        public Task<IAgentBufferEditor?> OpenEditorAsync(string targetPath, string? tabId) =>
+            Task.FromResult<IAgentBufferEditor?>(null);
+        public void OnPanelPreferencesChanged() { }
     }
 }

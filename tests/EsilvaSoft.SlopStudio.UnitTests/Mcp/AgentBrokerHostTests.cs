@@ -443,9 +443,9 @@ public sealed class AgentBrokerHostTests
         Assert.Multiple(() =>
         {
             Assert.That(provider.GetRequiredService<IAgentToolRegistry>(), Is.SameAs(registry));
-            // The production composition also releases get_indexes (Metadata stage, ADR-056).
-            Assert.That(registry.GetDescriptors().Select(descriptor => descriptor.Name),
-                Is.EquivalentTo(LiteralQueryTools.Append("get_indexes")));
+            // The broker can announce LiteralQueries while the in-process provider stays closed by default.
+            Assert.That(registry.GetDescriptors(), Is.Empty,
+                "The broker exposure ceiling does not implicitly expose tools to in-process providers.");
             Assert.That(provider.GetRequiredService<AgentBrokerHost>().IsRunning, Is.False, "Composição não abre o endpoint.");
             Assert.That(provider.GetRequiredService<AgentBrokerHost>().Registry, Is.SameAs(registry));
         });

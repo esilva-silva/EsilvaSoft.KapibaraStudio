@@ -94,6 +94,11 @@ internal static class AgentConversationDocumentCodec
                 errorCode = "ConversationEntryInvalid";
                 return null;
             }
+            if (entry.Kind == AgentConversationEntryKind.ToolCall && !HasToolCallSummaryShape(entry))
+            {
+                errorCode = "ConversationEntryInvalid";
+                return null;
+            }
 
             entries.Add(entry with
             {
@@ -200,10 +205,17 @@ internal static class AgentConversationDocumentCodec
                 entry.Attachments.Count > MaximumAttachmentsPerEntry ||
                 !entry.Attachments.All(IsValidAttachment))
                 return "ConversationEntryInvalid";
+            // Tool cards persist only their name and outcome. Reject unexpected fields on both write and read so
+            // results/arguments in an older or tampered document cannot be returned or silently overwritten.
+            if (entry.Kind == AgentConversationEntryKind.ToolCall && !HasToolCallSummaryShape(entry))
+                return "ConversationEntryInvalid";
         }
 
         return null;
     }
+
+    private static bool HasToolCallSummaryShape(AgentConversationEntry entry) =>
+        entry.Text.Length == 0 && entry.Attachments.Count == 0 && entry.ProposalId is null;
 
     /// <summary>
     /// Descriptor only. Paths must be relative (workspace files) and external files keep only their name: an absolute

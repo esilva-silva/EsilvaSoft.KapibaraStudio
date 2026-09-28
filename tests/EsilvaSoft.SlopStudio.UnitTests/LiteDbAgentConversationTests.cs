@@ -112,6 +112,33 @@ public sealed class LiteDbAgentConversationTests
     }
 
     [Test]
+    public async Task StoredKeepHistoryOptOutRejectsLateSaveWithoutRemovingEarlierHistory()
+    {
+        using var fixture = new Workspace();
+        using var owner = new LiteDbConnectionProfileRepository(fixture.Path);
+        var conversations = Repository(owner);
+        var permissions = (IAgentProviderPermissionsRepository)owner;
+        var original = Conversation(Provider, "Antes do opt-out");
+        Assert.That((await conversations.SaveAsync(original, 0, default)).Succeeded, Is.True);
+
+        var optOut = await permissions.SaveAsync(AgentProviderPermissions.Default(Provider) with { KeepHistory = false }, 0, default);
+        Assert.That(optOut.Succeeded, Is.True);
+        var lateUpdate = await conversations.SaveAsync(original with { Title = "Gravação tardia" }, 1, default);
+        var lateNew = await conversations.SaveAsync(Conversation(Provider, "Nova gravação tardia"), 0, default);
+        var retained = await conversations.GetAsync(original.Id, default);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That((lateUpdate.Status, lateUpdate.ErrorCode), Is.EqualTo((AgentPersistenceStatus.Invalid, "HistoryDisabled")));
+            Assert.That((lateNew.Status, lateNew.ErrorCode), Is.EqualTo((AgentPersistenceStatus.Invalid, "HistoryDisabled")));
+            Assert.That((retained.Value?.Title, retained.Value?.Revision), Is.EqualTo(("Antes do opt-out", 1L)));
+        });
+
+        Assert.That((await permissions.SaveAsync(optOut.Value! with { KeepHistory = true }, 1, default)).Succeeded, Is.True);
+        Assert.That((await conversations.SaveAsync(original with { Title = "Após reativar" }, 1, default)).Succeeded, Is.True);
+    }
+
+    [Test]
     public async Task SecretsAreRedactedBeforeWritingAndTheStoredCopyIsReturned()
     {
         using var fixture = new Workspace();
@@ -137,6 +164,106 @@ public sealed class LiteDbAgentConversationTests
         var stored = document.ToString();
         Assert.That(stored, Does.Not.Contain("S3nh4Forte").And.Not.Contain("hunter22").And.Not.Contain("admin:"));
         Assert.That(stored, Does.Contain("[connection string removida]"));
+    }
+
+    [Test]
+    public async Task ToolCallsRejectResultTextAttachmentsAndProposalReferencesWithoutChangingStoredConversation()
+    {
+        using var fixture = new Workspace();
+        using var owner = new LiteDbConnectionProfileRepository(fixture.Path);
+        var repository = Repository(owner);
+        var conversation = Conversation(Provider, "Resumo da ferramenta") with
+        {
+            Entries = [new AgentConversationEntry(AgentConversationEntryKind.ToolCall, "", Now)
+            {
+                ToolName = "get_indexes", ToolOutcome = AgentToolResultStatus.Succeeded,
+            }],
+        };
+        var saved = await repository.SaveAsync(conversation, 0, default);
+        Assert.That(saved.Status, Is.EqualTo(AgentPersistenceStatus.Succeeded));
+
+        const string resultCanary = "TOOL_RESULT_BSON_CANARY_72e91";
+        const string attachmentCanary = "TOOL_ATTACHMENT_CANARY_84d30";
+        var tool = saved.Value!.Entries.Single();
+        var invalidEntries = new[]
+        {
+            tool with { Text = "{\"result\":\"" + resultCanary + "\"}" },
+            tool with { Attachments = [new(AgentAttachmentKind.WorkspaceFile, attachmentCanary, "data.json", 42, Hash)] },
+            tool with { ProposalId = Guid.NewGuid() },
+        };
+        foreach (var invalid in invalidEntries)
+        {
+            var refused = await repository.SaveAsync(saved.Value with { Entries = [invalid] }, 1, default);
+            Assert.That((refused.Status, refused.ErrorCode),
+                Is.EqualTo((AgentPersistenceStatus.Invalid, "ConversationEntryInvalid")));
+        }
+
+        var loaded = await repository.GetAsync(conversation.Id, default);
+        Assert.Multiple(() =>
+        {
+            Assert.That((loaded.Status, loaded.Value?.Revision), Is.EqualTo((AgentPersistenceStatus.Succeeded, 1L)));
+            Assert.That((loaded.Value!.Entries.Single().Text, loaded.Value.Entries.Single().Attachments.Count,
+                loaded.Value.Entries.Single().ToolName, loaded.Value.Entries.Single().ToolOutcome),
+                Is.EqualTo(("", 0, "get_indexes", (AgentToolResultStatus?)AgentToolResultStatus.Succeeded)));
+        });
+
+        owner.Dispose();
+        using var raw = fixture.OpenOffline();
+        var stored = raw.GetCollection(CollectionName).FindById(conversation.Id).ToString();
+        Assert.That(stored, Does.Not.Contain(resultCanary).And.Not.Contain(attachmentCanary));
+    }
+
+    [TestCase("Text")]
+    [TestCase("Attachments")]
+    public async Task LegacyToolCallWithUnexpectedContentIsUnreadableAndCannotBeOverwritten(string member)
+    {
+        using var fixture = new Workspace();
+        var conversation = Conversation(Provider, "Legado") with
+        {
+            Entries = [new AgentConversationEntry(AgentConversationEntryKind.ToolCall, "", Now)
+            {
+                ToolName = "get_indexes", ToolOutcome = AgentToolResultStatus.Succeeded,
+            }],
+        };
+        using (var owner = new LiteDbConnectionProfileRepository(fixture.Path))
+            Assert.That((await Repository(owner).SaveAsync(conversation, 0, default)).Succeeded, Is.True);
+
+        const string canary = "LEGACY_TOOL_RESULT_CANARY_0a6bf";
+        string original;
+        using (var raw = fixture.OpenOffline())
+        {
+            var collection = raw.GetCollection(CollectionName);
+            var stored = collection.FindById(conversation.Id);
+            var node = JsonNode.Parse(stored["json"].AsString)!.AsObject();
+            var entry = node["Entries"]!.AsArray()[0]!.AsObject();
+            if (member == "Text") entry["Text"] = canary;
+            else entry["Attachments"]!.AsArray().Add(new JsonObject
+            {
+                ["Kind"] = "WorkspaceFile", ["DisplayName"] = canary,
+                ["PathOrName"] = "data.json", ["SizeBytes"] = 42, ["Sha256"] = Hash,
+            });
+            stored["json"] = node.ToJsonString();
+            collection.Update(stored);
+            original = collection.FindById(conversation.Id).ToString();
+            Assert.That(original, Does.Contain(canary));
+        }
+
+        using (var owner = new LiteDbConnectionProfileRepository(fixture.Path))
+        {
+            var repository = Repository(owner);
+            var listed = await repository.ListAsync(Provider, default);
+            var loaded = await repository.GetAsync(conversation.Id, default);
+            var overwrite = await repository.SaveAsync(conversation with { Title = "Substituição" }, 1, default);
+            Assert.Multiple(() =>
+            {
+                Assert.That(listed.Value!.Single().State, Is.EqualTo(AgentConversationSummaryState.Unreadable));
+                Assert.That(loaded.Status, Is.EqualTo(AgentPersistenceStatus.Unreadable));
+                Assert.That(overwrite.Status, Is.EqualTo(AgentPersistenceStatus.Unreadable));
+            });
+        }
+
+        using var reopened = fixture.OpenOffline();
+        Assert.That(reopened.GetCollection(CollectionName).FindById(conversation.Id).ToString(), Is.EqualTo(original));
     }
 
     [Test]

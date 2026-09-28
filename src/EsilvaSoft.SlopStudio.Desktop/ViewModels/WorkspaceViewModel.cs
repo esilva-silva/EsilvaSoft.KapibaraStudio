@@ -185,6 +185,7 @@ public sealed partial class WorkspaceViewModel : ObservableObject, IDisposable
                     Register(tab);
                 }
             ActiveTab = Tabs.FirstOrDefault(t => t.Id == session.ActiveTabId) ?? Tabs.FirstOrDefault();
+            InitializeAgentPanel(session.Preferences);
             _initialized = true;
             if (Tabs.Count == 0) NewTab();
             SessionStatus = session.Tabs.Length > 0 ? LocalizationViewModel.Current.Resolve("draftsRecovered") : string.Empty;
@@ -254,7 +255,8 @@ public sealed partial class WorkspaceViewModel : ObservableObject, IDisposable
                 Preferences = new WorkspacePreferences { Autocomplete = _autocompleteSettings, Theme = Theme, Language = ApplicationLanguages.Normalize(Language), CodeFontSize = CodeFontSize, ExplorerWidth = ExplorerWidth, EditorRatio = EditorRatio, RecoverDrafts = RecoverDrafts, ExcludedProfileIds = _excludedProfiles.ToArray(),
                     UuidRepresentation = UuidRepresentation, ProfileUuidRepresentations = new(_profileUuidRepresentations), IdentifierMode = IdentifierMode,
                     SchemaSamplingProfileIds = Metadata.SchemaSamplingProfiles.ToArray(),
-                    LearnedSchemaExcludedProfileIds = _learnedSchemaOptOut?.ExcludedProfiles.ToArray() ?? [], EditorKeyBindings = _keyBindings },
+                    LearnedSchemaExcludedProfileIds = _learnedSchemaOptOut?.ExcludedProfiles.ToArray() ?? [], EditorKeyBindings = _keyBindings,
+                    AgentPanel = _agentPanelPreferences },
                 Tabs = Tabs.Select(t => t.Snapshot()).ToArray()
             };
             await _sessions.SaveSessionAsync(session);
@@ -275,6 +277,7 @@ public sealed partial class WorkspaceViewModel : ObservableObject, IDisposable
         foreach (var root in Roots) root.Invalidate();
         Details.Clear();
         foreach (var tab in Tabs) { tab.DraftChanged -= OnDraftChanged; tab.CancelCommand.Execute(null); ReleaseAgentChat(tab); tab.Dispose(); }
+        _ = DisposeAgentChatAsync();
         Metadata.Changed -= OnMetadataChanged;
         if (_ownsMetadata && Metadata is IDisposable metadata) metadata.Dispose();
         _saveGate.Dispose();

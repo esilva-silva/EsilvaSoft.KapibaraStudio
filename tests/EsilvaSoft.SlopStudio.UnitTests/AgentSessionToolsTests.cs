@@ -322,20 +322,20 @@ public sealed class AgentSessionToolsTests
         });
     }
 
-    [TestCase("inexistente\n", "OldTextNotFound")]
-    [TestCase("linha\n", "OldTextAmbiguous")]
-    [TestCase("linha\nlinha\n", "NoChanges")]
-    public async Task ProposeFileEditRequiresAUniqueOldText(string oldText, string expected)
+    [TestCase("inexistente\n")]
+    [TestCase("linha\n")]
+    [TestCase("linha\nlinha\n")]
+    public async Task ProposeFileEditUsesOneSafeErrorForMissingAmbiguousOrNoChange(string oldText)
     {
         using var rig = new AgentSessionToolsTestRig();
         rig.WriteFile("a.txt", "linha\nlinha\n");
-        var newText = expected == "NoChanges" ? oldText : "x\n";
+        var newText = oldText == "linha\nlinha\n" ? oldText : "x\n";
 
         var result = await rig.CallAsync("propose_file_edit", new { path = "a.txt", edits = new[] { new { old_text = oldText, new_text = newText } } });
 
         Assert.Multiple(() =>
         {
-            Assert.That(result.ErrorCode, Is.EqualTo(expected));
+            Assert.That(result.ErrorCode, Is.EqualTo("EditNotApplicable"), "A tool não deve revelar se o texto-base estava ausente, repetido ou sem mudança.");
             Assert.That(rig.Sink.Proposals, Is.Empty);
         });
     }
@@ -461,7 +461,9 @@ public sealed class AgentSessionToolsTests
             Assert.That(Behavior(invalid), Is.EqualTo("deny"));
             Assert.That(Behavior(unavailable), Is.EqualTo("deny"));
             Assert.That(notRequired.ErrorCode, Is.EqualTo("UnknownTool"), "Sem confirmações no plano, approve não existe no canal.");
-            Assert.That(rig.Audit.Events, Is.Empty, "A confirmação não é uma invocação MongoDB auditada.");
+            Assert.That(rig.Audit.Events, Is.All.Matches<AgentAuditEvent>(audit =>
+                audit.ConnectionId is null && audit.NamespaceKind == AgentAuditNamespaceKind.None),
+                "A decisão pode ser auditada, mas nunca registra acesso ou namespace MongoDB.");
         });
     }
 

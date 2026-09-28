@@ -35,14 +35,20 @@ public sealed class AgentChatNativeToolObservationTests
             await using var runtime = new AgentRuntime([provider], new AllowingInteractionAuthority());
             await using var chat = new AgentChatViewModel(
                 new AgentChatServices(runtime, new FakeAgentCatalog(FakeAgentCatalog.External("native", "Nativo")),
-                    new FakeAgentContextProvider(), null, null, null),
+                    new FakeAgentContextProvider(), null, null, null)
+                {
+                    Permissions = new FakeAgentPermissionsRepository(AgentProviderPermissions.Default("native") with
+                    {
+                        ExternalDestinationConsentAt = DateTimeOffset.UtcNow,
+                    }),
+                },
                 new AgentChatTabFixture().Capture);
-            chat.DestinationConsent = true;
+            await chat.Initialization;
             chat.ComposerText = "leia o arquivo";
-            await chat.ReviewCommand.ExecuteAsync(null);
             await chat.SendCommand.ExecuteAsync(null);
 
-            Assert.That(chat.State, Is.EqualTo(AgentChatState.Completed));
+            Assert.That(chat.State, Is.EqualTo(AgentChatState.Completed),
+                $"status={chat.StatusText}; detail={chat.StatusDetail}; items={chat.Items.Count}; block={chat.SendBlock}");
             var cards = chat.Items.OfType<AgentToolCallItem>().ToArray();
             Assert.Multiple(() =>
             {
@@ -67,11 +73,16 @@ public sealed class AgentChatNativeToolObservationTests
             await using var runtime = new AgentRuntime([provider], new AllowingInteractionAuthority());
             await using var chat = new AgentChatViewModel(
                 new AgentChatServices(runtime, new FakeAgentCatalog(FakeAgentCatalog.External("native", "Nativo")),
-                    new FakeAgentContextProvider(), null, null, null),
+                    new FakeAgentContextProvider(), null, null, null)
+                {
+                    Permissions = new FakeAgentPermissionsRepository(AgentProviderPermissions.Default("native") with
+                    {
+                        ExternalDestinationConsentAt = DateTimeOffset.UtcNow,
+                    }),
+                },
                 new AgentChatTabFixture().Capture);
-            chat.DestinationConsent = true;
+            await chat.Initialization;
             chat.ComposerText = "rode algo longo";
-            await chat.ReviewCommand.ExecuteAsync(null);
             var send = chat.SendCommand.ExecuteAsync(null);
             await AgentChatWait.UntilAsync(() => provider.Started);
             await chat.CancelTurnCommand.ExecuteAsync(null);

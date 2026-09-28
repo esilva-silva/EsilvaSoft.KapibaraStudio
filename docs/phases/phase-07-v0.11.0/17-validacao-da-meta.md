@@ -1,5 +1,22 @@
 # Validação da meta de planejamento
 
+## Polimento do Agente IA — evidência da integração CLP, 28/09/2026
+
+**Estado:** os contratos, a persistência, as tools, o adapter Claude Code e a disponibilidade estão no HEAD `30b81a9`; painel global, Permissões, contexto em chips, histórico, confirmações e revisão de propostas estão no worktree compartilhado. A [ADR-056](../../10-decisoes-arquiteturais.md#adr-056--agente-ia-integrado-conversas-persistidas-permissões-por-provider-modos-e-propostas-de-edição-26092026), o [plano e gates GCL-9..GCL-17](23-integracao-claude.md#polimento-do-agente-ia--adr-056-26092026), a [matriz](../../15-matriz-de-validacao.md) e o [roteiro C-37..C-45](21-homologacao-manual-login.md#casos-do-modo-claude-code-assinatura) foram atualizados. Presença de código e documentação não equivalem à aprovação de gate ou AC.
+
+| Evidência da rodada CLP | Estado e limite |
+| --- | --- |
+| Restauração oficial | `dotnet restore EsilvaSoft.SlopStudio.slnx --locked-mode`: **exit 0** nesta rodada |
+| Build oficial | `dotnet build EsilvaSoft.SlopStudio.slnx --no-restore -p:UsedAvaloniaProducts=`: **exit 0, 0 avisos, 0 erros**. A propriedade evita a tarefa externa de telemetria Avalonia neste ambiente, sem desativar analisadores |
+| Suíte oficial | `dotnet test EsilvaSoft.SlopStudio.slnx --no-build --no-restore`: **exit 1**. UnitTests **3.782 aprovados, 22 ignorados, 0 falhas**; Benchmarks **43 aprovados**; Infrastructure.Agents.Tests **244 aprovados, 2 falhas em 246 executados**. Total: **4.069 aprovados, 2 falhas, 22 ignorados (4.093 casos)**. A suíte **não passou** |
+| Falhas da suíte | `KillingTheTreeByParentLinksDoesNotReachAnOrphanedGrandchild` e `KillingOnlyTheCliProcessLeavesAnOrphanThatTheTreeCheckDetects`: o CLI falso não registrou filho/grandchild em 30 s, inclusive numa repetição fora do sandbox. O comportamento de árvore de processos continua sem prova positiva; não declarar GCL-6/11/17 aprovado |
+| Suítes focadas | Propostas/anchors/ordem de eventos **8/8**; opt-out/LiteDB/ordem de eventos **20/20**; testes de screenshots/foco **3/3**. Esses filtros exercitam riscos específicos e não anulam as duas falhas da suíte oficial |
+| UI e evidência visual | O orquestrador inspecionou PNGs reais nos temas claro e escuro do painel, da tela Permissões e do diff, nos tamanhos **960 × 620, 660 × 760 e 900 × 680**; o filtro de screenshots/foco passou **3/3**. Isso é inspeção de renderização, sem homologar leitor de tela, IME, diálogos nativos, Linux ou os casos manuais C-37..C-45 |
+| MongoDB real, leitura isolada (28/09/2026) | O orquestrador relatou uma tentativa somente leitura com a URI fornecida pelo usuário: a conexão abriu e `ListDatabaseNames` concluiu com retorno. Nomes e contagem não foram extraídos; URI, nomes e conteúdo não foram registrados. A observação prova apenas conectividade e permissão de listar bancos naquele caminho isolado; não passou pelo Agente IA, pelo Claude Code, pelo broker MCP nem pelas tools do aplicativo |
+| Homologação C-41/GCL-17 | **Pendente.** O caso C-41 exige, no Windows, conta Claude própria e tools do aplicativo via MCP para conexões, bancos, collections, índices e schema em cache com MongoDB real, incluindo negações e ausência de credenciais na saída. A leitura isolada acima não substitui esse roteiro, a revisão de diff C-43, o reinício/retomada nem os demais casos C-37..C-45. Linux continua sem proof de canal para tools MCP |
+
+Nenhum gate GCL-9..GCL-17 ou AC relacionado é declarado aprovado nesta atualização. O restore e o build passaram, mas a suíte oficial tem duas falhas; as contagens históricas nas seções seguintes permanecem restritas às respectivas rodadas.
+
 ## Prioridade de contas 7B/8B — 25/09/2026
 
 Planejamento atualizado por pedido do usuário: conta Claude entra no 8B condicional e passa a prioridade junto de Codex/ChatGPT (7B). Requisitos, providers, autenticação, plano, testes, aceites, fontes, roteiro manual, matriz, catálogo, ADRs, guia, design system e memória sincronizados. Nenhum código de produto ou credencial alterado; nenhum login executado ou AC aprovado.

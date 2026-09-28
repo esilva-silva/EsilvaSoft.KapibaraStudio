@@ -139,12 +139,20 @@ public static class AgentWorkspacePaths
             return AgentWorkspacePathError.InvalidPath;
         }
 
-        var relative = TryGetWorkspaceRoot(workspaceRoot, out var root) && IsStrictlyInside(full, root)
+        var isInsideWorkspace = TryGetWorkspaceRoot(workspaceRoot, out var root) && IsStrictlyInside(full, root);
+        var relative = isInsideWorkspace
             ? Path.GetRelativePath(root, full)
             : full[(Path.GetPathRoot(full)?.Length ?? 0)..];
         if (HasUnsafeSegment(relative))
         {
             return AgentWorkspacePathError.UnsafePath;
+        }
+
+        // Active editor files and external attachments pass through CheckFile too. Refuse link traversal here as
+        // well as in TryResolveInside: otherwise a benign alias name could point at an excluded secret file.
+        if (isInsideWorkspace ? TraversesLink(full, root) : TraversesLinkFromVolumeRoot(full))
+        {
+            return AgentWorkspacePathError.LinkTraversal;
         }
 
         return CheckExclusions(AgentWorkspaceExclusions.NormalizeRelativePath(relative), exclusions);
@@ -231,9 +239,36 @@ public static class AgentWorkspacePaths
             for (var current = fullPath; IsStrictlyInside(current, root); current = Path.GetDirectoryName(current) ?? root)
             {
                 FileSystemInfo info = File.Exists(current) ? new FileInfo(current) : new DirectoryInfo(current);
-                if (info.Exists && info.LinkTarget is not null)
+                if (info.LinkTarget is not null)
                 {
                     return true;
+                }
+            }
+
+            return false;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            return true;
+        }
+    }
+
+    private static bool TraversesLinkFromVolumeRoot(string fullPath)
+    {
+        try
+        {
+            for (var current = fullPath; !string.IsNullOrEmpty(current); current = Path.GetDirectoryName(current)!)
+            {
+                FileSystemInfo info = File.Exists(current) ? new FileInfo(current) : new DirectoryInfo(current);
+                if (info.LinkTarget is not null)
+                {
+                    return true;
+                }
+
+                var parent = Path.GetDirectoryName(current);
+                if (string.IsNullOrEmpty(parent) || string.Equals(parent, current, Comparison))
+                {
+                    break;
                 }
             }
 

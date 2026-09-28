@@ -77,16 +77,16 @@ Regras:
 
 ## Permissões persistentes por provider e modos do Agente IA (ADR-056, 26/09/2026)
 
-**Planejado, não implementado.** A [ADR-056](../../10-decisoes-arquiteturais.md#adr-056--agente-ia-integrado-conversas-persistidas-permissões-por-provider-modos-e-propostas-de-edição-26092026) revisa a [ADR-050](../../10-decisoes-arquiteturais.md#adr-050--permissão-determinística-e-aprovação-vinculada-à-ação-22092026) para o Agente IA. Tudo acima continua valendo: interseção de políticas, deny por padrão, grants do registry, aprovação one-shot de escrita e ausência de "aprovar sempre" para escrita/destrutiva. O que muda é a camada que o usuário configura por provider.
+**Implementação presente em código em 27/09/2026; GCL-10/11 ainda pendentes.** A [ADR-056](../../10-decisoes-arquiteturais.md#adr-056--agente-ia-integrado-conversas-persistidas-permissões-por-provider-modos-e-propostas-de-edição-26092026) revisa a [ADR-050](../../10-decisoes-arquiteturais.md#adr-050--permissão-determinística-e-aprovação-vinculada-à-ação-22092026) para o Agente IA. Contrato/repositório e tela dedicada existem no checkout, com verificação de recuperação e escopo por conexão ainda necessária. Interseção de políticas, deny por padrão, grants do registry, aprovação one-shot de escrita e ausência de "aprovar sempre" para escrita/destrutiva continuam valendo.
 
 **`AgentProviderPermissions`** (uma por provider, persistida no owner LiteDB único, versionada e com CAS; edição em **Configurações → Claude (assinatura) → Permissões**):
 
 | Seção | Conteúdo | Padrão proposto |
 | --- | --- | --- |
 | Envio de dados | Consentimento de destino externo (data e hora); dados enviáveis: mensagem, arquivo ativo, arquivos do workspace, anexos externos, metadados da aba, schema inferido | Sem consentimento: nada é enviado e o composer mostra **Configurar permissões** |
-| Workspace e arquivos | Usar a pasta de Arquivos; globs de exclusão; leitura nativa pelo agente (`Read`/`Glob`/`Grep`); propostas de edição no arquivo ativo / em outros arquivos do workspace | Exclusões `.env`, `*.pem`, `*.key`, `**/secrets/**`; demais escolhas desligadas até decisão do usuário (valores finais em CLP-1) |
+| Workspace e arquivos | Usar a pasta de Arquivos; globs de exclusão; leitura nativa pelo agente (`Read`/`Glob`/`Grep`); propostas de edição no arquivo ativo / em outros arquivos do workspace | Exclusões e escolhas efetivas definidas em `AgentProviderPermissions.Default` e `AgentWorkspaceExclusions`; conferir na UI e em testes |
 | Anexos externos | Permitir arquivo fora do workspace pelo diálogo nativo | Desligado |
-| Contexto automático | Arquivo ativo e metadados da aba como chips automáticos | Definido em CLP-1; sempre visível e removível no chip |
+| Contexto automático | Arquivo ativo e metadados da aba como chips automáticos | Contrato definido em CLP-1; chip visível e removível quando autorizado |
 | Tools do KapibaraStudio | Conexões acessíveis (todas/selecionadas); tools somente leitura habilitadas; escrita listada como **indisponível nesta versão** | Leitura conforme escolha; escrita sempre indisponível (lote 10 pendente) |
 | Confirmações | Operações que pedem "Aprovar uma vez"/"Rejeitar" | Toda tool no modo Solicitar confirmações |
 | Histórico e privacidade | **Não guardar histórico** (opt-out) e **Apagar histórico** | Guardar, com redação; anexos e credenciais nunca |

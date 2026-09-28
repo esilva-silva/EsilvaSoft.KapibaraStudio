@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
+using Avalonia.Platform.Storage;
 using EsilvaSoft.SlopStudio.Desktop.ViewModels;
 
 namespace EsilvaSoft.SlopStudio.Desktop;
@@ -90,6 +91,8 @@ public partial class AgentChatPanel : UserControl
             _viewModel.ApprovalRequested -= OnApprovalRequested;
             _viewModel.SettingsRequested -= OnSettingsRequested;
             _viewModel.ComposerFocusRequested -= OnComposerFocusRequested;
+            _viewModel.ExternalFilePickRequested -= OnExternalFilePickRequested;
+            _viewModel.ProposalReviewRequested -= OnProposalReviewRequested;
         }
 
         _viewModel = viewModel;
@@ -98,6 +101,44 @@ public partial class AgentChatPanel : UserControl
             viewModel.ApprovalRequested += OnApprovalRequested;
             viewModel.SettingsRequested += OnSettingsRequested;
             viewModel.ComposerFocusRequested += OnComposerFocusRequested;
+            viewModel.ExternalFilePickRequested += OnExternalFilePickRequested;
+            viewModel.ProposalReviewRequested += OnProposalReviewRequested;
+        }
+    }
+
+    private void ShowHistory(object? sender, RoutedEventArgs e)
+    {
+        if (_viewModel is null) return;
+        _ = _viewModel.LoadHistoryCommand.ExecuteAsync(null);
+        HistoryButton.Flyout?.ShowAt(HistoryButton);
+    }
+
+    private void SelectWorkspaceFile(object? sender, RoutedEventArgs e)
+    {
+        if (_viewModel is null || sender is not Control { DataContext: AgentWorkspaceFileChoice file }) return;
+        _viewModel.AddWorkspaceFile(file.FullPath);
+        WorkspaceFileButton.Flyout?.Hide();
+    }
+
+    private async void OnExternalFilePickRequested(object? sender, EventArgs e)
+    {
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel?.StorageProvider is not { } storage || _viewModel is null) return;
+        try
+        {
+            var files = await storage.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                AllowMultiple = true,
+                Title = "Selecionar arquivos externos"
+            });
+            foreach (var file in files)
+            {
+                if (file.TryGetLocalPath() is { Length: > 0 } path) _viewModel.AddExternalFile(path);
+            }
+        }
+        catch (Exception)
+        {
+            // Picker failures are non-fatal; no attachment was added.
         }
     }
 
@@ -112,19 +153,41 @@ public partial class AgentChatPanel : UserControl
         {
             // Plain Enter inserts a line; only Ctrl+Enter in this scope reviews or sends.
             e.Handled = true;
-            if (_viewModel.PrimaryActionCommand.CanExecute(null))
+            if (_viewModel.SendCommand.CanExecute(null))
             {
-                _ = _viewModel.PrimaryActionCommand.ExecuteAsync(null);
+                _ = _viewModel.SendCommand.ExecuteAsync(null);
             }
-        }
-        else if (e.Key == Key.Escape && _viewModel.HasPreview)
-        {
-            e.Handled = true;
-            _viewModel.EditCommand.Execute(null);
         }
     }
 
     private void OnComposerFocusRequested(object? sender, EventArgs e) => Composer.Focus();
+
+    private void OnProposalReviewRequested(object? sender, AgentEditProposalReviewViewModel review) => _ = ShowProposalReviewAsync(review);
+
+    private async Task ShowProposalReviewAsync(AgentEditProposalReviewViewModel review)
+    {
+        var window = new AgentEditProposalReviewWindow { DataContext = review };
+        try
+        {
+            if (TopLevel.GetTopLevel(this) is Window owner && owner.IsVisible)
+                await window.ShowDialog(owner);
+            else
+            {
+                var closed = new TaskCompletionSource();
+                window.Closed += (_, _) => closed.TrySetResult();
+                window.Show();
+                await closed.Task;
+            }
+        }
+        catch (Exception)
+        {
+            // The active editor still contains the original or selected hunks; no file has been saved.
+        }
+        finally
+        {
+            Composer.Focus();
+        }
+    }
 
     private void AttachHistoryScroll()
     {
@@ -207,6 +270,7 @@ public partial class AgentChatPanel : UserControl
         }
 
         var window = new AgentSettingsWindow { DataContext = _viewModel.CreateSettingsViewModel() };
+        window.PermissionsRequested += async (_, _) => await ShowPermissionsAsync(window);
         OpenSettingsWindow = window;
         try
         {
@@ -231,6 +295,32 @@ public partial class AgentChatPanel : UserControl
             OpenSettingsWindow = null;
             _viewModel?.ReloadProviders();
             ConfigureButton.Focus();
+        }
+    }
+
+    private async Task ShowPermissionsAsync(Window settingsOwner)
+    {
+        if (_viewModel is null || settingsOwner.DataContext is not AgentSettingsViewModel settings ||
+            settings.SelectedProvider is not { } selected)
+        {
+            return;
+        }
+
+        var permissions = _viewModel.CreatePermissionsViewModel(selected.ProviderId);
+        var window = new AgentPermissionsWindow { DataContext = permissions };
+        permissions.Saved = _viewModel.OnPermissionsSaved;
+        try
+        {
+            await window.ShowDialog(settingsOwner);
+        }
+        catch (Exception)
+        {
+            // Provider settings remain open; the failed permissions operation is reported in its own window.
+        }
+        finally
+        {
+            permissions.Saved = null;
+            settingsOwner.Activate();
         }
     }
 }

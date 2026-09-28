@@ -112,7 +112,8 @@ public sealed class AgentChatHostUiTests
                     "not-checked" => NotCheckedServices,
                     _ => () => new AgentChatServices(runtime,
                         new FakeAgentCatalog(FakeAgentCatalog.External("ext", "Provider externo de teste"),
-                            FakeAgentCatalog.Local("local", "Local de teste")), new FakeAgentContextProvider()),
+                            FakeAgentCatalog.Local("local", "Local de teste")), new FakeAgentContextProvider())
+                    { Permissions = new FakeAgentPermissionsRepository(AgentProviderPermissions.Default("ext") with { ExternalDestinationConsentAt = DateTimeOffset.UtcNow }) },
                 };
                 await using var host = await BuildAsync(services, runtime);
                 host.Model.IsAgentPanelOpen = true;
@@ -170,14 +171,20 @@ public sealed class AgentChatHostUiTests
             Assert.Multiple(() =>
             {
                 Assert.That(host.Model.IsAgentPanelOpen, Is.True);
-                Assert.That(window.AgentChatPanel.DataContext, Is.SameAs(tab.AgentChat));
+                Assert.That(window.AgentChatPanel.DataContext, Is.SameAs(host.Model.ActiveAgentChat));
                 Assert.That(window.IsAgentPanelOverlay, Is.False);
             });
 
-            // Ctrl+Enter in the composer reviews the chat message; it never executes the tab's MongoDB script.
+            // Ctrl+Enter sends directly to the agent; it never executes the tab's MongoDB script.
+            window.AgentChatPanel.ComposerBox.Focus();
             window.KeyTextInput("explique a consulta");
             window.KeyPress(Key.Enter, RawInputModifiers.Control, PhysicalKey.Enter, null);
-            await PumpAsync(() => tab.AgentChat!.HasPreview);
+            var chat = host.Model.ActiveAgentChat!;
+            try { await PumpAsync(() => runtime.LastRequest is not null && chat.State == AgentChatState.Generating); }
+            catch (Exception exception)
+            {
+                throw new AssertionException($"{exception.Message} State={chat.State}; busy={chat.IsBusy}; activeTurn={chat.ActiveTurnId}; detail={chat.StatusDetail}; block={chat.SendBlock}; provider={chat.SelectedProvider?.ProviderId}; available={chat.SelectedProvider?.Presentation.IsAvailable}; auth={chat.SelectedProvider?.Presentation.AuthState}; permissions={chat.CurrentPermissions?.IsWellFormed}; lastRequest={runtime.LastRequest is not null}; yielded={runtime.YieldedEvents.Count}; composer={chat.ComposerText}", exception);
+            }
             window.KeyPress(Key.F5, RawInputModifiers.None, PhysicalKey.F5, null);
             await PumpAsync(() => true);
             Assert.Multiple(() =>
@@ -188,10 +195,18 @@ public sealed class AgentChatHostUiTests
                 Assert.That(tab.Errors, Is.Empty);
             });
 
-            // Escape in the composer only discards the preview (and never cancels anything).
+            // Escape does not cancel or roll back the active agent turn.
             window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
-            await PumpAsync(() => !tab.AgentChat!.HasPreview);
-            Assert.That(window.AgentChatPanel.ComposerBox.IsFocused, Is.True);
+            await PumpAsync(() => true);
+            Assert.That(chat.State, Is.EqualTo(AgentChatState.Generating));
+            var turn = runtime.LastRequest!.TurnId;
+            var message = AgentMessageId.New();
+            runtime.Push(turn, AgentEventKind.MessageStarted, message: message);
+            runtime.Push(turn, AgentEventKind.MessageDelta, "Consulta analisada.", message: message);
+            runtime.Push(turn, AgentEventKind.MessageCompleted, message: message);
+            runtime.Push(turn, AgentEventKind.TaskCompleted, outcome: AgentTurnOutcome.Completed);
+            await PumpAsync(() => chat.State == AgentChatState.Completed);
+            window.KeyTextInput("rascunho preservado");
 
             // From inside the panel the shortcut collapses it and focus returns to the editor.
             window.KeyPress(Key.A, RawInputModifiers.Control | RawInputModifiers.Shift, PhysicalKey.A, "A");
@@ -199,7 +214,7 @@ public sealed class AgentChatHostUiTests
             Assert.Multiple(() =>
             {
                 Assert.That(host.Model.IsAgentPanelOpen, Is.False);
-                Assert.That(tab.AgentChat!.ComposerText, Is.EqualTo("explique a consulta"), "Collapsing keeps the draft.");
+                Assert.That(chat.ComposerText, Is.EqualTo("rascunho preservado"), "Collapsing keeps the draft.");
             });
 
             // Panel open but focus in the editor: the shortcut moves focus to the chat instead of closing it.
@@ -266,13 +281,11 @@ public sealed class AgentChatHostUiTests
 
     private static async Task StartConversationAsync(AgentChatViewModel chat, ChannelAgentRuntime runtime)
     {
-        chat.SelectedScope = chat.ContextScopes.Single(option => option.Scope == AgentContextScope.Metadata);
         chat.ComposerText = "Quais índices ajudariam a consulta de clientes ativos?";
-        await chat.ReviewCommand.ExecuteAsync(null);
-        chat.DestinationConsent = true;
         _ = chat.SendCommand.ExecuteAsync(null);
         await PumpAsync(() => chat.ActiveTurnId is not null && chat.State == AgentChatState.Generating);
-        var turn = chat.ActiveTurnId;
+        await PumpAsync(() => runtime.LastRequest is not null);
+        var turn = runtime.LastRequest!.TurnId;
         var message = AgentMessageId.New();
         runtime.Push(turn, AgentEventKind.MessageStarted, message: message);
         runtime.Push(turn, AgentEventKind.MessageDelta, "Um índice em { ativo: 1 } atende o filtro. Nenhuma consulta foi executada; ",
@@ -280,7 +293,12 @@ public sealed class AgentChatHostUiTests
         runtime.Push(turn, AgentEventKind.MessageDelta, "revise o plano com explain antes de criar o índice.", message: message);
         runtime.Push(turn, AgentEventKind.MessageCompleted, message: message);
         runtime.Push(turn, AgentEventKind.TaskCompleted, outcome: AgentTurnOutcome.Completed);
-        await PumpAsync(() => chat.State == AgentChatState.Completed);
+        try { await PumpAsync(() => chat.State == AgentChatState.Completed); }
+        catch (Exception exception)
+        {
+            var events = string.Join(",", runtime.YieldedEvents.Select(e => $"{e.Kind}:{e.Outcome}:{e.TurnId}:{e.SessionId}"));
+            throw new AssertionException($"{exception.Message} State={chat.State}; conversationTurnState={chat.ActiveConversation.TurnState}; runtimeRequestTurn={runtime.LastRequest?.TurnId}; pushedTurn={turn}; activeTurn={chat.ActiveTurnId}; session={runtime.SessionId}; events={events}", exception);
+        }
         chat.ComposerText = "E para ordenar por nome?";
     }
 
@@ -292,9 +310,12 @@ public sealed class AgentChatHostUiTests
         var panel = window.AgentChatPanel;
         Assert.That(panelHost.IsVisible, Is.True, $"{size}");
         var origin = panelHost.TranslatePoint(new Point(), window)!.Value;
+        // The headless compositor rounds client dimensions to physical pixels at fractional scales; allow half a
+        // DIP plus half a device pixel on the right edge while still catching any visible layout spill.
+        var edgeTolerance = 0.5 + 0.5 / window.RenderScaling;
         Assert.Multiple(() =>
         {
-            Assert.That(origin.X + panelHost.Bounds.Width, Is.LessThanOrEqualTo(window.ClientSize.Width + 0.5), $"{size}");
+            Assert.That(origin.X + panelHost.Bounds.Width, Is.LessThanOrEqualTo(window.ClientSize.Width + edgeTolerance), $"{size}");
             Assert.That(panelHost.Bounds.Width, Is.GreaterThanOrEqualTo(MainWindow.AgentPanelMinWidth - 0.5), $"{size}");
             foreach (var control in new Control[] { panel.ComposerBox, panel.FindControl<Button>("ConfigureButton")!, panel.ClosePanel })
             {

@@ -79,7 +79,7 @@ Lotes 10, 11 e 12 ficam **subordinados** ao bloco CL: trabalho independente pode
 
 ### Polimento do Agente IA — sublotes CLP-0..CLP-7 (26/09/2026)
 
-Decisão do usuário registrada na [ADR-056](../../10-decisoes-arquiteturais.md#adr-056--agente-ia-integrado-conversas-persistidas-permissões-por-provider-modos-e-propostas-de-edição-26092026): transformar o Claude (assinatura) — já existente em código nos commits `081a5ab`, `63c162d` e `6e07b41` — num agente integrado, com conversas globais persistidas, permissões persistentes por provider, contexto em chips, modos, tools MongoDB de leitura via MCP local, prompt de sistema e propostas de edição revisadas por diff. Passos P7-CL7-01..11 e gates GCL-9..GCL-17 em [23](23-integracao-claude.md#polimento-do-agente-ia--adr-056-26092026). Estado: **planejado; CLP-0 (documentação) em execução; nenhum gate ou AC aprovado**.
+Decisão do usuário registrada na [ADR-056](../../10-decisoes-arquiteturais.md#adr-056--agente-ia-integrado-conversas-persistidas-permissões-por-provider-modos-e-propostas-de-edição-26092026): transformar o Claude (assinatura) num agente integrado, com conversas globais persistidas, permissões persistentes por provider, contexto em chips, modos, tools MongoDB de leitura via MCP local, prompt de sistema e propostas de edição revisadas por diff. Passos P7-CL7-01..11 e gates GCL-9..GCL-17 em [23](23-integracao-claude.md#polimento-do-agente-ia--adr-056-26092026). **Estado em 27/09/2026:** CLP-0 documentado; CLP-1..4 presentes no HEAD `30b81a9`; CLP-5/6 em integração no worktree, com CLP-7 (testes, PNGs, revisão e documentação) em andamento. Nenhum gate ou AC aprovado; execução manual GCL-17 e Linux MCP pendentes.
 
 | Sublote | Escopo | Responsável | Tarefas |
 | --- | --- | --- | --- |

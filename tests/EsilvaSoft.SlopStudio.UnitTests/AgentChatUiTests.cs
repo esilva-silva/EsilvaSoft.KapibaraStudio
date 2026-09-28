@@ -24,7 +24,7 @@ public sealed class AgentChatUiTests
     private static readonly ThemeVariant[] Themes = [ThemeVariant.Light, ThemeVariant.Dark];
     private static readonly Key[] DialogKeys = [Key.Enter, Key.Escape];
     private static readonly AgentApprovalOutcome[] OnlyDenied = [AgentApprovalOutcome.Denied];
-    private static readonly string[] ChatStates = ["unavailable", "ready", "preview", "streaming", "outcome-unknown"];
+    private static readonly string[] ChatStates = ["unavailable", "ready", "streaming", "outcome-unknown"];
 
     private static Task<bool> RunOnUiAsync(Func<Task> body)
     {
@@ -104,14 +104,20 @@ public sealed class AgentChatUiTests
     }
 
     [Test]
-    public async Task KeyboardReviewsAndSendsOnlyFromTheComposerAndStreamingDoesNotStealFocus()
+    public async Task KeyboardSendsDirectlyFromTheComposerAndStreamingDoesNotStealFocus()
     {
         await RunOnUiAsync(async () =>
         {
             var runtime = new ChannelAgentRuntime();
             var tab = new AgentChatTabFixture();
-            var chat = new AgentChatViewModel(new AgentChatServices(runtime,
-                new FakeAgentCatalog(FakeAgentCatalog.Local("local", "Local de teste")), new FakeAgentContextProvider()), tab.Capture);
+            var permissions = new FakeAgentPermissionsRepository(AgentProviderPermissions.Default("ext") with
+            {
+                ExternalDestinationConsentAt = DateTimeOffset.UtcNow,
+            });
+            var services = new AgentChatServices(runtime,
+                new FakeAgentCatalog(FakeAgentCatalog.External("ext", "Provider externo de teste")), new FakeAgentContextProvider())
+            { Permissions = permissions };
+            var chat = new AgentChatViewModel(services, tab.Capture);
             var panel = new AgentChatPanel { DataContext = chat };
             var window = new Window { Content = panel, Width = 400, Height = 720 };
             window.Show();
@@ -123,20 +129,11 @@ public sealed class AgentChatUiTests
             window.KeyTextInput("linha 2");
             await PumpAsync(() => true);
             Assert.That(chat.ComposerText.Replace("\r", "", StringComparison.Ordinal), Is.EqualTo("linha 1\nlinha 2"), "Enter inserts a line.");
-            Assert.That(chat.HasPreview, Is.False);
-
             window.KeyPress(Key.Enter, RawInputModifiers.Control, PhysicalKey.Enter, null);
-            await PumpAsync(() => chat.HasPreview);
+            await PumpAsync(() => runtime.LastRequest is not null && chat.State == AgentChatState.Generating);
             Assert.That(window.FocusManager!.GetFocusedElement(), Is.SameAs(panel.ComposerBox));
-
+            Assert.That(runtime.LastRequest!.UserMessage.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n'), Is.EqualTo("linha 1\nlinha 2"));
             window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
-            await PumpAsync(() => !chat.HasPreview);
-            Assert.That(runtime.LastRequest, Is.Null, "Escape discards the preview and sends nothing.");
-
-            window.KeyPress(Key.Enter, RawInputModifiers.Control, PhysicalKey.Enter, null);
-            await PumpAsync(() => chat.HasPreview);
-            window.KeyPress(Key.Enter, RawInputModifiers.Control, PhysicalKey.Enter, null);
-            await PumpAsync(() => runtime.LastRequest is not null);
             var turn = runtime.LastRequest!.TurnId;
             var message = AgentMessageId.New();
             runtime.Push(turn, AgentEventKind.MessageStarted, message: message);
@@ -147,7 +144,7 @@ public sealed class AgentChatUiTests
 
             await PumpAsync(() => chat.Items.OfType<AgentChatMessageItem>().Any(item => item.Content.Contains("fragmento 39", StringComparison.Ordinal)));
             Assert.That(window.FocusManager!.GetFocusedElement(), Is.SameAs(panel.ComposerBox), "Streaming must not move focus.");
-            Assert.That(chat.CancelTurnCommand.CanExecute(null), Is.True);
+                Assert.That(chat.CancelTurnCommand.CanExecute(null), Is.True);
 
             // Keyboard reaches the explicit cancel action from the composer with Tab.
             window.KeyPress(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, null);
@@ -287,13 +284,18 @@ public sealed class AgentChatUiTests
         var catalog = new FakeAgentCatalog(FakeAgentCatalog.External("ext", "Provider externo de teste"),
             FakeAgentCatalog.Local("local", "Local de teste"));
         var details = new FakeApprovalDetailsSource(Details(DateTimeOffset.UtcNow.AddSeconds(110), AgentToolRisk.Write));
+        var permissions = new FakeAgentPermissionsRepository(AgentProviderPermissions.Default("ext") with
+        {
+            ExternalDestinationConsentAt = DateTimeOffset.UtcNow,
+        });
         var services = state == "unavailable"
             ? AgentChatServices.Unavailable
-            : new AgentChatServices(runtime, catalog, new FakeAgentContextProvider(), details);
+            : new AgentChatServices(runtime, catalog, new FakeAgentContextProvider(), details) { Permissions = permissions };
         var chat = new AgentChatViewModel(services, tab.Capture);
         var panel = new AgentChatPanel { DataContext = chat };
         var window = new Window { Content = panel, Width = width, Height = height };
         window.Show();
+        await chat.Initialization;
         await PumpAsync(() => true);
         if (state == "unavailable")
         {
@@ -302,14 +304,6 @@ public sealed class AgentChatUiTests
 
         chat.ComposerText = "Quais pedidos atrasados desta coleção precisam de revisão?";
         if (state == "ready")
-        {
-            return (window, chat, runtime);
-        }
-
-        chat.DestinationConsent = true;
-        chat.SelectedScope = chat.ContextScopes.Single(option => option.Scope == AgentContextScope.Selection);
-        await chat.ReviewCommand.ExecuteAsync(null);
-        if (state == "preview")
         {
             return (window, chat, runtime);
         }
@@ -363,18 +357,12 @@ public sealed class AgentChatUiTests
         {
             case "unavailable":
                 Assert.That(chat.State, Is.EqualTo(AgentChatState.Unavailable));
-                Assert.That(panel.FindControl<Button>("ReviewButton")!.IsEffectivelyEnabled, Is.False);
+                Assert.That(panel.FindControl<Button>("SendButton")!.IsEffectivelyEnabled, Is.False);
                 Assert.That(panel.FindControl<StackPanel>("EmptyState")!.IsVisible, Is.False, "No chat invitation when unavailable.");
                 Assert.That(panel.ComposerBox.IsEffectivelyEnabled, Is.False);
-                Assert.That(panel.FindControl<ComboBox>("ScopeSelector")!.IsEffectivelyEnabled, Is.False);
                 break;
             case "ready":
-                Assert.That(panel.FindControl<CheckBox>("ConsentCheck")!.IsChecked, Is.False);
                 Assert.That(panel.FindControl<TextBlock>("DestinationBadge")!.Text, Is.EqualTo("Externo"));
-                break;
-            case "preview":
-                Assert.That(panel.FindControl<Border>("PreviewCard")!.IsVisible, Is.True);
-                Assert.That(panel.FindControl<Button>("SendButton")!.IsEffectivelyEnabled, Is.True);
                 break;
             case "streaming":
                 Assert.That(chat.Items.OfType<AgentToolCallItem>().Select(t => t.State),

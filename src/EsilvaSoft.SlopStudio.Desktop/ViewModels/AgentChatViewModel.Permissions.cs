@@ -142,7 +142,8 @@ public sealed partial class AgentChatViewModel
 
         if (turnPlan)
         {
-            var plan = AgentModePolicy.Plan(SelectedMode.Mode, permissions, CapturePlatformFacts(SessionFolderCandidate()));
+            var plan = AgentModePolicy.Plan(SelectedMode.Mode, permissions,
+                CapturePlatformFacts(SessionFolderCandidate()), requireExternalDestinationConsent: provider.IsExternal);
             SendBlock = plan.BlockReason switch
             {
                 AgentTurnBlockReason.ConsentMissing => AgentSendBlock.ConsentMissing,
@@ -248,9 +249,9 @@ public sealed partial class AgentChatViewModel
         }
     }
 
-    public AgentPermissionsViewModel CreatePermissionsViewModel(string? section = null)
+    public AgentPermissionsViewModel CreatePermissionsViewModel(string? providerId = null, string? section = null)
     {
-        var provider = SelectedProvider;
+        var provider = Providers.FirstOrDefault(candidate => candidate.ProviderId == providerId) ?? SelectedProvider;
         return new AgentPermissionsViewModel(
             _services.Permissions, _services.Conversations, provider?.ProviderId ?? "",
             provider?.Presentation.DisplayName ?? "", _host.WorkspaceFolder, _host.ListConnections(),
@@ -398,7 +399,7 @@ public sealed partial class AgentChatViewModel
             ? ObserveAvailabilityAsync(service.CheckAsync(provider.ProviderId, force: true))
             : Task.CompletedTask;
 
-    private async Task ObserveAvailabilityAsync(Task<AgentProviderAvailability> check)
+    private static async Task ObserveAvailabilityAsync(Task<AgentProviderAvailability> check)
     {
         try
         {

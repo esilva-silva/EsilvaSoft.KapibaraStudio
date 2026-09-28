@@ -40,7 +40,7 @@ public static class AgentSystemPromptBuilder
             throw new ArgumentException("Um plano bloqueado não gera prompt: nada pode ser enviado.", nameof(context));
         }
 
-        var folder = SanitizeName(context.WorkspaceFolder);
+        var folder = SanitizeName(LastPathSegment(context.WorkspaceFolder));
         var file = SanitizeName(context.ActiveFileName);
         for (var budget = MaximumNameChars; ; budget /= 2)
         {
@@ -106,6 +106,15 @@ public static class AgentSystemPromptBuilder
     };
 
     private static string YesNo(bool value) => value ? "sim" : "não";
+
+    // The workspace context may contain an absolute path. Use both separators so Windows paths are safe on Linux too.
+    private static string? LastPathSegment(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return null;
+        var trimmed = path.TrimEnd('/', '\\');
+        var separator = trimmed.LastIndexOfAny(['/', '\\']);
+        return separator < 0 ? trimmed : trimmed[(separator + 1)..];
+    }
 
     private static string? SanitizeName(string? name)
     {

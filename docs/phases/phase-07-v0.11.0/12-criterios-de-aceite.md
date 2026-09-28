@@ -58,11 +58,11 @@ Por decisão do usuário, a conta Claude passa a ser executada pelo modo Claude 
 
 AC-10 (cartões de tool, inclusive nativas) segue UI-01/UI-03 com PNGs. Os testes automatizados nunca aprovam sozinhos AC-06/07/08.
 
-Casos manuais que exigem evidência do usuário: para o 7B, H-01..H-17 aplicáveis do roteiro 21 (Windows e Linux separados); **para Claude, H-01..H-17 não se exige** — o roteiro usa C-01..C-36, que cobrem as mesmas intenções adaptadas ao modo Claude Code (ver [21](21-homologacao-manual-login.md#casos-do-modo-claude-code-assinatura)). Em ambos os casos, o chat também exige leitor de tela, IME e diálogos nativos. Enquanto o registro do roteiro estiver vazio, esses ACs continuam **pendentes**.
+Casos manuais que exigem evidência do usuário: para o 7B, H-01..H-17 aplicáveis do roteiro 21 (Windows e Linux separados); **para Claude, H-01..H-17 não se exige** — o roteiro usa C-01..C-36 para a integração inicial e C-37..C-45 para o polimento ([21](21-homologacao-manual-login.md#casos-do-modo-claude-code-assinatura)). Em ambos os casos, o chat também exige leitor de tela, IME e diálogos nativos. Enquanto o registro do roteiro estiver vazio, esses ACs continuam **pendentes**.
 
 ## Rastreio do polimento do Agente IA — 26/09/2026 (ADR-056)
 
-Nenhum AC aprovado; a tabela só define a evidência adicional dos passos P7-CL7-01..11 ([23](23-integracao-claude.md#polimento-do-agente-ia--adr-056-26092026)).
+Nenhum AC aprovado. Há implementação CLP no checkout em 27/09/2026; a tabela define a evidência dos passos P7-CL7-01..11 e dos casos C-37..C-45 ([23](23-integracao-claude.md#polimento-do-agente-ia--adr-056-26092026)). Código presente, teste sintético e homologação real são evidências distintas.
 
 | AC | Acréscimo | Automatizado | Manual (GCL-17) |
 | --- | --- | --- | --- |

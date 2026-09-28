@@ -1,5 +1,21 @@
 # Memória de execução — Fase 7 / v0.11.0
 
+## Retomada CLP — evidência Mongo isolada e validação final em curso, 28/09/2026
+
+O [relatório de validação](../phases/phase-07-v0.11.0/17-validacao-da-meta.md#polimento-do-agente-ia--evidência-da-integração-clp-28092026) distingue código CLP integrado de gate aprovado. Em 28/09/2026, o orquestrador relatou conexão somente leitura à URI MongoDB fornecida pelo usuário e retorno de `ListDatabaseNames`, sem extrair nomes ou contagem e sem registrar URI, nomes ou conteúdo. Essa tentativa isolada não exercitou Claude Code, broker MCP ou tools do aplicativo e **não fecha C-41 nem GCL-17**.
+
+Na validação CLP, restore locked e build da solução com `-p:UsedAvaloniaProducts=` passaram (exit 0; build com 0 avisos/0 erros). `dotnet test` da solução terminou com **exit 1**: UnitTests **3.782 aprovados/22 ignorados/0 falhas**, Benchmarks **43 aprovados** e Infrastructure.Agents.Tests **244 aprovados/2 falhas**; total **4.069 aprovados, 2 falhas, 22 ignorados**. As duas falhas são testes de árvore de processos em que o CLI falso não registrou descendentes dentro de 30 s, inclusive fora do sandbox. Filtros CLP passaram **8/8** (propostas/anchors/eventos), **20/20** (opt-out/LiteDB/eventos) e **3/3** (screenshots/foco); não tornam verde a suíte oficial. O orquestrador inspecionou PNGs reais claro/escuro do painel, Permissões e diff em 960 × 620, 660 × 760 e 900 × 680. Leitor de tela, IME, diálogos nativos, Linux e homologação manual C-37..C-45 no Windows com conta Claude própria/MongoDB real continuam pendentes. As contagens históricas abaixo não se aplicam ao worktree atual.
+
+## Ponto de retomada — CLP em integração, 27/09/2026 (P7-CL7-11)
+
+**Branch `phase-7`; HEAD observado `30b81a9`; worktree compartilhado com código e testes CLP em alteração.** Esta atualização documental leu o checkout, sem executar build/teste nem homologação. O relato abaixo é estado observado, não aceite dos gates.
+
+- **CLP-0 histórico:** a decisão ADR-056 e o plano foram documentados em 26/09/2026. A seção seguinte conserva o registro daquela data; seu “planejado, não implementado” descreve apenas aquele momento.
+- **CLP-1..4:** contratos, política de modos, prompt, resolver de anexos, persistência LiteDB versionada, tools de leitura/proposta via registry e MCP, adapter Claude Code e disponibilidade automática estão no HEAD. Há correções de privacidade no worktree para recusar conteúdo indevido de `ToolCall` persistido e omitir caminho absoluto do prompt.
+- **CLP-5/6:** painel global, histórico, envio com consentimento persistido, chips, modos, Permissões, cartões de confirmação e janela de revisão por hunk aparecem no worktree. A integração e os testes ainda mudam; não inferir funcionamento completo só pela presença dos arquivos.
+- **CLP-7:** roteiro manual recebeu C-37..C-45; links relativos dos documentos alterados e índice offline foram validados nesta edição. Suíte oficial, PNGs reais inspecionados nos dois temas e revisão independente final ainda não constam como evidência desta atualização. GCL-9..GCL-17 e ACs relacionados continuam pendentes.
+- **Homologação:** GCL-17 exige o usuário no Windows com conta Claude própria e MongoDB de teste real para conexões, índices, schema em cache, diff de JSON sintético por hunk e retomada após reinício. Nenhum registro manual foi recebido. Tools MCP no Linux seguem indisponíveis sem proof de canal; registrar separadamente, sem anúncio de suporte.
+
 ## Ponto de retomada — polimento do Agente IA, 26/09/2026 (P7-CL7-01 / CLP-0; LEIA PRIMEIRO)
 
 **Branch `phase-7`.** As seções abaixo foram escritas antes de três commits que já estão na branch e mudam o quadro; confirmar no código antes de usar qualquer afirmação antiga:

@@ -124,6 +124,10 @@ public sealed partial class AgentToolRegistry
         }
         var proposedRedacted = ApplyProposalEdits(redacted, edits, newContent, out var applyError);
         if (applyError is not null) return Refuse(applyError);
+        // The redacted base is what the model saw. Catch a newly introduced marker before mapping the edit back to
+        // the secret-bearing source: the mapping intentionally refuses edits that touch a redacted line.
+        if (AgentRedactionMarkers.IntroducesRedactionMarker(redacted, proposedRedacted))
+            return Refuse(ProposalErrors.RedactionMarkerIntroduced);
         var proposed = MapRedactedChange(original, redacted, proposedRedacted!);
         if (proposed is null) return Refuse(ProposalErrors.EditNotApplicable);
         if (Encoding.UTF8.GetByteCount(proposed) > MaximumProposalTextBytes)

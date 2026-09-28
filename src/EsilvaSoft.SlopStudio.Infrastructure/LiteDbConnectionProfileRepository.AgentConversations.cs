@@ -83,6 +83,23 @@ public sealed partial class LiteDbConnectionProfileRepository : IAgentConversati
 
         return RunAgentPersistenceAsync(() =>
         {
+            // Permission saves and conversation saves use the same owner gate. A permission opt-out that wins the
+            // gate must prevent a conversation save already queued by the UI from writing afterward.
+            var permissionsDocument = _database.GetCollection(AgentProviderPermissionsCollectionName).FindById(stored.ProviderId);
+            if (permissionsDocument is not null)
+            {
+                var decodedPermissions = AgentProviderPermissionsDocumentCodec.Decode(permissionsDocument);
+                if (decodedPermissions.State == AgentStoredDocumentState.UnsupportedVersion)
+                    return AgentPersistenceResult.Failure<AgentConversation>(
+                        AgentPersistenceStatus.UnsupportedVersion, "PermissionsUnsupportedVersion");
+                if (decodedPermissions.State != AgentStoredDocumentState.Readable)
+                    return AgentPersistenceResult.Failure<AgentConversation>(
+                        AgentPersistenceStatus.Unreadable, "PermissionsUnreadable");
+                if (!decodedPermissions.Permissions!.KeepHistory)
+                    return AgentPersistenceResult.Failure<AgentConversation>(
+                        AgentPersistenceStatus.Invalid, "HistoryDisabled");
+            }
+
             var collection = _database.GetCollection(AgentConversationsCollectionName);
             var existing = collection.FindById(stored.Id);
             if (existing is not null)

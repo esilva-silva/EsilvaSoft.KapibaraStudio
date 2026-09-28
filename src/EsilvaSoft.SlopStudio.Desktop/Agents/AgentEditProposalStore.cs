@@ -67,6 +67,8 @@ public sealed record AgentEditProposalEntry(AgentEditProposal Proposal, IReadOnl
     public bool HasApplied => HunkStates.Any(static state => state is AgentEditHunkState.Applied or AgentEditHunkState.Kept);
 }
 
+public sealed record AgentEditProposalMutation<TResult>(TResult Result, AgentEditProposalEntry Entry);
+
 /// <summary>
 /// Desktop implementation of <see cref="IAgentEditProposalSink"/> and the in-memory store of edit proposals
 /// (ADR-056). <see cref="Submit"/> is called by <c>propose_file_edit</c> on a broker thread: it validates the proposal
@@ -85,6 +87,7 @@ public sealed class AgentEditProposalStore : IAgentEditProposalSink
     public const int MaximumProposals = 500;
 
     private readonly ConcurrentDictionary<Guid, AgentEditProposalEntry> _entries = new();
+    private readonly object _mutationGate = new();
     private volatile Func<string, string?, string?>? _currentText;
 
     /// <summary>A proposal was registered (UI thread).</summary>
@@ -156,16 +159,45 @@ public sealed class AgentEditProposalStore : IAgentEditProposalSink
     public AgentEditProposalEntry? UpdateHunkStates(Guid proposalId, IReadOnlyList<AgentEditHunkState> states)
     {
         ArgumentNullException.ThrowIfNull(states);
-        if (!_entries.TryGetValue(proposalId, out var entry) || states.Count != entry.Proposal.Hunks.Count ||
-            states.Any(static state => !Enum.IsDefined(state)))
+        return Mutate(proposalId, entry => (true, states))?.Entry;
+    }
+
+    /// <summary>
+    /// Runs a synchronous editor operation against the latest proposal snapshot and publishes its states under one
+    /// per-store lock. A second review surface cannot act on an older snapshot and overwrite a completed hunk decision.
+    /// The callback must not await or call back into this store.
+    /// </summary>
+    public AgentEditProposalMutation<TResult>? Mutate<TResult>(Guid proposalId,
+        Func<AgentEditProposalEntry, (TResult Result, IReadOnlyList<AgentEditHunkState>? States)> operation)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+        AgentEditProposalEntry updated;
+        TResult result;
+        bool changed;
+        lock (_mutationGate)
         {
-            return null;
+            if (!_entries.TryGetValue(proposalId, out var current)) return null;
+            var operationResult = operation(current);
+            result = operationResult.Result;
+            var states = operationResult.States;
+            changed = states is not null;
+            if (states is not null && (states.Count != current.Proposal.Hunks.Count || states.Any(static state => !Enum.IsDefined(state))))
+                throw new ArgumentException("Hunk state list does not match the proposal.", nameof(operation));
+            updated = changed ? current with { HunkStates = [.. states!] } : current;
+            _entries[proposalId] = updated;
         }
 
-        var updated = entry with { HunkStates = [.. states] };
-        _entries[proposalId] = updated;
-        AgentUiDispatch.Post(() => ProposalUpdated?.Invoke(this, updated));
-        return updated;
+        if (changed)
+        {
+            // Mutations run concurrently and queue their UI notifications after releasing the lock. The queue order can
+            // therefore differ from mutation order; publish the current snapshot at dispatch time so a delayed event
+            // can never move a review card back to older hunk states.
+            AgentUiDispatch.Post(() =>
+            {
+                if (_entries.TryGetValue(proposalId, out var latest)) ProposalUpdated?.Invoke(this, latest);
+            });
+        }
+        return new AgentEditProposalMutation<TResult>(result, updated);
     }
 
     /// <summary>Raises <see cref="ReviewRequested"/> for a registered proposal (the caller activated its tab first).</summary>
@@ -186,10 +218,13 @@ public sealed class AgentEditProposalStore : IAgentEditProposalSink
     /// <summary>Forgets the proposals of a deleted conversation (the buffers are not touched).</summary>
     public void ForgetConversation(Guid conversationId)
     {
-        foreach (var id in _entries.Values.Where(entry => entry.Proposal.ConversationId == conversationId)
-                     .Select(static entry => entry.Id).ToArray())
+        lock (_mutationGate)
         {
-            _entries.TryRemove(id, out _);
+            foreach (var id in _entries.Values.Where(entry => entry.Proposal.ConversationId == conversationId)
+                         .Select(static entry => entry.Id).ToArray())
+            {
+                _entries.TryRemove(id, out _);
+            }
         }
     }
 
@@ -198,11 +233,19 @@ public sealed class AgentEditProposalStore : IAgentEditProposalSink
 
     private string? ReadCurrentText(string targetPath, string? tabId)
     {
-        if (_currentText is { } resolver &&
-            AgentUiDispatch.ReadOnUi(() => resolver(targetPath, tabId), null) is { } buffer)
+        if (_currentText is { } resolver)
         {
-            return buffer;
+            if (AgentUiDispatch.ReadOnUi(() => resolver(targetPath, tabId), null) is { } buffer)
+            {
+                return buffer;
+            }
+
+            // A captured tab ID binds an active-file proposal to that exact editor buffer. If the tab closed or the
+            // UI could not answer, disk content is not an interchangeable snapshot of that tab.
+            if (tabId is not null) return null;
         }
+
+        if (tabId is not null) return null;
 
         // Not open in any tab: the base is the file on disk (bounded read; never written).
         try

@@ -75,7 +75,7 @@ A liberação de ferramentas nativas com aprovação ([ADR-054](../../10-decisoe
 
 ## Agente IA integrado — privacidade e ameaças (ADR-056, 26/09/2026)
 
-**Planejado, não implementado.** A [ADR-056](../../10-decisoes-arquiteturais.md#adr-056--agente-ia-integrado-conversas-persistidas-permissões-por-provider-modos-e-propostas-de-edição-26092026) substitui a ADR-051 mantendo seus princípios (nenhum envio só por conectar, saída de tool pela política, DTO allowlist, alias externo, redação, erros sanitizados, auditoria sem conteúdo). Detalhes de ameaças em [22](22-threat-model.md#polimento-do-agente-ia-adr-056--ameaças-novas-26092026).
+**Implementação CLP presente no checkout em 27/09/2026, sem gate de segurança aprovado.** A [ADR-056](../../10-decisoes-arquiteturais.md#adr-056--agente-ia-integrado-conversas-persistidas-permissões-por-provider-modos-e-propostas-de-edição-26092026) substitui a ADR-051 mantendo seus princípios (nenhum envio só por conectar, saída de tool pela política, DTO allowlist, alias externo, redação, erros sanitizados, auditoria sem conteúdo). O codec de conversas rejeita conteúdo de tool em campos persistidos e o prompt usa o nome da pasta, sem caminho absoluto. Testes de canários, revisão do diff final e prova de saída real ainda são necessários. Detalhes de ameaças em [22](22-threat-model.md#polimento-do-agente-ia-adr-056--ameaças-novas-26092026).
 
 | Dado | Pode sair para o provider | Persistido no Slop |
 | --- | --- | --- |

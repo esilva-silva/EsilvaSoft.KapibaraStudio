@@ -401,6 +401,36 @@ public sealed class AgentAttachmentResolverTests
     }
 
     [Test]
+    public async Task ActiveAndExternalFilesCannotBypassExclusionsThroughSymbolicLinks()
+    {
+        var secretPath = Write(".env", Canary);
+        var aliasPath = Path.Combine(_workspace, "alias.js");
+        try
+        {
+            File.CreateSymbolicLink(aliasPath, secretPath);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or PlatformNotSupportedException or NotSupportedException)
+        {
+            Assert.Ignore($"Symbolic links are unavailable in this environment: {exception.GetType().Name}");
+            return;
+        }
+
+        var active = await Resolve(Context(Canary, aliasPath), Consented(),
+            new AgentAttachmentRequest(AgentAttachmentKind.ActiveFile));
+        var external = await Resolve(Context(),
+            Consented() with { DataSending = new AgentDataSendingPermissions { ExternalAttachments = true } },
+            new AgentAttachmentRequest(AgentAttachmentKind.ExternalFile, aliasPath));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(active.Attachments, Is.Empty);
+            Assert.That(active.Failures.Single().Error, Is.EqualTo(AgentAttachmentError.OutsideWorkspace));
+            Assert.That(external.Attachments, Is.Empty);
+            Assert.That(external.Failures.Single().Error, Is.EqualTo(AgentAttachmentError.OutsideWorkspace));
+        });
+    }
+
+    [Test]
     public async Task LoneSurrogateIsNotText()
     {
         var resolution = await Resolve(Context("abc\uD800def", Path.Combine(_workspace, "q.js")), Consented(),

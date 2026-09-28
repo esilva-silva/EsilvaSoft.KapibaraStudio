@@ -422,12 +422,13 @@ public sealed partial class AgentEditProposalCardItem : AgentChatItemViewModel
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(StatusText), nameof(IsAvailable), nameof(CanApply), nameof(CanDiscard),
         nameof(ShowKeepRevert), nameof(ShowApplyDiscard))]
-    [NotifyCanExecuteChangedFor(nameof(ReviewCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ReviewCommand), nameof(ApplyAllCommand), nameof(DiscardCommand), nameof(KeepCommand), nameof(RevertCommand))]
     private AgentEditProposalEntry? _entry;
 
     /// <summary>Applied automatically on arrival (Automático): the card offers Manter/Reverter.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowKeepRevert), nameof(ShowApplyDiscard))]
+    [NotifyCanExecuteChangedFor(nameof(KeepCommand), nameof(RevertCommand))]
     private bool _isAutomatic;
 
     [ObservableProperty]
@@ -466,8 +467,28 @@ public sealed partial class AgentEditProposalCardItem : AgentChatItemViewModel
     /// <summary>Raised by <see cref="ReviewCommand"/>; the chat activates the tab and forwards it to the store.</summary>
     internal Func<AgentEditProposalCardItem, Task>? ReviewHandler { get; set; }
 
+    internal Func<AgentEditProposalCardItem, Task>? ApplyAllHandler { get; set; }
+
+    internal Func<AgentEditProposalCardItem, Task>? DiscardHandler { get; set; }
+
+    internal Func<AgentEditProposalCardItem, Task>? KeepHandler { get; set; }
+
+    internal Func<AgentEditProposalCardItem, Task>? RevertHandler { get; set; }
+
     [RelayCommand(CanExecute = nameof(IsAvailable))]
     private Task ReviewAsync() => ReviewHandler?.Invoke(this) ?? Task.CompletedTask;
+
+    [RelayCommand(CanExecute = nameof(CanApply))]
+    private Task ApplyAllAsync() => ApplyAllHandler?.Invoke(this) ?? Task.CompletedTask;
+
+    [RelayCommand(CanExecute = nameof(CanDiscard))]
+    private Task DiscardAsync() => DiscardHandler?.Invoke(this) ?? Task.CompletedTask;
+
+    [RelayCommand(CanExecute = nameof(ShowKeepRevert))]
+    private Task KeepAsync() => KeepHandler?.Invoke(this) ?? Task.CompletedTask;
+
+    [RelayCommand(CanExecute = nameof(ShowKeepRevert))]
+    private Task RevertAsync() => RevertHandler?.Invoke(this) ?? Task.CompletedTask;
 }
 
 public sealed class AgentChatNoticeItem(string content, bool isError = false, bool isWarning = false) : AgentChatItemViewModel

@@ -17,7 +17,7 @@ public partial class MainWindow
 {
     public const double AgentPanelMinWidth = 320;
     public const double AgentPanelMaxWidth = 560;
-    public const double AgentPanelPreferredWidth = 380;
+    public const double AgentPanelPreferredWidth = 340;
     /// <summary>
     /// Docking keeps the tab area at least as wide as it is at the 960 × 620 minimum window (960 − 32 − 240 − 5 = 683,
     /// rounded up): the editor, which shares the tab with its 240 side column, is never narrower next to the panel than
@@ -107,7 +107,10 @@ public partial class MainWindow
             return;
         }
 
-        var width = Math.Clamp(Math.Min(_agentPanelWidth, available), AgentPanelMinWidth, AgentPanelMaxWidth);
+        // Keep a small logical-pixel inset clear of the right window edge. Fractional render scales round grid columns to
+        // physical pixels; without this reserve the final column can extend by a fraction of a DIP.
+        var width = Math.Clamp(Math.Min(_agentPanelWidth, Math.Max(AgentPanelMinWidth, available - 2)),
+            AgentPanelMinWidth, AgentPanelMaxWidth);
         columns[4].Width = new GridLength(DividerWidth);
         columns[5].MinWidth = AgentPanelMinWidth;
         columns[5].MaxWidth = AgentPanelMaxWidth;
@@ -181,6 +184,12 @@ public partial class MainWindow
         }
 
         var view = this.GetVisualDescendants().OfType<WorkspaceTabView>().FirstOrDefault(v => v.DataContext == tab);
+        view?.FindControl<SyntaxHighlighting.MongoTextEditor>("CodeEditor")?.Focus();
+    }
+
+    public void FocusEditorForAgent(WorkspaceTabViewModel tab)
+    {
+        var view = this.GetVisualDescendants().OfType<WorkspaceTabView>().FirstOrDefault(candidate => candidate.DataContext == tab);
         view?.FindControl<SyntaxHighlighting.MongoTextEditor>("CodeEditor")?.Focus();
     }
 }

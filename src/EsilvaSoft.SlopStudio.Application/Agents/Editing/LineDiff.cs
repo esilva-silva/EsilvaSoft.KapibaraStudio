@@ -110,28 +110,31 @@ public static class LineDiff
     /// its anchors and lines: the candidate exactly at <paramref name="hintLine"/> (default
     /// <see cref="AgentEditHunk.OriginalStartLine"/>) wins; otherwise a single candidate is used, and several candidates
     /// are ambiguous (<see cref="LineDiffHunkStatus.Stale"/>). Callers that track which hunks are applied should pass the
-    /// exact expected line. <paramref name="fallbackLineEnding"/> (default <see cref="Environment.NewLine"/>) is used
+    /// exact expected line. <paramref name="allowShiftedBoundaryAnchor"/> lets that tracked hint locate a hunk whose
+    /// short start/end context moved away from the document boundary. <paramref name="fallbackLineEnding"/> (default <see cref="Environment.NewLine"/>) is used
     /// only when the text has no line break at all.
     /// </summary>
     public static LineDiffHunkResult ApplyHunk(
-        string text, AgentEditHunk hunk, int? hintLine = null, string? fallbackLineEnding = null)
+        string text, AgentEditHunk hunk, int? hintLine = null, string? fallbackLineEnding = null,
+        bool allowShiftedBoundaryAnchor = false)
     {
         ArgumentNullException.ThrowIfNull(hunk);
         return Replace(text, hunk, hunk.OriginalLines, hunk.ProposedLines, hintLine ?? hunk.OriginalStartLine,
-            fallbackLineEnding);
+            fallbackLineEnding, allowShiftedBoundaryAnchor);
     }
 
     /// <summary>
     /// Replaces the hunk's proposed lines with its original lines in <paramref name="text"/>; the default hint is
-    /// <see cref="AgentEditHunk.ProposedStartLine"/> (exact when every hunk is applied). Same location rules as
-    /// <see cref="ApplyHunk"/>.
+    /// <see cref="AgentEditHunk.ProposedStartLine"/> (exact when every hunk is applied). Same location rules and
+    /// <paramref name="allowShiftedBoundaryAnchor"/> behavior as <see cref="ApplyHunk"/>.
     /// </summary>
     public static LineDiffHunkResult RevertHunk(
-        string text, AgentEditHunk hunk, int? hintLine = null, string? fallbackLineEnding = null)
+        string text, AgentEditHunk hunk, int? hintLine = null, string? fallbackLineEnding = null,
+        bool allowShiftedBoundaryAnchor = false)
     {
         ArgumentNullException.ThrowIfNull(hunk);
         return Replace(text, hunk, hunk.ProposedLines, hunk.OriginalLines, hintLine ?? hunk.ProposedStartLine,
-            fallbackLineEnding);
+            fallbackLineEnding, allowShiftedBoundaryAnchor);
     }
 
     /// <summary>
@@ -242,7 +245,8 @@ public static class LineDiff
         IReadOnlyList<string> expected,
         IReadOnlyList<string> replacement,
         int hint,
-        string? fallbackLineEnding)
+        string? fallbackLineEnding,
+        bool allowShiftedBoundaryAnchor)
     {
         ArgumentNullException.ThrowIfNull(text);
         var table = LineTable.Parse(text);
@@ -256,8 +260,8 @@ public static class LineDiff
         for (var start = 0; start + window <= lines.Length; start++)
         {
             // Short anchors mean the hunk touches the start/end of the text: then the position is fixed.
-            if ((before.Count < ContextLines && start != 0) ||
-                (after.Count < ContextLines && start + window != lines.Length) ||
+            if ((!allowShiftedBoundaryAnchor && before.Count < ContextLines && start != 0) ||
+                (!allowShiftedBoundaryAnchor && after.Count < ContextLines && start + window != lines.Length) ||
                 !Matches(lines, start, before) ||
                 !Matches(lines, start + before.Count, expected) ||
                 !Matches(lines, start + before.Count + expected.Count, after))

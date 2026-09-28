@@ -1,8 +1,8 @@
 # Integração Claude — prioridade da Fase 7
 
-**Plano aprovado pelo usuário em 25/09/2026; nada implementado nem homologado por este documento.** Substitui o sublote 8B como forma de executar a conta Claude e passa a ser o **bloco prioritário** do [plano 10](10-plano-de-implementacao.md#bloco-prioritário--integração-claude-25092026). Nenhum AC é aprovado aqui. O produto exibido ao usuário chama-se KapibaraStudio (`Branding.ProductName`); o repositório e os identificadores continuam `EsilvaSoft.SlopStudio`, abreviado como "Slop" nesta fase.
+**Plano aprovado pelo usuário em 25/09/2026; implementação presente no checkout em 27/09/2026, sem homologação real.** Substitui o sublote 8B como forma de executar a conta Claude e passa a ser o **bloco prioritário** do [plano 10](10-plano-de-implementacao.md#bloco-prioritário--integração-claude-25092026). Nenhum AC é aprovado aqui. O produto exibido ao usuário chama-se KapibaraStudio (`Branding.ProductName`); o repositório e os identificadores continuam `EsilvaSoft.SlopStudio`, abreviado como "Slop" nesta fase.
 
-> **Atualização de 26/09/2026 — polimento do Agente IA ([ADR-056](../../10-decisoes-arquiteturais.md#adr-056--agente-ia-integrado-conversas-persistidas-permissões-por-provider-modos-e-propostas-de-edição-26092026)).** O provider e a conta pela CLI já existem em código (commits `63c162d` e `6e07b41`; ver [16](16-chat-nativo.md#claude-tela-de-configuração-e-modo-em-uso-bloco-cl-25092026)). O usuário decidiu transformar o chat por aba num agente integrado: conversas globais persistidas com opt-out, permissões persistentes por provider, contexto em chips, modos centralizados, tools do produto via MCP local, prompt de sistema por turno, propostas de edição revisadas por diff e disponibilidade automática. Novos passos P7-CL7-01..11 e gates GCL-9..GCL-17 em [Polimento do Agente IA](#polimento-do-agente-ia--adr-056-26092026). Regras 8 e parte da 9 abaixo foram revisadas por essa decisão (regra 10). **Tudo planejado; nada implementado nem aprovado.**
+> **Decisão de 26/09/2026 — polimento do Agente IA ([ADR-056](../../10-decisoes-arquiteturais.md#adr-056--agente-ia-integrado-conversas-persistidas-permissões-por-provider-modos-e-propostas-de-edição-26092026)).** O provider e a conta pela CLI já existiam em código (commits `63c162d` e `6e07b41`; ver [16](16-chat-nativo.md#claude-tela-de-configuração-e-modo-em-uso-bloco-cl-25092026)). O usuário decidiu transformar o chat por aba num agente integrado: conversas globais persistidas com opt-out, permissões persistentes por provider, contexto em chips, modos centralizados, tools do produto via MCP local, prompt de sistema por turno, propostas de edição revisadas por diff e disponibilidade automática. Passos P7-CL7-01..11 e gates GCL-9..GCL-17 em [Polimento do Agente IA](#polimento-do-agente-ia--adr-056-26092026). O estado atual está na seção de polimento; nenhum gate foi aprovado.
 
 ## Objetivo
 
@@ -136,18 +136,18 @@ Os gates G8B-1..8 do plano anterior ficam substituídos por GCL-1..8. Duas exig�
 
 ## Polimento do Agente IA — ADR-056 (26/09/2026)
 
-**Planejado, não implementado; nenhum gate ou AC aprovado.** Decisão em [ADR-056](../../10-decisoes-arquiteturais.md#adr-056--agente-ia-integrado-conversas-persistidas-permissões-por-provider-modos-e-propostas-de-edição-26092026). Parte do estado real dos commits `081a5ab`, `63c162d` e `6e07b41` (provider Claude Code, conta pela CLI, painel por aba, `--tools Read,Glob,Grep`, `--strict-mcp-config` sem `--mcp-config`, `init` exigindo `mcp_servers` vazio). Os passos abaixo concretizam o que P7-CL4-02/03 e P7-CL5-01 deixaram em aberto e não criam infraestrutura paralela: MCP pelo proxy/broker existentes e mesmo registry; aprovação pela infraestrutura existente. Outros providers ficam fora do escopo, mas os contratos são neutros.
+**Estado do checkout em 27/09/2026: implementação CLP em validação; nenhum gate ou AC aprovado.** A [ADR-056](../../10-decisoes-arquiteturais.md#adr-056--agente-ia-integrado-conversas-persistidas-permissões-por-provider-modos-e-propostas-de-edição-26092026) partiu dos commits `081a5ab`, `63c162d` e `6e07b41`. O HEAD posterior `30b81a9` já inclui contratos, facetas LiteDB, registry/MCP, adapter e disponibilidade. O worktree atual acrescenta painel global, tela Permissões, histórico, chips, confirmações e revisão de propostas no editor, com testes em atualização. Essa presença no código não prova a suíte oficial, os PNGs, revisão independente final ou execução real com Claude/MongoDB. Os passos abaixo preservam a arquitetura do proxy/broker e registry existentes; outros providers seguem fora do escopo desta entrega.
 
 ### Arquitetura-alvo
 
-| Camada | Elementos novos (nomes propostos) |
+| Camada | Contratos e superfícies presentes no checkout (validação pendente) |
 | --- | --- |
 | Core | `AgentConversation`, `AgentConversationEntry`, `AgentOperationMode { Agent, Planning, Automatic, AskConfirmations }`, `AgentProviderPermissions` (versão de formato), `AgentContextAttachment` (`ActiveFile`, `WorkspaceFile`, `ExternalFile`, `TabMetadata`), `AgentEditProposal` (hunks com estado) |
 | Application | `AgentModePolicy` → `AgentTurnPlan` (único ponto de decisão), `AgentSystemPromptBuilder` (< 2 KB), `AgentAttachmentResolver` (256 KB/arquivo, 1 MB/mensagem, exclusões, redação), `LineDiff` (Myers por linhas, interno); portas `IAgentConversationRepository`, `IAgentProviderPermissionsRepository`, `IAgentWorkspaceContextSource`, `IAgentEditProposalSink` |
 | Registry (estágio `Metadata`) | Reuso de `list_connections`, `list_databases`, `list_collections`, `get_indexes`; novas `get_cached_schema`, `get_workspace_context`, `propose_file_edit`; tool de permissão `approve` só para `--permission-prompt-tool` |
 | Infrastructure | Facetas `agentConversations` e `agentProviderPermissions` no `LiteDbConnectionProfileRepository` (partial classes, CAS, versão); `WorkspacePreferences.AgentPanel` aditivo |
 | Infrastructure.Agents | `TurnArguments` recebe o `AgentTurnPlan`: `--tools` do plano, `--mcp-config` inline, `--strict-mcp-config`, `--permission-prompt-tool mcp__slopstudio__approve` (confirmações e pasta dedicada), `--append-system-prompt`; `--permission-mode default`; `init` validado contra o plano (tools exatas + `mcp__slopstudio__*`, servidor `slopstudio` `connected`); `ProviderSessionId` persistido e fallback de resume |
-| Desktop | Painel global ligado ao `WorkspaceViewModel`; `AgentPermissionsWindow`; `AgentProviderAvailabilityService`; `EditProposalReviewViewModel` por aba e renderer de diff no `MongoTextEditor` |
+| Desktop | Painel global ligado ao `WorkspaceViewModel`; `AgentPermissionsWindow`; `AgentProviderAvailabilityService`; `AgentEditProposalReviewViewModel` e janela de revisão por hunk conectados ao editor |
 
 | Modo | Leituras | `propose_file_edit` | Confirmação |
 | --- | --- | --- | --- |
@@ -171,30 +171,30 @@ Os gates G8B-1..8 do plano anterior ficam substituídos por GCL-1..8. Duas exig�
 | 22 | **P7-CL7-07** Painel global, histórico, modos, chips, `AgentSettingsWindow` e `AgentPermissionsWindow` | CLP-5 | ui-ux-agent | CL7-03, CL7-05, CL7-06 | Troca de aba não troca a conversa; resultado em conversa não ativa; CTA sem consentimento; PNGs reais claro/escuro em 960/1366/1920 inspecionados |
 | 23 | **P7-CL7-08** Revisão por diff no editor (Apply/Revert por hunk, Automático com Manter/Reverter) | CLP-6 | ui-ux-agent (architecture-agent) | CL7-02, CL7-04, CL7-07 | Apply no undo do AvaloniaEdit, `TextAnchor`, hunk desatualizado não aplicado, nada salvo em disco; PNGs nos dois temas |
 | 24 | **P7-CL7-09** Testes integrados, canários, PNGs | CLP-7 | qa-testing-agent | CL7-03..08 | Suíte oficial verde; nenhum teste com conta real |
-| 24 | **P7-CL7-10** Revisão independente do diff do polimento | CLP-7 | code-review-agent | CL7-09 | Achados resolvidos ou registrados |
-| 25 | **P7-CL7-11** Documentação final, índice, memória e registro da homologação manual | CLP-7 | documentation-agent | CL7-10 e registro do usuário | Rastreabilidade; nada aprovado sem registro manual |
+| 25 | **P7-CL7-10** Revisão independente do diff do polimento | CLP-7 | code-review-agent | CL7-09 | Achados resolvidos ou registrados |
+| 26 | **P7-CL7-11** Documentação final, índice, memória e registro da homologação manual | CLP-7 | documentation-agent | CL7-10 e registro do usuário | Rastreabilidade; nada aprovado sem registro manual |
 
 ### Gates do polimento (ADR-056)
 
-| Gate | Prova | Estado em 26/09/2026 |
+| Gate | Prova | Estado em 27/09/2026 |
 | --- | --- | --- |
-| GCL-9 Persistência de conversas | Conversas globais versionadas no owner LiteDB único; CAS; ilegível/versão futura com falha visível e sem sobrescrita; redação antes de gravar; anexos/credenciais nunca persistidos; opt-out e apagar histórico; resume persistido com fallback visível | Pendente |
-| GCL-10 Permissões persistentes | Consentimento de destino e seções por provider persistidos e versionados; sem consentimento, envio bloqueado com CTA; login não consente; revogação bloqueia envios futuros; grants do registry não substituídos | Pendente |
-| GCL-11 Modos | `AgentModePolicy` único ponto de decisão (nenhum `if` de modo na UI/adapter); tabela modo × permissões → plano coberta; `--permission-mode default` em todos os modos; Automático nunca salva disco | Pendente |
-| GCL-12 Tools MCP no Claude Code | `--mcp-config` + `--strict-mcp-config` só com `slopstudio`; `init` validado contra o plano; mesmas tools/política do registry; escritas indisponíveis; `get_cached_schema` sem acesso ao banco; Linux com estado "indisponível" visível | Pendente |
-| GCL-13 Prompt de sistema | < 2 KB, só nomes, sem segredos nem dados; enviado em todo turno, inclusive com `--resume` | Pendente |
-| GCL-14 Contexto em chips | Arquivo ativo do buffer capturado antes de await; limites, exclusões e redação; arquivo externo só se permitido; chips exibem o que será enviado | Pendente |
-| GCL-15 Revisão por diff | Apply/Revert por hunk no undo; hunk desatualizado; `propose_file_edit` nunca grava em disco; linha a linha registrada como pendência | Pendente |
-| GCL-16 Disponibilidade automática | Verificação em segundo plano com cache/timeout/voo único; estados e **Tentar novamente**; UI não bloqueia | Pendente |
-| GCL-17 Homologação do polimento | Manual, pelo usuário, no Windows com conta própria: listar conexões, índices e schema em cache de MongoDB real; propor edição num arquivo JSON sintético do workspace com Apply/Revert por hunk; reiniciar o app e retomar a conversa. PNGs inspecionados nos dois temas. Linux: tools MCP pendentes | Pendente; nenhuma execução |
+| GCL-9 Persistência de conversas | Conversas globais versionadas no owner LiteDB único; CAS; ilegível/versão futura com falha visível e sem sobrescrita; redação antes de gravar; anexos/credenciais nunca persistidos; opt-out e apagar histórico; resume persistido com fallback visível | **Parcial em código, gate pendente.** Faceta, codec e UI presentes; testes de canários e recuperação, suíte final e homologação faltam |
+| GCL-10 Permissões persistentes | Consentimento de destino e seções por provider persistidos e versionados; sem consentimento, envio bloqueado com CTA; login não consente; revogação bloqueia envios futuros; grants do registry não substituídos | **Parcial em código, gate pendente.** Repositório e tela presentes; verificar recuperação após falha de carga e escopo por conexão na UI |
+| GCL-11 Modos | `AgentModePolicy` decide exposição/confirmacão de tools por modo; nenhum bypass; tabela modo × permissões → plano coberta; `--permission-mode default` em todos os modos; Automático nunca salva disco | **Parcial em código, gate pendente.** Política e fluxo de proposta presentes; teste integrado/manual ainda necessário |
+| GCL-12 Tools MCP no Claude Code | `--mcp-config` + `--strict-mcp-config` só com `slopstudio`; `init` validado contra o plano; mesmas tools/política do registry; escritas MongoDB indisponíveis; `get_cached_schema` sem acesso ao banco; Linux com estado "indisponível" visível | **Parcial em código, gate pendente.** Broker, tool de aprovação e tools de leitura/proposta presentes; Linux MCP e prova real pendentes |
+| GCL-13 Prompt de sistema | < 2 KB, só nomes, sem segredos, caminhos absolutos nem dados; enviado em todo turno, inclusive com `--resume` | **Parcial em código, gate pendente.** Builder presente; confirmar canários e envio real |
+| GCL-14 Contexto em chips | Arquivo ativo do buffer capturado antes de await; limites, exclusões e redação; arquivo externo só se permitido; chips exibem o que será enviado | **Parcial em código, gate pendente.** Resolver e chips presentes; verificar UI e fronteira de envio com canários |
+| GCL-15 Revisão por diff | Apply/Revert por hunk no undo; hunk desatualizado; `propose_file_edit` nunca grava em disco; linha a linha registrada como pendência | **Parcial em código, gate pendente.** Janela/viewmodel de revisão e applier em integração; confirmar undo, conflito e PNGs reais |
+| GCL-16 Disponibilidade automática | Verificação em segundo plano com cache/timeout/voo único; estados e **Tentar novamente**; UI não bloqueia | **Parcial em código, gate pendente.** Serviço e ligação à UI presentes; verificar timeout/retry e observação visual |
+| GCL-17 Homologação do polimento | [C-37..C-45](21-homologacao-manual-login.md#casos-do-modo-claude-code-assinatura), manual pelo usuário, no Windows com conta própria e MongoDB real: ferramentas estruturadas, edição JSON sintética por hunk, reinício e retomada. PNGs inspecionados nos dois temas. Linux: tools MCP pendentes | **Pendente; nenhuma execução manual registrada** |
 
-GCL-3 (threat model) e GCL-5 (permissões) continuam valendo; o [threat model (22)](22-threat-model.md#polimento-do-agente-ia-adr-056--ameaças-novas-26092026) ganha as ameaças do polimento. Casos manuais específicos do polimento ainda precisam ser adicionados ao [roteiro 21](21-homologacao-manual-login.md) (pendência de CL7-11).
+GCL-3 (threat model) e GCL-5 (permissões) continuam valendo; o [threat model (22)](22-threat-model.md#polimento-do-agente-ia-adr-056--ameaças-novas-26092026) cobre as ameaças do polimento. Os casos manuais C-37..C-45 foram acrescentados ao [roteiro 21](21-homologacao-manual-login.md#casos-do-modo-claude-code-assinatura), mas não executados.
 
 ## Evidência exigida
 
 - **Antes de codar adapters:** spike reproduzível do CLI instalado (CL0-01).
 - **Automatizado:** somente com CLI falso e fixtures sanitizadas de stream-json; nenhum teste automatizado autentica conta real ou roda em CI com credencial.
-- **Homologação:** manual, pelo usuário, com conta própria e dados sintéticos, casos C-01..C-36. Agentes de desenvolvimento não recebem, digitam nem automatizam credenciais.
+- **Homologação:** manual, pelo usuário, com conta própria e dados sintéticos, casos C-01..C-36 da integração inicial e C-37..C-45 do CLP. GCL-17 requer Windows e MongoDB real; Linux MCP continua pendente. Agentes de desenvolvimento não recebem, digitam nem automatizam credenciais.
 - Build/testes oficiais de `AGENTS.md` em cada mudança de código; PNGs reais nos dois temas para UI.
 
 ## Riscos e limitações

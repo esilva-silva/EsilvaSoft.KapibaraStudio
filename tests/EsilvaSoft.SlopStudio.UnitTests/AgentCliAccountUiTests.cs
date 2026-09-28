@@ -238,13 +238,18 @@ public sealed class AgentCliAccountUiTests
             var runtime = new ChannelAgentRuntime();
             var accounts = new FakeCliAccountManager { WorkspaceDirectory = SyntheticWorkspace };
             var catalog = new MutableAgentCatalog(MutableAgentCatalog.Subscription(), MutableAgentCatalog.Api());
-            var tab = new AgentChatTabFixture();
-            var chat = new AgentChatViewModel(new AgentChatServices(runtime, catalog, new FakeAgentContextProvider(), CliAccounts: accounts), tab.Capture);
+            var tab = new AgentChatTabFixture { WorkspaceFolder = SyntheticWorkspace };
+            var chat = new AgentChatViewModel(new AgentChatServices(runtime, catalog, new FakeAgentContextProvider(), CliAccounts: accounts)
+            {
+                Permissions = new FakeAgentPermissionsRepository(AgentProviderPermissions.Default(FakeCliAccountManager.ProviderId) with
+                {
+                    ExternalDestinationConsentAt = DateTimeOffset.UtcNow,
+                }),
+            }, tab.Capture);
             var window = new Window { Content = new AgentChatPanel { DataContext = chat }, Width = 400, Height = 720 };
             window.Show();
+            await chat.Initialization;
             chat.ComposerText = "Leia o arquivo consultas/clientes.js e explique o filtro.";
-            chat.DestinationConsent = true;
-            await chat.ReviewCommand.ExecuteAsync(null);
             _ = chat.SendCommand.ExecuteAsync(null);
             await PumpAsync(() => runtime.LastRequest is not null);
             var turn = runtime.LastRequest!.TurnId;

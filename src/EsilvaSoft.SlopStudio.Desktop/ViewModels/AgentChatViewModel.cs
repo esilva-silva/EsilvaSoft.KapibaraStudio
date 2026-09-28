@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using EsilvaSoft.SlopStudio.Application.Agents;
@@ -399,7 +400,7 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
 
     public AgentSettingsViewModel CreateSettingsViewModel() =>
         new(_services.Catalog, _services.Credentials, SelectedProvider?.ProviderId, _services.CliAccounts,
-            () => _host.WorkspaceFolder, _services.Permissions);
+            () => _host.WorkspaceFolder);
 
     private void LoadProviders(string? keepProviderId, string? keepModel)
     {
@@ -590,6 +591,13 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
         OnPropertyChanged(nameof(IsBusy));
         OnPropertyChanged(nameof(IsIdle));
         OnPropertyChanged(nameof(CanChangeProvider));
+        // Provider availability/auth refresh may finish while a turn is already connecting or streaming. Preserve that
+        // turn's visible state; the turn completion calls this method again after clearing its run handle.
+        if (ActiveConversation.Turn is not null)
+        {
+            return;
+        }
+
         if (ActiveConversation.TurnState is { } turnState)
         {
             State = turnState;
@@ -673,21 +681,26 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
             return;
         }
 
-        OnPropertyChanged(nameof(StatusText));
-        OnPropertyChanged(nameof(DestinationText));
-        OnPropertyChanged(nameof(DestinationHint));
-        OnPropertyChanged(nameof(ModeText));
-        OnPropertyChanged(nameof(PermissionsSummary));
-        OnPropertyChanged(nameof(AvailabilityText));
-        OnPropertyChanged(nameof(SendBlockText));
-        OnPropertyChanged(nameof(ConversationTitle));
-        RefreshReadScope();
+        void RefreshLocalizedState()
+        {
+            if (_disposed) return;
+            OnPropertyChanged(nameof(StatusText));
+            OnPropertyChanged(nameof(DestinationText));
+            OnPropertyChanged(nameof(DestinationHint));
+            OnPropertyChanged(nameof(ModeText));
+            OnPropertyChanged(nameof(PermissionsSummary));
+            OnPropertyChanged(nameof(AvailabilityText));
+            OnPropertyChanged(nameof(SendBlockText));
+            OnPropertyChanged(nameof(ConversationTitle));
+            RefreshReadScope();
+        }
+
+        if (Dispatcher.UIThread.CheckAccess()) RefreshLocalizedState();
+        else Dispatcher.UIThread.Post(RefreshLocalizedState);
     }
 
     private static string SafeCode(string? code) =>
         code is { Length: > 0 and <= 64 } && code.All(char.IsAsciiLetterOrDigit) ? code : "AgentFailure";
-
-    private static string? SafeCodeOrNull(string? code) => code is null ? null : SafeCode(code);
 
     public async ValueTask DisposeAsync()
     {

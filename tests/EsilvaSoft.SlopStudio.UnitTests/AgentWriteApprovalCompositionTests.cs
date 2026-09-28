@@ -117,8 +117,8 @@ public sealed class AgentWriteApprovalCompositionTests
             }, new AgentChatTabFixture().Capture);
             AgentApprovalViewModel? requested = null;
             chat.ApprovalRequested += (_, approval) => requested = approval;
+            await chat.Initialization;
             chat.ComposerText = "atualize o item 1";
-            await chat.ReviewCommand.ExecuteAsync(null);
             var send = chat.SendCommand.ExecuteAsync(null);
 
             await AgentChatWait.UntilAsync(() => requested?.Phase == AgentApprovalPhase.Pending, 10_000);

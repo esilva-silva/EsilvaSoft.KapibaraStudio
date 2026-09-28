@@ -14,7 +14,7 @@ public sealed record AgentPlatformFacts(bool HasWorkspaceFolder, bool ProductToo
 /// <list type="bullet">
 /// <item>Malformed permissions (see <see cref="AgentProviderPermissions.IsWellFormed"/>: null section, undefined enum,
 /// newer format) block the turn (<see cref="AgentTurnBlockReason.InvalidPermissions"/>); nothing is read as allowed.</item>
-/// <item>Without persisted consent nothing is sent (<see cref="AgentTurnBlockReason.ConsentMissing"/>).</item>
+/// <item>Without persisted consent nothing is sent to an external destination (<see cref="AgentTurnBlockReason.ConsentMissing"/>).</item>
 /// <item>Confirmation: <see cref="AgentOperationMode.AskConfirmations"/> confirms every exposed tool;
 /// <see cref="AgentOperationMode.Automatic"/> confirms none; Agent/Planning use the persisted categories.
 /// Confirmations need the product permission-prompt tool, so where product tools are unavailable a tool that would
@@ -35,7 +35,8 @@ public static class AgentModePolicy
     public const string NoticeConfirmationUnavailable = "ConfirmationToolUnavailable";
     public const string NoticeGrepDisabledByExclusions = "NativeGrepDisabledByExclusions";
 
-    public static AgentTurnPlan Plan(AgentOperationMode mode, AgentProviderPermissions permissions, AgentPlatformFacts facts)
+    public static AgentTurnPlan Plan(AgentOperationMode mode, AgentProviderPermissions permissions, AgentPlatformFacts facts,
+        bool requireExternalDestinationConsent = true)
     {
         ArgumentNullException.ThrowIfNull(permissions);
         ArgumentNullException.ThrowIfNull(facts);
@@ -49,7 +50,7 @@ public static class AgentModePolicy
             return AgentTurnPlan.Blocked(mode, AgentTurnBlockReason.InvalidPermissions);
         }
 
-        if (!permissions.HasExternalDestinationConsent)
+        if (requireExternalDestinationConsent && !permissions.HasExternalDestinationConsent)
         {
             return AgentTurnPlan.Blocked(mode, AgentTurnBlockReason.ConsentMissing);
         }
