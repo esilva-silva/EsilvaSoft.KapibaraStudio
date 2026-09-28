@@ -92,7 +92,8 @@ public sealed partial class AgentChatViewModel
     /// <summary>Platform facts for the policy, captured on the UI thread.</summary>
     private AgentPlatformFacts CapturePlatformFacts(string? folder) => new(
         AgentWorkspacePaths.TryGetWorkspaceRoot(folder, out _),
-        _services.McpChannels?.ProductToolsAvailable == true);
+        _services.McpChannels?.ProductToolsAvailable == true,
+        SelectedProvider?.Presentation.SupportsNativeTools == true);
 
     /// <summary>
     /// Recomputes the send block from the persisted permissions and <see cref="AgentModePolicy"/> (the only place that

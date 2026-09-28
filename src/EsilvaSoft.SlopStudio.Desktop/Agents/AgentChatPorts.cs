@@ -43,7 +43,9 @@ public sealed record AgentProviderPresentation(
     bool SupportsToolCalling = false,
     string? UnavailableReason = null,
     string? FamilyName = null,
-    bool SupportsTurnPlan = false)
+    bool SupportsTurnPlan = false,
+    bool IsExperimental = false,
+    bool SupportsNativeTools = false)
 {
     /// <summary>
     /// Builds the view from promoted contracts. Destination comes from the catalog entry (provider <c>IsLocal</c>), the
@@ -60,7 +62,9 @@ public sealed record AgentProviderPresentation(
             status.Capabilities.Streaming, status.Capabilities.ToolCalling,
             status.IsAvailable ? null : localizedUnavailableReason, familyName,
             // TurnPlan (ADR-056): what the provider declares, narrowed by the live status once it was checked.
-            descriptor.Capabilities.TurnPlan && (!status.IsAvailable || status.Capabilities.TurnPlan));
+            descriptor.Capabilities.TurnPlan && (!status.IsAvailable || status.Capabilities.TurnPlan),
+            IsExperimental: false,
+            SupportsNativeTools: descriptor.Capabilities.NativeTools && (!status.IsAvailable || status.Capabilities.NativeTools));
     }
 }
 

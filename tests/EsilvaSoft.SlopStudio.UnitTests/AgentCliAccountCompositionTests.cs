@@ -103,6 +103,19 @@ public sealed class AgentCliAccountCompositionTests
         });
     }
 
+    [Test]
+    public async Task ExperimentalProviderMarkerIsPreservedByCatalogRefresh()
+    {
+        var codex = new CountingProvider("codex-subscription", AgentAuthenticationMethod.OfficialCliDelegated);
+        var catalog = new DesktopAgentProviderCatalog(new AgentProviderCatalog([codex]),
+            new Dictionary<string, string>(StringComparer.Ordinal) { [codex.ProviderId] = "OpenAI" },
+            new HashSet<string>(StringComparer.Ordinal) { codex.ProviderId });
+
+        Assert.That(catalog.List().Single().IsExperimental, Is.True);
+        await catalog.RefreshProviderAsync(codex.ProviderId, CancellationToken.None);
+        Assert.That(catalog.List().Single().IsExperimental, Is.True);
+    }
+
     private sealed class CountingProvider(string id, AgentAuthenticationMethod method) : IAgentProvider
     {
         public int StatusCalls { get; private set; }

@@ -3,6 +3,7 @@ using EsilvaSoft.SlopStudio.Application;
 using EsilvaSoft.SlopStudio.Application.Agents;
 using EsilvaSoft.SlopStudio.Infrastructure.Agents.Anthropic;
 using EsilvaSoft.SlopStudio.Infrastructure.Agents.ClaudeCode;
+using EsilvaSoft.SlopStudio.Infrastructure.Agents.Codex;
 using EsilvaSoft.SlopStudio.Infrastructure.Agents.OpenAi;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -96,6 +97,23 @@ public static class AgentProviderServiceCollectionExtensions
         configured.Validate();
         services.AddSingleton(provider => new ClaudeCodeAgentProvider(configured, mcpChannel?.Invoke(provider)));
         services.AddSingleton<IAgentProvider>(provider => provider.GetRequiredService<ClaudeCodeAgentProvider>());
+        return services;
+    }
+
+    /// <summary>Registers the experimental ChatGPT subscription adapter over the official Codex App Server.</summary>
+    public static IServiceCollection AddSlopStudioCodexSubscriptionAgentProvider(
+        this IServiceCollection services, CodexSubscriptionAgentProviderOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(options);
+        if (services.Any(static descriptor => descriptor.ServiceType == typeof(CodexSubscriptionAgentProvider)))
+        {
+            throw new InvalidOperationException("O provider Codex por assinatura já foi composto.");
+        }
+
+        services.AddSingleton(provider => new CodexSubscriptionAgentProvider(options,
+            provider.GetService<IAgentToolRegistry>()));
+        services.AddSingleton<IAgentProvider>(provider => provider.GetRequiredService<CodexSubscriptionAgentProvider>());
         return services;
     }
 

@@ -6,7 +6,7 @@ namespace EsilvaSoft.SlopStudio.Application.Agents;
 /// Platform facts captured by the caller. <see cref="ProductToolsAvailable"/> is false where the authenticated local
 /// MCP channel cannot be established (today: Linux, without a transport proof store).
 /// </summary>
-public sealed record AgentPlatformFacts(bool HasWorkspaceFolder, bool ProductToolsAvailable);
+public sealed record AgentPlatformFacts(bool HasWorkspaceFolder, bool ProductToolsAvailable, bool NativeToolsAvailable = true);
 
 /// <summary>
 /// The single decision point that turns (mode, persisted permissions, platform) into an <see cref="AgentTurnPlan"/>.
@@ -73,12 +73,14 @@ public static class AgentModePolicy
         bool CanRun(AgentConfirmationCategories category) =>
             ((requested | mandatory) & category) == 0 || facts.ProductToolsAvailable;
 
-        var native = PlanNativeTools(permissions, facts, notices, CanRun(AgentConfirmationCategories.NativeFileRead));
-        if (permissions.NativeCommandExecution && facts.ProductToolsAvailable)
+        var native = facts.NativeToolsAvailable
+            ? PlanNativeTools(permissions, facts, notices, CanRun(AgentConfirmationCategories.NativeFileRead))
+            : [];
+        if (facts.NativeToolsAvailable && permissions.NativeCommandExecution && facts.ProductToolsAvailable)
             native.AddRange(AgentProductToolNames.NativeCommandTools);
         // Native Edit/Write execute inside the external CLI after its approval reply. The desktop cannot atomically
         // guard every open editor buffer at that boundary, so writes must use the mediated proposal tool instead.
-        if (permissions.NativeNetwork && facts.ProductToolsAvailable)
+        if (facts.NativeToolsAvailable && permissions.NativeNetwork && facts.ProductToolsAvailable)
             native.AddRange(AgentProductToolNames.NativeNetworkTools);
         var denyRules = native.Count == 0
             ? []

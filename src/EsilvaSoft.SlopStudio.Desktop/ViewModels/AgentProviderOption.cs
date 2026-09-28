@@ -58,14 +58,15 @@ public sealed class AgentProviderOption(AgentProviderPresentation presentation)
     public bool RequiresApiKey => Presentation.AuthenticationMethods.Contains(AgentAuthenticationMethod.ApiKey);
 
     /// <summary>Authentication delegated to an official CLI: no key or vault is involved, so states read differently.</summary>
-    public bool UsesOfficialCli => Presentation.AuthenticationMethods.Contains(AgentAuthenticationMethod.OfficialCliDelegated);
+    public bool UsesOfficialCli => Presentation.AuthenticationMethods.Contains(AgentAuthenticationMethod.OfficialCliDelegated) ||
+        Presentation.AuthenticationMethods.Contains(AgentAuthenticationMethod.OfficialAppServerDelegated);
 
     /// <summary>
     /// Textual mode chip ("Claude · assinatura" / "Claude · API"), derived from the authentication method (capability)
     /// and the family label of the composition root. Local providers have no mode chip: Local/Externo already says it.
     /// </summary>
     public string? ModeText => UsesOfficialCli
-        ? Text.Format("agentModeChip", FamilyName, Text.Resolve("agentModeSubscription"))
+        ? Text.Format(Presentation.IsExperimental ? "agentModeChipExperimental" : "agentModeChip", FamilyName, Text.Resolve("agentModeSubscription"))
         : RequiresApiKey ? Text.Format("agentModeChip", FamilyName, Text.Resolve("agentModeApi")) : null;
 
     public bool HasModeText => ModeText is not null;
@@ -96,6 +97,7 @@ public sealed class AgentProviderOption(AgentProviderPresentation presentation)
             {
                 AgentAuthenticationMethod.ApiKey => "agentAuthApiKey",
                 AgentAuthenticationMethod.OfficialCliDelegated => "agentAuthOfficialCli",
+                AgentAuthenticationMethod.OfficialAppServerDelegated => "agentAuthOfficialAppServer",
                 _ => "agentAuthNone",
             })));
 

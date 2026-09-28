@@ -28,6 +28,14 @@ Antes de iniciar a CLI para um turno com ferramentas, o provisionador confere se
 
 O login Claude Pro real foi concluído no Windows. O aceite ainda depende de conversa com streaming, permitir/negar, ferramenta MCP com MongoDB, cancelamento e retomada após reinício; a tentativa atual atingiu o limite esperado da assinatura. A Fase 7 não será declarada homologada antes desses cenários.
 
+## Codex — assinatura ChatGPT (experimental)
+
+O modo **Codex — assinatura ChatGPT · Experimental** usa o Codex App Server oficial por STDIO. O login é delegado ao App Server e ao navegador OpenAI; o KapibaraStudio não lê arquivos de credencial nem recebe/copia tokens. O status aceita somente `authMode=chatgpt`; logout exige confirmação. A modalidade **OpenAI API** permanece separada e usa a API Key configurada pelo usuário. Falha ou limite da assinatura nunca troca para a API.
+
+O adapter implementa seleção de modelo, conversa nova/retomada, streaming, cancelamento e dynamic tools do produto sujeitas ao plano de permissões e registry. Nesta revisão passaram 27 testes focados Codex e o build Desktop. Isso valida contratos locais, não login real, execução de tools nem homologação de segurança.
+
+**Gate de segurança aberto:** no App Server, `readOnly.access` sem configuração significa `fullAccess`; a implementação envia `access: { type: "restricted", includePlatformDefaults: false, readableRoots: [...] }` usando a pasta do snapshot do workspace e bloqueia turnos sem raiz válida. Essa política ainda precisa ser comprovada nos runtimes/sistemas suportados. Além disso, sandbox `readOnly` com `on-request` pode permitir comandos dentro do sandbox sem aprovação; `item/started` seguido de `turn/interrupt` é observação posterior, não veto prévio. O campo `networkAccess` não deve ser usado para afirmar bloqueio de rede em `readOnly`. Por isso, a implementação continua experimental e não é homologada para uso amplo até impedir preventivamente operações nativas incompatíveis com ADR-051/057. A documentação oficial do [App Server](https://learn.chatgpt.com/docs/app-server) especifica o escopo de leitura e informa que a interface App Server é experimental/não suportada para workloads de produção.
+
 ## Escolher a modalidade
 
 - **Claude — assinatura via Claude Code** inicia o executável oficial `claude`. A autenticação acontece na janela oficial da Anthropic. O KapibaraStudio consulta instalação, versão e estado por `claude auth status`, sem ler arquivos de credenciais, receber ou guardar tokens.

@@ -125,6 +125,7 @@ public sealed partial class LocalizationViewModel
         ("agentAuthNone", "No account (local)", "Sem conta (local)", "Sin cuenta (local)", "无需账户（本地）"),
         ("agentAuthApiKey", "API key", "Chave de API", "Clave de API", "API 密钥"),
         ("agentAuthOfficialCli", "Account through the provider's official CLI (sign in in the CLI window)", "Conta pela CLI oficial do provider (login na janela da CLI)", "Cuenta mediante la CLI oficial del proveedor (inicio de sesión en la ventana de la CLI)", "通过提供程序的官方 CLI 使用账户（在 CLI 窗口中登录）"),
+        ("agentAuthOfficialAppServer", "Account through the provider's official App Server (sign in in the provider browser)", "Conta pelo App Server oficial do provider (login no navegador do provider)", "Cuenta mediante el App Server oficial del proveedor (inicio de sesión en el navegador del proveedor)", "通过提供程序的官方 App Server 使用账户（在提供程序浏览器中登录）"),
         ("agentAuthStateCliSignedIn", "Signed in to the official CLI with a subscription", "Conectado à CLI oficial com assinatura", "Sesión iniciada en la CLI oficial con suscripción", "已使用订阅登录官方 CLI"),
         ("agentAuthStateCliSignedOut", "Not signed in to the official CLI", "Não conectado à CLI oficial", "Sin sesión en la CLI oficial", "未登录官方 CLI"),
         ("agentAuthStateCliBlocked", "The official CLI is using another method (API key, token or cloud) — blocked", "A CLI oficial está usando outro método (API Key, token ou nuvem) — bloqueado", "La CLI oficial usa otro método (clave de API, token o nube) — bloqueado", "官方 CLI 正在使用其他方式（API 密钥、令牌或云）— 已阻止"),

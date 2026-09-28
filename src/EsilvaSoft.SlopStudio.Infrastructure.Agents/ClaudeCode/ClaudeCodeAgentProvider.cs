@@ -64,6 +64,7 @@ public sealed class ClaudeCodeAgentProvider : IAgentProvider
         Chat = true,
         Streaming = true,
         ToolCalling = false,
+        NativeTools = true,
         Sessions = true,
         ModelSelection = true,
         UsesNetwork = true,

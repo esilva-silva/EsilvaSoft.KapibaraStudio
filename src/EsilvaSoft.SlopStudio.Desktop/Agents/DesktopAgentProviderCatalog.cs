@@ -22,6 +22,7 @@ public sealed class DesktopAgentProviderCatalog : IAgentProviderCatalog
 {
     private readonly AgentProviderCatalog _catalog;
     private readonly IReadOnlyDictionary<string, string> _families;
+    private readonly IReadOnlySet<string> _experimentalProviders;
     private readonly Lock _gate = new();
     private volatile IReadOnlyList<AgentProviderPresentation> _snapshot;
     private long _refreshGeneration;
@@ -31,11 +32,14 @@ public sealed class DesktopAgentProviderCatalog : IAgentProviderCatalog
     /// Optional display data of the composition root (provider ID → family label for the mode chip, e.g. two modes of
     /// the same model family). It never decides behavior; a provider without an entry shows its display name.
     /// </param>
-    public DesktopAgentProviderCatalog(AgentProviderCatalog catalog, IReadOnlyDictionary<string, string>? families = null)
+    /// <param name="experimentalProviders">Provider IDs whose UI must carry an explicit experimental label.</param>
+    public DesktopAgentProviderCatalog(AgentProviderCatalog catalog, IReadOnlyDictionary<string, string>? families = null,
+        IReadOnlySet<string>? experimentalProviders = null)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         _catalog = catalog;
         _families = families ?? new Dictionary<string, string>(StringComparer.Ordinal);
+        _experimentalProviders = experimentalProviders ?? new HashSet<string>(StringComparer.Ordinal);
         _snapshot = Present(catalog.List(), _ => AgentProviderStatus.NotReported);
     }
 
@@ -96,5 +100,8 @@ public sealed class DesktopAgentProviderCatalog : IAgentProviderCatalog
 
     private AgentProviderPresentation PresentOne(AgentProviderEntry entry, AgentProviderStatus status) =>
         AgentProviderPresentation.From(entry, status, status.IsAvailable ? null : status.UnavailableCode,
-            _families.TryGetValue(entry.Descriptor.ProviderId, out var family) ? family : null);
+            _families.TryGetValue(entry.Descriptor.ProviderId, out var family) ? family : null) with
+        {
+            IsExperimental = _experimentalProviders.Contains(entry.Descriptor.ProviderId),
+        };
 }

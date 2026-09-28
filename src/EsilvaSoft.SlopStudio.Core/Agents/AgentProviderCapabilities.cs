@@ -19,6 +19,9 @@ public sealed record AgentProviderCapabilities
     /// <summary>Structured tool calls translated to the shared registry.</summary>
     public bool ToolCalling { get; init; }
 
+    /// <summary>Provider-managed native file, command, or network tools; false by default.</summary>
+    public bool NativeTools { get; init; }
+
     /// <summary>Logical in-memory session that keeps authorized history across turns (never persisted by Slop).</summary>
     public bool Sessions { get; init; }
 
@@ -70,6 +73,7 @@ public sealed record AgentProviderCapabilities
             Chat = left.Chat && right.Chat,
             Streaming = left.Streaming && right.Streaming,
             ToolCalling = left.ToolCalling && right.ToolCalling,
+            NativeTools = left.NativeTools && right.NativeTools,
             Sessions = left.Sessions && right.Sessions,
             ModelSelection = left.ModelSelection && right.ModelSelection,
             CodeProposals = left.CodeProposals && right.CodeProposals,
@@ -96,6 +100,7 @@ public sealed record AgentProviderCapabilities
         {
             Streaming = Streaming && (Chat || CodeProposals),
             ToolCalling = ToolCalling && Chat,
+            NativeTools = NativeTools && Chat,
             Sessions = Sessions && Chat,
             TurnPlan = TurnPlan && Chat,
         };

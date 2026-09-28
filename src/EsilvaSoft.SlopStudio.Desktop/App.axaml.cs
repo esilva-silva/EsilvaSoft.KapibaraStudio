@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
@@ -10,6 +11,7 @@ using EsilvaSoft.SlopStudio.Infrastructure;
 using EsilvaSoft.SlopStudio.Infrastructure.Agents;
 using EsilvaSoft.SlopStudio.Infrastructure.Agents.Anthropic;
 using EsilvaSoft.SlopStudio.Infrastructure.Agents.ClaudeCode;
+using EsilvaSoft.SlopStudio.Infrastructure.Agents.Codex;
 using EsilvaSoft.SlopStudio.Infrastructure.Agents.OpenAi;
 using EsilvaSoft.SlopStudio.Infrastructure.LocalAi;
 using Microsoft.Extensions.DependencyInjection;
@@ -82,6 +84,8 @@ public partial class App : Avalonia.Application
                 DebugLogDirectory = debugLogDirectory,
             },
             static provider => provider.GetService<IAgentMcpChannelProvisioner>());
+        services.AddSlopStudioCodexSubscriptionAgentProvider(new CodexSubscriptionAgentProviderOptions(
+            Path.Combine(Path.GetDirectoryName(LocalWorkspacePaths.GetDatabasePath())!, "codex-subscription")));
         // Production, provider-neutral view for the chat UI (AC-04/AC-09): built only from the shared
         // AgentProviderCatalog/capabilities, with no branch by provider brand.
         // The family map is display data only (mode chip "Claude · assinatura" / "Claude · API"); nothing branches on it.
@@ -92,10 +96,12 @@ public partial class App : Avalonia.Application
                     [OpenAiAgentProvider.Id] = "OpenAI",
                     [ClaudeAgentProvider.Id] = "Claude",
                     [ClaudeCodeAgentProvider.Id] = "Claude",
-                }));
+                    ["codex-subscription"] = "OpenAI",
+                },
+                new HashSet<string>(StringComparer.Ordinal) { "codex-subscription" }));
         // Account actions of the CLI-delegated mode (P7-CL5-02): only states, version, tier and names cross this port.
         services.AddSingleton<IAgentCliAccountManager>(provider => new ClaudeCodeCliAccountManager(
-            provider.GetRequiredService<ClaudeCodeAgentProvider>()));
+            provider.GetRequiredService<ClaudeCodeAgentProvider>(), provider.GetRequiredService<CodexSubscriptionAgentProvider>()));
         // The only write path for provider keys: the same vault slots the adapters resolve. The slot map is the
         // composition root's data; the store itself never branches on a provider brand.
         services.AddSingleton<IAgentApiKeyStore>(provider => new DesktopAgentApiKeyStore(
@@ -184,7 +190,7 @@ public partial class App : Avalonia.Application
     /// subscription tier, names of blocking variables/sources and the resolved executable path); the provider itself
     /// never reads credentials, e-mail or organization, and nothing here calls the model.
     /// </summary>
-    public sealed class ClaudeCodeCliAccountManager(ClaudeCodeAgentProvider provider) : IAgentCliAccountManager
+    public sealed class ClaudeCodeCliAccountManager(ClaudeCodeAgentProvider provider, CodexSubscriptionAgentProvider? codex = null) : IAgentCliAccountManager
     {
         private static readonly AgentCliProviderProfile Profile = new(
             CliName: "Claude Code",
@@ -194,9 +200,19 @@ public partial class App : Avalonia.Application
             CredentialLocation: "~/.claude/.credentials.json",
             ConfigLocation: "~/.claude");
 
-        private readonly ClaudeCodeAgentProvider _provider = provider ?? throw new ArgumentNullException(nameof(provider));
+        private static readonly AgentCliProviderProfile CodexProfile = new(
+            CliName: "Codex App Server",
+            RecipientName: "ChatGPT",
+            SignInCommand: "Sign in through Codex App Server",
+            TranscriptLocation: "Codex App Server managed session",
+            CredentialLocation: "OS keyring (Codex-managed)",
+            ConfigLocation: "SlopStudio private CODEX_HOME",
+            UsesBrowserAppServerLogin: true);
 
-        public AgentCliProviderProfile? Describe(string providerId) => IsMine(providerId) ? Profile : null;
+        private readonly ClaudeCodeAgentProvider _provider = provider ?? throw new ArgumentNullException(nameof(provider));
+        private readonly CodexSubscriptionAgentProvider? _codex = codex;
+
+        public AgentCliProviderProfile? Describe(string providerId) => IsCodex(providerId) ? CodexProfile : IsClaude(providerId) ? Profile : null;
 
         /// <summary>
         /// The provider's own working-directory decision for the candidate captured in the UI
@@ -205,7 +221,12 @@ public partial class App : Avalonia.Application
         /// </summary>
         public AgentCliReadScope DescribeReadScope(string providerId, string? candidateWorkspace)
         {
-            if (!IsMine(providerId))
+            if (IsCodex(providerId))
+            {
+                return AgentCliReadScope.None;
+            }
+
+            if (!IsClaude(providerId))
             {
                 return AgentCliReadScope.None;
             }
@@ -255,19 +276,26 @@ public partial class App : Avalonia.Application
         // then nested directly in the composition root type, as AgentArchitectureTests requires.
         public Task<AgentCliAccountStatus> CheckAsync(string providerId, CancellationToken cancellationToken)
         {
-            EnsureMine(providerId);
+            if (IsCodex(providerId)) return CheckCodexAsync(EnsureCodex(), cancellationToken);
+            EnsureClaude(providerId);
             return CheckClaudeCodeAsync(_provider, cancellationToken);
         }
 
         public Task<AgentCliCommandResult> SignInAsync(string providerId, CancellationToken cancellationToken)
         {
-            EnsureMine(providerId);
+            if (IsCodex(providerId)) return SignInCodexAsync(EnsureCodex(), cancellationToken);
+            EnsureClaude(providerId);
             return SignInClaudeCodeAsync(_provider, cancellationToken);
         }
 
         public Task<AgentCliCommandResult> SignOutAsync(string providerId, bool userConfirmedGlobalSignOut, CancellationToken cancellationToken)
         {
-            EnsureMine(providerId);
+            if (IsCodex(providerId))
+            {
+                if (!userConfirmedGlobalSignOut) throw new InvalidOperationException("O logout global exige confirmação explícita.");
+                return SignOutCodexAsync(EnsureCodex(), cancellationToken);
+            }
+            EnsureClaude(providerId);
             if (!userConfirmedGlobalSignOut)
             {
                 throw new InvalidOperationException("O logout é global e exige confirmação explícita.");
@@ -276,14 +304,63 @@ public partial class App : Avalonia.Application
             return SignOutClaudeCodeAsync(_provider, cancellationToken);
         }
 
-        private static bool IsMine(string providerId) => string.Equals(providerId, ClaudeCodeAgentProvider.Id, StringComparison.Ordinal);
+        private static bool IsClaude(string providerId) => string.Equals(providerId, ClaudeCodeAgentProvider.Id, StringComparison.Ordinal);
+        private static bool IsCodex(string providerId) => string.Equals(providerId, CodexSubscriptionAgentProvider.Id, StringComparison.Ordinal);
 
-        private static void EnsureMine(string providerId)
+        private CodexSubscriptionAgentProvider EnsureCodex() => _codex ?? throw new InvalidOperationException("Provider Codex não composto.");
+
+        private static void EnsureClaude(string providerId)
         {
-            if (!IsMine(providerId))
+            if (!IsClaude(providerId))
             {
                 throw new ArgumentException("Provider sem conta por CLI oficial.", nameof(providerId));
             }
+        }
+
+        private static async Task<AgentCliAccountStatus> CheckCodexAsync(CodexSubscriptionAgentProvider provider, CancellationToken token)
+        {
+            try
+            {
+                var status = await provider.GetSubscriptionStatusAsync(token).ConfigureAwait(false);
+                return new AgentCliAccountStatus(AgentCliInstallState.Installed, null, status.State switch
+                {
+                    CodexSubscriptionState.Authenticated => AgentCliAuthState.Subscription,
+                    CodexSubscriptionState.SignedOut => AgentCliAuthState.SignedOut,
+                    CodexSubscriptionState.OtherAuthentication => AgentCliAuthState.UnsupportedMethod,
+                    _ => AgentCliAuthState.Unreadable,
+                }, status.State == CodexSubscriptionState.Authenticated ? status.PlanType : null);
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+            catch (Exception) { return new AgentCliAccountStatus(AgentCliInstallState.CheckFailed, null, AgentCliAuthState.Unreadable); }
+        }
+
+        private static async Task<AgentCliCommandResult> SignInCodexAsync(CodexSubscriptionAgentProvider provider, CancellationToken token)
+        {
+            try
+            {
+                var completed = await provider.LoginAsync(static (uri, _) =>
+                {
+                    var process = Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
+                    if (process is null) throw new InvalidOperationException("Não foi possível abrir o navegador.");
+                    process.Dispose();
+                    return Task.CompletedTask;
+                }, token).ConfigureAwait(false);
+                return new AgentCliCommandResult(completed ? AgentCliCommandOutcome.Completed : AgentCliCommandOutcome.StartFailed,
+                    await CheckCodexAsync(provider, token).ConfigureAwait(false));
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+            catch (Exception) { return new AgentCliCommandResult(AgentCliCommandOutcome.StartFailed, await CheckCodexAsync(provider, token).ConfigureAwait(false)); }
+        }
+
+        private static async Task<AgentCliCommandResult> SignOutCodexAsync(CodexSubscriptionAgentProvider provider, CancellationToken token)
+        {
+            try
+            {
+                await provider.LogoutAsync(confirmed: true, token).ConfigureAwait(false);
+                return new AgentCliCommandResult(AgentCliCommandOutcome.Completed, await CheckCodexAsync(provider, token).ConfigureAwait(false));
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+            catch (Exception) { return new AgentCliCommandResult(AgentCliCommandOutcome.StartFailed, await CheckCodexAsync(provider, token).ConfigureAwait(false)); }
         }
 
         internal static AgentCliInstallState MapInstall(ClaudeCodeInstallationState state) => state switch

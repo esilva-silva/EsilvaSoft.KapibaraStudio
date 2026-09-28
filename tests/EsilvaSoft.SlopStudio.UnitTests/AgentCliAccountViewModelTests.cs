@@ -44,6 +44,21 @@ public sealed class AgentCliAccountViewModelTests
         });
 
     [Test]
+    public async Task ExperimentalSubscriptionIsExplicitInTheProviderModeChip()
+    {
+        await RunOnUiAsync(() =>
+        {
+            var presentation = new AgentProviderPresentation("codex-subscription", "Codex — assinatura ChatGPT",
+                AgentDataDestinationKind.External, false, [], [AgentAuthenticationMethod.OfficialCliDelegated],
+                AgentProviderAuthState.Unknown, FamilyName: "OpenAI", IsExperimental: true);
+            var option = new AgentProviderOption(presentation);
+
+            Assert.That(option.ModeText, Is.EqualTo("OpenAI · assinatura · EXPERIMENTAL"));
+            return Task.CompletedTask;
+        });
+    }
+
+    [Test]
     public async Task OpeningSettingsRunsNothingAndShowsNotCheckedStates()
     {
         await RunOnUiAsync(() =>

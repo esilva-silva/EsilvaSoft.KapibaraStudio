@@ -92,7 +92,8 @@ public sealed record AgentCliProviderProfile(
     string SignInCommand,
     string TranscriptLocation,
     string CredentialLocation,
-    string? ConfigLocation = null);
+    string? ConfigLocation = null,
+    bool UsesBrowserAppServerLogin = false);
 
 /// <summary>Why the candidate folder was not used as the working directory (the dedicated empty folder is used instead).</summary>
 public enum AgentCliReadScopeRejection

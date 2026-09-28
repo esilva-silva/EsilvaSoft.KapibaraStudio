@@ -187,7 +187,9 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
 
     public string SignInButtonText => Text.Format("agentCliSignIn", CliName);
 
-    public string SignInHint => Text.Format("agentCliSignInHint", CliName, CliProfile?.RecipientName ?? "", Branding.ProductName);
+    public string SignInHint => CliProfile is { UsesBrowserAppServerLogin: true } profile
+        ? Text.Format("agentAppServerSignInHint", profile.CliName, profile.RecipientName, Branding.ProductName)
+        : Text.Format("agentCliSignInHint", CliName, CliProfile?.RecipientName ?? "", Branding.ProductName);
 
     public string SignOutHint => Text.Format("agentCliSignOutHint", CliName);
 

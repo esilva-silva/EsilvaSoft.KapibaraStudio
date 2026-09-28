@@ -18,4 +18,11 @@ public enum AgentAuthenticationMethod
     /// CLI's status output through a field allowlist; it never reads, stores or forwards tokens or credential files.
     /// </summary>
     OfficialCliDelegated,
+
+    /// <summary>
+    /// Authentication delegated to the official Codex App Server over its local protocol. Login UI, OAuth callbacks,
+    /// refresh and sign-out remain owned by Codex; the host never reads, stores or forwards credentials. Experimental
+    /// surface, introduced by ADR-057.
+    /// </summary>
+    OfficialAppServerDelegated,
 }
