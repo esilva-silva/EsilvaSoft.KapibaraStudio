@@ -20,7 +20,8 @@ public sealed class EnvironmentVaultTests
         var direct = ConnectionProfile.Create("Direta", "mongodb://user:password@server/database");
         var dynamic = ConnectionProfile.Create("Dinâmica", """mongodb://user:${ENV.get("MONGO_PASSWORD")}@server/database""");
         var legacy = ConnectionProfile.Create("Legada", "mongodb://user:${MONGODB_PASSWORD}@server/database");
-        using (var repository = new LiteDbConnectionProfileRepository(_path))
+        var store = new InMemoryProfileSecretStore();
+        using (var repository = new LiteDbConnectionProfileRepository(_path, store))
         {
             await repository.SaveAsync(direct); await repository.SaveAsync(dynamic); await repository.SaveAsync(legacy);
             var vault = EnvironmentVault.CreateDefault();
@@ -41,7 +42,7 @@ public sealed class EnvironmentVaultTests
         }
         using var reopened = new LiteDbConnectionProfileRepository(_path);
         Assert.That(reopened.LoadEnvironments().ActiveEnvironment, Is.EqualTo("Production"));
-        Assert.That((await reopened.GetAllAsync()).Select(p => p.ConnectionString), Is.EquivalentTo(new[] { direct.ConnectionString, dynamic.ConnectionString, legacy.ConnectionString }));
+        Assert.That((await reopened.GetAllAsync()).Select(p => p.ConnectionString), Is.EquivalentTo(new[] { "mongodb://user@server/database", dynamic.ConnectionString, legacy.ConnectionString }));
     }
 
     [Test]
@@ -135,7 +136,8 @@ public sealed class EnvironmentVaultTests
     [Test]
     public async Task ConnectionFormPersistsDirectPasswordWithReservedCharacters()
     {
-        using var context = new WorkspaceTestContext();
+        var store = new InMemoryProfileSecretStore();
+        using var context = new WorkspaceTestContext(profileSecrets: store);
         var model = new MainWindowViewModel(context.Workspace, autoLoadCollections: false)
         {
             NewProfileName = "Direta", NewProfileConnectionString = "mongodb://server/database",
@@ -143,7 +145,13 @@ public sealed class EnvironmentVaultTests
         };
         await model.SaveProfileCommand.ExecuteAsync(null);
         var profile = (await context.Repository.GetAllAsync()).Single();
-        Assert.That(new MongoUrl(profile.ConnectionString).Password, Is.EqualTo("p@ss:/?#%"));
+        Assert.Multiple(() =>
+        {
+            Assert.That(profile.ConnectionString, Is.EqualTo("mongodb://user@server/database"));
+            Assert.That(profile.SecretReference, Is.Not.Null);
+            Assert.That(new MongoUrl(store.Values[profile.SecretReference!]).Password, Is.EqualTo("p@ss:/?#%"));
+            Assert.That(model.SelectedProfile?.ConnectionString, Is.EqualTo(profile.ConnectionString));
+        });
     }
 
     [TestCase("create")]

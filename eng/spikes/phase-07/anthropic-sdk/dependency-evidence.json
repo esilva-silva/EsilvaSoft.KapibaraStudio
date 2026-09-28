@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "observedAtUtc": "2026-09-23T02:55:26.3708403+00:00",
+  "targetFramework": "net10.0",
+  "selectedVersion": "12.50.0",
+  "latestStableObserved": "12.50.0",
+  "tag": "Anthropic-v12.50.0",
+  "tagCommit": "2beeb9f9b402b1cdb8030e7cdc38cc6cae5d42aa",
+  "releaseUrl": "https://github.com/anthropics/anthropic-sdk-csharp/releases/tag/Anthropic-v12.50.0",
+  "releasePublishedAt": "2026-09-22T16:32:16Z",
+  "prerelease": false,
+  "nugetPublishedAt": "2026-09-22T13:33:21.417-03:00",
+  "nugetListed": true,
+  "scope": "Isolated compile-only spike; not a product SBOM or provider certification",
+  "packages": [
+    {
+      "id": "Anthropic",
+      "version": "12.50.0",
+      "scope": "Direct",
+      "authors": "Anthropic",
+      "source": "https://api.nuget.org/v3/index.json",
+      "licenseType": "expression",
+      "license": "MIT",
+      "repository": "https://www.github.com/anthropics/anthropic-sdk-csharp",
+      "commit": "2beeb9f9b402b1cdb8030e7cdc38cc6cae5d42aa",
+      "nugetContentHash": "BBtKetn0gsVeaFfRHcqW5hhUwWdNuIp4lTCvrd4roN6HivnJqrKBbEhPWjA/a5eypg2rvGdUr/Z5qzV6Fr7+Bg==",
+      "archiveSha512": "Ol2FMQrU6SFrOD4RTBXCqnX8Q5fNozRC8aAxBsnFzTO7fctr4XrknduvTqcgA3aMWAqbBcE7Z+vWS+kNEWuU7Q==",
+      "archiveSha256": "a6cf2fa227e35fa4852d9ba448cbdd7031a4499bf8395177d897bb24c919448b",
+      "licenseSource": "https://raw.githubusercontent.com/anthropics/anthropic-sdk-csharp/Anthropic-v12.50.0/LICENSE",
+      "licenseFile": "licenses/Anthropic-12.50.0-LICENSE.txt",
+      "licenseSha256": "8bf96984ff8bcfae7e48cae76a529e8a25317ba9e02abf7fd3cc64fdf95657a6",
+      "sourceNotices": [],
+      "compileAssets": [
+        "lib/net9.0/Anthropic.dll"
+      ],
+      "nativeAssets": []
+    },
+    {
+      "id": "Microsoft.Extensions.AI.Abstractions",
+      "version": "10.5.1",
+      "scope": "Transitive",
+      "authors": "Microsoft",
+      "source": "https://api.nuget.org/v3/index.json",
+      "licenseType": "expression",
+      "license": "MIT",
+      "repository": "https://github.com/dotnet/extensions",
+      "commit": "2d4d2df0ba38ee9aa0ed363ddab33d7ae7880b6d",
+      "nugetContentHash": "nB0l3IlsVbNeUxsE7nZNb9GY8rP1OSeqpj0pseORPejt474HNKEauTWTLdSJPkSvPlRMxowZNMo6nyp7APAiSg==",
+      "archiveSha512": "wmXG9hmGOznPzHqDybZVsy+qvplaj4k3GFRfOymrODiNLoZYk6IxccK7L9rfTcYy/OPKpv1X4dcLWKlyMM1+7Q==",
+      "archiveSha256": "9c7d27f6aedd918ba3f5413bd94856c8d6d80b7b2a04c78e4b9b2d4418e777c6",
+      "licenseSource": "https://raw.githubusercontent.com/dotnet/extensions/2d4d2df0ba38ee9aa0ed363ddab33d7ae7880b6d/LICENSE",
+      "licenseFile": "licenses/Microsoft.Extensions.AI.Abstractions-10.5.1-LICENSE.txt",
+      "licenseSha256": "47f0ad8ba753eae5de6178291cd8f38bbb42d2368b177f8e11714ad17c701275",
+      "sourceNotices": [
+        {
+          "source": "https://raw.githubusercontent.com/dotnet/extensions/2d4d2df0ba38ee9aa0ed363ddab33d7ae7880b6d/THIRD-PARTY-NOTICES.TXT",
+          "file": "licenses/Microsoft.Extensions.AI.Abstractions-10.5.1-SOURCE-NOTICES.txt",
+          "sha256": "07f3e74329ed32ac9229a75ae994b98b30aadb1d9947eee926eed3d3fc4cf0c6",
+          "scope": "Repository notices; not proof that every listed component is in this package"
+        }
+      ],
+      "compileAssets": [
+        "lib/net10.0/Microsoft.Extensions.AI.Abstractions.dll"
+      ],
+      "nativeAssets": []
+    }
+  ]
+}

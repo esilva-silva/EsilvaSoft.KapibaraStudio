@@ -18,6 +18,9 @@ public sealed partial class ConsoleMongoIntegrationTests
         var executable = Environment.GetEnvironmentVariable("SLOP_CONSOLE_MONGOD") ?? (Directory.Exists(binaries) ? Directory.EnumerateFiles(binaries, "mongod.exe", SearchOption.AllDirectories).FirstOrDefault() : null);
         if (executable is null) Assert.Ignore("Fixture MongoDB portátil ausente; defina SLOP_CONSOLE_MONGOD para homologação real.");
         var directory = Path.Combine(TestContext.CurrentContext.WorkDirectory, "metadata-real-" + Guid.NewGuid().ToString("N"));
+        var completed = false;
+        try
+        {
         using var server = await StartServer(executable!, directory);
         using var pool = new MongoClientPool();
         using var client = new MongoClient(server.Uri);
@@ -56,5 +59,8 @@ public sealed partial class ConsoleMongoIntegrationTests
             Assert.That(JsonSerializer.Serialize(sample), Does.Not.Contain("valor-privado"), "The server-side pipeline never returns document values.");
         });
         TestContext.Out.WriteLine($"MongoDB {server.Version}: listagens, validator, índice, view e amostra de nomes/tipos verificados.");
+        completed = true;
+        }
+        finally { CleanupDatabaseDirectory(directory, completed); }
     }
 }

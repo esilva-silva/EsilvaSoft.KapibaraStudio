@@ -33,6 +33,7 @@ public partial class MainWindow : Window
         if (WorkspaceModel is not { } vm) return;
         vm.ThemeChanged += (_, _) => ApplyTheme();
         vm.LayoutChanged += (_, _) => ApplyWorkspaceColumns(vm);
+        InitializeAgentPanel(vm);
         InitializationTask = vm.InitializeAsync();
         ApplyTheme();
     }
@@ -80,6 +81,7 @@ public partial class MainWindow : Window
         var compact = ClientSize.Width > 0 && ClientSize.Width < 1100;
         WorkspaceGrid.ColumnDefinitions[0].Width = new GridLength(compact ? 32 : 40);
         WorkspaceGrid.ColumnDefinitions[1].Width = new GridLength(compact ? 240 : vm.ExplorerWidth);
+        ApplyAgentPanelLayout();
     }
     private void ShowConnectionsPanel(object? sender, RoutedEventArgs e) { if (WorkspaceModel is { } vm) vm.SelectedSidebar = "Connections"; }
     private void ShowFilesPanel(object? sender, RoutedEventArgs e) { if (WorkspaceModel is { } vm) vm.SelectedSidebar = "Files"; }
@@ -232,10 +234,17 @@ public partial class MainWindow : Window
     private async void OnWorkspaceKeyDown(object? sender, KeyEventArgs e)
     {
         if (e.Handled || WorkspaceModel is not { } vm) return;
+        var control = e.KeyModifiers.HasFlag(KeyModifiers.Control);
+        // The agent panel is its own focus scope: F5, Ctrl+Enter and Escape typed there never execute or cancel the
+        // tab's MongoDB operation (Ctrl+Enter in the composer only reviews/sends the chat message).
+        var inAgentPanel = AgentPanelHost.IsKeyboardFocusWithin;
+        if (control && e.KeyModifiers.HasFlag(KeyModifiers.Shift) && e.Key == Key.A)
+        { e.Handled = true; HandleAgentShortcut(vm, inAgentPanel); return; }
+        if (inAgentPanel && (e.Key is Key.F5 or Key.Escape || (control && e.Key == Key.Enter))) return;
+        if (inAgentPanel && e.Key == Key.F6 && IsAgentPanelOverlay) { e.Handled = true; vm.IsAgentPanelOpen = false; return; }
         if (e.Key == Key.Escape && this.GetVisualDescendants().OfType<WorkspaceTabView>()
             .FirstOrDefault(v => v.DataContext == vm.ActiveTab)?.DismissCompletion() == true)
         { e.Handled = true; return; }
-        var control = e.KeyModifiers.HasFlag(KeyModifiers.Control);
         if (control && e.Key == Key.T) { e.Handled = true; vm.NewTabCommand.Execute(null); }
         else if (control && e.Key == Key.Tab && vm.Tabs.Count > 0)
         {
@@ -274,6 +283,7 @@ public partial class MainWindow : Window
         if (change.Property == ClientSizeProperty)
         {
             if (UpdateButton is not null) UpdateButton.Classes.Set("compact", ClientSize.Width < CompactTopBarWidth);
+            if (AgentPanelButton is not null) AgentPanelButton.Classes.Set("compact", ClientSize.Width < CompactTopBarWidth);
             if (WorkspaceModel is { } vm) ApplyWorkspaceColumns(vm);
         }
     }

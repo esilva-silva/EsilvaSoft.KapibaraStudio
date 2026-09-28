@@ -1,0 +1,115 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:EsilvaSoft.SlopStudio.Desktop.ViewModels" xmlns:local="using:EsilvaSoft.SlopStudio.Desktop" x:Class="EsilvaSoft.SlopStudio.Desktop.AgentPermissionsWindow" x:DataType="vm:AgentPermissionsViewModel" x:CompileBindings="True" Title="{local:Loc Key=agentPermissionsTitle}" Width="700" Height="720" MinWidth="520" MinHeight="500" WindowStartupLocation="CenterOwner">
+  <Grid RowDefinitions="Auto,*,Auto" RowSpacing="10" Margin="20">
+    <StackPanel Spacing="4">
+      <TextBlock Text="{local:Loc Key=agentPermissionsTitle}" Classes="section-title"/>
+      <TextBlock Text="{local:Loc Key=agentPermissionsIntro}" Classes="metadata" TextWrapping="Wrap"/>
+    </StackPanel>
+    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Spacing="12" Margin="0,0,12,0">
+        <Border Classes="card" Padding="12" IsEnabled="{Binding CanEdit}">
+          <StackPanel Spacing="6">
+            <TextBlock Text="{local:Loc Key=agentPermissionsDataSection}" FontWeight="SemiBold"/>
+            <TextBlock Text="{Binding ProviderName}"/>
+            <TextBlock Text="{Binding WorkspacePath}" Classes="metadata" TextWrapping="Wrap"/>
+            <CheckBox Content="{local:Loc Key=agentPermissionsSendActive}" IsChecked="{Binding ActiveFile}"/>
+            <CheckBox Content="{local:Loc Key=agentPermissionsSendWorkspace}" IsChecked="{Binding WorkspaceFiles}"/>
+            <CheckBox Content="{local:Loc Key=agentPermissionsSendMetadata}" IsChecked="{Binding TabMetadata}"/>
+            <CheckBox Content="{local:Loc Key=agentPermissionsSendSchema}" IsChecked="{Binding InferredSchema}"/>
+            <CheckBox Content="{local:Loc Key=agentPermissionsExternalAttachments}" IsChecked="{Binding ExternalAttachments}"/>
+          </StackPanel>
+        </Border>
+        <Border Classes="card" Padding="12" IsEnabled="{Binding CanEdit}">
+          <StackPanel Spacing="6">
+            <TextBlock Text="{local:Loc Key=agentPermissionsWorkspaceSection}" FontWeight="SemiBold"/>
+            <CheckBox Content="{local:Loc Key=agentPermissionsUseWorkspace}" IsChecked="{Binding UseWorkspace}"/>
+            <CheckBox Content="{local:Loc Key=agentPermissionsReadFiles}" IsChecked="{Binding NativeFileRead}"/>
+            <CheckBox Content="{local:Loc Key=agentPermissionsRunCommands}" IsChecked="{Binding NativeCommandExecution}"/>
+            <CheckBox Content="{local:Loc Key=agentPermissionsNetwork}" IsChecked="{Binding NativeNetwork}"/>
+            <TextBlock Text="{local:Loc Key=agentPermissionsNativeRisk}" Classes="metadata" TextWrapping="Wrap"/>
+            <TextBlock Text="{local:Loc Key=agentPermissionsNativeWriteUnavailable}" Classes="metadata" TextWrapping="Wrap"/>
+            <TextBlock Text="{local:Loc Key=agentPermissionsExclusions}" Classes="metadata" TextWrapping="Wrap"/>
+            <CheckBox Content="{local:Loc Key=agentPermissionsEditActive}" IsChecked="{Binding EditActiveFile}"/>
+            <CheckBox Content="{local:Loc Key=agentPermissionsEditOther}" IsChecked="{Binding EditOtherFiles}"/>
+          </StackPanel>
+        </Border>
+        <Border Classes="card" Padding="12" IsEnabled="{Binding CanEdit}">
+          <StackPanel Spacing="6">
+            <TextBlock Text="{local:Loc Key=agentPermissionsToolsSection}" FontWeight="SemiBold"/>
+            <TextBlock Text="{Binding ProductToolsStatus}" TextWrapping="Wrap"/>
+            <CheckBox Content="{local:Loc Key=agentPermissionsLimitConnections}" IsChecked="{Binding LimitConnections}" IsEnabled="{Binding CanEdit}"/>
+            <TextBlock Text="{local:Loc Key=agentPermissionsNoConnections}" IsVisible="{Binding !HasConnections}" Classes="metadata"/>
+            <ItemsControl ItemsSource="{Binding Connections}" IsVisible="{Binding LimitConnections}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:AgentConnectionPermissionItem">
+                  <CheckBox Content="{Binding Name}" IsChecked="{Binding IsSelected}" Margin="18,0,0,0"/>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="{local:Loc Key=agentPermissionsWritesUnavailable}" Classes="metadata" TextWrapping="Wrap"/>
+            <TextBlock Text="{local:Loc Key=agentPermissionsProposalNotice}" Classes="metadata" TextWrapping="Wrap"/>
+            <ItemsControl ItemsSource="{Binding ReadTools}" IsEnabled="{Binding ProductToolsAvailable}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:AgentProductToolPermissionItem">
+                  <CheckBox Content="{Binding DisplayName}" IsChecked="{Binding IsEnabled}"/>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+        <Border Classes="card" Padding="12" IsEnabled="{Binding CanEdit}">
+          <StackPanel Spacing="6">
+            <TextBlock Text="{local:Loc Key=agentPermissionsAutoContextSection}" FontWeight="SemiBold"/>
+            <CheckBox Content="{local:Loc Key=agentPermissionsAutoActiveFile}" IsChecked="{Binding AutomaticActiveFile}"/>
+            <CheckBox Content="{local:Loc Key=agentPermissionsAutoTab}" IsChecked="{Binding AutomaticTabMetadata}"/>
+          </StackPanel>
+        </Border>
+        <Border Classes="card" Padding="12" IsEnabled="{Binding CanEdit}">
+          <StackPanel Spacing="6">
+            <TextBlock Text="{local:Loc Key=agentPermissionsConfirmSection}" FontWeight="SemiBold"/>
+            <CheckBox Content="{local:Loc Key=agentPermissionsConfirmMongo}" IsChecked="{Binding ConfirmMongoReads}"/>
+            <CheckBox Content="{local:Loc Key=agentPermissionsConfirmWorkspace}" IsChecked="{Binding ConfirmWorkspaceReads}"/>
+            <CheckBox Content="{local:Loc Key=agentPermissionsConfirmFile}" IsChecked="{Binding ConfirmNativeReads}"/>
+            <CheckBox Content="{local:Loc Key=agentPermissionsConfirmEdit}" IsChecked="{Binding ConfirmEdits}"/>
+            <TextBlock Text="{local:Loc Key=agentPermissionsModeNotice}" Classes="metadata" TextWrapping="Wrap"/>
+          </StackPanel>
+        </Border>
+        <Border Classes="card" Padding="12" IsEnabled="{Binding CanEdit}">
+          <StackPanel Spacing="6">
+            <TextBlock Text="{local:Loc Key=agentPermissionsPrivacySection}" FontWeight="SemiBold"/>
+            <CheckBox Content="{local:Loc Key=agentPermissionsKeepHistory}" IsChecked="{Binding KeepHistory}"/>
+            <TextBlock Text="{local:Loc Key=agentPermissionsNoAttachmentsStored}" Classes="metadata" TextWrapping="Wrap"/>
+            <Button Content="{local:Loc Key=agentPermissionsDeleteHistory}" Command="{Binding BeginDeleteHistoryCommand}" IsEnabled="{Binding CanDeleteHistory}" HorizontalAlignment="Left"/>
+            <Border IsVisible="{Binding IsConfirmingHistoryDelete}" Classes="card" Padding="10">
+              <StackPanel Spacing="8">
+                <TextBlock Text="{Binding DeleteHistoryConfirmation}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Assertive"/>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Content="{local:Loc Key=agentPermissionsConfirmDelete}" Command="{Binding ConfirmDeleteHistoryCommand}" IsEnabled="{Binding CanDeleteHistory}"/>
+                  <Button Content="{local:Loc Key=agentPermissionsCancelDelete}" Command="{Binding CancelDeleteHistoryCommand}"/>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </Border>
+        <Border Classes="card" Padding="12" IsEnabled="{Binding CanEdit}">
+          <StackPanel Spacing="6">
+            <TextBlock Text="{local:Loc Key=agentPermissionsAuthorizationSection}" FontWeight="SemiBold"/>
+            <TextBlock Text="{local:Loc Key=agentPermissionsDestinationNotice}" TextWrapping="Wrap"/>
+            <WrapPanel>
+              <Button Content="{local:Loc Key=agentPermissionsAuthorize}" Command="{Binding AuthorizeDestinationCommand}" Margin="0,0,8,0"/>
+              <Button Content="{local:Loc Key=agentPermissionsRevoke}" Command="{Binding RevokeDestinationCommand}"/>
+            </WrapPanel>
+            <TextBlock Text="{Binding ConsentStatusText}" Classes="metadata"/>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+      <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+        <TextBlock Text="{Binding Status}" TextWrapping="Wrap"/>
+        <Button Content="{local:Loc Key=agentPermissionsRetryLoad}" Command="{Binding RetryLoadCommand}" IsVisible="{Binding CanRetryLoad}"/>
+      </StackPanel>
+      <Button Grid.Column="1" Content="{local:Loc Key=agentPermissionsSave}" Command="{Binding SaveCommand}"/>
+      <Button Grid.Column="2" Content="{local:Loc Key=agentPermissionsClose}" Click="CloseWindow"/>
+    </Grid>
+  </Grid>
+</Window>

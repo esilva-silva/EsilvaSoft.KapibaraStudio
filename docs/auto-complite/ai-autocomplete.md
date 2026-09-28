@@ -121,7 +121,7 @@ public sealed record AiCompletionUpdate(AiCompletionCandidate? Candidate, AiComp
 public enum AiCompletionState { Loading, Generating, Partial, Completed, Unavailable, Cancelled }
 ```
 
-`AiAutocompleteProvider` atual é desmembrado nesse provider e no Output Processor. `LocalModelAiChatService` continua usando `ILocalAiModelService` sem mudança de comportamento.
+`AiAutocompleteProvider` atual é desmembrado nesse provider e no Output Processor. `LocalModelAiChatService` continuava usando `ILocalAiModelService` sem mudança de comportamento — **removido em 25/09/2026 pela [ADR-055](../10-decisoes-arquiteturais.md#adr-055--remoção-do-assistente-ia-por-aba-25092026)**.
 
 ## Decodificação restrita (pesquisa)
 

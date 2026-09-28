@@ -18,6 +18,9 @@ public sealed partial class ConsoleMongoIntegrationTests
         var executable = Environment.GetEnvironmentVariable("SLOP_CONSOLE_MONGOD") ?? (Directory.Exists(binaries) ? Directory.EnumerateFiles(binaries, "mongod.exe", SearchOption.AllDirectories).FirstOrDefault() : null);
         if (executable is null) Assert.Ignore("Fixture MongoDB portátil ausente; defina SLOP_CONSOLE_MONGOD.");
         var directory = Path.Combine(TestContext.CurrentContext.WorkDirectory, "aggregation-real-" + Guid.NewGuid().ToString("N"));
+        var completed = false;
+        try
+        {
         using var server = await StartServer(executable!, directory);
         using var pool = new MongoClientPool();
         using var client = new MongoClient(server.Uri);
@@ -95,5 +98,8 @@ public sealed partial class ConsoleMongoIntegrationTests
             Assert.That(history.All(entry => entry.Script != tab.Text), Is.True, "Seleção inválida não pode executar nem registrar o conteúdo completo.");
         }
         TestContext.Out.WriteLine($"MongoDB {server.Version}: 12 stages, join, arrays e facet; página Bia/5, contagem 2; origem intacta e escrita bloqueada.");
+        completed = true;
+        }
+        finally { CleanupDatabaseDirectory(directory, completed); }
     }
 }

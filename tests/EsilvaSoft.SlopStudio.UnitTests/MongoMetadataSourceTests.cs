@@ -1,12 +1,65 @@
 using EsilvaSoft.SlopStudio.Autocomplete.Core;
 using EsilvaSoft.SlopStudio.Infrastructure;
 using MongoDB.Bson;
+using MongoDB.Driver;
 
 namespace EsilvaSoft.SlopStudio.UnitTests;
 
 [TestFixture]
 public sealed class MongoMetadataSourceTests
 {
+    private static readonly string[] FirstThreeNames = ["a", "b", "c"];
+    private static readonly string[][] OverflowBatches = [["a", "b"], ["c"], ["d", "e"]];
+    private static readonly string[][] ExactBatches = [["a"], ["b", "c"]];
+
+    [Test]
+    public async Task BoundedNamesStopAtFirstOverflowAcrossCursorBatches()
+    {
+        using var cursor = new BatchCursor(OverflowBatches);
+        var result = await MongoMetadataSource.ReadBoundedNamesAsync(cursor, 3, CancellationToken.None);
+        Assert.That(result.Items, Is.EqualTo(FirstThreeNames));
+        Assert.That(result.Overflow, Is.True);
+        Assert.That(cursor.BatchesRead, Is.EqualTo(3));
+        Assert.That(cursor.ItemsObserved, Is.EqualTo(4));
+    }
+
+    [Test]
+    public async Task BoundedNamesDoNotClaimOverflowAtExactLimit()
+    {
+        using var cursor = new BatchCursor(ExactBatches);
+        var result = await MongoMetadataSource.ReadBoundedNamesAsync(cursor, 3, CancellationToken.None);
+        Assert.That(result.Items.Count, Is.EqualTo(3));
+        Assert.That(result.Overflow, Is.False);
+        Assert.That(cursor.BatchesRead, Is.EqualTo(2));
+    }
+
+    private sealed class BatchCursor(IReadOnlyList<IReadOnlyList<string>> batches) : IAsyncCursor<string>
+    {
+        private int _index = -1;
+        private IReadOnlyList<string> _current = [];
+        public int BatchesRead { get; private set; }
+        public int ItemsObserved { get; private set; }
+        public IEnumerable<string> Current => Counted();
+        private IEnumerable<string> Counted()
+        {
+            foreach (var item in _current)
+            {
+                ItemsObserved++;
+                yield return item;
+            }
+        }
+        public bool MoveNext(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (++_index >= batches.Count) return false;
+            _current = batches[_index];
+            BatchesRead++;
+            return true;
+        }
+        public Task<bool> MoveNextAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(MoveNext(cancellationToken));
+        public void Dispose() { }
+    }
     [Test]
     public void SamplePipelineProjectsOnlyNamesAndTypesToTheRequestedDepth()
     {

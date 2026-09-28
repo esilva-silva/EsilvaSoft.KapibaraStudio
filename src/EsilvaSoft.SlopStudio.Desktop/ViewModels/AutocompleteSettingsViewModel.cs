@@ -74,6 +74,8 @@ public sealed partial class AutocompleteSettingsViewModel(IAutocompleteService s
     [ObservableProperty] private string _modelPath = "";
     [ObservableProperty] private LocalModelOption? _selectedModelOption;
     [ObservableProperty] private bool _chatEnabled = true;
+    // No UI and no consumer since the per-tab assistant was removed (ADR-055): carried through unchanged so saving
+    // preferences never rewrites the persisted opt-ins until the product decision is recorded.
     [ObservableProperty] private bool _localAiContextEnabled;
     [ObservableProperty] private bool _includeInputJsonInLocalAiContext;
     [ObservableProperty] private int _contextTokens = 2048;

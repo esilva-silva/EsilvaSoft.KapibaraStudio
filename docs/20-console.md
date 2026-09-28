@@ -79,7 +79,9 @@ Extended JSON conserva Int64, Decimal128, ObjectId e UUIDs/subtipos binários. H
 
 ## Ambientes, segurança e histórico
 
-## Assistente IA do Console
+## Assistente IA do Console (removido em 25/09/2026)
+
+> Painel removido pela [ADR-055](10-decisoes-arquiteturais.md#adr-055--remoção-do-assistente-ia-por-aba-25092026); o chat da aba é o **Agente IA** (Ctrl+Shift+A). O texto abaixo é histórico.
 
 O painel **Assistente IA** fica fixo à direita de cada aba e mantém conversa, cancelamento e proposta separados por `WorkspaceTabViewModel`. O autocomplete preditivo continua sendo uma entrada independente: ele sugere continuações curtas durante a edição e pode ser aceito com Tab; o chat recebe instruções mais longas.
 

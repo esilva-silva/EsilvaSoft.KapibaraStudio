@@ -146,6 +146,19 @@ public sealed class ConnectionProfileTests
         Assert.That(profile.ResolveConnectionString(_ => throw new AssertionException("Não deveria resolver variável.")), Is.EqualTo("mongodb://admin:segredo@db.example:27017"));
     }
 
+    [TestCase("mongodb://user:secret-question?fragment@host/db")]
+    [TestCase("mongodb://user:secret-hash#fragment@host/db")]
+    public void EndpointDoesNotExposeMalformedUserInfoBeforeQueryOrFragmentDelimiter(string connectionString)
+    {
+        var profile = ConnectionProfile.Create("Canário", connectionString);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(profile.Endpoint, Is.EqualTo("Confira a URI configurada"));
+            Assert.That(profile.RoutingLabel, Does.Not.Contain("secret").And.Not.Contain("user:"));
+        });
+    }
+
     [Test]
     public void CreateWithEnvironmentPasswordTemplateKeepsSecretOutOfProfileAndResolvesAtUseTime()
     {

@@ -3,7 +3,7 @@
 **Título:** IA local e produtividade contextual (Local AI and contextual productivity).
 **Estado:** escopo automatizável implementado e validado em 22/09/2026; inferência com pacotes ONNX reais e homologação nativa permanecem experimentais e rastreadas na Fase 9.
 **Data:** 22/09/2026.
-**Coordenação:** [Goal Orchestrator](../../../agents/goal-orchestrator.md).
+**Coordenação:** registro histórico; os nomes de agentes especializados abaixo descrevem o plano original e não são instruções de delegação atuais. Os contratos de `/agents/` citados na época foram removidos. Para o trabalho atual de Claude, use [documentação Claude](../phase-07-v0.11.0/README.md).
 
 ## Resultado esperado
 
@@ -24,7 +24,7 @@ Ficam fora desta meta: MCP e agentes externos da Fase 7, chat por workflow da Fa
 
 ## Entregas e dependências
 
-Cada responsável segue seu contrato em `/agents/` e registra evidências, arquivos alterados, pendências e resultado. Capacidades seguem [o mapeamento central](../../../agents/capabilities.md); escalar apenas diante de dificuldade demonstrada.
+Os responsáveis e capacidades na matriz abaixo foram registrados no plano original de 22/09/2026. São apenas rastreabilidade histórica; os arquivos de agente correspondentes não fazem parte do checkout atual.
 
 | ID | Entrega e aceite específico | Responsável / capacidade | Depende de |
 | --- | --- | --- | --- |

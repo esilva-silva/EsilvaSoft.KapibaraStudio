@@ -840,3 +840,55 @@ O que este lote **não** fez, e fica registrado como pendência de T08: `Ctrl+Es
 lista mesmo com a flag falsa (`traditional.manual = Enabled && TraditionalEnabled` só está aplicado no caminho de
 fallback da IA), e a flag continua sem controle visual em `AutocompleteSettingsWindow`, exatamente como as três
 flags inline de 5.1.
+
+## Fase 7 — chat de agentes local e concorrência com autocomplete (lote 9, P7-L09-ONNX, 25/09/2026)
+
+### DEC-P9-QUEUEBUDGET
+
+**Achado.** Até este lote, `LocalAiModelService` só preemptava em uma direção: um pedido
+`AiRequestPriority.Interactive` que chega cancela uma geração `Background` **ativa**
+(`PreemptBackground`, DEC-A43-PREEMPTION), mas nada limitava a espera de um pedido `Background` que chega **depois**
+que um turno `Interactive` já tomou a fila do proprietário único (`PriorityGate` é um mutex de um único titular; ver
+[`LocalAgentProvider`](../../src/EsilvaSoft.SlopStudio.Application/Agents/LocalAgentProvider.cs)). Antes do chat de
+agentes local (lote 9) isso não era visível na prática: a única geração interativa concorrente era a proposta curta
+de `LocalModelAiChatService` (até 256–1024 tokens, um bloco só; serviço **removido em 25/09/2026 pela [ADR-055](../10-decisoes-arquiteturais.md#adr-055--remoção-do-assistente-ia-por-aba-25092026)**). O chat de agentes usa o mesmo
+`AiRequestPriority.Interactive` e o mesmo `StreamAsync`, mas em streaming — uma conversa pode segurar a fila por
+muito mais tempo. Sem limite, o autocomplete ambiente (`AiAutocompleteProvider`, sempre `Background`) ficaria
+esperando atrás do chat pela duração inteira do turno, em vez de abster-se e tentar de novo na próxima pausa de
+digitação.
+
+**Correção mínima.** `WaitForTurnAsync` (novo, privado) intercala um orçamento de fila só para
+`AiRequestPriority.Background`: um `CancellationTokenSource(BackgroundQueueBudget, _clock)` (500 ms, o mesmo padrão
+de relógio injetável do prazo rígido em DEC-A43-TIMEOUT) ligado ao token do pedido. Vencido o orçamento **enquanto
+ainda espera a fila** — nunca depois de já ter entrado, e nunca por cancelamento do chamador ou do desligamento —, o
+pedido desiste com o mesmo `LocalModelPreemptedException` silencioso de uma preempção ativa (DEC-A43-PREEMPTION):
+mesmo tipo, mesmo tratamento em `AiCompletionFailure.Preempted`, mesma abstenção sem mensagem. Sem contenção
+(`_gate` livre), a espera resolve na hora e o orçamento nunca dispara — não há custo no caminho comum. `Interactive`
+continua esperando sem limite, porque é ação explícita (chat, `Ctrl+;`, teste de modelo) e o usuário já está
+esperando por ela.
+
+| Parâmetro | Valor | Razão |
+| --- | --- | --- |
+| Escopo | só a espera pela fila (`PriorityGate.WaitAsync`), nunca a geração em si nem o carregamento do modelo | O autocomplete que já está gerando continua sujeito só à preempção existente (DEC-A43-PREEMPTION); o orçamento novo resolve especificamente a fila |
+| Valor | 500 ms, constante interna (não é opção de `AutocompleteSettings`, igual a `RetryDelay`) | Não é uma preferência de produto: é o comportamento do proprietário único diante de contenção |
+| Relógio | `TimeProvider` já injetado em `LocalAiModelService` | Mesmo padrão de DEC-A43-TIMEOUT: teste avança o relógio, sem dormir tempo real |
+| Falha | `LocalModelPreemptedException` (não uma `OperationCanceledException` crua) | Reaproveita o contrato e o tratamento silencioso que a interface já dá a preempção — nenhuma mudança em `AiCompletionFailure`/UI |
+
+Testes em `LocalAiOfflinePreemptionTests` provam, com `StreamingRuntimeFake`/`ManualTimeProvider` (sem modelo ONNX
+real): o pedido de fundo continua esperando pouco antes do orçamento vencer, desiste sozinho ao vencer (o turno
+interativo segue rodando, intocado) e é servido imediatamente quando a fila está livre; o mesmo vale pelo caminho
+completo de `AiAutocompleteProvider.GetCompletionAsync`, que devolve `null` (abstenção silenciosa) em vez de propagar
+exceção. `LocalAgentProviderTests` (19 testes) e `LocalAiModelServiceStreamingTests` continuam verdes sem alteração —
+o orçamento não muda nenhum caminho `Interactive`.
+
+### DEC-P9-OFFLINE
+
+**Sem achado, evidência de invariante existente.** `LocalAgentProvider` já não tinha, antes deste lote, nenhuma
+referência a `OpenAiAgentProvider`/`ClaudeAgentProvider`: seu único construtor recebe `ILocalAiModelService` e
+`IAutocompleteService`, e `AgentRuntime`/`AgentProviderCatalog` tratam cada provider de forma independente — a
+indisponibilidade de um (rede ausente, credencial inválida, `CreateSessionAsync` lançando) nunca é propagada aos
+demais (`AgentProviderCatalog.GetStatusAsync` já captura exceção por provider; `AgentRuntime.StartSessionAsync`
+falha por sessão, não por runtime inteiro). `LocalAiOfflinePreemptionTests` registra isso como evidência automatizada
+de AC-16 (chat local completa um turno inteiro com dois providers externos falsos registrados no mesmo catálogo e
+runtime, ambos totalmente indisponíveis) para que uma futura integração real do adapter OpenAI/Claude (lotes 7/8) não
+regrida esse isolamento silenciosamente.

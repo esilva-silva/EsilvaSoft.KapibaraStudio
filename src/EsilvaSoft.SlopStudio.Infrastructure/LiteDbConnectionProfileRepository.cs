@@ -1,4 +1,5 @@
 using EsilvaSoft.SlopStudio.Application;
+using EsilvaSoft.SlopStudio.Application.Agents;
 using LiteDB;
 
 namespace EsilvaSoft.SlopStudio.Infrastructure;
@@ -12,22 +13,30 @@ namespace EsilvaSoft.SlopStudio.Infrastructure;
 /// </summary>
 public sealed partial class LiteDbConnectionProfileRepository :
     IConnectionProfileRepository,
+    IConnectionProfileCredentialStatusProvider,
     IQueryHistoryRepository,
     IScriptHistoryRepository,
     ISavedQueryRepository,
     IAuditRepository,
     IWorkspaceSessionRepository,
     IEnvironmentVaultRepository,
+    ILegacyCredentialInventoryRepository,
     IConsoleHistoryRepository,
+    IAgentAuthorizationPolicyRepository,
+    IAgentAuditRepository,
+    IAgentSchemaSamplingConsentProvider,
+    IAgentSchemaSamplingConsentRepository,
     IDisposable
 {
     private readonly LiteDatabase _database;
+    private readonly ISecretStore? _profileSecrets;
     private readonly object _gate = new();
     private bool _disposed;
 
-    public LiteDbConnectionProfileRepository(string databasePath)
+    public LiteDbConnectionProfileRepository(string databasePath, ISecretStore? profileSecrets = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(databasePath);
+        _profileSecrets = profileSecrets;
         var directory = Path.GetDirectoryName(databasePath);
 
         if (!string.IsNullOrWhiteSpace(directory))

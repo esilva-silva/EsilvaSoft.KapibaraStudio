@@ -21,6 +21,9 @@ public sealed partial class ConsoleMongoIntegrationTests
         var executable = Environment.GetEnvironmentVariable("SLOP_CONSOLE_MONGOD") ?? (Directory.Exists(binaries) ? Directory.EnumerateFiles(binaries, "mongod.exe", SearchOption.AllDirectories).FirstOrDefault() : null);
         if (executable is null) Assert.Ignore("Fixture MongoDB portátil ausente.");
         var directory = Path.Combine(TestContext.CurrentContext.WorkDirectory, "mvp-real-" + Guid.NewGuid().ToString("N"));
+        var completed = false;
+        try
+        {
         using var server = await StartServer(executable!, directory);
         using var repository = new LiteDbConnectionProfileRepository(Path.Combine(directory, "workspace.db"));
         using var pool = new MongoClientPool();
@@ -63,6 +66,9 @@ public sealed partial class ConsoleMongoIntegrationTests
         Assert.CatchAsync<OperationCanceledException>(async () => await workspace.QueryAsync(profile, new("mvp", "Projects"), cancellation.Token));
         Assert.That(await collection.CountDocumentsAsync(FilterDefinition<BsonDocument>.Empty), Is.EqualTo(5000));
         TestContext.Out.WriteLine($"MongoDB {server.Version}: duas páginas de 100/5000, edição com conflito, BSON, exportação e cancelamento em {timer.ElapsedMilliseconds} ms.");
+        completed = true;
+        }
+        finally { CleanupDatabaseDirectory(directory, completed); }
     }
 
     [Test, Category("MongoReal")]
@@ -74,11 +80,11 @@ public sealed partial class ConsoleMongoIntegrationTests
         var executable = Environment.GetEnvironmentVariable("SLOP_CONSOLE_MONGOD") ?? (Directory.Exists(binaries) ? Directory.EnumerateFiles(binaries, "mongod.exe", SearchOption.AllDirectories).FirstOrDefault() : null);
         if (executable is null) Assert.Ignore("Fixture MongoDB portátil ausente; defina SLOP_CONSOLE_MONGOD para homologação real.");
         var directory = Path.Combine(TestContext.CurrentContext.WorkDirectory, "console-real-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(directory);
-        using var first = await StartServer(executable!, Path.Combine(directory, "dev"));
-        using var second = await StartServer(executable!, Path.Combine(directory, "prod"));
+        var completed = false;
         try
         {
+            using var first = await StartServer(executable!, Path.Combine(directory, "dev"));
+            using var second = await StartServer(executable!, Path.Combine(directory, "prod"));
             using var repository = new LiteDbConnectionProfileRepository(Path.Combine(directory, "workspace.db"));
             var dev = ConnectionProfile.Create("Development", first.Uri, "CompanyDb");
             var prod = ConnectionProfile.Create("Production", second.Uri, "CompanyDb");
@@ -158,8 +164,9 @@ public sealed partial class ConsoleMongoIntegrationTests
             Assert.That(storedUuids["c"].AsBsonBinaryData.SubType, Is.EqualTo(BsonBinarySubType.UuidLegacy));
             Assert.That(storedUuids["texto"].BsonType, Is.EqualTo(BsonType.String));
             TestContext.Out.WriteLine("MongoDB real: " + first.Version + "; dois processos locais; CRUD, índices, cursores, agregação e contextos validados.");
+            completed = true;
         }
-        finally { first.Stop(); second.Stop(); }
+        finally { CleanupDatabaseDirectory(directory, completed); }
     }
 
     private static async Task<Server> StartServer(string executable, string directory)
@@ -168,12 +175,14 @@ public sealed partial class ConsoleMongoIntegrationTests
         using var listener = new TcpListener(IPAddress.Loopback, 0); listener.Start();
         var port = ((IPEndPoint)listener.LocalEndpoint).Port; listener.Stop();
         var start = new ProcessStartInfo(executable) { UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden };
-        foreach (var argument in new[] { "--dbpath", directory, "--port", port.ToString(System.Globalization.CultureInfo.InvariantCulture), "--bind_ip", "127.0.0.1", "--logpath", Path.Combine(directory, "mongod.log"), "--wiredTigerCacheSizeGB", "0.25" }) start.ArgumentList.Add(argument);
+        var logName = $"{Path.GetFileName(Path.GetDirectoryName(directory))}-{Path.GetFileName(directory)}";
+        var logPath = Path.Combine(TestContext.CurrentContext.WorkDirectory, $"mongod-{logName}.log");
+        foreach (var argument in new[] { "--dbpath", directory, "--port", port.ToString(System.Globalization.CultureInfo.InvariantCulture), "--bind_ip", "127.0.0.1", "--logpath", logPath, "--wiredTigerCacheSizeGB", "0.25" }) start.ArgumentList.Add(argument);
         var process = Process.Start(start)!;
         var uri = $"mongodb://127.0.0.1:{port}/?directConnection=true&serverSelectionTimeoutMS=300";
-        using var client = new MongoClient(uri);
         try
         {
+            using var client = new MongoClient(uri);
             for (var attempt = 0; attempt < 30; attempt++)
             {
                 try
@@ -181,11 +190,25 @@ public sealed partial class ConsoleMongoIntegrationTests
                     var info = await client.GetDatabase("admin").RunCommandAsync<BsonDocument>(new BsonDocument("buildInfo", 1));
                     return new(process, uri, info["version"].AsString);
                 }
-                catch (TimeoutException) { if (process.HasExited) throw new InvalidOperationException("mongod encerrou: " + File.ReadAllText(Path.Combine(directory, "mongod.log"))); await Task.Delay(100); }
+                catch (TimeoutException) { if (process.HasExited) throw new InvalidOperationException("mongod encerrou; log: " + logPath + Environment.NewLine + (File.Exists(logPath) ? File.ReadAllText(logPath) : "log ainda não criado")); await Task.Delay(100); }
             }
             throw new TimeoutException("mongod não iniciou dentro do limite.");
         }
-        catch { if (!process.HasExited) process.Kill(true); process.Dispose(); throw; }
+        catch { if (!process.HasExited) process.Kill(true); process.WaitForExit(); process.Dispose(); throw; }
+    }
+
+    private static void CleanupDatabaseDirectory(string directory, bool testCompleted)
+    {
+        try
+        {
+            if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
+            if (Directory.Exists(directory)) throw new IOException("MongoDB temporário continuou presente após limpeza.");
+        }
+        catch (Exception exception)
+        {
+            if (testCompleted) throw new IOException($"Falha ao remover o dbpath temporário '{directory}'.", exception);
+            TestContext.Error.WriteLine($"Limpeza do dbpath também falhou após falha de teste; preservando a falha original. Diretório: {directory}; erro: {exception.GetType().Name}: {exception.Message}");
+        }
     }
     private sealed class Server(Process process, string uri, string version) : IDisposable
     {

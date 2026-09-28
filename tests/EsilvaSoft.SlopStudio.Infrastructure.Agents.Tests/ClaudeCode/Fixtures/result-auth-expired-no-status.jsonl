@@ -1,0 +1,2 @@
+{"type":"system","subtype":"init","session_id":"{SESSION_ID}","tools":{INIT_TOOLS},"mcp_servers":{INIT_MCP_SERVERS},"model":"claude-haiku-4-5-20251001","permissionMode":"default","apiKeySource":"none","claude_code_version":"2.1.268"}
+{"type":"result","subtype":"error_during_execution","is_error":true,"session_id":"{SESSION_ID}","num_turns":0,"permission_denials":[],"errors":["Failed to authenticate: OAuth session expired and could not be refreshed"]}

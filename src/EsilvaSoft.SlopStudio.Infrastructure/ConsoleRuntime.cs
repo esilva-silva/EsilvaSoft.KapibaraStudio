@@ -13,7 +13,7 @@ namespace EsilvaSoft.SlopStudio.Infrastructure;
 
 public sealed class ConsoleRuntime(IConnectionProfileRepository profiles, IEnvironmentVaultRepository environments,
     IConnectionSecretStore secrets, IConsoleDatabaseSessionFactory sessions, IConsoleHistoryRepository history,
-    IAuditRepository audit, IMetadataInvalidationBus? metadata = null) : IConsoleRuntime
+    IAuditRepository audit, IMetadataInvalidationBus? metadata = null, ISecretStore? credentialStore = null) : IConsoleRuntime
 {
     private Func<string, string>? _localize;
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
@@ -55,12 +55,21 @@ public sealed class ConsoleRuntime(IConnectionProfileRepository profiles, IEnvir
             var captured = saved.Where(p => p.Id != request.Primary.Id).Append(request.Primary).ToArray();
             // Resolve every URI without DNS/network. The session resolves routing lazily when a connection is used.
             var resolutionErrors = new Dictionary<Guid, string>();
-            var resolved = captured.Select(p => {
+            var resolved = new List<ConnectionProfile>(captured.Length);
+            foreach (var p in captured)
+            {
                 var password = secrets.GetPassword(p.Id);
                 string? Legacy(string key) => key == "MONGODB_PASSWORD" && password is not null ? password : environment.GetLegacy(key);
-                try { return p with { ConnectionString = p.ResolveConnectionString(Legacy, key => environment.Get(key)) }; }
-                catch (Exception ex) { resolutionErrors[p.Id] = ex.Message; return p; }
-            }).ToArray();
+                try
+                {
+                    var source = await OperationEnvironment.ResolveStoredConnectionUriAsync(p, credentialStore, token)
+                        .ConfigureAwait(false);
+                    resolved.Add(p with { ConnectionString = (p with { ConnectionString = source })
+                        .ResolveConnectionString(Legacy, key => environment.Get(key)) });
+                }
+                catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+                catch (Exception ex) { resolutionErrors[p.Id] = ex.Message; resolved.Add(p); }
+            }
             using var session = sessions.Create(resolved, request.DocumentLimit, request.TimeoutMs);
             await Task.Run(() =>
             {

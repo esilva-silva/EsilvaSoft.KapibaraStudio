@@ -38,8 +38,9 @@ public sealed partial class LiteDbConnectionProfileRepository
         return RunAsync(() => _database.GetCollection<QueryHistoryDocument>(QueryHistoryCollectionName).Upsert(FromDomain(entry)), cancellationToken);
     }
 
+    // The former SpecifyKind(Utc) relabelled LiteDB's local-time value and shifted the instant by the machine offset.
     private static QueryHistoryEntry ToDomain(QueryHistoryDocument entry) =>
-        new(entry.Id, entry.ProfileId, entry.Database, entry.Collection, entry.FilterJson, entry.ProjectionJson, entry.SortJson, entry.HintJson, entry.Limit, entry.Skip, entry.MaxTimeMs, new DateTimeOffset(DateTime.SpecifyKind(entry.ExecutedAtUtc, DateTimeKind.Utc)), entry.Comment, entry.BatchSize, entry.CollationJson);
+        new(entry.Id, entry.ProfileId, entry.Database, entry.Collection, entry.FilterJson, entry.ProjectionJson, entry.SortJson, entry.HintJson, entry.Limit, entry.Skip, entry.MaxTimeMs, LiteDbDates.ToUtcInstant(entry.ExecutedAtUtc), entry.Comment, entry.BatchSize, entry.CollationJson);
 
     private static QueryHistoryDocument FromDomain(QueryHistoryEntry entry) =>
         new()

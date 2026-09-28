@@ -282,14 +282,21 @@ internal sealed class ScopedMetadataSource : IMongoMetadataSource
 
     public Task<IReadOnlyList<string>> ListDatabaseNamesAsync(ConnectionProfile profile, CancellationToken cancellationToken) =>
         Call<IReadOnlyList<string>>(MetadataScope.Databases, ["origem"], cancellationToken);
+    public Task<BoundedMetadataResult<string>> ListDatabaseNamesBoundedAsync(ConnectionProfile profile, int maximum, CancellationToken cancellationToken) =>
+        Call(MetadataScope.Databases, new BoundedMetadataResult<string>(["origem"], false), cancellationToken);
     public Task<IReadOnlyList<CollectionEntry>> ListCollectionNamesAsync(ConnectionProfile profile, string database, CancellationToken cancellationToken) =>
         Call<IReadOnlyList<CollectionEntry>>(MetadataScope.Collections, [new("origem", CollectionKind.Unknown)], cancellationToken);
+    public Task<BoundedMetadataResult<CollectionEntry>> ListCollectionNamesBoundedAsync(ConnectionProfile profile, string database, int maximum, CancellationToken cancellationToken) =>
+        Call(MetadataScope.Collections, new BoundedMetadataResult<CollectionEntry>([new("origem", CollectionKind.Unknown)], false), cancellationToken);
     public Task<CollectionDefinition?> GetCollectionDefinitionAsync(ConnectionProfile profile, string database, string collection, CancellationToken cancellationToken) =>
         Call<CollectionDefinition?>(MetadataScope.Definition, new(collection, CollectionKind.Collection, """{"$jsonSchema":{"properties":{"Nome":{"bsonType":"string"}}}}"""), cancellationToken);
     public Task<IReadOnlyList<IndexInfo>> ListIndexesAsync(ConnectionProfile profile, string database, string collection, CancellationToken cancellationToken) =>
         Call<IReadOnlyList<IndexInfo>>(MetadataScope.Indexes, [ExplorerMetadataService.ParseIndex("""{"name":"origem_1","key":{"Codigo":1}}""")], cancellationToken);
     public Task<IReadOnlyList<SampledDocument>> SampleSchemaAsync(ConnectionProfile profile, string database, string collection, SchemaSampleOptions options, CancellationToken cancellationToken) =>
         Call<IReadOnlyList<SampledDocument>>(MetadataScope.SampledSchema, [new([new("Amostrado", "string", [], [])])], cancellationToken);
+    public Task<ConcreteCollectionSchemaSampleResult> SampleConcreteCollectionSchemaBoundedAsync(ConnectionProfile profile, string database, string collection, SchemaSampleOptions options, int maximumProjectedBytes, CancellationToken cancellationToken) =>
+        Call(MetadataScope.SampledSchema, new ConcreteCollectionSchemaSampleResult(
+            ConcreteCollectionSchemaSampleStatus.Sampled, [new([new("Amostrado", "string", [], [])])]), cancellationToken);
 
     private async Task<T> Call<T>(MetadataScope scope, T value, CancellationToken cancellationToken)
     {

@@ -140,8 +140,6 @@ public sealed partial class WorkspaceTabViewModel : ObservableObject, IDisposabl
         OnPropertyChanged(nameof(Context));
         OnPropertyChanged(nameof(AccessHint));
         OnPropertyChanged(nameof(CopyJsonHint));
-        OnPropertyChanged(nameof(AiProposalTitle));
-        OnPropertyChanged(nameof(AiProposalHint));
         OnPropertyChanged(nameof(IsJsonResultView));
         OnPropertyChanged(nameof(IsTreeResultView));
         OnPropertyChanged(nameof(HasSelectedDocument));

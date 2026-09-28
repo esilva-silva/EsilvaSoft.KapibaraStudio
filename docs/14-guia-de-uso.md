@@ -217,7 +217,7 @@ Para instalar um SlopCoder-Mongo, use **Baixar modelo** na mesma janela. A lista
 | Família | Sem GPU | Com GPU (DirectML, Windows) |
 |---|---|---|
 | **SlopCoder-Mongo-0.5B** — leve, bom para autocomplete | CPU INT4 (~415 MB, padrão) ou CPU INT8 | GPU DirectML FP16 (padrão) ou GPU DirectML INT4 |
-| **SlopCoder-Mongo-1.5B-full** — melhor no Assistente IA, exige mais memória | CPU INT8 (recomendado) ou CPU INT4 | GPU DirectML FP16 (recomendado) ou GPU DirectML INT4 |
+| **SlopCoder-Mongo-1.5B-full** — melhor no Agente IA local, exige mais memória | CPU INT8 (recomendado) ou CPU INT4 | GPU DirectML FP16 (recomendado) ou GPU DirectML INT4 |
 
 Opções de GPU mostram "GPU não detectada nesta máquina" quando o runtime não encontrou uma. **Ver detalhes do modelo no Hugging Face** abre o card do modelo original, com formato de prompt, dados e limitações. Escolha a variante e clique em **Baixar**. O modelo vai para o diretório de modelos, na subpasta `<repositório>-<variante>` (por exemplo `SlopCoder-Mongo-1.5B-full-ONNX-dml-fp16`), e cada arquivo é conferido pelo hash publicado. **Abrir pasta**, ao lado de Procurar…, abre esse diretório no gerenciador de arquivos. Na lista **Modelo**, os modelos baixados aparecem com o mesmo nome e, abaixo, parâmetros, arquitetura e pasta. O progresso aparece na janela e na barra inferior, que também cancela; fechar a janela não interrompe o download. Ao concluir, o modelo fica selecionado: clique em **Salvar**. Variantes já instaladas aparecem como "instalado" e não são baixadas de novo; para substituir, remova a pasta. Um download cancelado retoma a partir dos arquivos já verificados.
 
@@ -269,6 +269,6 @@ Nos pacotes publicados (zip/tar.gz dos releases), o Slop Studio consulta os rele
 
 Disponível hoje: `Ctrl+Espaço` abre a lista tradicional (padrão de teclado desde o lote W0, 18/09/2026); `Ctrl+;` já é reconhecido, mas não insere `;` nem executa IA — só informa indisponibilidade; um override explícito salvo em `Ctrl+.` continua funcionando, sem ser mais o padrão; ghost básico/IA legados seguem como antes. Planejado: dois automáticos (preemptivo tradicional e IA) com flags independentes e aprendizado de estrutura de find em fundo com persistência. Não há nova opção acionável nesta revisão além da política de atalhos; consultar plano para comportamento futuro. [Plano revisado](auto-complite/README.md), [tarefas por agente](auto-complite/execution-plan.md) e [schema learning](auto-complite/schema-learning.md).
 
-## MCP e agentes externos: somente planejamento — 22/09/2026
+## Claude Code e Anthropic API
 
-A [v0.11.0](phases/phase-07-v0.11.0/README.md) está planejada para servidor MCP, chat nativo com Agent Runtime e adaptadores OpenAI/Codex, Claude e IA local. Esses recursos **não estão disponíveis por causa desta revisão documental**: ainda não há comando MCP, login externo ou cofre nativo para configurar. O chat/ONNX descrito neste guia continua sendo o recurso local experimental existente. O workflow fechado foi preservado na [v0.12.0](phases/phase-08-v0.12.0/README.md); homologação real pertence à [v0.13.0](phases/phase-09-v0.13.0/README.md).
+O chat com Claude Code e o fluxo oficial de login já estão disponíveis no código. A API Key Anthropic é uma modalidade separada, selecionada explicitamente. Para configurar, verificar conexão, entender ferramentas/permissões ou seguir o roteiro Windows, consulte [Claude no KapibaraStudio](phases/phase-07-v0.11.0/README.md). A homologação com conta Claude Pro real permanece pendente; não trate testes com mocks como validação da conta.

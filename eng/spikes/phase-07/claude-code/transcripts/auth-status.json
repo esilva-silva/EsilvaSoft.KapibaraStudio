@@ -1,0 +1,380 @@
+[
+  {
+    "case": "clean-env",
+    "exit": 0,
+    "argvPrefix": [],
+    "fields": {
+      "loggedIn": true,
+      "authMethod": "claude.ai",
+      "apiProvider": "firstParty",
+      "subscriptionType": "pro",
+      "analyticsDisabled": false,
+      "fieldNames": [
+        "analyticsDisabled",
+        "apiProvider",
+        "authMethod",
+        "configDirectory",
+        "email",
+        "loggedIn",
+        "orgId",
+        "orgName",
+        "projectsDirectory",
+        "subscriptionType"
+      ]
+    },
+    "stderr": "",
+    "stdoutIfNotJson": null
+  },
+  {
+    "case": "inherit-host-env",
+    "exit": 0,
+    "argvPrefix": [],
+    "fields": {
+      "loggedIn": true,
+      "authMethod": "claude.ai",
+      "apiProvider": "firstParty",
+      "subscriptionType": "pro",
+      "analyticsDisabled": false,
+      "fieldNames": [
+        "analyticsDisabled",
+        "apiProvider",
+        "authMethod",
+        "configDirectory",
+        "email",
+        "loggedIn",
+        "orgId",
+        "orgName",
+        "projectsDirectory",
+        "subscriptionType"
+      ]
+    },
+    "stderr": "",
+    "stdoutIfNotJson": null
+  },
+  {
+    "case": "fake-ANTHROPIC_API_KEY",
+    "exit": 0,
+    "argvPrefix": [],
+    "fields": {
+      "loggedIn": true,
+      "authMethod": "claude.ai",
+      "apiProvider": "firstParty",
+      "apiKeySource": "ANTHROPIC_API_KEY",
+      "subscriptionType": null,
+      "analyticsDisabled": false,
+      "fieldNames": [
+        "analyticsDisabled",
+        "apiKeySource",
+        "apiProvider",
+        "authMethod",
+        "configDirectory",
+        "email",
+        "loggedIn",
+        "orgId",
+        "orgName",
+        "projectsDirectory",
+        "subscriptionType"
+      ]
+    },
+    "stderr": "",
+    "stdoutIfNotJson": null
+  },
+  {
+    "case": "fake-ANTHROPIC_AUTH_TOKEN",
+    "exit": 0,
+    "argvPrefix": [],
+    "fields": {
+      "loggedIn": true,
+      "authMethod": "oauth_token",
+      "apiProvider": "firstParty",
+      "analyticsDisabled": false,
+      "fieldNames": [
+        "analyticsDisabled",
+        "apiProvider",
+        "authMethod",
+        "configDirectory",
+        "loggedIn",
+        "projectsDirectory"
+      ]
+    },
+    "stderr": "",
+    "stdoutIfNotJson": null
+  },
+  {
+    "case": "fake-CLAUDE_CODE_OAUTH_TOKEN",
+    "exit": 0,
+    "argvPrefix": [],
+    "fields": {
+      "loggedIn": true,
+      "authMethod": "oauth_token",
+      "apiProvider": "firstParty",
+      "analyticsDisabled": false,
+      "fieldNames": [
+        "analyticsDisabled",
+        "apiProvider",
+        "authMethod",
+        "configDirectory",
+        "loggedIn",
+        "projectsDirectory"
+      ]
+    },
+    "stderr": "",
+    "stdoutIfNotJson": null
+  },
+  {
+    "case": "settings-apiKeyHelper",
+    "exit": 0,
+    "argvPrefix": [
+      "--settings",
+      "{\"apiKeyHelper\":\"echo sk-ant-in…\"}"
+    ],
+    "fields": {
+      "loggedIn": true,
+      "authMethod": "api_key_helper",
+      "apiProvider": "firstParty",
+      "apiKeySource": "apiKeyHelper",
+      "analyticsDisabled": false,
+      "fieldNames": [
+        "analyticsDisabled",
+        "apiKeySource",
+        "apiProvider",
+        "authMethod",
+        "configDirectory",
+        "loggedIn",
+        "projectsDirectory"
+      ]
+    },
+    "stderr": "",
+    "stdoutIfNotJson": null
+  },
+  {
+    "case": "settings-env-api-key",
+    "exit": 0,
+    "argvPrefix": [
+      "--settings",
+      "{\"env\":{\"ANTHROPIC_API_KEY\":\"sk-ant-in…\"}}"
+    ],
+    "fields": {
+      "loggedIn": true,
+      "authMethod": "claude.ai",
+      "apiProvider": "firstParty",
+      "apiKeySource": "ANTHROPIC_API_KEY",
+      "subscriptionType": null,
+      "analyticsDisabled": false,
+      "fieldNames": [
+        "analyticsDisabled",
+        "apiKeySource",
+        "apiProvider",
+        "authMethod",
+        "configDirectory",
+        "email",
+        "loggedIn",
+        "orgId",
+        "orgName",
+        "projectsDirectory",
+        "subscriptionType"
+      ]
+    },
+    "stderr": "",
+    "stdoutIfNotJson": null
+  },
+  {
+    "case": "setting-sources-empty",
+    "exit": 0,
+    "argvPrefix": [
+      "--setting-sources",
+      ""
+    ],
+    "fields": {
+      "loggedIn": true,
+      "authMethod": "claude.ai",
+      "apiProvider": "firstParty",
+      "subscriptionType": "pro",
+      "analyticsDisabled": false,
+      "fieldNames": [
+        "analyticsDisabled",
+        "apiProvider",
+        "authMethod",
+        "configDirectory",
+        "email",
+        "loggedIn",
+        "orgId",
+        "orgName",
+        "projectsDirectory",
+        "subscriptionType"
+      ]
+    },
+    "stderr": "",
+    "stdoutIfNotJson": null
+  },
+  {
+    "case": "fake-key-plus-sources-empty",
+    "exit": 0,
+    "argvPrefix": [
+      "--setting-sources",
+      ""
+    ],
+    "fields": {
+      "loggedIn": true,
+      "authMethod": "claude.ai",
+      "apiProvider": "firstParty",
+      "apiKeySource": "ANTHROPIC_API_KEY",
+      "subscriptionType": null,
+      "analyticsDisabled": false,
+      "fieldNames": [
+        "analyticsDisabled",
+        "apiKeySource",
+        "apiProvider",
+        "authMethod",
+        "configDirectory",
+        "email",
+        "loggedIn",
+        "orgId",
+        "orgName",
+        "projectsDirectory",
+        "subscriptionType"
+      ]
+    },
+    "stderr": "",
+    "stdoutIfNotJson": null
+  },
+  {
+    "case": "project-apiKeyHelper-default",
+    "exit": 0,
+    "argvPrefix": [],
+    "fields": {
+      "loggedIn": true,
+      "authMethod": "api_key_helper",
+      "apiProvider": "firstParty",
+      "apiKeySource": "apiKeyHelper",
+      "analyticsDisabled": false,
+      "fieldNames": [
+        "analyticsDisabled",
+        "apiKeySource",
+        "apiProvider",
+        "authMethod",
+        "configDirectory",
+        "loggedIn",
+        "projectsDirectory"
+      ]
+    },
+    "stderr": "",
+    "stdoutIfNotJson": null
+  },
+  {
+    "case": "project-apiKeyHelper-sources-user",
+    "exit": 0,
+    "argvPrefix": [
+      "--setting-sources",
+      "user"
+    ],
+    "fields": {
+      "loggedIn": true,
+      "authMethod": "claude.ai",
+      "apiProvider": "firstParty",
+      "subscriptionType": "pro",
+      "analyticsDisabled": false,
+      "fieldNames": [
+        "analyticsDisabled",
+        "apiProvider",
+        "authMethod",
+        "configDirectory",
+        "email",
+        "loggedIn",
+        "orgId",
+        "orgName",
+        "projectsDirectory",
+        "subscriptionType"
+      ]
+    },
+    "stderr": "",
+    "stdoutIfNotJson": null
+  },
+  {
+    "case": "project-apiKeyHelper-sources-empty",
+    "exit": 0,
+    "argvPrefix": [
+      "--setting-sources",
+      ""
+    ],
+    "fields": {
+      "loggedIn": true,
+      "authMethod": "claude.ai",
+      "apiProvider": "firstParty",
+      "subscriptionType": "pro",
+      "analyticsDisabled": false,
+      "fieldNames": [
+        "analyticsDisabled",
+        "apiProvider",
+        "authMethod",
+        "configDirectory",
+        "email",
+        "loggedIn",
+        "orgId",
+        "orgName",
+        "projectsDirectory",
+        "subscriptionType"
+      ]
+    },
+    "stderr": "",
+    "stdoutIfNotJson": null
+  },
+  {
+    "case": "project-apiKeyHelper-sources-project",
+    "exit": 0,
+    "argvPrefix": [
+      "--setting-sources",
+      "project"
+    ],
+    "fields": {
+      "loggedIn": true,
+      "authMethod": "api_key_helper",
+      "apiProvider": "firstParty",
+      "apiKeySource": "apiKeyHelper",
+      "analyticsDisabled": false,
+      "fieldNames": [
+        "analyticsDisabled",
+        "apiKeySource",
+        "apiProvider",
+        "authMethod",
+        "configDirectory",
+        "loggedIn",
+        "projectsDirectory"
+      ]
+    },
+    "stderr": "",
+    "stdoutIfNotJson": null
+  },
+  {
+    "case": "setting-sources-invalid",
+    "exit": 1,
+    "argvPrefix": [
+      "--setting-sources",
+      "bogus"
+    ],
+    "fields": null,
+    "stderr": "Error processing --setting-sources: Invalid setting source: bogus. Valid options are: user, project, local",
+    "stdoutIfNotJson": ""
+  },
+  {
+    "case": "setting-sources-managed",
+    "exit": 1,
+    "argvPrefix": [
+      "--setting-sources",
+      "managed"
+    ],
+    "fields": null,
+    "stderr": "Error processing --setting-sources: Invalid setting source: managed. Valid options are: user, project, local",
+    "stdoutIfNotJson": ""
+  },
+  {
+    "case": "text-output-shape",
+    "exit": 0,
+    "lineCount": 3,
+    "labels": [
+      "Login method",
+      "Organization",
+      "Email"
+    ]
+  }
+]

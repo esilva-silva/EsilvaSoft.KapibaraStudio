@@ -11,9 +11,11 @@ internal sealed class WorkspaceTestContext : IDisposable
     public WorkspaceService Workspace { get; }
     public ControlledScripts Scripts { get; } = new();
     public MongoTestProxy Mongo { get; }
-    public WorkspaceTestContext(IConsoleHistoryRepository? historyOverride = null, ITextFileService? textFiles = null)
+    public WorkspaceTestContext(IConsoleHistoryRepository? historyOverride = null, ITextFileService? textFiles = null,
+        ISecretStore? profileSecrets = null)
     {
-        Repository = new LiteDbConnectionProfileRepository(Path.Combine(_directory, "workspace.db"));
+        Repository = new LiteDbConnectionProfileRepository(Path.Combine(_directory, "workspace.db"),
+            profileSecrets ?? new InMemoryProfileSecretStore());
         var mongo = DispatchProxy.Create<IMongoWorkspaceService, MongoTestProxy>();
         Mongo = (MongoTestProxy)mongo;
         Mongo.Handler = (name, _) => name switch

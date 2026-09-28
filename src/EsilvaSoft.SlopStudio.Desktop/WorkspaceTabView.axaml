@@ -1,4 +1,4 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui" xmlns:syntax="using:EsilvaSoft.SlopStudio.Desktop.SyntaxHighlighting" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:EsilvaSoft.SlopStudio.Desktop" xmlns:core="using:EsilvaSoft.SlopStudio.Core" xmlns:localai="using:EsilvaSoft.SlopStudio.LocalAi.Core" xmlns:vm="using:EsilvaSoft.SlopStudio.Desktop.ViewModels" xmlns:completion="using:EsilvaSoft.SlopStudio.Autocomplete.Core.Completion" x:Class="EsilvaSoft.SlopStudio.Desktop.WorkspaceTabView" x:DataType="vm:WorkspaceTabViewModel">
+﻿<UserControl xmlns="https://github.com/avaloniaui" xmlns:syntax="using:EsilvaSoft.SlopStudio.Desktop.SyntaxHighlighting" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:EsilvaSoft.SlopStudio.Desktop" xmlns:core="using:EsilvaSoft.SlopStudio.Core" xmlns:vm="using:EsilvaSoft.SlopStudio.Desktop.ViewModels" xmlns:completion="using:EsilvaSoft.SlopStudio.Autocomplete.Core.Completion" x:Class="EsilvaSoft.SlopStudio.Desktop.WorkspaceTabView" x:DataType="vm:WorkspaceTabViewModel">
   <Grid RowDefinitions="Auto,*">
     <Border Padding="12,6" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" Background="{DynamicResource SecondaryBackground}">
       <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="4">
@@ -12,8 +12,7 @@
         <TextBlock Grid.Row="1" Text="{Binding AccessHint}" Classes="metadata" />
       </Grid>
     </Border>
-    <Grid Grid.Row="1" ColumnDefinitions="*,240" ColumnSpacing="0">
-    <Grid x:Name="SplitGrid" Grid.Column="0">
+    <Grid x:Name="SplitGrid" Grid.Row="1">
       <Grid.RowDefinitions>
         <RowDefinition Height="3*" MinHeight="180" />
         <RowDefinition Height="5" />
@@ -242,78 +241,6 @@
           </TabItem>
         </TabControl>
       </Grid>
-    </Grid>
-      <Border Grid.Column="1" Background="{DynamicResource SecondaryBackground}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1,0,0,0" Padding="12,8">
-        <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="8">
-          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-            <TextBlock Text="{local:Loc Key=aiAssistant}" Classes="section-title" VerticalAlignment="Center" />
-            <TextBlock Grid.Column="1" Text="{local:Loc Key=perTab}" Classes="metadata" VerticalAlignment="Center" />
-            <Button Grid.Column="2" Content="i" Classes="quiet" ToolTip.Tip="{local:Loc Key=aiContextInfo}" AutomationProperties.Name="{local:Loc Key=aiContextInfo}" />
-          </Grid>
-          <TextBlock Grid.Row="1" Text="{local:Loc Key=aiIntro}" Classes="muted" TextWrapping="Wrap" />
-          <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Spacing="8">
-              <Border Classes="card" Padding="8" IsVisible="{Binding HasAiContextPreview}">
-                <StackPanel Spacing="6">
-                  <TextBlock Text="{local:Loc Key=aiContextPreviewReview}" FontWeight="SemiBold" TextWrapping="Wrap" />
-                  <ScrollViewer MaxHeight="180" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-                    <TextBlock Text="{Binding AiContextPreview}" FontFamily="{StaticResource CodeFont}" FontSize="11" TextWrapping="NoWrap" />
-                  </ScrollViewer>
-                  <WrapPanel>
-                    <Button Content="{local:Loc Key=confirmSend}" Classes="primary" Command="{Binding SendAiChatCommand}" />
-                    <Button Content="{local:Loc Key=edit}" Command="{Binding EditAiContextPreviewCommand}" />
-                  </WrapPanel>
-                </StackPanel>
-              </Border>
-              <TextBlock Text="{local:Loc Key=conversation}" Classes="metadata" IsVisible="{Binding HasChatMessages}" />
-              <ItemsControl ItemsSource="{Binding ChatMessages}" IsVisible="{Binding HasChatMessages}">
-                <ItemsControl.ItemTemplate>
-                  <DataTemplate x:DataType="localai:AiChatMessage">
-                    <Border Classes="card" Padding="8" Margin="0,0,0,4">
-                      <StackPanel Spacing="4">
-                        <TextBlock Text="{Binding Author}" FontWeight="SemiBold" Classes="metadata" />
-                        <TextBlock Text="{Binding Content}" TextWrapping="Wrap" />
-                      </StackPanel>
-                    </Border>
-                  </DataTemplate>
-                </ItemsControl.ItemTemplate>
-              </ItemsControl>
-              <Border Classes="card" Padding="8" IsVisible="{Binding HasAiProposal}">
-                <StackPanel Spacing="6">
-                  <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock Text="{Binding AiProposalTitle}" FontWeight="SemiBold" />
-                    <TextBlock Grid.Column="1" Text="{local:Loc Key=review}" Classes="metadata" />
-                  </Grid>
-                  <TextBlock Text="{Binding AiProposal.Explanation}" TextWrapping="Wrap" />
-                  <Border Background="{DynamicResource SecondaryBackground}" Padding="6" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" MaxHeight="220">
-                  <syntax:MongoTextEditor syntax:SyntaxSettings.Language="MongoScript" Text="{Binding AiProposal.ProposedContent}" Classes="code syntax" FontSize="12" LineHeight="18" IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" AutomationProperties.Name="{local:Loc Key=proposedCode}" />
-                  </Border>
-                  <TextBlock Text="{Binding AiProposal.Diff}" FontFamily="{StaticResource CodeFont}" FontSize="12" TextWrapping="Wrap" MaxHeight="120" />
-                  <TextBlock Text="{Binding AiProposal.Warning}" Classes="warning" TextWrapping="Wrap" IsVisible="{Binding AiProposal.RequiresAdditionalConfirmation}" />
-                  <TextBlock Text="{Binding AiProposalHint}" Classes="muted" TextWrapping="Wrap" />
-                  <WrapPanel Orientation="Horizontal">
-                    <Button Content="{local:Loc Key=applyProposal}" Classes="primary" Click="ApplyAiProposal" AutomationProperties.Name="{local:Loc Key=applyProposal}" />
-                    <Button Content="{local:Loc Key=dismiss}" Command="{Binding DismissAiProposalCommand}" AutomationProperties.Name="{local:Loc Key=dismiss}" />
-                  </WrapPanel>
-                </StackPanel>
-              </Border>
-              <TextBlock Grid.Row="3" Text="{Binding ChatStatusMessage}" Classes="metadata" TextWrapping="Wrap" IsVisible="{Binding ShowChatStatus}" />
-            </StackPanel>
-          </ScrollViewer>
-          <Border Grid.Row="3" Classes="card" Padding="6">
-            <Grid RowDefinitions="*,Auto" RowSpacing="6">
-              <TextBox Text="{Binding ChatInput}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="68" MaxHeight="120" PlaceholderText="{local:Loc Key=chatPlaceholder}" AutomationProperties.Name="{local:Loc Key=aiInstruction}" />
-              <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="6">
-                <TextBlock Text="{local:Loc Key=aiNoAutoApply}" Classes="metadata" TextWrapping="Wrap" VerticalAlignment="Center" />
-                <WrapPanel Grid.Column="1">
-                  <Button Content="{local:Loc Key=cancel}" Command="{Binding CancelAiChatCommand}" IsVisible="{Binding IsChatBusy}" />
-                  <Button Content="{local:Loc Key=previewContext}" Classes="primary" Command="{Binding SendAiChatCommand}" IsVisible="{Binding !IsChatBusy}" AutomationProperties.Name="{local:Loc Key=previewContext}" />
-                </WrapPanel>
-              </Grid>
-            </Grid>
-          </Border>
-        </Grid>
-      </Border>
     </Grid>
   </Grid>
 </UserControl>

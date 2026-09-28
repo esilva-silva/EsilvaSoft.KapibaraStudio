@@ -88,6 +88,11 @@ public sealed class WorkspaceService(IConnectionProfileRepository profiles, IQue
     public Task SaveProfileAsync(ConnectionProfile profile, CancellationToken cancellationToken = default) =>
         TrackAsync("Salvando conexão", operationToken => profiles.SaveAsync(profile, operationToken), priority: ApplicationOperationPriority.High, token: cancellationToken);
 
+    public Task<bool> HasPendingProfileCredentialCleanupAsync(Guid profileId, CancellationToken cancellationToken = default) =>
+        profiles is IConnectionProfileCredentialStatusProvider status
+            ? status.HasPendingCredentialCleanupAsync(profileId, cancellationToken)
+            : Task.FromResult(false);
+
     public void SaveConnectionPassword(Guid profileId, string password) => secrets.SetPassword(profileId, password);
 
     public async Task DeleteProfileAsync(Guid profileId, CancellationToken cancellationToken = default)

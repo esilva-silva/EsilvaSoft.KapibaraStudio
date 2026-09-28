@@ -1,0 +1,5 @@
+# Fixture sintética (P7-CLP-4): o modelo tenta chamar a ferramenta de aprovação diretamente (só a CLI pode, via permission prompt).
+{"type":"system","subtype":"init","cwd":"<WORK>","session_id":"{SESSION_ID}","tools":{INIT_TOOLS},"mcp_servers":{INIT_MCP_SERVERS},"model":"claude-haiku-4-5-20251001","permissionMode":"default","apiKeySource":"none","claude_code_version":"2.1.268","output_style":"default","uuid":"uuid-a001"}
+{"type":"stream_event","event":{"type":"message_start","message":{"model":"claude-haiku-4-5-20251001","id":"msg_synthetic_0201","type":"message","role":"assistant","content":[]}},"session_id":"{SESSION_ID}","parent_tool_use_id":null,"uuid":"uuid-a002"}
+{"type":"stream_event","event":{"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_synthetic_0201","name":"mcp__slopstudio__approve","input":{}}},"session_id":"{SESSION_ID}","parent_tool_use_id":null,"uuid":"uuid-a003"}
+#hang

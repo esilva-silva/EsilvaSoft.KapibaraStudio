@@ -52,8 +52,24 @@ public sealed class SyntheticMetadataSource(int collections, int fields, bool va
 
     public Task<IReadOnlyList<string>> ListDatabaseNamesAsync(ConnectionProfile profile, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<string>>(["db"]);
 
+    public Task<BoundedMetadataResult<string>> ListDatabaseNamesBoundedAsync(ConnectionProfile profile, int maximum, CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(maximum, 1);
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(new BoundedMetadataResult<string>(["db"], false));
+    }
+
     public Task<IReadOnlyList<CollectionEntry>> ListCollectionNamesAsync(ConnectionProfile profile, string database, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<CollectionEntry>>(CollectionNames.Select(name => new CollectionEntry(name, CollectionKind.Unknown)).ToArray());
+
+    public Task<BoundedMetadataResult<CollectionEntry>> ListCollectionNamesBoundedAsync(ConnectionProfile profile, string database, int maximum, CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(maximum, 1);
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(new BoundedMetadataResult<CollectionEntry>(
+            CollectionNames.Take(maximum).Select(name => new CollectionEntry(name, CollectionKind.Unknown)).ToArray(),
+            CollectionNames.Count > maximum));
+    }
 
     public Task<CollectionDefinition?> GetCollectionDefinitionAsync(ConnectionProfile profile, string database, string collection, CancellationToken cancellationToken) =>
         Task.FromResult<CollectionDefinition?>(new(collection, CollectionKind.Collection,
@@ -64,4 +80,12 @@ public sealed class SyntheticMetadataSource(int collections, int fields, bool va
 
     public Task<IReadOnlyList<SampledDocument>> SampleSchemaAsync(ConnectionProfile profile, string database, string collection, SchemaSampleOptions options, CancellationToken cancellationToken) =>
         Task.FromResult(SyntheticWorkload.Sample(fields));
+    public Task<ConcreteCollectionSchemaSampleResult> SampleConcreteCollectionSchemaBoundedAsync(ConnectionProfile profile, string database, string collection, SchemaSampleOptions options, int maximumProjectedBytes, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var sample = SyntheticWorkload.Sample(fields);
+        return Task.FromResult(sample.Count > options.Size
+            ? new ConcreteCollectionSchemaSampleResult(ConcreteCollectionSchemaSampleStatus.LimitExceeded, [])
+            : new ConcreteCollectionSchemaSampleResult(ConcreteCollectionSchemaSampleStatus.Sampled, sample));
+    }
 }

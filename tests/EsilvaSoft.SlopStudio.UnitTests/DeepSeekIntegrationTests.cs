@@ -84,28 +84,6 @@ public sealed class DeepSeekIntegrationTests
         Assert.That(runtime.Generations, Is.EqualTo(1));
     }
 
-    [Test]
-    public async Task ChatSharesModelAndRejectsTruncatedProposals()
-    {
-        var runtime = new CompletionRuntimeFake();
-        await using var provider = new AiAutocompleteProvider(new CompletionCatalogFake(), () => runtime);
-        var autocomplete = new AutocompleteService(provider);
-        await autocomplete.ConfigureAsync(new() { ModelPath = "model" });
-        var chat = new LocalModelAiChatService(provider, autocomplete);
-        var request = new AiChatRequest(new("Limitar a 10", "Console", "db.customers.find({})", "javascript", "MongoDB", "test", "customers", "consulta"));
-        var response = await chat.AskAsync(request);
-        Assert.That(response!.ProposedCode, Is.EqualTo("collection.find({})"));
-        await autocomplete.GetCompletionAsync(new("db.", ""));
-        Assert.That(runtime.Initializations, Is.EqualTo(1));
-        runtime.Handler = (r, _) =>
-        {
-            Assert.That(r.RequireFullContext, Is.True);
-            Assert.That(r.Prefix, Does.Contain("Limitar a 10"));
-            return Task.FromResult(new ModelGenerationResult("db.deleteMany({", 256, TimeSpan.Zero, "cpu", false));
-        };
-        Assert.That(async () => await chat.AskAsync(request), Throws.InvalidOperationException);
-    }
-
     [Test, Explicit("Requer exportação CPU SlopCoder e DirectML incompatível para verificar a recuperação."), Category("LocalModelIntegration")]
     public async Task CpuExportRecoversFromGpuExecutionFailure()
     {
@@ -117,32 +95,6 @@ public sealed class DeepSeekIntegrationTests
         Assert.That(result.Provider, Is.EqualTo("cpu"));
         Assert.That(result.UsedCpuFallback, Is.True);
         Assert.That(result.Text, Is.Not.Empty);
-    }
-
-    [Test, Explicit("Requer pesos SlopCoder para proposta ONNX real no chat."), Category("LocalModelIntegration")]
-    public async Task RealChatProducesReviewableCode()
-    {
-        await using var provider = new AiAutocompleteProvider(new LocalModelCatalog(), () => new OnnxLocalModelRuntime());
-        var autocomplete = new AutocompleteService(provider);
-        await autocomplete.ConfigureAsync(new() { ModelPath = ModelPath, Acceleration = AiAccelerationMode.Cpu });
-        var chat = new LocalModelAiChatService(provider, autocomplete);
-        var response = await chat.AskAsync(new(new("Add limit(10) to the query", "Console", "db.getCollection(\"customers\").find({})",
-            "javascript", "MongoDB", "test", "customers", "consulta")));
-        Assert.That(response!.ProposedCode, Is.Not.Empty);
-        TestContext.WriteLine(response.ProposedCode);
-    }
-
-    [TestCase("const password = 'secret';")]
-    [TestCase("<｜fim▁begin｜>")]
-    public async Task ChatPrivacyPreventsModelLoading(string content)
-    {
-        var runtime = new CompletionRuntimeFake();
-        await using var provider = new AiAutocompleteProvider(new CompletionCatalogFake(), () => runtime);
-        var autocomplete = new AutocompleteService(provider);
-        await autocomplete.ConfigureAsync(new() { ModelPath = "model" });
-        var chat = new LocalModelAiChatService(provider, autocomplete);
-        Assert.That(async () => await chat.AskAsync(new(new("Rewrite", "Console", content, "javascript", "MongoDB", "test", "", "consulta"))), Throws.InvalidOperationException);
-        Assert.That(runtime.Initializations, Is.Zero);
     }
 
     [Test]
@@ -158,9 +110,11 @@ public sealed class DeepSeekIntegrationTests
         await using var provider = new AiAutocompleteProvider(new CompletionCatalogFake(), () => runtime);
         var autocomplete = new AutocompleteService(provider);
         await autocomplete.ConfigureAsync(new() { ModelPath = "model" });
-        var chat = new LocalModelAiChatService(provider, autocomplete);
         using var cancellation = new CancellationTokenSource();
-        var pending = chat.AskAsync(new(new("Rewrite", "Console", "db.find({})", "javascript", "MongoDB", "test", "", "consulta")), cancellation.Token);
+        // Pedido explícito do papel Chat, como o do LocalAgentProvider: prioridade interativa e token próprio.
+        var pending = provider.Models.GenerateAsync(LocalModelRole.Chat, autocomplete.Settings,
+            _ => new ModelGenerationRequest("/* Rewrite */ db.find({})", "", 2048, 64, RequireFullContext: true),
+            AiRequestPriority.Interactive, cancellationToken: cancellation.Token);
         await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
         var completion = autocomplete.GetCompletionAsync(new("db.", ""));
         cancellation.Cancel();

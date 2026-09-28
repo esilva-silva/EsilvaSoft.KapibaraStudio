@@ -28,6 +28,8 @@ public sealed class FieldNode
     public IReadOnlyList<string> EnumLiterals { get; }
     /// <summary>Fraction of sampled documents containing the field; null without a sample.</summary>
     public double? Occurrence => SampleSize > 0 && Evidence.HasFlag(EvidenceSources.Sample) ? Math.Min(1, (double)Occurrences / SampleSize) : null;
+    /// <summary>Number of sampled documents containing this field. Zero for evidence without a sample.</summary>
+    public int ObservedCount => Evidence.HasFlag(EvidenceSources.Sample) ? Occurrences : 0;
     public string PrimaryType => Types.Count == 0 ? "unknown"
         : Types.OrderByDescending(type => type.Value).ThenBy(type => type.Key, StringComparer.Ordinal).First().Key;
 

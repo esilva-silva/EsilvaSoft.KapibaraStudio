@@ -20,11 +20,15 @@ public sealed record AutocompleteSettings
     public string SelectedModel { get; init; } = "";
     /// <summary>Additive to version 1: folder name of a separate chat model; empty reuses <see cref="SelectedModel"/>.</summary>
     public string ChatModel { get; init; } = "";
-    /// <summary>Additive to version 1: the chat assistant may use the local model.</summary>
+    /// <summary>Additive to version 1: the local agent provider (Agente IA) may use the local model.</summary>
     public bool ChatEnabled { get; init; } = true;
-    /// <summary>Explicit local-only consent to include eligible tab context in a manual AI chat request.</summary>
+    /// <summary>
+    /// Explicit local-only consent to include eligible tab context in a manual AI chat request. Its only consumer, the
+    /// per-tab "Assistente IA" panel, was removed on 25/09/2026; the persisted value is kept for session compatibility
+    /// until a product decision (reuse by the Agente IA or additive removal) is recorded.
+    /// </summary>
     public bool LocalAiContextEnabled { get; init; }
-    /// <summary>Separate explicit opt-in for including the tab's JSON input in local AI chat context.</summary>
+    /// <summary>Separate explicit opt-in for the tab's JSON input in local AI chat context (no consumer; see above).</summary>
     public bool IncludeInputJsonInLocalAiContext { get; init; }
     public AiAccelerationMode Acceleration { get; init; } = AiAccelerationMode.Auto;
     public AiExecutionProvider ExecutionProvider { get; init; } = AiExecutionProvider.Auto;

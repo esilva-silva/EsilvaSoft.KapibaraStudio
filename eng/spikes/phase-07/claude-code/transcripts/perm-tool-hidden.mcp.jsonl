@@ -1,0 +1,7 @@
+{"pid":16148,"ts":"2026-09-25T16:53:52.2867498+00:00","policy":"allow","envNames":["CLAUDE_CODE_ENTRYPOINT","CLAUDE_CODE_MESSAGING_SOCKET","CLAUDE_CODE_MESSAGING_TOKEN","CLAUDE_CODE_SESSION_ID","CLAUDE_PROJECT_DIR","CLAUDECODE","SLOP_SPIKE_CANARY"],"kind":"start"}
+{"params":{"protocolVersion":"2025-11-25","capabilities":{"roots":{"listChanged":true},"elicitation":{}},"clientInfo":{"name":"claude-code","title":"Claude Code","version":"2.1.268","description":"Anthropic's agentic coding tool","websiteUrl":"https://claude.com/claude-code"}},"ts":"2026-09-25T16:53:52.3104654+00:00","method":"initialize","kind":"recv","id":0}
+{"params":null,"ts":"2026-09-25T16:53:52.3164634+00:00","method":"notifications/initialized","kind":"recv","id":null}
+{"params":null,"ts":"2026-09-25T16:53:52.3184714+00:00","method":"tools/list","kind":"recv","id":1}
+{"params":{"name":"approve","arguments":{"tool_name":"Bash","input":{"command":"mkdir criado-pelo-bash","description":"Create a directory named criado-pelo-bash"},"tool_use_id":"toolu_015LrxwP3d2XtgLVaGas8uXz"},"_meta":{"claudecode/toolUseId":"toolu_015LrxwP3d2XtgLVaGas8uXz","progressToken":2}},"ts":"2026-09-25T16:53:54.6252669+00:00","method":"tools/call","kind":"recv","id":2}
+{"tool_name":"Bash","ts":"2026-09-25T16:53:54.6291733+00:00","decision":"{\"updatedInput\":{\"command\":\"mkdir criado-pelo-bash\",\"description\":\"Create a directory named criado-pelo-bash\"},\"behavior\":\"allow\"}","kind":"decision"}
+{"ts":"2026-09-25T16:54:00.9790020+00:00","kind":"eof"}

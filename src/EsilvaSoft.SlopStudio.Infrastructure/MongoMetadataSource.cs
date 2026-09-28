@@ -11,10 +11,12 @@ namespace EsilvaSoft.SlopStudio.Infrastructure;
 /// Metadata commands for autocomplete. Listings use nameOnly/authorized options; schema sampling computes names and
 /// BSON types on the server so document values never reach the IDE.
 /// </summary>
-public sealed class MongoMetadataSource(IConnectionSecretStore? secrets = null, IEnvironmentVaultRepository? environments = null, MongoClientPool? clients = null)
+public sealed class MongoMetadataSource(IConnectionSecretStore? secrets = null, IEnvironmentVaultRepository? environments = null,
+    MongoClientPool? clients = null, ISecretStore? credentialStore = null)
     : IMongoMetadataSource
 {
     internal const string SampleComment = "slopstudio:autocomplete-schema";
+    internal const string AgentSampleComment = "slopstudio:agent-schema";
     private const int UnauthorizedCode = 13;
     private static readonly JsonWriterSettings CanonicalJson = new() { OutputMode = JsonOutputMode.CanonicalExtendedJson };
 
@@ -25,6 +27,16 @@ public sealed class MongoMetadataSource(IConnectionSecretStore? secrets = null, 
         return (await cursor.ToListAsync(cancellationToken).ConfigureAwait(false)).Order(StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
+    public async Task<BoundedMetadataResult<string>> ListDatabaseNamesBoundedAsync(
+        ConnectionProfile profile, int maximum, CancellationToken cancellationToken)
+    {
+        ValidateAgentMaximum(maximum);
+        var client = await ClientAsync(profile, cancellationToken).ConfigureAwait(false);
+        using var cursor = await client.ListDatabaseNamesAsync(
+            new ListDatabaseNamesOptions { AuthorizedDatabases = true }, cancellationToken).ConfigureAwait(false);
+        return await ReadBoundedNamesAsync(cursor, maximum, cancellationToken).ConfigureAwait(false);
+    }
+
     public async Task<IReadOnlyList<CollectionEntry>> ListCollectionNamesAsync(ConnectionProfile profile, string database, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(database);
@@ -33,6 +45,43 @@ public sealed class MongoMetadataSource(IConnectionSecretStore? secrets = null, 
         using var names = await target.ListCollectionNamesAsync(new ListCollectionNamesOptions { AuthorizedCollections = true }, cancellationToken).ConfigureAwait(false);
         return (await names.ToListAsync(cancellationToken).ConfigureAwait(false))
             .Select(name => new CollectionEntry(name, CollectionKind.Unknown)).OrderBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase).ToArray();
+    }
+
+    public async Task<BoundedMetadataResult<CollectionEntry>> ListCollectionNamesBoundedAsync(
+        ConnectionProfile profile, string database, int maximum, CancellationToken cancellationToken)
+    {
+        ValidateAgentMaximum(maximum);
+        ArgumentException.ThrowIfNullOrWhiteSpace(database);
+        var target = (await ClientAsync(profile, cancellationToken).ConfigureAwait(false)).GetDatabase(database);
+        using var cursor = await target.ListCollectionNamesAsync(
+            new ListCollectionNamesOptions { AuthorizedCollections = true }, cancellationToken).ConfigureAwait(false);
+        var result = await ReadBoundedNamesAsync(cursor, maximum, cancellationToken).ConfigureAwait(false);
+        return new BoundedMetadataResult<CollectionEntry>(
+            result.Items.Select(name => new CollectionEntry(name, CollectionKind.Unknown)).ToArray(), result.Overflow);
+    }
+
+    private static void ValidateAgentMaximum(int maximum)
+    {
+        if (maximum is < 1 or > 10_000) throw new ArgumentOutOfRangeException(nameof(maximum));
+    }
+
+    internal static async Task<BoundedMetadataResult<string>> ReadBoundedNamesAsync(
+        IAsyncCursor<string> cursor, int maximum, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(cursor);
+        ValidateAgentMaximum(maximum);
+        var names = new List<string>(Math.Min(maximum, 200));
+        while (await cursor.MoveNextAsync(cancellationToken).ConfigureAwait(false))
+        {
+            foreach (var name in cursor.Current)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (names.Count == maximum)
+                    return new BoundedMetadataResult<string>(names, true);
+                names.Add(name);
+            }
+        }
+        return new BoundedMetadataResult<string>(names, false);
     }
 
     public async Task<CollectionDefinition?> GetCollectionDefinitionAsync(ConnectionProfile profile, string database, string collection, CancellationToken cancellationToken)
@@ -73,6 +122,96 @@ public sealed class MongoMetadataSource(IConnectionSecretStore? secrets = null, 
         using var cursor = await client.GetDatabase(database).GetCollection<BsonDocument>(collection)
             .AggregateAsync<BsonDocument>(BuildSamplePipeline(options), aggregate, cancellationToken).ConfigureAwait(false);
         return (await cursor.ToListAsync(cancellationToken).ConfigureAwait(false)).Select(ParseSample).ToArray();
+    }
+
+    public async Task<ConcreteCollectionSchemaSampleResult> SampleConcreteCollectionSchemaBoundedAsync(
+        ConnectionProfile profile, string database, string collection, SchemaSampleOptions options,
+        int maximumProjectedBytes, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(database);
+        ArgumentException.ThrowIfNullOrWhiteSpace(collection);
+        ArgumentNullException.ThrowIfNull(options);
+        options.Validate();
+        if (options.Size > 100 || maximumProjectedBytes is < 1 or > 256 * 1024)
+            throw new ArgumentOutOfRangeException(nameof(maximumProjectedBytes));
+
+        // Dynamic ENV/cofre resolution happens exactly once. Definition and sample stay on the same Mongo client.
+        var client = await ClientAsync(profile, cancellationToken).ConfigureAwait(false);
+        var target = client.GetDatabase(database);
+        var originalUuid = await ReadConcreteCollectionUuidAsync(target, collection, cancellationToken)
+            .ConfigureAwait(false);
+        if (originalUuid is null)
+            return new(ConcreteCollectionSchemaSampleStatus.TargetNotVerifiable, []);
+
+        var aggregate = new AggregateOptions
+        {
+            MaxTime = TimeSpan.FromMilliseconds(options.MaxTimeMs),
+            Comment = AgentSampleComment,
+            BatchSize = 1
+        };
+        var samples = new List<SampledDocument>(options.Size);
+        var projectedBytes = 0;
+        using (var cursor = await target.GetCollection<BsonDocument>(collection)
+                   .AggregateAsync<BsonDocument>(BuildSamplePipeline(options), aggregate, cancellationToken)
+                   .ConfigureAwait(false))
+        {
+            while (await cursor.MoveNextAsync(cancellationToken).ConfigureAwait(false))
+            {
+                foreach (var document in cursor.Current)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (samples.Count == options.Size)
+                        return new(ConcreteCollectionSchemaSampleStatus.LimitExceeded, []);
+                    var length = document.ToBson().Length;
+                    if (length > maximumProjectedBytes - projectedBytes)
+                        return new(ConcreteCollectionSchemaSampleStatus.LimitExceeded, []);
+                    projectedBytes += length;
+                    samples.Add(ParseSample(document));
+                }
+            }
+        }
+
+        // A replacement view or collection gets a different identity. Never release evidence if verification
+        // becomes unavailable or the namespace no longer names the same concrete collection.
+        var currentUuid = await ReadConcreteCollectionUuidAsync(target, collection, cancellationToken)
+            .ConfigureAwait(false);
+        if (currentUuid is null || !originalUuid.AsSpan().SequenceEqual(currentUuid))
+            return new(ConcreteCollectionSchemaSampleStatus.TargetNotVerifiable, []);
+        return new(ConcreteCollectionSchemaSampleStatus.Sampled, samples);
+    }
+
+    internal static async Task<byte[]?> ReadConcreteCollectionUuidAsync(
+        IMongoDatabase target, string collection, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var definitions = await target.ListCollectionsAsync(
+                new ListCollectionsOptions { Filter = new BsonDocument("name", collection) },
+                cancellationToken).ConfigureAwait(false);
+            byte[]? identity = null;
+            while (await definitions.MoveNextAsync(cancellationToken).ConfigureAwait(false))
+            {
+                foreach (var definition in definitions.Current)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (identity is not null ||
+                        !definition.TryGetValue("name", out var name) || !name.IsString ||
+                        !string.Equals(name.AsString, collection, StringComparison.Ordinal) ||
+                        !definition.TryGetValue("type", out var kind) || !kind.IsString ||
+                        !string.Equals(kind.AsString, "collection", StringComparison.Ordinal) ||
+                        !definition.TryGetValue("info", out var infoValue) || infoValue is not BsonDocument info ||
+                        !info.TryGetValue("uuid", out var uuidValue) || uuidValue is not BsonBinaryData uuid ||
+                        uuid.SubType != BsonBinarySubType.UuidStandard || uuid.Bytes.Length != 16)
+                        return null;
+                    identity = uuid.Bytes.ToArray();
+                }
+            }
+            return identity;
+        }
+        catch (MongoCommandException exception) when (exception.Code == UnauthorizedCode)
+        {
+            return null;
+        }
     }
 
     /// <summary>$sample followed by a projection of key names and $type values up to the requested depth.</summary>
@@ -143,7 +282,7 @@ public sealed class MongoMetadataSource(IConnectionSecretStore? secrets = null, 
     {
         ArgumentNullException.ThrowIfNull(profile);
         ArgumentException.ThrowIfNullOrWhiteSpace(profile.ConnectionString);
-        var environment = new OperationEnvironment(environments, secrets, profile.Id);
+        var environment = new OperationEnvironment(environments, secrets, profile.Id, credentialStore);
         await Task.CompletedTask.ConfigureAwait(ConfigureAwaitOptions.ForceYielding);
         await environment.PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
         return (clients ?? MongoClientPool.Shared).Get(MongoClientSettings.FromConnectionString(environment.ResolvedConnection));

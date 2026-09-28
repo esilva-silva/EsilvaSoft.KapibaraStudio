@@ -6,6 +6,10 @@
   <Project Path="src/EsilvaSoft.SlopStudio.Infrastructure/EsilvaSoft.SlopStudio.Infrastructure.csproj" />
   <Project Path="src/EsilvaSoft.SlopStudio.Infrastructure.LocalAi/EsilvaSoft.SlopStudio.Infrastructure.LocalAi.csproj" />
   <Project Path="src/EsilvaSoft.SlopStudio.Desktop/EsilvaSoft.SlopStudio.Desktop.csproj" />
+  <Project Path="src/EsilvaSoft.SlopStudio.McpServer/EsilvaSoft.SlopStudio.McpServer.csproj" />
+  <Project Path="src/EsilvaSoft.SlopStudio.Infrastructure.Agents/EsilvaSoft.SlopStudio.Infrastructure.Agents.csproj" />
   <Project Path="tests/EsilvaSoft.SlopStudio.UnitTests/EsilvaSoft.SlopStudio.UnitTests.csproj" />
   <Project Path="tests/EsilvaSoft.SlopStudio.Benchmarks/EsilvaSoft.SlopStudio.Benchmarks.csproj" />
+  <Project Path="tests/EsilvaSoft.SlopStudio.Infrastructure.Agents.Tests/EsilvaSoft.SlopStudio.Infrastructure.Agents.Tests.csproj" />
+  <Project Path="tests/EsilvaSoft.SlopStudio.FakeClaudeCode/EsilvaSoft.SlopStudio.FakeClaudeCode.csproj" />
 </Solution>

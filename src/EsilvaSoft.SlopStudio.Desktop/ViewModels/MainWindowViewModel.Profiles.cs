@@ -59,6 +59,8 @@ public sealed partial class MainWindowViewModel
     [ObservableProperty]
     private bool _newProfileIsFavorite;
 
+    // No UI and no consumer since the per-tab assistant was removed (ADR-055): editing a profile carries its persisted
+    // value through unchanged; new profiles keep the historical default.
     [ObservableProperty]
     private bool _newProfileLocalAiContextEnabled = true;
 
@@ -220,16 +222,34 @@ public sealed partial class MainWindowViewModel
                 : AddCredentials(NewProfileConnectionString, NewProfileUsername, NewProfilePassword);
             var profile = ConnectionProfile.Create(NewProfileName, connectionString, NewProfileDatabase, NewProfileIsReadOnly, NewProfileIsFavorite, NewProfileEnvironment, NewProfileColor, NewProfileTags, NewProfileFolder)
                 with { LocalAiContextEnabled = NewProfileLocalAiContextEnabled };
+            var source = Profiles.FirstOrDefault(existing => existing.Id == ProfileEditorSourceId);
+            if (source?.SecretReference is not null && string.IsNullOrEmpty(NewProfilePassword) &&
+                !string.Equals(connectionString, source.ConnectionString, StringComparison.Ordinal))
+                throw new ArgumentException(T("profileCredentialReentryRequired"));
+            if (source is not null && source.SecretReference is not null &&
+                string.Equals(connectionString, source.ConnectionString, StringComparison.Ordinal) &&
+                string.IsNullOrEmpty(NewProfilePassword))
+                profile = profile with { SecretReference = source.SecretReference };
             var editingId = _editingProfileId;
             if (editingId is not null)
             {
                 profile = profile with { Id = editingId.Value };
             }
 
-            if (!await RunAsync(cancellationToken => _workspace.SaveProfileAsync(profile, cancellationToken)))
+            ConnectionProfile? savedProfile = null;
+            var cleanupPending = false;
+            if (!await RunAsync(async cancellationToken =>
+            {
+                await _workspace.SaveProfileAsync(profile, cancellationToken);
+                savedProfile = (await _workspace.GetProfilesAsync(cancellationToken))
+                    .Single(saved => saved.Id == profile.Id);
+                cleanupPending = await _workspace.HasPendingProfileCredentialCleanupAsync(profile.Id, cancellationToken);
+            }))
             {
                 return;
             }
+            // The repository returns the redacted URI and the versioned OS-store reference.
+            profile = savedProfile!;
 
             if (editingId is null)
             {
@@ -263,7 +283,8 @@ public sealed partial class MainWindowViewModel
             _editingProfileId = null;
             IsProfileEditorVisible = false;
             StatusMessage = (editingId is null ? T("profileSaved") : T("profileUpdated"))
-                + (preferenceError is null ? string.Empty : " " + F("uuidPreferenceNotSaved", preferenceError));
+                + (preferenceError is null ? string.Empty : " " + F("uuidPreferenceNotSaved", preferenceError))
+                + (cleanupPending ? " " + T("profileCredentialCleanupPending") : string.Empty);
         }
         catch (ArgumentException exception)
         {

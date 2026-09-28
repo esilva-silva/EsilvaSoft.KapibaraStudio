@@ -55,7 +55,7 @@ public sealed class DatabaseExplorerTests
     [Test]
     public async Task ExplicitTargetSurvivesDraftRecoveryWithoutConnectingOrPersistingUri()
     {
-        using var context = new WorkspaceTestContext();
+        using var context = new WorkspaceTestContext(profileSecrets: new InMemoryProfileSecretStore());
         var profile = ConnectionProfile.Create("A", "mongodb://user:private@host/db");
         await context.Repository.SaveAsync(profile);
         using (var workspace = new WorkspaceViewModel(context.Workspace, context.Repository))

@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Server/Server.csproj" />
+  <Project Path="IndependentClient/IndependentClient.csproj" />
+  <Project Path="Tests/Tests.csproj" />
+</Solution>

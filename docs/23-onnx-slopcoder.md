@@ -56,6 +56,8 @@ Pacote `F:\models\SlopCoder-Mongo-1.5B-full-ONNX-INT8`: Qwen2.5-Coder-1.5B Base 
 INT8 (MatMulNBits, blocos de 32). Arquitetura `qwen2`: o catálogo o valida pelo caminho Qwen (tokens FIM do Qwen, `QwenFimPromptBuilder`); o
 `slopcoder_manifest.json` do pacote é metadado e não ativa o caminho DeepSeek. Pesos permanecem fora do Git e da distribuição.
 
+**Nota (25/09/2026):** `LocalModelAiChatService` foi **removido pela [ADR-055](10-decisoes-arquiteturais.md#adr-055--remoção-do-assistente-ia-por-aba-25092026)**; as medições abaixo são evidência histórica do treino/benchmark feito quando o serviço existia e permanecem válidas como registro, mas o serviço não está mais no código.
+
 O treino usou exatamente o contrato deste repositório: `AutocompleteContextBuilder.ModelPrefix`, `QwenFimPromptBuilder` e o prefixo JSON do
 `LocalModelAiChatService`. Os arquivos que definem esse contrato (`LocalModelAiChatService`, `AutocompleteContextBuilder`,
 `QwenFimPromptBuilder`, `OnnxLocalModelRuntime`, `LocalModelCatalog`, `AutocompleteService`, `Core/Autocomplete.cs`, `Core/AiAssistant.cs`)

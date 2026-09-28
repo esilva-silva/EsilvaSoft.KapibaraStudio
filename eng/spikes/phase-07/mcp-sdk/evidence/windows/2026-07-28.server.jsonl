@@ -1,0 +1,2 @@
+{"result":{"supportedVersions":["2026-07-28"],"capabilities":{"logging":{},"tools":{}},"ttlMs":0,"cacheScope":"private","resultType":"complete","_meta":{"io.modelcontextprotocol/serverInfo":{"name":"slop-phase07-protocol-spike","version":"0.1.0"}}},"id":1,"jsonrpc":"2.0"}
+{"result":{"tools":[],"ttlMs":0,"cacheScope":"private","resultType":"complete","_meta":{"io.modelcontextprotocol/serverInfo":{"name":"slop-phase07-protocol-spike","version":"0.1.0"}}},"id":2,"jsonrpc":"2.0"}

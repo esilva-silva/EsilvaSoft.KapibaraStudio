@@ -1,0 +1,4 @@
+{"header":{"claudeVersion":"2.1.268 (Claude Code)","scenario":"init-safe-mode","argv":["-p","--output-format","stream-json","--input-format","stream-json","--verbose","--include-partial-messages","--model","haiku","--max-turns","2","--safe-mode"],"setEnvNames":[]}}
+{"ms":20026.0,"s":"harness","text":"init before stdin: False"}
+{"ms":20028.0,"s":"harness","text":"stdin closed"}
+{"ms":20276.0,"s":"harness","text":"exited code=0"}

@@ -1,0 +1,5 @@
+{"policy":"allow","ts":"2026-09-25T16:53:43.4911519+00:00","kind":"start","pid":41968,"envNames":["CLAUDE_CODE_ENTRYPOINT","CLAUDE_CODE_MESSAGING_SOCKET","CLAUDE_CODE_MESSAGING_TOKEN","CLAUDE_CODE_SESSION_ID","CLAUDE_PROJECT_DIR","CLAUDECODE","SLOP_SPIKE_CANARY"]}
+{"ts":"2026-09-25T16:53:43.5196273+00:00","kind":"recv","params":{"protocolVersion":"2025-11-25","capabilities":{"roots":{"listChanged":true},"elicitation":{}},"clientInfo":{"name":"claude-code","title":"Claude Code","version":"2.1.268","description":"Anthropic's agentic coding tool","websiteUrl":"https://claude.com/claude-code"}},"id":0,"method":"initialize"}
+{"ts":"2026-09-25T16:53:43.5251606+00:00","kind":"recv","params":null,"id":null,"method":"notifications/initialized"}
+{"ts":"2026-09-25T16:53:43.5268744+00:00","kind":"recv","params":null,"id":1,"method":"tools/list"}
+{"ts":"2026-09-25T16:53:51.0386384+00:00","kind":"eof"}

@@ -17,16 +17,19 @@ public sealed class MongoWorkspaceService : IMongoWorkspaceService
     private readonly IConnectionSecretStore _secrets;
     private readonly MongoClientPool _clients;
     private readonly IEnvironmentVaultRepository? _environments;
+    private readonly ISecretStore? _credentialStore;
 
-    public MongoWorkspaceService(IConnectionSecretStore? secrets = null, IEnvironmentVaultRepository? environments = null, MongoClientPool? clients = null)
+    public MongoWorkspaceService(IConnectionSecretStore? secrets = null, IEnvironmentVaultRepository? environments = null,
+        MongoClientPool? clients = null, ISecretStore? credentialStore = null)
     {
         _secrets = secrets ?? new SessionConnectionSecretStore();
         _environments = environments;
         _clients = clients ?? MongoClientPool.Shared;
+        _credentialStore = credentialStore;
     }
 
     private Task<MongoOperationContext> PrepareAsync(ConnectionProfile profile, CancellationToken cancellationToken) =>
-        MongoOperationContext.PrepareAsync(profile, _secrets, _environments, _clients, cancellationToken);
+        MongoOperationContext.PrepareAsync(profile, _secrets, _environments, _clients, cancellationToken, _credentialStore);
 
     public async Task<ConnectionTestResult> TestConnectionAsync(ConnectionProfile profile, CancellationToken cancellationToken = default)
     {

@@ -13,10 +13,6 @@
         <CheckBox Content="{local:Loc Key=useEditorHistoryContext}" IsChecked="{Binding UseEditorContext}"/>
         <CheckBox Content="{local:Loc Key=acceptPartialTab}" IsChecked="{Binding IncrementalTab}"/>
         <CheckBox Content="{local:Loc Key=useLocalModelAssistant}" IsChecked="{Binding ChatEnabled}"/>
-        <CheckBox x:Name="AllowLocalAiContext" Content="{local:Loc Key=allowLocalAiContext}" IsChecked="{Binding LocalAiContextEnabled}"/>
-        <TextBlock Text="{local:Loc Key=localAiContextScope}" Classes="metadata" TextWrapping="Wrap" Margin="24,0,0,4"/>
-        <CheckBox x:Name="IncludeLocalAiInputJson" Content="{local:Loc Key=allowLocalAiInputJson}" IsChecked="{Binding IncludeInputJsonInLocalAiContext}" IsEnabled="{Binding LocalAiContextEnabled}" Margin="24,0,0,0"/>
-        <TextBlock Text="{local:Loc Key=localAiInputJsonScope}" Classes="metadata" TextWrapping="Wrap" Margin="48,0,0,4"/>
 
         <TextBlock Text="{local:Loc Key=inlineSuggestion}" Classes="section-title"/>
         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">

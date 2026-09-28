@@ -102,7 +102,7 @@ Referências: [índices](https://www.mongodb.com/docs/manual/indexes/), [driver]
 | ADV-06 | Vector Search: dimensões, similaridade, filtros, ANN/ENN e busca híbrida | Backlog sem versão | 📋 Planejado | Validar vetor e índice; recursos recentes entram por capacidade, sem envio externo implícito |
 | ADV-07 | Federation, Online Archive, Stream Processing, Charts e conectores de ecossistema | Backlog sem versão | 📋 Planejado | Cada serviço recebe adaptador/runbook e status explícito de suporte |
 | ADV-08 | SQL para MQL, geração de dados, análise de schema e migrações versionadas | Backlog sem versão | 🚧 Em desenvolvimento | Subconjunto SQL documentado; migração tem checksum, histórico e falhas parciais |
-| ADV-09 | Assistente IA opcional e integrações Git | v0.9.0 (local) / v0.11.0 (MCP/agentes) / v0.12.0 (workflow) / backlog Git | ✅ Implementado no escopo automatizado; 🧪 Experimental para modelos reais; 📋 Planejado (MCP/agentes/workflow/Git) | Prévia e revisão de contexto, proposta com diff/undo e funcionamento sem inferência; aceite de modelo real fica na Fase 9 |
+| ADV-09 | Assistente IA opcional e integrações Git | v0.9.0 (local) / v0.11.0 (MCP/agentes) / v0.12.0 (workflow) / backlog Git | **Removido** o painel local por aba (v0.9.0) em 25/09/2026 ([ADR-055](10-decisoes-arquiteturais.md#adr-055--remoção-do-assistente-ia-por-aba-25092026)); 🚧 Agente IA (v0.11.0) em desenvolvimento; 📋 Planejado (workflow/Git) | **ADR-056/CLP em integração em 27/09/2026:** painel global com conversas persistidas (opt-out), permissões por provider, chips do buffer, modos, tools MongoDB de leitura via MCP para Claude (assinatura) e propostas de edição por hunk presentes no checkout; testes, evidência visual e homologação real pendentes. Resposta offline sem modelo continua pendente; aceite de modelo real fica na Fase 9 |
 | UX-01 | Abas, temas, atalhos, localização, acessibilidade, DPI e virtualização | v0.5.0 | 🚧 Em desenvolvimento | Interface desktop disponível em pt-BR, en, es e zh-CN; pt-BR é o idioma inicial, `en` é o fallback determinístico; maturidade multiplataforma é validada na Fase 9 / v0.13.0 |
 | UX-02 | Centro de tarefas, progresso, cancelamento, limites de concorrência | v0.5.0 | 🚧 Em desenvolvimento | Tarefa longa não bloqueia UI; estado incerto distinto de cancelado |
 | UX-03 | Empacotamento Windows/Linux, atualização, diagnóstico, SBOM e licenças | v1.0.0 | 🚧 Em desenvolvimento | Implementação e documentação na v1.0.0; instalação limpa e verificação de integridade em ambiente real na Fase 9 / v0.13.0 |
@@ -163,7 +163,9 @@ Não fazem parte: tabela tabular, ações de edição por campo, virtualização
 
 Ghost text no cursor e aceitação incremental por Tab substituem a prévia abaixo do editor. Dicionário prioritário, Context Builder limitado com Input opcional, campos temporários dos resultados, histórico recente e nomes conhecidos da aba. Configurações independentes; fallback sem modelo; geração local automática após pausa. Usa `ConnectionPool` e a API real do Console. [Contrato e testes](21-autocomplete-local.md).
 
-## Incremento EDT — chat IA revisável do Console (12/09/2026)
+## Incremento EDT — chat IA revisável do Console (12/09/2026) — removido em 25/09/2026
+
+> **Removido (P7-L06-CLEANUP, [ADR-055](10-decisoes-arquiteturais.md#adr-055--remoção-do-assistente-ia-por-aba-25092026)).** O painel foi substituído pelo **Agente IA** (botão na barra superior, Ctrl+Shift+A); o editor ocupa a largura liberada. Funcionalidade que **não** existe no Agente IA e fica pendente: (1) proposta de substituição do editor com diff, validação de sintaxe, **Aplicar ao editor** com undo e confirmação adicional para escrita/destrutiva; (2) envio do conteúdo completo do editor (o Agente IA compartilha só metadados ou a seleção); (3) resposta sem modelo — o baseline determinístico de filtro/limite foi removido e o provider local (`LocalAgentProvider`) exige modelo FIM válido e anuncia apenas `CodeProposals` (Chat/Streaming falsos); (4) os opt-ins "contexto da aba no modelo local", "Input JSON" e "contexto por conexão" saíram da interface (preferências e cadastro de conexão); os valores persistidos são preservados sem consumidor, sem migração, até uma decisão de produto. O texto abaixo é histórico.
 
 Painel fixo à direita, por aba, com histórico, contexto estruturado, estados de carregamento/erro/cancelamento/ausência de contexto/resposta vazia e proposta com explicação e diff. O chat não substitui o autocomplete preditivo. A proposta só entra no editor após confirmação explícita; operações de escrita ou destrutivas exigem confirmação adicional. Respostas obsoletas são descartadas, o Explorer não é alterado e nenhuma consulta é executada automaticamente. O contrato `IAiChatService` mantém o provedor substituível e o baseline local cobre o exemplo de filtro por data/limite.
 
@@ -197,16 +199,6 @@ Implementado: construtor Date em UTC na apresentação de resultados/documentos/
 
 As seções de incrementos preservam evidência histórica. Seu texto não encerra requisitos amplos nem altera a versão alvo desta tabela. EDT-02 tem base determinística incluída na v0.5.0 e consolidação contextual na v0.6.0; IA opcional é v0.9.0. EDT-04 tem histórico/arquivos existentes, mas parâmetros e snippets completos permanecem pendentes. TRF-01 exige CSV no MVP, enquanto exportação de coleção inteira/streaming fica como extensão sem versão comprometida. Requisitos administrativos e Script/IA já implementados são antecipações mantidas, não novos bloqueadores do MVP.
 
-## Recortes planejados da v0.11.0 — MCP e agentes externos
+## Integração Claude e agentes
 
-O [plano da Fase 7](phases/phase-07-v0.11.0/README.md) acrescenta os recortes abaixo sem transformar evidências de IA local ou MongoDB em evidência de MCP. Todos estão **📋 Planejados**. IDs existentes são preservados; a fase detalha contratos, ferramentas, testes e aceites específicos.
-
-| IDs relacionados | Recorte novo | Aceite a implementar |
-| --- | --- | --- |
-| ADV-09, UX-01/02 | Agent Runtime, sessões, streaming, cancelamento e chat Avalonia por capabilities | UI independente do fornecedor, eventos normalizados, destino fixo e degradação sem serviços externos |
-| ADV-09, DAT-01/03/09/10, IDX-01 | MCP e registro único de ferramentas | Cliente externo descobre/executa leituras limitadas; MCP e chat usam a mesma implementação e autorização |
-| ADV-09, CON-07 | OpenAI/Codex e Claude por adaptadores; autenticação e cofre de SO | Apenas fluxos oficiais; referências a segredos persistidas, nenhuma API key/token em texto puro no workspace |
-| CON-07, ADM-11, DAT-04/05/06, IDX-01 | Permissões, aprovações, auditoria e limite de dados externos | Nenhuma escrita sem autorização vinculada à ação; nenhum dado enviado só por conectar um provider; segredos não retornados |
-| ADV-09, EDT-02 | Preservação do modo local | Autocomplete/ONNX funcionam offline e sem conta externa; capabilities locais não prometem ferramentas ou autonomia inexistentes |
-
-O workflow de ADV-09 permanece **📋 Planejado na [Fase 8/v0.12.0](phases/phase-08-v0.12.0/README.md)**, com fluxo fechado e ações revisadas. A integração MCP não habilita automaticamente funcionalidades de backlog ou administrativas ocultas.
+O provider Claude Code, autenticação oficial, streaming, retomada, chat e ponte de ferramentas MCP estão implementados e em validação no Windows. A API Anthropic permanece modalidade independente. Limites atuais, permissões e roteiro de homologação estão em [Claude no KapibaraStudio](phases/phase-07-v0.11.0/README.md). MCP/aprovações ainda não estão disponíveis no Linux; isso não implica aceite da fase funcional inteira ou de outros providers.

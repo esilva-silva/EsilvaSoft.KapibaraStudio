@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "observedAtUtc": "2026-09-23T10:53:35.9726888+00:00",
+  "osVersion": "10.0.26200.0",
+  "processArchitecture": "X64",
+  "powershellVersion": "7.6.6",
+  "credentialType": "CRED_TYPE_GENERIC",
+  "persistence": "CRED_PERSIST_LOCAL_MACHINE: current token user, same computer",
+  "scopeEvidence": "Native API under current token; cross-user isolation not exercised",
+  "syntheticOnly": true,
+  "passed": false,
+  "results": [
+    {
+      "Scenario": "Success",
+      "SyntheticTarget": "EsilvaSoft.SlopStudio.Spike.Phase07.Synthetic/d49b139d79de41f495a537ae906e277f",
+      "Status": "NoLogonSession",
+      "NativeError": 1312,
+      "Written": false,
+      "ReadBackMatches": false,
+      "MetadataMatches": false,
+      "Deleted": false,
+      "ConfirmedAbsent": false,
+      "AbsenceNativeError": 0,
+      "CleanupStatus": "NotRequired",
+      "CleanupNativeError": 0
+    },
+    {
+      "Scenario": "FailureAfterWrite",
+      "SyntheticTarget": "EsilvaSoft.SlopStudio.Spike.Phase07.Synthetic/dfee8e87197341889a7df3bbe7d760eb",
+      "Status": "NoLogonSession",
+      "NativeError": 1312,
+      "Written": false,
+      "ReadBackMatches": false,
+      "MetadataMatches": false,
+      "Deleted": false,
+      "ConfirmedAbsent": false,
+      "AbsenceNativeError": 0,
+      "CleanupStatus": "NotRequired",
+      "CleanupNativeError": 0
+    },
+    {
+      "Scenario": "FailureAfterRead",
+      "SyntheticTarget": "EsilvaSoft.SlopStudio.Spike.Phase07.Synthetic/b00a0a815d474b08ba69d11a0046f717",
+      "Status": "NoLogonSession",
+      "NativeError": 1312,
+      "Written": false,
+      "ReadBackMatches": false,
+      "MetadataMatches": false,
+      "Deleted": false,
+      "ConfirmedAbsent": false,
+      "AbsenceNativeError": 0,
+      "CleanupStatus": "NotRequired",
+      "CleanupNativeError": 0
+    }
+  ]
+}

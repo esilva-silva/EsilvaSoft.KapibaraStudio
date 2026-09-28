@@ -1,0 +1,7 @@
+{
+  "protocolVersion": "2026-07-28",
+  "firstMethod": "server/discover",
+  "initializedNotification": false,
+  "requestMetadata": true,
+  "source": "https://modelcontextprotocol.io/specification/2026-07-28/basic/versioning"
+}

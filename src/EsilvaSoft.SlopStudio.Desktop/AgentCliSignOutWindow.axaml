@@ -1,0 +1,12 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:EsilvaSoft.SlopStudio.Desktop.ViewModels" x:Class="EsilvaSoft.SlopStudio.Desktop.AgentCliSignOutWindow" x:DataType="vm:AgentCliSignOutPrompt" x:CompileBindings="True" Title="{Binding Title}" Width="480" SizeToContent="Height" MinWidth="360" CanResize="False" WindowStartupLocation="CenterOwner">
+  <StackPanel Margin="20" Spacing="16">
+    <TextBlock x:Name="TitleText" Text="{Binding Title}" Classes="section-title" TextWrapping="Wrap" />
+    <Border BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1" CornerRadius="4" Padding="12,8">
+      <TextBlock x:Name="MessageText" Text="{Binding Message}" TextWrapping="Wrap" />
+    </Border>
+    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+      <Button x:Name="CancelButton" Content="{Binding CancelText}" Click="OnCancel" IsCancel="True" />
+      <Button x:Name="ConfirmButton" Content="{Binding ConfirmText}" Classes="danger" Click="OnConfirm" AutomationProperties.HelpText="{Binding Message}" />
+    </StackPanel>
+  </StackPanel>
+</Window>

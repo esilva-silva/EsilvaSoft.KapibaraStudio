@@ -33,7 +33,7 @@ Implementar a IA explícita (`Ctrl+;`) sobre a infraestrutura ONNX existente: pr
 | Application | `AutocompleteService.cs` | Remove `AiAutocompleteProvider` interno; mantém fachada de preferências, status e teste |
 | Application | `IAutocompleteService.cs` (`ILocalModelRuntime`) | `StreamAsync` com implementação padrão |
 | Application | `ILocalAiModelService.cs`, `LocalAiModelService.cs` | Geração em streaming respeitando `PriorityGate`; prompt de teste obtido do adapter |
-| Application | `LocalModelAiChatService.cs` | Sem mudança de comportamento; ajusta dependência se o provider mudar de nome |
+| Application | `LocalModelAiChatService.cs` | Sem mudança de comportamento; ajusta dependência se o provider mudar de nome — **arquivo removido em 25/09/2026 pela [ADR-055](../../10-decisoes-arquiteturais.md#adr-055--remoção-do-assistente-ia-por-aba-25092026)** |
 | Infrastructure | `OnnxLocalModelRuntime.cs` | Prompt por IDs, streaming, prefix cache opcional, invalidações |
 | Infrastructure | `ModelAdapters.cs` (`OnnxModelTokenizer`), `DeepSeekModelTokenizer.cs` | Decodificação incremental |
 | Infrastructure | `ServiceCollectionExtensions.cs` | Registro do provider e do processor |

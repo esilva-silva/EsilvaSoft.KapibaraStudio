@@ -29,6 +29,8 @@ public sealed record ConnectionProfile(
     /// the profile has been persisted for the first time.
     /// </summary>
     public Guid? SourceGenerationId { get; init; }
+    /// <summary>Opaque reference to a complete connection URI held by the operating-system secret store.</summary>
+    public SecretReference? SecretReference { get; init; }
     public string RoutingLabel => TargetHost is not null ? "Instância explícita: " + TargetHost : Regex.IsMatch(ConnectionString, @"[?&]directConnection=true(?:&|$)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant) ? "Instância configurada na URI: " + Endpoint : "Seleção automática do driver";
     public string Endpoint
     {
@@ -41,9 +43,14 @@ public sealed record ConnectionProfile(
             var authority = end < 0 ? address : address[..end];
             var at = authority.LastIndexOf('@');
             if (at >= 0) return authority[(at + 1)..];
-            // An unescaped slash in userinfo must not turn credentials into a visible host summary.
-            if (end >= 0 && address[end] == '/' && authority.Contains(':', StringComparison.Ordinal)
-                && address[(end + 1)..].Split('?')[0].Contains('@', StringComparison.Ordinal)) return "Confira a URI configurada";
+            // An unescaped delimiter in userinfo must not turn credentials into a visible host summary.
+            if (end >= 0 && authority.Contains(':', StringComparison.Ordinal))
+            {
+                var remainder = address.AsSpan(end + 1);
+                var nextDelimiter = remainder.IndexOfAny('?', '#');
+                if (nextDelimiter >= 0) remainder = remainder[..nextDelimiter];
+                if (remainder.Contains('@')) return "Confira a URI configurada";
+            }
             return authority;
         }
     }
@@ -108,7 +115,7 @@ public sealed record ConnectionProfile(
     public ConnectionProfile Duplicate(string name)
     {
         return Create(name, ConnectionString, DefaultDatabase, IsReadOnly, IsFavorite, Environment, Color, Tags, Folder)
-            with { LocalAiContextEnabled = LocalAiContextEnabled };
+            with { LocalAiContextEnabled = LocalAiContextEnabled, SecretReference = SecretReference };
     }
 
     /// <summary>Returns the profile with the local timestamp of a successful connection.</summary>

@@ -56,7 +56,6 @@ public sealed partial class WorkspaceViewModel : ObservableObject, IDisposable
     /// sessão persistida. Compartilhar isto não é compartilhar cancelamento: o CancellationTokenSource segue por aba.
     /// </summary>
     public CompletionUsageTracker CompletionUsage { get; } = new();
-    public IAiChatService AiChatService { get; }
     public AutocompleteSettingsViewModel AutocompletePreferences { get; }
     /// <summary>Effective editor shortcuts per command id; defaults until a readable session is loaded.</summary>
     public IReadOnlyDictionary<string, IReadOnlyList<EditorKeyGesture>> KeyBindings { get; private set; } = EditorKeyBindings.Resolve(null);
@@ -81,12 +80,21 @@ public sealed partial class WorkspaceViewModel : ObservableObject, IDisposable
     public event EventHandler? LanguageChanged;
     public event EventHandler? LayoutChanged;
 
-    public WorkspaceViewModel(WorkspaceService workspace, IWorkspaceSessionRepository sessions, IAutocompleteService? autocomplete = null, ILocalModelCatalog? modelCatalog = null, IAiChatService? aiChat = null,
+    public WorkspaceViewModel(WorkspaceService workspace, IWorkspaceSessionRepository sessions, IAutocompleteService? autocomplete = null, ILocalModelCatalog? modelCatalog = null,
         IKnowledgeCatalog? knowledgeCatalog = null,
         ILocalAiModelService? localModels = null, IAppUpdateService? updates = null, IRemoteModelSource? remoteModels = null, IMetadataCache? metadata = null,
-        ILearnedSchemaOptOut? learnedSchemaOptOut = null, IAiCompletionProvider? aiCompletion = null, IWorkspaceFileService? workspaceFiles = null)
+        ILearnedSchemaOptOut? learnedSchemaOptOut = null, IAiCompletionProvider? aiCompletion = null, IWorkspaceFileService? workspaceFiles = null,
+        Agents.AgentChatServicesFactory? agentChat = null, IConnectionProfileCredentialStatusProvider? credentialStatus = null,
+        Agents.DesktopAgentWorkspaceContextSource? agentWorkspaceContext = null,
+        Agents.AgentEditProposalStore? agentEditProposals = null)
     {
         _workspace = workspace;
+        // P7-L06-HOST: both optional. The chat factory is only invoked when the agent panel is opened; the credential
+        // status is read once in the background after startup, through the operation coordinator.
+        _agentChatServices = agentChat;
+        _agentWorkspaceContextAttachment = agentWorkspaceContext?.Attach(CaptureWorkspace);
+        _agentProposalTextAttachment = agentEditProposals?.AttachTextResolver(ResolveAgentProposalText);
+        _credentialStatus = credentialStatus;
         WorkspaceFileService = workspaceFiles;
         _workspace.OperationLocalizer = LocalizationViewModel.Current.ResolveOperationText;
         _workspace.SetLocalization(LocalizationViewModel.Current.Resolve);
@@ -112,8 +120,6 @@ public sealed partial class WorkspaceViewModel : ObservableObject, IDisposable
             new WorkspaceCompletionProfileResolver(() => Profiles));
         TraditionalCompletion = new TraditionalCompletionProvider(completionService);
         InlinePreemptiveCompletion = new TraditionalPreemptiveCompletionProvider(completionService);
-        AiChatService = aiChat ?? new AiChatService();
-        AiChatService.SetLocalization(LocalizationViewModel.Current.Resolve);
         AutocompletePreferences = new(AutocompleteService, modelCatalog, async settings =>
         {
             var previous = _autocompleteSettings;
@@ -145,6 +151,8 @@ public sealed partial class WorkspaceViewModel : ObservableObject, IDisposable
             }
             Language = ApplicationLanguages.Normalize(session.Preferences.Language);
             await ReloadProfilesAsync();
+            // Not awaited: the count is reported in the status bar whenever it arrives; startup never waits for it.
+            CredentialRecoveryCheck = ReportCredentialRecoveryAsync();
             _autocompleteSettings = session.Preferences.Autocomplete.Validate();
             // Invalid shortcuts fail here too, before _initialized, so no save path can replace the snapshot.
             KeyBindings = EditorKeyBindings.Resolve(session.Preferences.EditorKeyBindings);
@@ -181,6 +189,7 @@ public sealed partial class WorkspaceViewModel : ObservableObject, IDisposable
                     Register(tab);
                 }
             ActiveTab = Tabs.FirstOrDefault(t => t.Id == session.ActiveTabId) ?? Tabs.FirstOrDefault();
+            InitializeAgentPanel(session.Preferences);
             _initialized = true;
             if (Tabs.Count == 0) NewTab();
             SessionStatus = session.Tabs.Length > 0 ? LocalizationViewModel.Current.Resolve("draftsRecovered") : string.Empty;
@@ -250,7 +259,8 @@ public sealed partial class WorkspaceViewModel : ObservableObject, IDisposable
                 Preferences = new WorkspacePreferences { Autocomplete = _autocompleteSettings, Theme = Theme, Language = ApplicationLanguages.Normalize(Language), CodeFontSize = CodeFontSize, ExplorerWidth = ExplorerWidth, EditorRatio = EditorRatio, RecoverDrafts = RecoverDrafts, ExcludedProfileIds = _excludedProfiles.ToArray(),
                     UuidRepresentation = UuidRepresentation, ProfileUuidRepresentations = new(_profileUuidRepresentations), IdentifierMode = IdentifierMode,
                     SchemaSamplingProfileIds = Metadata.SchemaSamplingProfiles.ToArray(),
-                    LearnedSchemaExcludedProfileIds = _learnedSchemaOptOut?.ExcludedProfiles.ToArray() ?? [], EditorKeyBindings = _keyBindings },
+                    LearnedSchemaExcludedProfileIds = _learnedSchemaOptOut?.ExcludedProfiles.ToArray() ?? [], EditorKeyBindings = _keyBindings,
+                    AgentPanel = _agentPanelPreferences },
                 Tabs = Tabs.Select(t => t.Snapshot()).ToArray()
             };
             await _sessions.SaveSessionAsync(session);
@@ -264,12 +274,16 @@ public sealed partial class WorkspaceViewModel : ObservableObject, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        CancelCredentialRecoveryCheck();
         Operations.Dispose();
         Updates.Dispose();
         _debounce?.Cancel(); _debounce?.Dispose();
         foreach (var root in Roots) root.Invalidate();
         Details.Clear();
-        foreach (var tab in Tabs) { tab.DraftChanged -= OnDraftChanged; tab.CancelCommand.Execute(null); tab.Dispose(); }
+        foreach (var tab in Tabs) { tab.DraftChanged -= OnDraftChanged; tab.CancelCommand.Execute(null); ReleaseAgentChat(tab); tab.Dispose(); }
+        _ = DisposeAgentChatAsync();
+        _agentWorkspaceContextAttachment?.Dispose();
+        _agentProposalTextAttachment?.Dispose();
         Metadata.Changed -= OnMetadataChanged;
         if (_ownsMetadata && Metadata is IDisposable metadata) metadata.Dispose();
         _saveGate.Dispose();

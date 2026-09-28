@@ -1,0 +1,5 @@
+{"header":{"scenario":"init-mcp-hidden","claudeVersion":"2.1.268 (Claude Code)","argv":["-p","--output-format","stream-json","--input-format","stream-json","--verbose","--include-partial-messages","--model","haiku","--max-turns","2","--mcp-config","<WORK>\\mcp-init-mcp-hidden.json","--strict-mcp-config","--permission-prompt-tool","mcp__slopperm__approve","--disallowedTools","mcp__slopperm__approve"],"setEnvNames":[]}}
+{"ms":9.0,"s":"harness","text":"startUtc=2026-09-25T21:12:47.8122136+00:00 at clock ms"}
+{"ms":40051.0,"s":"harness","text":"init before stdin: False"}
+{"ms":40051.0,"s":"harness","text":"stdin closed"}
+{"ms":40387.0,"s":"harness","text":"exited code=0"}

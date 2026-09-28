@@ -10,12 +10,17 @@
     <ProjectReference Include="../../src/EsilvaSoft.SlopStudio.Application/EsilvaSoft.SlopStudio.Application.csproj" />
     <ProjectReference Include="../../src/EsilvaSoft.SlopStudio.Infrastructure/EsilvaSoft.SlopStudio.Infrastructure.csproj" />
     <ProjectReference Include="../../src/EsilvaSoft.SlopStudio.Infrastructure.LocalAi/EsilvaSoft.SlopStudio.Infrastructure.LocalAi.csproj" />
+    <!-- P7-L06-WIRING: composes the Desktop-like container end to end (AgentPlatformCompositionTests already covers
+         AddSlopStudioInfrastructure alone); needed to call AddSlopStudioOpenAiAgentProvider/ClaudeAgentProvider. -->
+    <ProjectReference Include="../../src/EsilvaSoft.SlopStudio.Infrastructure.Agents/EsilvaSoft.SlopStudio.Infrastructure.Agents.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="NUnit" />
     <PackageReference Include="Avalonia.Headless" />
     <PackageReference Include="NUnit3TestAdapter" />
+    <!-- Same override as Infrastructure.Agents/Desktop: OpenAI 2.14.0 -> System.ClientModel 1.15.0 requires >= 10.0.9. -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" VersionOverride="10.0.10" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Language\Cases\**\*" CopyToOutputDirectory="PreserveNewest" />

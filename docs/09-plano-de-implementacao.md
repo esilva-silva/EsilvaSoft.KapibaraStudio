@@ -27,14 +27,14 @@ O incremento cobre catálogo, barra principal, Explorer, editor/resultados, ferr
 | 4 | v0.8.0 | Abertura e salvamento de arquivos de texto e workspace local de uma pasta | [Arquivada](done/release_v0.8.0/README.md). Inclui Abrir/Salvar/Salvar como, painel Arquivos com raiz única e operações de arquivo/pasta |
 | 5 | v0.9.0 | IA local e produtividade contextual | Escopo automatizável implementado; [experimental](phases/phase-05-v0.9.0/README.md) até inferência real/homologação da Fase 9. Inclui prévia de contexto, propostas revisáveis, IME e gate Headless de latência |
 | 6 | v0.10.0 | Administração e manutenção | [Em desenvolvimento](phases/phase-06-v0.10.0/README.md). Coleções, views, validação, índices, estatísticas, usuários, papéis e exportação/importação lógica |
-| 7 | v0.11.0 | MCP e integração com agentes externos | [Planejada](phases/phase-07-v0.11.0/README.md). Agent Runtime, registro único de ferramentas, servidor MCP e chat Avalonia com adaptadores OpenAI/Codex, Claude e local |
+| 7 | v0.11.0 | Claude e integração com agentes | Claude Code, chat e tools MCP presentes no código; validação Windows em andamento. [Estado, limites e roteiro](phases/phase-07-v0.11.0/README.md) |
 | 8 | v0.12.0 | Chat simples com IA baseado em workflow | [Planejada](phases/phase-08-v0.12.0/README.md). Fluxo predefinido, escopo limitado e ações controladas |
 | 9 | v0.13.0 | Homologação manual e validação em ambientes reais | [Planejada](phases/phase-09-v0.13.0/README.md). Consolida plataformas, acessibilidade, MongoDB/mongosh, hardware, instalação e atualização reais |
 | 10 | v1.0.0 | Estabilidade, revisão completa, instalação e atualizações | [Planejada](phases/phase-10-v1.0.0/README.md). Release estável após os aceites funcionais e a Fase 9 |
 
 O detalhamento de cada fase — escopo, fora de escopo, antecipações, aceite e dependências — fica em [`phases/`](phases/README.md). Este documento permanece como índice e regra geral.
 
-A inserção da nova v0.11.0 preservou integralmente o escopo anterior de workflow na v0.12.0 e deslocou a homologação já existente para v0.13.0; a estabilidade continua v1.0.0, agora Fase 10. O [registro de migração](phases/phase-07-v0.11.0/14-migracao-documental.md) mantém origem, destino, inventário e limites. Nenhum requisito ou gate foi encerrado pela renumeração.
+A inserção da nova v0.11.0 preservou integralmente o escopo anterior de workflow na v0.12.0 e deslocou a homologação já existente para v0.13.0; a estabilidade continua v1.0.0, agora Fase 10. O [registro de migração](phases/phase-07-v0.11.0/README.md) mantém origem, destino, inventário e limites. Nenhum requisito ou gate foi encerrado pela renumeração.
 
 ## Implementação antecipada, fase ativa, backlog e release arquivada
 

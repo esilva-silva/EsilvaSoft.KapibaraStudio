@@ -13,7 +13,9 @@ public sealed class LocalAiModelServiceTests
         "unload Coder-1.5B", "load Coder-Chat", "generate Coder-Chat"];
     private static readonly string[] TestSteps = ["Pasta e arquivos", "Tokenizer", "Sessão ONNX e provider", "Geração"];
     private static readonly string[] QueueOrder = ["bloqueio", "chat", "autocomplete"];
-    private static readonly AiChatRequest ChatRequest = new(new("Limitar a 10", "Console", "db.customers.find({})", "javascript", "MongoDB", "test", "customers", "consulta"));
+    // Pedido explícito do papel Chat (o mesmo formato que o LocalAgentProvider usa): contexto completo exigido.
+    private static readonly Func<LocalModelDefinition, ModelGenerationRequest> ChatGeneration =
+        _ => new("/* Limitar a 10 */ db.customers.find({})", "", 2048, 64, RequireFullContext: true);
 
     [Test]
     public async Task SwitchingModelsReleasesThePreviousModelBeforeLoadingTheNext()
@@ -50,7 +52,8 @@ public sealed class LocalAiModelServiceTests
         var autocomplete = new AutocompleteService(provider);
         await autocomplete.ConfigureAsync(new() { ModelPath = "model" });
         Assert.That((await autocomplete.GetCompletionAsync(new("db.", "")))?.IsAi, Is.True);
-        var error = Assert.ThrowsAsync<LocalModelUnavailableException>(() => new LocalModelAiChatService(provider, autocomplete).AskAsync(ChatRequest))!;
+        var error = Assert.ThrowsAsync<LocalModelUnavailableException>(() => provider.Models.GenerateAsync(LocalModelRole.Chat,
+            autocomplete.Settings, ChatGeneration, AiRequestPriority.Interactive))!;
         Assert.That(error.Message, Does.Contain("FIM only").And.Contain("capacidade chat"));
         Assert.That(runtime.Generations, Is.EqualTo(1));
         Assert.That(runtime.Disposed, Is.False, "A missing capability is not a model failure.");
@@ -73,8 +76,9 @@ public sealed class LocalAiModelServiceTests
         await autocomplete.ConfigureAsync(new() { ModelPath = "model" });
         var background = autocomplete.GetCompletionAsync(new("db.", ""));
         await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        var response = await new LocalModelAiChatService(provider, autocomplete).AskAsync(ChatRequest).WaitAsync(TimeSpan.FromSeconds(5));
-        Assert.That(response!.ProposedCode, Is.EqualTo("db.customers.find({}).limit(10)"));
+        var response = await provider.Models.GenerateAsync(LocalModelRole.Chat, autocomplete.Settings, ChatGeneration,
+            AiRequestPriority.Interactive).WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.That(response.Result.Text, Is.EqualTo("db.customers.find({}).limit(10)"));
         Assert.That(await background.WaitAsync(TimeSpan.FromSeconds(5)), Is.Null, "The editor shows no suggestion; it does not fail.");
         Assert.That(runtime.Initializations, Is.EqualTo(1));
         Assert.That(runtime.Disposed, Is.False);

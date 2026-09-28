@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui" xmlns:syntax="using:EsilvaSoft.SlopStudio.Desktop.SyntaxHighlighting" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:EsilvaSoft.SlopStudio.Desktop.ViewModels" xmlns:local="using:EsilvaSoft.SlopStudio.Desktop" x:Class="EsilvaSoft.SlopStudio.Desktop.MainWindow" x:DataType="vm:WorkspaceViewModel" Title="{x:Static local:Branding.ProductName}" Width="1440" Height="900" MinWidth="960" MinHeight="620">
   <Grid RowDefinitions="40,*,36">
     <Border Background="{DynamicResource PanelBackground}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" Padding="8,3">
-      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto,Auto,Auto" ColumnSpacing="4">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto,Auto,Auto,Auto" ColumnSpacing="4">
         <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,0,12,0" VerticalAlignment="Center" AutomationProperties.Name="{x:Static local:Branding.ProductName}">
           <Image Source="{StaticResource BrandSymbol}" Width="32" Height="32" />
           <TextBlock Text="{x:Static local:Branding.ProductName}" FontWeight="Bold" FontSize="14" VerticalAlignment="Center" />
@@ -36,9 +36,15 @@
             <TextBlock Classes="command-label" Text="{Binding Updates.Label}" VerticalAlignment="Center" />
           </StackPanel>
         </Button>
-        <ComboBox Grid.Column="6" ItemsSource="{Binding Languages}" SelectedValue="{Binding Language}" SelectedValueBinding="{Binding Code}" Width="132" AutomationProperties.Name="{Binding Localization.LanguageLabel}" ToolTip.Tip="{Binding Localization.InterfaceLanguage}" />
-        <ComboBox Grid.Column="7" ItemsSource="{Binding Themes}" SelectedItem="{Binding Theme}" Width="100" AutomationProperties.Name="{Binding Localization.ThemeLabel}" />
-        <Button Grid.Column="8" Content="···" ToolTip.Tip="{Binding Localization.MoreActions}" AutomationProperties.Name="{Binding Localization.MoreActions}">
+        <Button Grid.Column="6" x:Name="AgentPanelButton" Command="{Binding ToggleAgentPanelCommand}" ToolTip.Tip="{local:Loc Key=agentPanelToggleHint}" AutomationProperties.Name="{local:Loc Key=agentPanelToggle}" AutomationProperties.HelpText="{local:Loc Key=agentPanelToggleHint}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <Path Classes="command-icon" Data="{StaticResource MessageIcon}" />
+            <TextBlock Classes="command-label" Text="{local:Loc Key=agentPanelToggle}" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
+        <ComboBox Grid.Column="7" ItemsSource="{Binding Languages}" SelectedValue="{Binding Language}" SelectedValueBinding="{Binding Code}" Width="132" AutomationProperties.Name="{Binding Localization.LanguageLabel}" ToolTip.Tip="{Binding Localization.InterfaceLanguage}" />
+        <ComboBox Grid.Column="8" ItemsSource="{Binding Themes}" SelectedItem="{Binding Theme}" Width="100" AutomationProperties.Name="{Binding Localization.ThemeLabel}" />
+        <Button Grid.Column="9" Content="···" ToolTip.Tip="{Binding Localization.MoreActions}" AutomationProperties.Name="{Binding Localization.MoreActions}">
           <Button.Flyout>
             <MenuFlyout>
               <MenuItem Header="Abrir pasta como workspace" Click="OpenFolder" />
@@ -55,6 +61,8 @@
         <ColumnDefinition Width="260" MinWidth="200" MaxWidth="420" />
         <ColumnDefinition Width="5" />
         <ColumnDefinition Width="*" MinWidth="500" />
+        <ColumnDefinition Width="0" />
+        <ColumnDefinition Width="0" />
       </Grid.ColumnDefinitions>
       <Border Grid.Column="0" Background="{DynamicResource SecondaryBackground}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,1,0">
         <StackPanel Spacing="4" Margin="4,8">
@@ -172,7 +180,7 @@
         </Grid>
       </Border>
       <GridSplitter Grid.Column="2" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" DragCompleted="ExplorerResized" />
-      <Grid Grid.Column="3">
+      <Grid x:Name="TabsArea" Grid.Column="3">
         <TabControl ItemsSource="{Binding Tabs}" SelectedItem="{Binding ActiveTab}" Background="{DynamicResource PanelBackground}" IsVisible="{Binding HasActiveTab}">
           <TabControl.ItemTemplate>
             <DataTemplate x:DataType="vm:WorkspaceTabViewModel">
@@ -200,6 +208,12 @@
           </Button>
         </StackPanel>
       </Grid>
+      <!-- P7-L06-HOST: collapsible AI Agent surface. Docked at the right with its own 5-unit divider when the tabs keep
+           their 500 minimum; otherwise it replaces the tab area as its own surface, with "×" returning to the editor. -->
+      <GridSplitter x:Name="AgentPanelSplitter" Grid.Column="4" IsVisible="False" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" DragCompleted="AgentPanelResized" />
+      <Border x:Name="AgentPanelHost" Grid.Column="5" IsVisible="False" Background="{DynamicResource PanelBackground}">
+        <local:AgentChatPanel x:Name="AgentChat" DataContext="{Binding ActiveAgentChat}" />
+      </Border>
     </Grid>
     <Border Grid.Row="2" Background="{DynamicResource SecondaryBackground}" Padding="8,3">
       <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto" ColumnSpacing="8" VerticalAlignment="Center">

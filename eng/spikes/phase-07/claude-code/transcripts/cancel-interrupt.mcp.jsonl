@@ -1,0 +1,7 @@
+{"kind":"start","pid":20892,"envNames":["CLAUDE_CODE_ENTRYPOINT","CLAUDE_CODE_MESSAGING_SOCKET","CLAUDE_CODE_MESSAGING_TOKEN","CLAUDE_CODE_SESSION_ID","CLAUDE_PROJECT_DIR","CLAUDECODE","SLOP_SPIKE_CANARY"],"ts":"2026-09-25T16:58:51.9878120+00:00","policy":"allow"}
+{"kind":"recv","params":{"protocolVersion":"2025-11-25","capabilities":{"roots":{"listChanged":true},"elicitation":{}},"clientInfo":{"name":"claude-code","title":"Claude Code","version":"2.1.268","description":"Anthropic's agentic coding tool","websiteUrl":"https://claude.com/claude-code"}},"method":"initialize","ts":"2026-09-25T16:58:52.0122288+00:00","id":0}
+{"kind":"recv","params":null,"method":"notifications/initialized","ts":"2026-09-25T16:58:52.0188650+00:00","id":null}
+{"kind":"recv","params":null,"method":"tools/list","ts":"2026-09-25T16:58:52.0207950+00:00","id":1}
+{"kind":"recv","params":{"name":"approve","arguments":{"tool_name":"Bash","input":{"command":"ping -n 45 127.0.0.1","description":"Execute ping to localhost 45 times"},"tool_use_id":"toolu_01MgWRBZt7A9y87nWxPFQeW8"},"_meta":{"claudecode/toolUseId":"toolu_01MgWRBZt7A9y87nWxPFQeW8","progressToken":2}},"method":"tools/call","ts":"2026-09-25T16:58:57.8906211+00:00","id":2}
+{"kind":"decision","tool_name":"Bash","ts":"2026-09-25T16:58:57.8946136+00:00","decision":"{\"behavior\":\"allow\",\"updatedInput\":{\"command\":\"ping -n 45 127.0.0.1\",\"description\":\"Execute ping to localhost 45 times\"}}"}
+{"ts":"2026-09-25T16:59:02.9339837+00:00","kind":"eof"}

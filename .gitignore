@@ -13,8 +13,11 @@ workspace.db-*
 *.safetensors
 *.gguf
 artifacts/
+/logs/
 /tests/EsilvaSoft.SlopStudio.Benchmarks/BenchmarkDotNet.Artifacts
 /BenchmarkDotNet.Artifacts
 /BenchmarkDotNet.Artifacts.*
-/.codex-build/Debug/net10.0
+/.codex-build/
 /.codex-test-build/Debug/net10.0
+# Local Claude Code agent worktrees (session scratch, not project content).
+/.claude/worktrees/

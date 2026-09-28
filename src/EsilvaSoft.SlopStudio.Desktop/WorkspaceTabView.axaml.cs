@@ -5,15 +5,18 @@ using Avalonia.Interactivity;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Platform.Storage;
+using AvaloniaEdit.Document;
 using EsilvaSoft.SlopStudio.Core;
 using EsilvaSoft.SlopStudio.Application;
 using EsilvaSoft.SlopStudio.Autocomplete.Core.Completion;
 using EsilvaSoft.SlopStudio.Desktop.ViewModels;
+using EsilvaSoft.SlopStudio.Desktop.Agents;
 
 namespace EsilvaSoft.SlopStudio.Desktop;
 
 public partial class WorkspaceTabView : UserControl
 {
+    private AgentBufferEditor? _agentBufferEditor;
     private static string T(string key) => LocalizationViewModel.Current.Resolve(key);
     private static string F(string key, params object?[] args) => LocalizationViewModel.Current.Format(key, args);
     public string? SelectedCode => CodeEditor.SelectedText;
@@ -35,6 +38,15 @@ public partial class WorkspaceTabView : UserControl
         InitializeResults();
         DataContextChanged += (_, _) =>
         {
+            // The agent chat reads the selection synchronously when the user reviews a send; the guard keeps a tab
+            // whose view now shows another tab from reading someone else's selection.
+            if (DataContext is WorkspaceTabViewModel shown)
+            {
+                _agentBufferEditor = new AgentBufferEditor(this, shown);
+                shown.EditorSelectionProvider = () => ReferenceEquals(DataContext, shown) ? CodeEditor.SelectedText : null;
+                shown.EditorBufferProvider = () => ReferenceEquals(DataContext, shown) ? _agentBufferEditor : null;
+            }
+            else _agentBufferEditor = null;
             if (DataContext is WorkspaceTabViewModel tab) tab.ConfirmConsoleWrite = async (request, token) =>
                 await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
                 {
@@ -51,6 +63,140 @@ public partial class WorkspaceTabView : UserControl
                 SplitGrid.RowDefinitions[2].Height = new GridLength(1 - vm.EditorRatio, GridUnitType.Star);
             }
         };
+    }
+
+    private sealed class AgentBufferEditor(WorkspaceTabView view, WorkspaceTabViewModel tab) : IAgentBufferEditor
+    {
+        private readonly Dictionary<(Guid ProposalId, int HunkIndex), (TextAnchor Start, TextAnchor End)> _hunkAnchors = [];
+
+        public string Text => ReferenceEquals(view.DataContext, tab) ? view.CodeEditor.Document.Text : "";
+
+        public int? GetHunkLineHint(Guid proposalId, int hunkIndex)
+        {
+            if (!ReferenceEquals(view.DataContext, tab) ||
+                !_hunkAnchors.TryGetValue((proposalId, hunkIndex), out var anchors) || anchors.Start.IsDeleted)
+                return null;
+
+            var prefix = view.CodeEditor.Document.Text.AsSpan(0, anchors.Start.Offset);
+            var line = 0;
+            for (var index = 0; index < prefix.Length; index++)
+            {
+                if (prefix[index] == '\n') line++;
+                else if (prefix[index] == '\r' && (index + 1 == prefix.Length || prefix[index + 1] != '\n')) line++;
+            }
+            return line;
+        }
+
+        public bool TryApplyHunk(Guid proposalId, int hunkIndex, bool reverting,
+            EsilvaSoft.SlopStudio.Application.Agents.Editing.LineDiffTextEdit edit)
+        {
+            return TryApplyHunks([new AgentHunkTextEdit(proposalId, hunkIndex, edit)], reverting);
+        }
+
+        public bool TryApplyHunks(IReadOnlyList<AgentHunkTextEdit> edits, bool reverting)
+        {
+            if (!ReferenceEquals(view.DataContext, tab) || tab.IsRunning || edits is null) return false;
+            var document = view.CodeEditor.Document;
+            var original = document.Text;
+            var simulated = original;
+            var keys = new HashSet<(Guid ProposalId, int HunkIndex)>();
+            var tracked = new Dictionary<(Guid ProposalId, int HunkIndex), (int Start, int End)>();
+            var deletedAnchors = new HashSet<(Guid ProposalId, int HunkIndex)>();
+            if (reverting)
+            {
+                foreach (var (key, anchors) in _hunkAnchors)
+                {
+                    if (anchors.Start.IsDeleted || anchors.End.IsDeleted)
+                    {
+                        deletedAnchors.Add(key);
+                        continue;
+                    }
+                    tracked[key] = (anchors.Start.Offset, anchors.End.Offset);
+                }
+            }
+
+            // Validate the whole sequential batch, including every live hunk anchor, before changing the document.
+            foreach (var item in edits)
+            {
+                if (item is null || item.Edit is null || item.ProposalId == Guid.Empty || item.HunkIndex < 0 ||
+                    !keys.Add((item.ProposalId, item.HunkIndex))) return false;
+                var edit = item.Edit;
+                if (edit.Offset < 0 || edit.Length < 0 || edit.Offset + edit.Length > simulated.Length) return false;
+                var key = (item.ProposalId, item.HunkIndex);
+                if (reverting)
+                {
+                    if (deletedAnchors.Contains(key) || tracked.TryGetValue(key, out var anchor) &&
+                        (anchor.Start != edit.Offset || anchor.End - anchor.Start != edit.Length)) return false;
+                    tracked.Remove(key);
+                }
+
+                var editEnd = edit.Offset + edit.Length;
+                var delta = edit.Replacement.Length - edit.Length;
+                foreach (var anchorKey in tracked.Keys.ToArray())
+                {
+                    var anchor = tracked[anchorKey];
+                    if (Overlaps(anchor.Start, edit.Offset, editEnd) || Overlaps(anchor.End, edit.Offset, editEnd)) return false;
+                    tracked[anchorKey] = (Shift(anchor.Start, edit.Offset, editEnd, delta),
+                        Shift(anchor.End, edit.Offset, editEnd, delta));
+                }
+
+                simulated = simulated.Remove(edit.Offset, edit.Length).Insert(edit.Offset, edit.Replacement);
+            }
+
+            if (!ReferenceEquals(view.DataContext, tab) || tab.IsRunning || document.Text != original) return false;
+            using (document.RunUpdate())
+            {
+                foreach (var item in edits)
+                {
+                    var edit = item.Edit;
+                    document.Replace(edit.Offset, edit.Length, edit.Replacement);
+                    var key = (item.ProposalId, item.HunkIndex);
+                    if (reverting)
+                    {
+                        _hunkAnchors.Remove(key);
+                    }
+                    else
+                    {
+                        var start = document.CreateAnchor(edit.Offset);
+                        start.MovementType = AnchorMovementType.AfterInsertion;
+                        var end = document.CreateAnchor(edit.Offset + edit.Replacement.Length);
+                        end.MovementType = AnchorMovementType.BeforeInsertion;
+                        _hunkAnchors[key] = (start, end);
+                    }
+                }
+            }
+            return true;
+        }
+
+        private static bool Overlaps(int position, int editStart, int editEnd) =>
+            editEnd > editStart && position > editStart && position < editEnd;
+
+        private static int Shift(int position, int editStart, int editEnd, int delta) =>
+            position >= editEnd ? position + delta : position;
+
+        public bool TryApply(IReadOnlyList<EsilvaSoft.SlopStudio.Application.Agents.Editing.LineDiffTextEdit> edits)
+        {
+            if (!ReferenceEquals(view.DataContext, tab) || tab.IsRunning || edits is null) return false;
+            var document = view.CodeEditor.Document;
+            var original = document.Text;
+            var simulated = original;
+            foreach (var edit in edits)
+            {
+                if (edit is null || edit.Offset < 0 || edit.Length < 0 || edit.Offset + edit.Length > simulated.Length) return false;
+                simulated = simulated.Remove(edit.Offset, edit.Length).Insert(edit.Offset, edit.Replacement);
+            }
+
+            // Preflight the complete batch before opening an undo group, so a bad later edit cannot leave a partial patch.
+            if (!ReferenceEquals(view.DataContext, tab) || tab.IsRunning || document.Text != original) return false;
+            using (document.RunUpdate())
+            {
+                foreach (var edit in edits)
+                {
+                    document.Replace(edit.Offset, edit.Length, edit.Replacement);
+                }
+            }
+            return true;
+        }
     }
     private void SplitResized(object? sender, VectorEventArgs e)
     {
@@ -192,45 +338,6 @@ public partial class WorkspaceTabView : UserControl
         stack.Children.Add(apply); window.Content = stack;
         window.KeyDown += (_, args) => { if (args.Key == Avalonia.Input.Key.Escape) { args.Handled = true; window.Close(); } };
         await window.ShowDialog(owner);
-    }
-
-    private async void ApplyAiProposal(object? sender, RoutedEventArgs e)
-    {
-        if (DataContext is not WorkspaceTabViewModel tab || tab.AiProposal is not { } proposal || TopLevel.GetTopLevel(this) is not Window owner) return;
-        if (proposal.RequiresAdditionalConfirmation)
-        {
-            var warning = string.IsNullOrWhiteSpace(proposal.Warning)
-                ? T("aiProposalSafety")
-                : proposal.Warning;
-            if (await Dialogs.ChooseCancelableAsync(owner, T("proposalConfirmTitle"), warning + "\n\n" + T("insertProposalPrompt"), CancellationToken.None, T("apply"), T("cancel")) != T("apply"))
-                return;
-        }
-        if (!tab.CanApplyAiProposal(proposal))
-        {
-            tab.ChatStatusMessage = T("proposalStaleEditorTarget");
-            tab.AiProposal = null;
-            return;
-        }
-
-        var selectionStart = CodeEditor.SelectionStart;
-        var selectionEnd = CodeEditor.SelectionEnd;
-        var caret = CodeEditor.CaretIndex;
-        _acceptingCompletion = true;
-        try
-        {
-            // Replace through the editor's selected-text path so the normal undo stack remains available.
-            CodeEditor.SelectionStart = 0;
-            CodeEditor.SelectionEnd = (CodeEditor.Text ?? "").Length;
-            CodeEditor.SelectedText = proposal.ProposedContent;
-            var newLength = proposal.ProposedContent.Length;
-            var restoredStart = Math.Clamp(selectionStart, 0, newLength);
-            var restoredEnd = Math.Clamp(selectionEnd, restoredStart, newLength);
-            CodeEditor.SelectionStart = restoredStart;
-            CodeEditor.SelectionEnd = restoredEnd;
-            CodeEditor.CaretIndex = Math.Clamp(caret, 0, newLength);
-        }
-        finally { _acceptingCompletion = false; }
-        if (tab.CommitAiProposal(proposal)) CodeEditor.Focus();
     }
 
     private async void OpenHistory(object? sender, RoutedEventArgs e)

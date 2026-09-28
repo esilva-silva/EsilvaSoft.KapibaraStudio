@@ -88,6 +88,6 @@ A recuperação automática de texto foi explicitamente escolhida para esta revi
 
 Alterar URI ou política de um perfil invalida sua árvore aberta e exige reabertura. As ferramentas mantêm confirmações, auditoria e bloqueios existentes. Salvar ambientes também invalida o explorer e exige reabertura; operações já iniciadas conservam seus valores capturados. A integração com cofre nativo permanece planejada.
 
-## Limite planejado para agentes externos — v0.11.0
+## Claude e operações externas
 
-O [plano MCP/agentes](phases/phase-07-v0.11.0/README.md) acrescenta autenticação oficial, cofre de SO para credenciais de providers, permissões no registro único e aprovações vinculadas à ação. Cliente MCP recebe IDs lógicos; resolução MongoDB permanece local. Nenhum dado MongoDB sai apenas porque um provider foi conectado. Metadados, schema, amostras, resultados e seleção explícita exigem autorização de contexto, com limites e auditoria sem payloads/segredos. O primeiro conjunto MCP será somente leitura; escritas/destrutivas vêm depois dos gates de autorização, aprovação e auditoria. Este plano não torna seguros os valores locais em texto puro já descritos acima.
+O fluxo Claude Code mantém a autenticação no processo oficial e o KapibaraStudio não lê nem armazena credenciais da conta. A aprovação de comandos, escrita e rede não fornece isolamento: o processo executa com os privilégios do usuário. Chamadas bloqueiam por padrão quando a auditoria ou a ponte de aprovação falha. Detalhes em [Claude no KapibaraStudio](phases/phase-07-v0.11.0/README.md).

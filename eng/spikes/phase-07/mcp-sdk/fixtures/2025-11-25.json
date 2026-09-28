@@ -1,0 +1,7 @@
+{
+  "protocolVersion": "2025-11-25",
+  "firstMethod": "initialize",
+  "initializedNotification": true,
+  "requestMetadata": false,
+  "source": "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle"
+}

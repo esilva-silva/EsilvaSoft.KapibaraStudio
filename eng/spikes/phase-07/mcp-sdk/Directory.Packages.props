@@ -1,0 +1,6 @@
+<Project>
+  <!-- Interrompe a busca pelo catálogo de dependências do produto. -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+</Project>

@@ -29,9 +29,10 @@ internal sealed class MongoOperationContext
         IConnectionSecretStore secrets,
         IEnvironmentVaultRepository? environments,
         MongoClientPool clients,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ISecretStore? credentialStore = null)
     {
-        var environment = new OperationEnvironment(environments, secrets, profile.Id);
+        var environment = new OperationEnvironment(environments, secrets, profile.Id, credentialStore);
         await Task.CompletedTask.ConfigureAwait(ConfigureAwaitOptions.ForceYielding);
         await environment.PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
         return new MongoOperationContext(profile, environment, clients);

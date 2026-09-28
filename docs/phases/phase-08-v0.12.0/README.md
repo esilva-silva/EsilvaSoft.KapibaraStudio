@@ -35,4 +35,4 @@ Fase 6 aceita; política de dados e contexto determinístico das fases anteriore
 
 O workflow ainda não foi definido em documento próprio de requisitos. Nenhuma evidência de aceite existe.
 
-**Dependência técnica adicional planejada em 22/09/2026:** integrar este workflow à fundação da [Fase 7](../phase-07-v0.11.0/README.md) quando implementada, preservando o conjunto fechado de ações e todas as exclusões acima. O conteúdo original desta fase foi mantido integralmente na migração; o chat geral da v0.11.0 não altera seus critérios de aceite.
+**Dependência técnica adicional:** a integração atual com Claude está descrita em [Claude no KapibaraStudio](../phase-07-v0.11.0/README.md). O workflow desta fase preserva seu próprio conjunto fechado de ações e critérios de aceite.

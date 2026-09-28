@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>EsilvaSoft.SlopStudio.Spikes.McpIndependentClient</AssemblyName>
+  </PropertyGroup>
+  <!-- BCL apenas: sem PackageReference e sem referência ao servidor/SDK MCP. -->
+</Project>

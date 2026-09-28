@@ -16,6 +16,19 @@ public sealed class LocalAiModelService(ILocalModelCatalog catalog, Func<ILocalM
     : ILocalAiModelService, IDisposable
 {
     private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(30);
+    /// <summary>
+    /// Orçamento máximo que um pedido <see cref="AiRequestPriority.Background"/> (autocomplete ambiente) espera pela
+    /// fila do proprietário único quando ela já está ocupada. Achado do lote 9 (P7-L09-ONNX): antes desta correção
+    /// só havia preempção em uma direção — um turno <see cref="AiRequestPriority.Interactive"/> que chega cancela uma
+    /// geração de fundo ativa (<see cref="PreemptBackground"/>) —, mas nada limitava a espera de um pedido de fundo
+    /// que chega DEPOIS que o turno interativo já tomou a fila. Antes do chat de agentes (streaming, potencialmente
+    /// muitos segundos) isso não era visível: a única geração interativa era a proposta curta do antigo Assistente IA
+    /// por aba (removido em 25/09/2026). Vencido o orçamento, o pedido desiste com o mesmo
+    /// <see cref="LocalModelPreemptedException"/> silencioso de uma preempção ativa — não é falha do modelo, é
+    /// descarte silencioso (DEC-A43-PREEMPTION) — e a próxima pausa de digitação tenta de novo. Constante, e não
+    /// configurável, pela mesma razão de <see cref="RetryDelay"/>: não é uma opção de produto.
+    /// </summary>
+    private static readonly TimeSpan BackgroundQueueBudget = TimeSpan.FromMilliseconds(500);
     private readonly PriorityGate _gate = new();
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
     private readonly CancellationTokenSource _shutdown = new();
@@ -175,7 +188,7 @@ public sealed class LocalAiModelService(ILocalModelCatalog catalog, Func<ILocalM
         if (priority == AiRequestPriority.Interactive) PreemptBackground();
         try
         {
-            await _gate.WaitAsync((int)priority, token).ConfigureAwait(false);
+            await WaitForTurnAsync(priority, roleTag, token).ConfigureAwait(false);
             var key = KeyFor(role, settings);
             try
             {
@@ -240,7 +253,7 @@ public sealed class LocalAiModelService(ILocalModelCatalog catalog, Func<ILocalM
         if (priority == AiRequestPriority.Interactive) PreemptBackground();
         try
         {
-            await _gate.WaitAsync((int)priority, token).ConfigureAwait(false);
+            await WaitForTurnAsync(priority, roleTag, token).ConfigureAwait(false);
             var key = KeyFor(role, settings);
             try
             {
@@ -492,7 +505,7 @@ public sealed class LocalAiModelService(ILocalModelCatalog catalog, Func<ILocalM
     private static void RequireCapability(LocalModelDefinition model, LocalModelRole role)
     {
         if (role == LocalModelRole.Chat && !model.Capabilities.HasFlag(LocalModelCapabilities.Chat))
-            throw new LocalModelUnavailableException($"Chat indisponível: o modelo {model.Name} não declara a capacidade chat. Selecione outro modelo para o Assistente IA.")
+            throw new LocalModelUnavailableException($"Chat indisponível: o modelo {model.Name} não declara a capacidade chat. Selecione outro modelo para o Agente IA local.")
             { UnavailableReason = LocalModelUnavailableReason.CapabilityMissing };
         if (role == LocalModelRole.Autocomplete && (model.Capabilities & (LocalModelCapabilities.Autocomplete | LocalModelCapabilities.Fim)) == 0)
             throw new LocalModelUnavailableException($"Autocomplete por IA indisponível: o modelo {model.Name} não declara as capacidades autocomplete ou fim.")
@@ -503,6 +516,29 @@ public sealed class LocalAiModelService(ILocalModelCatalog catalog, Func<ILocalM
     {
         lock (_stateGate)
             if (_active is not null && _activePriority == AiRequestPriority.Background) _activePreemption?.Cancel();
+    }
+
+    /// <summary>
+    /// Toma a vez na fila do proprietário único. <see cref="AiRequestPriority.Interactive"/> espera sem limite — é
+    /// ação explícita (chat, <c>Ctrl+;</c>, teste de modelo) e o usuário está esperando. <see cref="AiRequestPriority.Background"/>
+    /// espera no máximo <see cref="BackgroundQueueBudget"/> atrás de um turno já em andamento (ver o comentário da
+    /// constante); vencido o orçamento, a espera termina em <see cref="LocalModelPreemptedException"/> — não em
+    /// <see cref="OperationCanceledException"/> crua — porque quem chama (<see cref="AiAutocompleteProvider"/>) já
+    /// trata esse tipo como abstenção silenciosa, sem lista nem mensagem de erro (DEC-A43-PREEMPTION). Sem contenção
+    /// a fila libera na hora e o orçamento nunca chega a disparar.
+    /// </summary>
+    private async Task WaitForTurnAsync(AiRequestPriority priority, KeyValuePair<string, object?> roleTag, CancellationToken token)
+    {
+        if (priority != AiRequestPriority.Background) { await _gate.WaitAsync((int)priority, token).ConfigureAwait(false); return; }
+        using var budget = new CancellationTokenSource(BackgroundQueueBudget, _clock);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, budget.Token);
+        try { await _gate.WaitAsync((int)priority, linked.Token).ConfigureAwait(false); }
+        catch (OperationCanceledException) when (budget.IsCancellationRequested && !token.IsCancellationRequested)
+        {
+            diagnostics?.Record("ai.generation.preempted.queue");
+            AutocompleteMetrics.AiCompletionCancelled.Add(1, roleTag, new KeyValuePair<string, object?>("reason", "queue-budget"));
+            throw new LocalModelPreemptedException();
+        }
     }
 
     /// <summary>

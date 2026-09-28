@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Adapters de providers externos da fase 7 (lote 7: OpenAI API direta). Referencia apenas Core/Application:
+    os DTOs do SDK OpenAI ficam confinados a este assembly e nunca atravessam as portas do runtime.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="../EsilvaSoft.SlopStudio.Core/EsilvaSoft.SlopStudio.Core.csproj" />
+    <ProjectReference Include="../EsilvaSoft.SlopStudio.Application/EsilvaSoft.SlopStudio.Application.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="OpenAI" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <!-- OpenAI 2.14.0 -> System.ClientModel 1.15.0 exige >= 10.0.9; o pin central (10.0.0) segue nos demais projetos. -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" VersionOverride="10.0.10" />
+    <!-- Lote 8: Claude API (pasta Anthropic/, namespace ...Agents.Anthropic). -->
+    <PackageReference Include="Anthropic" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="EsilvaSoft.SlopStudio.UnitTests" />
+    <InternalsVisibleTo Include="EsilvaSoft.SlopStudio.Infrastructure.Agents.Tests" />
+  </ItemGroup>
+</Project>

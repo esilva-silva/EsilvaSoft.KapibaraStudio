@@ -21,6 +21,7 @@ public sealed partial class WorkspaceViewModel
     partial void OnWorkspaceRootPathChanged(string? value)
     {
         OnPropertyChanged(nameof(HasWorkspace)); OnPropertyChanged(nameof(OpenWorkspaceLabel));
+        RefreshAgentReadScopes();
     }
     partial void OnSelectedSidebarChanged(string value)
     {

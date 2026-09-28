@@ -48,7 +48,7 @@ Concretely: save and test connection profiles, browse databases and collections,
 | 4 | v0.8.0 | Opening and saving text files | Feature scope completed and [archived](docs/done/release_v0.8.0/README.md); includes local single-root workspace operations |
 | 5 | v0.9.0 | Local AI and contextual productivity | Automated scope implemented; experimental for real ONNX models. Includes contextual preview, reviewable proposals, inline suggestions and multi-model selection. See [implementation meta](docs/phases/phase-05-v0.9.0/meta-de-implementacao.md) |
 | 6 | v0.10.0 | Administration and maintenance | In development — collections, views, validation, indexes, stats, users, roles and logical export/import |
-| 7 | v0.11.0 | MCP and external agent integration | Planned — [technical plan](docs/phases/phase-07-v0.11.0/README.md) for Agent Runtime, MCP, native chat and providers; no integration implemented in that planning effort |
+| 7 | v0.11.0 | Claude and agent integration | Implemented in code and under validation — [Claude configuration, subscription/API modes, permissions and limits](docs/phases/phase-07-v0.11.0/README.md) |
 | 8 | v0.12.0 | Simple workflow-based AI chat | Planned — a predefined flow, limited scope and controlled actions |
 | 9 | v0.13.0 | Manual validation and real-environment homologation | Planned — platforms, accessibility, MongoDB/mongosh, hardware, installation and updates in real environments |
 | 10 | v1.0.0 | Stability, full review, installation and updates | Planned — stable release after functional acceptance and Phase 9 |

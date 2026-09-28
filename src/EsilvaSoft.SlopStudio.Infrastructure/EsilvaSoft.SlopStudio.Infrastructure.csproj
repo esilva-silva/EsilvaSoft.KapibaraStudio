@@ -4,6 +4,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Jint" />
+    <PackageReference Include="Tmds.DBus.Protocol" />
     <ProjectReference Include="../EsilvaSoft.SlopStudio.Application/EsilvaSoft.SlopStudio.Application.csproj" />
   </ItemGroup>
   <ItemGroup>

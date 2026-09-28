@@ -1,0 +1,509 @@
+{
+  "schemaVersion": 1,
+  "targetFramework": "net10.0",
+  "source": "NuGet packages restored with the spike lockfiles; nuspec, nupkg, embedded notices",
+  "distributionApproval": "pending: isolated research only; not a product SBOM or legal clearance",
+  "packages": [
+    {
+      "id": "Microsoft.ApplicationInsights",
+      "version": "2.22.0",
+      "scope": "test-only",
+      "licenseType": "expression",
+      "license": "MIT",
+      "licenseUrl": "https://licenses.nuget.org/MIT",
+      "source": "https://www.nuget.org/packages/Microsoft.ApplicationInsights/2.22.0",
+      "repository": "https://github.com/Microsoft/ApplicationInsights-dotnet",
+      "commit": "43825e06a22cdfb702fc199a7ba99a7d541d48c6",
+      "nugetContentHash": "3AOM9bZtku7RQwHyMEY3tQMrHIgjcfRDa6YQpd/QG2LDGvMydSlL9Di+8LLMt7J2RDdfJ7/2jdYv6yHcMJAnNw==",
+      "archiveSha512": "Pj0DbEcfe72xIf7uiW8dzUTy06XDz3bkTYyoU5ni9+a5hVqss47uypsCEBCS6hdeXmoOW3a0KQRoOr6gVyxh0g==",
+      "sha256": "99443addab694f4d2be3d71ae74b99bb660288b837c9deabdc7cd3af2a9cb840",
+      "notices": [],
+      "nativeAssets": []
+    },
+    {
+      "id": "Microsoft.CodeCoverage",
+      "version": "17.14.1",
+      "scope": "test-only",
+      "licenseType": "expression",
+      "license": "MIT",
+      "licenseUrl": "https://licenses.nuget.org/MIT",
+      "source": "https://www.nuget.org/packages/Microsoft.CodeCoverage/17.14.1",
+      "repository": "https://github.com/microsoft/vstest",
+      "commit": "490850ae3fdc1b470e3804ceab4f6a41cf89ae51",
+      "nugetContentHash": "pmTrhfFIoplzFVbhVwUquT+77CbGH+h4/3mBpdmIlYtBi9nAB+kKI6dN3A/nV4DFi3wLLx/BlHIPK+MkbQ6Tpg==",
+      "archiveSha512": "J/ZZlEKHfgDMZSUtDbsaccoLC1rrETvotQMMf4n6TbfLxytdYTP3dbKxaE5x2D+bXuwoESZeSgyd24Ao3prhZg==",
+      "sha256": "7fc432b46f06bd1a0fe3baced8a1269c32f1229c9eb1aab6e931630dd5b8d06b",
+      "notices": [
+        {
+          "path": "ThirdPartyNotices.txt",
+          "sha256": "4fc4244935bbe3516164402c573f053a5d246571ed4d357e6cccd8ebec296bbc"
+        },
+        {
+          "path": "build/netstandard2.0/ThirdPartyNotices.txt",
+          "sha256": "4fc4244935bbe3516164402c573f053a5d246571ed4d357e6cccd8ebec296bbc"
+        }
+      ],
+      "nativeAssets": [
+        "build/netstandard2.0/alpine/x64/libCoverageInstrumentationMethod.so",
+        "build/netstandard2.0/alpine/x64/libInstrumentationEngine.so",
+        "build/netstandard2.0/arm64/MicrosoftInstrumentationEngine_arm64.dll",
+        "build/netstandard2.0/CodeCoverage/CodeCoverage.exe",
+        "build/netstandard2.0/CodeCoverage/codecoveragemessages.dll",
+        "build/netstandard2.0/CodeCoverage/covrun32.dll",
+        "build/netstandard2.0/CodeCoverage/msdia140.dll",
+        "build/netstandard2.0/CodeCoverage/amd64/CodeCoverage.exe",
+        "build/netstandard2.0/CodeCoverage/amd64/covrun64.dll",
+        "build/netstandard2.0/CodeCoverage/amd64/msdia140.dll",
+        "build/netstandard2.0/CodeCoverage/arm64/covrunarm64.dll",
+        "build/netstandard2.0/CodeCoverage/arm64/msdia140.dll",
+        "build/netstandard2.0/macos/x64/libCoverageInstrumentationMethod.dylib",
+        "build/netstandard2.0/macos/x64/libInstrumentationEngine.dylib",
+        "build/netstandard2.0/ubuntu/x64/libCoverageInstrumentationMethod.so",
+        "build/netstandard2.0/ubuntu/x64/libInstrumentationEngine.so",
+        "build/netstandard2.0/x64/MicrosoftInstrumentationEngine_x64.dll",
+        "build/netstandard2.0/x86/MicrosoftInstrumentationEngine_x86.dll"
+      ]
+    },
+    {
+      "id": "Microsoft.Extensions.AI.Abstractions",
+      "version": "10.8.3",
+      "scope": "spike-server",
+      "licenseType": "expression",
+      "license": "MIT",
+      "licenseUrl": "https://licenses.nuget.org/MIT",
+      "source": "https://www.nuget.org/packages/Microsoft.Extensions.AI.Abstractions/10.8.3",
+      "repository": "https://github.com/dotnet/extensions",
+      "commit": "ccb356f31db9d894807c4fd0c97c2f41553d1524",
+      "nugetContentHash": "K0B05oApxmviWalNHPMBBcRC7erKiDATz3ENNR/jqTR9JwIwLRefgDhj2jCRwL1aca99pXUe0qyQC73/xIuZig==",
+      "archiveSha512": "uUAdAW+S2azZc2ev8ZkngeauRhlsKX6b4TQE7uaeAJUpb2XoASEwkBt2ZpeDU68loScgmGCR2bm1OfgsaZQwxQ==",
+      "sha256": "7be7e10d0663efb94ddbed605d5c03ccfe80bb6852ca44cdba1dd1e78ee7ca76",
+      "notices": [],
+      "nativeAssets": []
+    },
+    {
+      "id": "Microsoft.Extensions.Caching.Abstractions",
+      "version": "10.0.10",
+      "scope": "spike-server",
+      "licenseType": "expression",
+      "license": "MIT",
+      "licenseUrl": "https://licenses.nuget.org/MIT",
+      "source": "https://www.nuget.org/packages/Microsoft.Extensions.Caching.Abstractions/10.0.10",
+      "repository": "https://github.com/dotnet/dotnet",
+      "commit": "f7d90799ce4ef09a0bb257852a57248d2a8fb8dd",
+      "nugetContentHash": "4ZFBNE+jzR+CrWWlhOesnmywCW7pYKT0dxyAQRdL11yJwxe4jvcAu31eorFtEkoFeCDcUTeNssgPv2yaRRptaQ==",
+      "archiveSha512": "AoWKbx6BTS/LpVBqHl4bwSUYb+duiSNdBzsNyoTGKALmaA5sE62KwHrFtjWKBpHPRzyAEiwGKnrIrlV9elp6Ww==",
+      "sha256": "c663193051052383d0219cdba4381235e0ff03a1c8ce93db323ad1eceb4636b4",
+      "notices": [
+        {
+          "path": "THIRD-PARTY-NOTICES.TXT",
+          "sha256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21"
+        }
+      ],
+      "nativeAssets": []
+    },
+    {
+      "id": "Microsoft.Extensions.Configuration.Abstractions",
+      "version": "10.0.10",
+      "scope": "spike-server",
+      "licenseType": "expression",
+      "license": "MIT",
+      "licenseUrl": "https://licenses.nuget.org/MIT",
+      "source": "https://www.nuget.org/packages/Microsoft.Extensions.Configuration.Abstractions/10.0.10",
+      "repository": "https://github.com/dotnet/dotnet",
+      "commit": "f7d90799ce4ef09a0bb257852a57248d2a8fb8dd",
+      "nugetContentHash": "5Vnd2I75DmZCVEjSynIdJ/0EGafgnLQwgR3t2C2/fkjx/nRG+cLwxLLdInoHeCEpkD5K4Ov/g9ZCRYrl4TRsaA==",
+      "archiveSha512": "e/TNbyXX4DDjZsyctZO3mokPNH31mAYsDSAwzbYtI/Rl9pzN/H6D0+cJ/L4S7cS9SvaCKcLYiSFqqE69Q6axYg==",
+      "sha256": "632deba4e226d5510f7584f219e1bb4bc6cd4fe001692262620b155957991ad5",
+      "notices": [
+        {
+          "path": "THIRD-PARTY-NOTICES.TXT",
+          "sha256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21"
+        }
+      ],
+      "nativeAssets": []
+    },
+    {
+      "id": "Microsoft.Extensions.DependencyInjection.Abstractions",
+      "version": "10.0.10",
+      "scope": "spike-server",
+      "licenseType": "expression",
+      "license": "MIT",
+      "licenseUrl": "https://licenses.nuget.org/MIT",
+      "source": "https://www.nuget.org/packages/Microsoft.Extensions.DependencyInjection.Abstractions/10.0.10",
+      "repository": "https://github.com/dotnet/dotnet",
+      "commit": "f7d90799ce4ef09a0bb257852a57248d2a8fb8dd",
+      "nugetContentHash": "z/2xXlFw2aLGjHyEm6E0tQ+In6VfzQzTrtArbQ2c0TQE16ZbyDCMGPvaUT9I0s8rgy9sRWlU2P9waW37qV04qA==",
+      "archiveSha512": "xArycDUtAEn73bZAPrC1IG8LYxh2AUboCTqZcrKrll16UhOijkc3QnEuVPersojqt6RmWbQcdCbUVOzuSpMerA==",
+      "sha256": "dabf90bddd2edf33837d0d4d00bfaabbe5b95c66aa2639b7d5b1ba48624a667d",
+      "notices": [
+        {
+          "path": "THIRD-PARTY-NOTICES.TXT",
+          "sha256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21"
+        }
+      ],
+      "nativeAssets": []
+    },
+    {
+      "id": "Microsoft.Extensions.Diagnostics.Abstractions",
+      "version": "10.0.10",
+      "scope": "spike-server",
+      "licenseType": "expression",
+      "license": "MIT",
+      "licenseUrl": "https://licenses.nuget.org/MIT",
+      "source": "https://www.nuget.org/packages/Microsoft.Extensions.Diagnostics.Abstractions/10.0.10",
+      "repository": "https://github.com/dotnet/dotnet",
+      "commit": "f7d90799ce4ef09a0bb257852a57248d2a8fb8dd",
+      "nugetContentHash": "9uWiKpeOVac355STyChWR/pliFX/5CeLqChW9kKsaxyDH4EUTZxMkT4Jwp/J/peLm0GBFmSX5c0WCse3yCnq1Q==",
+      "archiveSha512": "sWPhHd1eEM601Akc++NaJKYcpwop1I2Yjpykj16aeZtA4cd1JwH39406WGsXh1B1gTV+SigTqPVhvpy4Cju0rw==",
+      "sha256": "be157a2858410586e06a919a9f24a21e1c9c9c7495a8fa88ca783c3b1017890f",
+      "notices": [
+        {
+          "path": "THIRD-PARTY-NOTICES.TXT",
+          "sha256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21"
+        }
+      ],
+      "nativeAssets": []
+    },
+    {
+      "id": "Microsoft.Extensions.FileProviders.Abstractions",
+      "version": "10.0.10",
+      "scope": "spike-server",
+      "licenseType": "expression",
+      "license": "MIT",
+      "licenseUrl": "https://licenses.nuget.org/MIT",
+      "source": "https://www.nuget.org/packages/Microsoft.Extensions.FileProviders.Abstractions/10.0.10",
+      "repository": "https://github.com/dotnet/dotnet",
+      "commit": "f7d90799ce4ef09a0bb257852a57248d2a8fb8dd",
+      "nugetContentHash": "c5zqFCY9DiIpMovLd7/d/CTiEtrMOuQ639dhv3PABtKQIKNQikSHwQt8+N679uii9q+B55lgK28Uv64FOwEu8w==",
+      "archiveSha512": "bzg2PR7uwwNMG8/5BYspXxnE8m6c7arsZxrz+iLSEuZx24yrBojdsBYJyFCgbQwsWxAxdvhi9/fcq6FkgdUcUQ==",
+      "sha256": "bb79d3099a6aaa7e872159b43b6e199a6cb23656e65239aaf000de28cbb82725",
+      "notices": [
+        {
+          "path": "THIRD-PARTY-NOTICES.TXT",
+          "sha256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21"
+        }
+      ],
+      "nativeAssets": []
+    },
+    {
+      "id": "Microsoft.Extensions.Hosting.Abstractions",
+      "version": "10.0.10",
+      "scope": "spike-server",
+      "licenseType": "expression",
+      "license": "MIT",
+      "licenseUrl": "https://licenses.nuget.org/MIT",
+      "source": "https://www.nuget.org/packages/Microsoft.Extensions.Hosting.Abstractions/10.0.10",
+      "repository": "https://github.com/dotnet/dotnet",
+      "commit": "f7d90799ce4ef09a0bb257852a57248d2a8fb8dd",
+      "nugetContentHash": "5LugpYGHk+mkn0a8IZgcyfBca8PCTAU9RQFoMrTdtOOidq88M2SI5f3px6ugnzgxC+eTkvYYJi8pzlUnG5xdAQ==",
+      "archiveSha512": "Aps7givpQKaZSzpzMwRuZMdeRxx/MiXGkMDLPOxsGdIFlKrate/ChgLC+jfuO810XtJmMrf3pFgM0ClNO5ZtyQ==",
+      "sha256": "59589a29dd1c6c7697cc561de82ba85effced1179b9f9616c406e66fa1581820",
+      "notices": [
+        {
+          "path": "THIRD-PARTY-NOTICES.TXT",
+          "sha256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21"
+        }
+      ],
+      "nativeAssets": []
+    },
+    {
+      "id": "Microsoft.Extensions.Logging.Abstractions",
+      "version": "10.0.10",
+      "scope": "spike-server",
+      "licenseType": "expression",
+      "license": "MIT",
+      "licenseUrl": "https://licenses.nuget.org/MIT",
+      "source": "https://www.nuget.org/packages/Microsoft.Extensions.Logging.Abstractions/10.0.10",
+      "repository": "https://github.com/dotnet/dotnet",
+      "commit": "f7d90799ce4ef09a0bb257852a57248d2a8fb8dd",
+      "nugetContentHash": "zkFxGYUvdxAvIKTyXHrmW+Sux53D4SezD9dMyZ6hrwwzPQJNuwCRy1f5W7AvYTqacEGhWF2XderRQG1OvbV8og==",
+      "archiveSha512": "b8xabNM7zKc7R8B3G9GtnMBE6sU9OvQ8AXzGhJMvHxB5gcegMSkiwU5uKqm43x06cGVd0Kzc+bl9POl1/CHViA==",
+      "sha256": "99ca914981b742d06508051bc7b326692bc6e8a2ad005c7e1356787405a84d66",
+      "notices": [
+        {
+          "path": "THIRD-PARTY-NOTICES.TXT",
+          "sha256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21"
+        }
+      ],
+      "nativeAssets": []
+    },
+    {
+      "id": "Microsoft.Extensions.Options",
+      "version": "10.0.10",
+      "scope": "spike-server",
+      "licenseType": "expression",
+      "license": "MIT",
+      "licenseUrl": "https://licenses.nuget.org/MIT",
+      "source": "https://www.nuget.org/packages/Microsoft.Extensions.Options/10.0.10",
+      "repository": "https://github.com/dotnet/dotnet",
+      "commit": "f7d90799ce4ef09a0bb257852a57248d2a8fb8dd",
+      "nugetContentHash": "srnhnk7nE8krBiIXp71LvBmKBtraBONWSRzdjJgRv1Ko9Mp8IVNqv4vIS9hGeVteBig8aQkva9ZG+sC+o5sVcA==",
+      "archiveSha512": "U4Mion/ZuwBMTD/CH8WE7Ajt6IdAtU3JXLwkG1UzOWM1lNFnoO8NAuQtZILNpkKyGEFP9t7FvQakgHnMCUjZKQ==",
+      "sha256": "4b890f1ecc865a90ad99d8fe4bf2149d93aa600037461859c3be965aae90b308",
+      "notices": [
+        {
+          "path": "THIRD-PARTY-NOTICES.TXT",
+          "sha256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21"
+        }
+      ],
+      "nativeAssets": []
+    },
+    {
+      "id": "Microsoft.Extensions.Primitives",
+      "version": "10.0.10",
+      "scope": "spike-server",
+      "licenseType": "expression",
+      "license": "MIT",
+      "licenseUrl": "https://licenses.nuget.org/MIT",
+      "source": "https://www.nuget.org/packages/Microsoft.Extensions.Primitives/10.0.10",
+      "repository": "https://github.com/dotnet/dotnet",
+      "commit": "f7d90799ce4ef09a0bb257852a57248d2a8fb8dd",
+      "nugetContentHash": "5wu/GrYVd8mG2DVUw3vFJzF+O336TyTGg/Kmcgw9bfwYhCoFiV5lR5QeEmKecJyrW4W54nMfD3p3589E8a7czQ==",
+      "archiveSha512": "s/d40kr99HEb66EN5nP56zq67BCLhoYv3x3mT1VLVDpQP7O7sKvDjgr4uADvOdNmD8ZglDI1xzR4b66xHU+tZA==",
+      "sha256": "a8e29bc5a9879776fe7dba4b42cdc08e781ae1ccf57b9d12cd0402ad7ca8f1c7",
+      "notices": [
+        {
+          "path": "THIRD-PARTY-NOTICES.TXT",
+          "sha256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21"
+        }
+      ],
+      "nativeAssets": []
+    },
+    {
+      "id": "Microsoft.NET.Test.Sdk",
+      "version": "17.14.1",
+      "scope": "test-only",
+      "licenseType": "expression",
+      "license": "MIT",
+      "licenseUrl": "https://licenses.nuget.org/MIT",
+      "source": "https://www.nuget.org/packages/Microsoft.NET.Test.Sdk/17.14.1",
+      "repository": "https://github.com/microsoft/vstest",
+      "commit": "490850ae3fdc1b470e3804ceab4f6a41cf89ae51",
+      "nugetContentHash": "HJKqKOE+vshXra2aEHpi2TlxYX7Z9VFYkr+E5rwEvHC8eIXiyO+K9kNm8vmNom3e2rA56WqxU+/N9NJlLGXsJQ==",
+      "archiveSha512": "StGq/XXxPRDVTuHokqg1QDNWNo/NCHBF+7EAQWIt1revlYeTM/zdTEp193L1Sqtd0wIUhuT/7AiIzJKQ3HNxsw==",
+      "sha256": "9995330c5bc5a7bc759caadc9d17748616cdbb983c11062df122a74607614ff0",
+      "notices": [],
+      "nativeAssets": []
+    },
+    {
+      "id": "Microsoft.Testing.Extensions.Telemetry",
+      "version": "1.5.3",
+      "scope": "test-only",
+      "licenseType": "expression",
+      "license": "MIT",
+      "licenseUrl": "https://licenses.nuget.org/MIT",
+      "source": "https://www.nuget.org/packages/Microsoft.Testing.Extensions.Telemetry/1.5.3",
+      "repository": "https://github.com/microsoft/testfx",
+      "commit": "2a34431d753f39463aadf19674237f6c4e5b6865",
+      "nugetContentHash": "U9pGd5DQuX1PfkrdFI+xH34JGgQ2nes5QAwIITTk+MQfLvRITqsZjJeHTjpGWh33D/0q1l7aA8/LQHR7UuCgLQ==",
+      "archiveSha512": "+mXbw7dGXausy8r/aHGxDkbebqYbXsyp37w8QYhhFlPfsN8BoCHroomK175mQVQQIrvR6qJhQ6e1fNWi3SuUhA==",
+      "sha256": "6c85f03d26b78e4af66fac4834ea8c52cebfba3febe2854533bc6adee5486435",
+      "notices": [],
+      "nativeAssets": []
+    },
+    {
+      "id": "Microsoft.Testing.Extensions.TrxReport.Abstractions",
+      "version": "1.5.3",
+      "scope": "test-only",
+      "licenseType": "expression",
+      "license": "MIT",
+      "licenseUrl": "https://licenses.nuget.org/MIT",
+      "source": "https://www.nuget.org/packages/Microsoft.Testing.Extensions.TrxReport.Abstractions/1.5.3",
+      "repository": "https://github.com/microsoft/testfx",
+      "commit": "2a34431d753f39463aadf19674237f6c4e5b6865",
+      "nugetContentHash": "h34zKNpGyni66VH738mRHeXSnf3klSShUdavUWNhSfWICUUi5aXeI0LBvoX/ad93N0+9xBDU3Fyi6WfxrwKQGw==",
+      "archiveSha512": "A+cmxNmTGGSLTlsirtzqZvoCP6GjwWlET/XGZGEqLJAUnJvndkuZDMxI6JNUGCR2jG8BoL68jHbgIjxNmhC0eQ==",
+      "sha256": "21f3117dcc9a20a10c46dc77dba2022ad8a70c111f1b0fd2bfc6476b027de987",
+      "notices": [],
+      "nativeAssets": []
+    },
+    {
+      "id": "Microsoft.Testing.Extensions.VSTestBridge",
+      "version": "1.5.3",
+      "scope": "test-only",
+      "licenseType": "expression",
+      "license": "MIT",
+      "licenseUrl": "https://licenses.nuget.org/MIT",
+      "source": "https://www.nuget.org/packages/Microsoft.Testing.Extensions.VSTestBridge/1.5.3",
+      "repository": "https://github.com/microsoft/testfx",
+      "commit": "2a34431d753f39463aadf19674237f6c4e5b6865",
+      "nugetContentHash": "cJD67YfDT98wEWyazKVD/yPVW6+H1usXeuselCnRes7JZBTIYWtrCchcOzOahnmajT79eDKqt9sta7DXwTDU4Q==",
+      "archiveSha512": "M4RtABNQ8Xq3J1twv/xDv/XD+VQUl3O702/17vb2TkTqabDgjNSeHfFQwhwT08edgJUcs45BzUBk/95erQxhrg==",
+      "sha256": "5e933fc858e12d2b2ecf20d5fb12ae6ece15d73555622574e44d3e3784b58748",
+      "notices": [],
+      "nativeAssets": []
+    },
+    {
+      "id": "Microsoft.Testing.Platform",
+      "version": "1.5.3",
+      "scope": "test-only",
+      "licenseType": "expression",
+      "license": "MIT",
+      "licenseUrl": "https://licenses.nuget.org/MIT",
+      "source": "https://www.nuget.org/packages/Microsoft.Testing.Platform/1.5.3",
+      "repository": "https://github.com/microsoft/testfx",
+      "commit": "2a34431d753f39463aadf19674237f6c4e5b6865",
+      "nugetContentHash": "WqJydnJ99dEKtquR9HwINz104ehWJKTXbQQrydGatlLRw14bmsx0pa8+E6KUXMYXZAimN0swWlDmcJGjjW4TIg==",
+      "archiveSha512": "6YEKyvVN1mwNFrKMtLopX9vfWcJGGoHl739IO3jglj/9abqbydEiwYKvbyLR/LNaciykx3PWZoduSBbTjv+w5w==",
+      "sha256": "cbad488a1eb0e43efd766ae3d95ebbe6671a788887a23d4749ad45462b7604b3",
+      "notices": [],
+      "nativeAssets": []
+    },
+    {
+      "id": "Microsoft.Testing.Platform.MSBuild",
+      "version": "1.5.3",
+      "scope": "test-only",
+      "licenseType": "expression",
+      "license": "MIT",
+      "licenseUrl": "https://licenses.nuget.org/MIT",
+      "source": "https://www.nuget.org/packages/Microsoft.Testing.Platform.MSBuild/1.5.3",
+      "repository": "https://github.com/microsoft/testfx",
+      "commit": "2a34431d753f39463aadf19674237f6c4e5b6865",
+      "nugetContentHash": "bOtpRMSPeT5YLQo+NNY8EtdNTphAUcmALjW4ABU7P0rb6yR2XAZau3TzNieLmR3lRuwudguWzzBhgcLRXwZh0A==",
+      "archiveSha512": "CMZ6k3J/8Qe/5ZhCGrrY7BRNPUl9Xt3wkOTK53qgmwSpRENMO8dcPXYXLxwxx8DErhjdM4WigHf1JK1halcy9w==",
+      "sha256": "62ca6f8c4e497e2e7ced301fb2f7c35495cdac53a4c75077cb508a57a9bb60b6",
+      "notices": [],
+      "nativeAssets": []
+    },
+    {
+      "id": "Microsoft.TestPlatform.ObjectModel",
+      "version": "17.14.1",
+      "scope": "test-only",
+      "licenseType": "expression",
+      "license": "MIT",
+      "licenseUrl": "https://licenses.nuget.org/MIT",
+      "source": "https://www.nuget.org/packages/Microsoft.TestPlatform.ObjectModel/17.14.1",
+      "repository": "https://github.com/microsoft/vstest",
+      "commit": "490850ae3fdc1b470e3804ceab4f6a41cf89ae51",
+      "nugetContentHash": "xTP1W6Mi6SWmuxd3a+jj9G9UoC850WGwZUps1Wah9r1ZxgXhdJfj1QqDLJkFjHDCvN42qDL2Ps5KjQYWUU0zcQ==",
+      "archiveSha512": "+jiozvIIOnkO3pnZf4QIuswoZBbj8e4+RTx11KkfDbrhnFLYwSfuXkI0p/7xQIBP6XWfZvEsmfCPrzy9zIo+3Q==",
+      "sha256": "40c7fa3bec34213fb5e8caf3a3bc27f8ddb47f72f5fe60e1b3faa3984a35ad8b",
+      "notices": [],
+      "nativeAssets": []
+    },
+    {
+      "id": "Microsoft.TestPlatform.TestHost",
+      "version": "17.14.1",
+      "scope": "test-only",
+      "licenseType": "expression",
+      "license": "MIT",
+      "licenseUrl": "https://licenses.nuget.org/MIT",
+      "source": "https://www.nuget.org/packages/Microsoft.TestPlatform.TestHost/17.14.1",
+      "repository": "https://github.com/microsoft/vstest",
+      "commit": "490850ae3fdc1b470e3804ceab4f6a41cf89ae51",
+      "nugetContentHash": "d78LPzGKkJwsJXAQwsbJJ7LE7D1wB+rAyhHHAaODF+RDSQ0NgMjDFkSA1Djw18VrxO76GlKAjRUhl+H8NL8Z+Q==",
+      "archiveSha512": "/V3Acu/lqnYDInFcadS5g+1Pd19Qd+xrdQqQ4t08i4euP9qWH6XGoyz6YldTBa6EUf2b/8cAoD8cLjzoCGATBA==",
+      "sha256": "d5cc4759cbc7443ee8ad0dc41043cfc55184913a71a26d7fce82020bd4889c9b",
+      "notices": [
+        {
+          "path": "ThirdPartyNotices.txt",
+          "sha256": "e2ce7628e0f67d0d724eea9d9286a6938bf1eedd253fc84b23d72ae54778a5f7"
+        }
+      ],
+      "nativeAssets": [
+        "build/net8.0/x64/testhost.exe",
+        "build/net8.0/x86/testhost.x86.exe",
+        "lib/net8.0/x64/msdia140.dll",
+        "lib/net8.0/x86/msdia140.dll"
+      ]
+    },
+    {
+      "id": "ModelContextProtocol",
+      "version": "2.2.0",
+      "scope": "spike-server",
+      "licenseType": "expression",
+      "license": "Apache-2.0",
+      "licenseUrl": "https://licenses.nuget.org/Apache-2.0",
+      "source": "https://www.nuget.org/packages/ModelContextProtocol/2.2.0",
+      "repository": "https://github.com/modelcontextprotocol/csharp-sdk",
+      "commit": "6fa3825973949a9c4f0cd8af344e15a8db09dc35",
+      "nugetContentHash": "4Pb9u02Nwsp0poueDsqNdyGRojFxOYpljB7zDBsq+aHL+Afou3OgxlBc3GWFVnsRMRJrUtWqDh3s6k2JgPzmrQ==",
+      "archiveSha512": "gpbmIn/FEP7cb0saSox9dwWu9avJJgGv5jVOedgykpGQsSSP1U9Y0PQq2PyuynMNh9qBty/finIPXhNBu/vvew==",
+      "sha256": "d9704e12d5412c97147c74dd89524410bbad86e09bc96472134d9c7269d5c6fc",
+      "notices": [],
+      "nativeAssets": []
+    },
+    {
+      "id": "ModelContextProtocol.Core",
+      "version": "2.2.0",
+      "scope": "spike-server",
+      "licenseType": "expression",
+      "license": "Apache-2.0",
+      "licenseUrl": "https://licenses.nuget.org/Apache-2.0",
+      "source": "https://www.nuget.org/packages/ModelContextProtocol.Core/2.2.0",
+      "repository": "https://github.com/modelcontextprotocol/csharp-sdk",
+      "commit": "6fa3825973949a9c4f0cd8af344e15a8db09dc35",
+      "nugetContentHash": "FeBfXU6T8k+jw4afg4sfxdEX2rL/e5oKOk9ROOGztu9k47+7Bz08sdaToYt2XvMY1opNbwxYQOFMj6wH9TInhA==",
+      "archiveSha512": "UwRRGhtrn6UM3X8Is5iT30Ag1SCUmz0lqQfRNmldkIf54mhpyULGVowL2cTNjc1MPh1S91AeltsmZcFqw6rIKQ==",
+      "sha256": "146b28079d752ce216651f48287f5846e9061e1525c08181c3854fef1a1b7aba",
+      "notices": [],
+      "nativeAssets": []
+    },
+    {
+      "id": "Newtonsoft.Json",
+      "version": "13.0.3",
+      "scope": "test-only",
+      "licenseType": "expression",
+      "license": "MIT",
+      "licenseUrl": "https://licenses.nuget.org/MIT",
+      "source": "https://www.nuget.org/packages/Newtonsoft.Json/13.0.3",
+      "repository": "https://github.com/JamesNK/Newtonsoft.Json",
+      "commit": "0a2e291c0d9c0c7675d445703e51750363a549ef",
+      "nugetContentHash": "HrC5BXdl00IP9zeV+0Z848QWPAoCr9P3bDEZguI+gkLcBKAOxix/tLEAAHC+UvDNPv4a2d18lOReHMOagPa+zQ==",
+      "archiveSha512": "mbJSvHfRxfX3tR/U6n1WU+mWHXswYc+SB/hkOpx8yZZe68hNZGfymJu0cjsaJEkVzCMqePiU6LdIyogqfIn7kg==",
+      "sha256": "872fc189e638ab1056555b03aaa38f68bcb54286e221aa646eb1129babf63c77",
+      "notices": [
+        {
+          "path": "LICENSE.md",
+          "sha256": "b98a397897ff55f76cddc380041507a95a896b2946e0188703bf0496793d6516"
+        }
+      ],
+      "nativeAssets": []
+    },
+    {
+      "id": "NUnit",
+      "version": "4.6.1",
+      "scope": "test-only",
+      "licenseType": "expression",
+      "license": "MIT",
+      "licenseUrl": "https://licenses.nuget.org/MIT",
+      "source": "https://www.nuget.org/packages/NUnit/4.6.1",
+      "repository": "https://github.com/nunit/nunit",
+      "commit": "",
+      "nugetContentHash": "xS4+YaBFUv1r8bcAbjitSfYaRZGfMwUiMdiaRziBXZpKgVxKDSHhjUn0mV5mObHGZRZq6eNa+WFWr3g8grj66A==",
+      "archiveSha512": "jBy4SxUa18b9bfC6/VpbnKW2o9uN8EQYMH1QAvCa68AV03L3bSpv6W84K0FZ1SxlQQojzwh2JC4+BYbCdfWnMA==",
+      "sha256": "30b7225b4723f4e3b7809e858ea0ff2a9a744b9c8f62c4e9496b514d81b43efa",
+      "notices": [
+        {
+          "path": "LICENSE.txt",
+          "sha256": "71153559e3c05250a869ed51c2866cb83d5fdcab88304c7e20c78c105772fb03"
+        },
+        {
+          "path": "NOTICES.md",
+          "sha256": "a332eb146b7cfb66f5954b6917f115b6e36f816edfd12a10a5becc3cffc65a64"
+        },
+        {
+          "path": "THIRD_PARTY_NOTICES.md",
+          "sha256": "4e994de5fcf598be2196c487b9b3ff7e555d0e26ec4272a06cc1dab493d193ad"
+        }
+      ],
+      "nativeAssets": []
+    },
+    {
+      "id": "NUnit3TestAdapter",
+      "version": "5.0.0",
+      "scope": "test-only",
+      "licenseType": "expression",
+      "license": "MIT",
+      "licenseUrl": "https://licenses.nuget.org/MIT",
+      "source": "https://www.nuget.org/packages/NUnit3TestAdapter/5.0.0",
+      "repository": "https://github.com/nunit/nunit3-vs-adapter",
+      "commit": "",
+      "nugetContentHash": "sy4cLoUAdE6TDM4wNX5gmNCyhMev5wUz4cA6ZRf/aON9vf9t4xTVGLj/4huhDKcS4dFfmVVcgcP70yC7WC9kKg==",
+      "archiveSha512": "kU+ojbfaQYkfU2QxEhs3aHCoC4YhqvFqM96n/w1BigAK+gjewxYrLJe79LntqRrzrV7wsnS/xWRFj7VdSbjL7w==",
+      "sha256": "ee364ce2a01b2339dedc071d15f31bbdb82882aa71bd57baab64bb2ecf31432d",
+      "notices": [],
+      "nativeAssets": []
+    }
+  ]
+}
