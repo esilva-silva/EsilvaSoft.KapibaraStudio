@@ -29,6 +29,8 @@ public sealed partial class AgentChatViewModel
         /// <summary>Provider of the reviewed package that started this turn (fixed for the turn).</summary>
         public string ProviderId { get; init; } = "";
 
+        public bool PersistProviderSession { get; init; } = true;
+
         public Dictionary<AgentMessageId, AgentChatMessageItem> Messages { get; } = [];
 
         public Dictionary<AgentToolCallId, AgentToolCallItem> Tools { get; } = [];
@@ -97,6 +99,7 @@ public sealed partial class AgentChatViewModel
         var run = new TurnRun(turnId, CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token))
         {
             ProviderId = provider.ProviderId,
+            PersistProviderSession = permissions.KeepHistory,
             Conversation = conversation,
         };
         conversation.Turn = run;
@@ -138,7 +141,26 @@ public sealed partial class AgentChatViewModel
                 Plan = plan, SystemPrompt = systemPrompt, Attachments = resolution.Attachments,
                 ConversationId = run.Conversation.Id, Permissions = permissions, WorkspaceContext = context,
             };
-            await RunTurnAsync(run, providerId, modelId, workingDirectory, request);
+            var newCopilotReservation = false;
+            if (string.Equals(providerId, AgentProviderIds.GitHubCopilotSubscription, StringComparison.Ordinal))
+            {
+                if (!permissions.KeepHistory)
+                {
+                    run.ErrorCode = "CopilotHistoryReservationRequired";
+                    Finish(run, AgentTurnOutcome.Failed);
+                    return;
+                }
+
+                newCopilotReservation = run.Conversation.ProviderSessionId is null;
+                if (!await ReserveCopilotSessionAsync(run.Conversation, run.Cancellation.Token))
+                {
+                    run.ErrorCode = "CopilotHistoryReservationFailed";
+                    Finish(run, AgentTurnOutcome.Failed);
+                    return;
+                }
+            }
+
+            await RunTurnAsync(run, providerId, modelId, workingDirectory, request, newCopilotReservation);
         }
         catch (OperationCanceledException) when (run.Cancellation.IsCancellationRequested)
         {
@@ -162,13 +184,15 @@ public sealed partial class AgentChatViewModel
         }
     }
 
-    private async Task RunTurnAsync(TurnRun run, string providerId, string? modelId, string? workingDirectory, AgentTurnRequest request)
+    private async Task RunTurnAsync(TurnRun run, string providerId, string? modelId, string? workingDirectory,
+        AgentTurnRequest request, bool newCopilotReservation)
     {
         var runtime = _services.Runtime!;
         var terminalEventReceived = false;
         try
         {
-            var sessionId = await EnsureSessionAsync(runtime, run.Conversation, providerId, modelId, workingDirectory, run.Cancellation.Token);
+            var sessionId = await EnsureSessionAsync(runtime, run.Conversation, providerId, modelId, workingDirectory,
+                run.PersistProviderSession, newCopilotReservation, run.Cancellation.Token);
             run.SessionId = sessionId;
             run.Conversation.SessionId = sessionId;
             if (!ReferenceEquals(run.Conversation.Turn, run))
@@ -236,7 +260,8 @@ public sealed partial class AgentChatViewModel
     }
 
     private async Task<AgentSessionId> EnsureSessionAsync(
-        IAgentRuntime runtime, AgentChatConversation conversation, string providerId, string? modelId, string? workingDirectory, CancellationToken cancellationToken)
+        IAgentRuntime runtime, AgentChatConversation conversation, string providerId, string? modelId, string? workingDirectory,
+        bool persistProviderSession, bool newCopilotReservation, CancellationToken cancellationToken)
     {
         if (conversation.SessionId is { } existing && conversation.SessionProviderId == providerId &&
             conversation.SessionModelId == modelId &&
@@ -248,16 +273,20 @@ public sealed partial class AgentChatViewModel
         await CloseSessionAsync(conversation);
         var created = await runtime.StartSessionAsync(new AgentSessionOptions(providerId, modelId, workingDirectory)
         {
-            ResumeProviderSessionId = conversation.ProviderSessionId,
+            ResumeProviderSessionId = newCopilotReservation ? null : conversation.ProviderSessionId,
+            ReservedProviderSessionId = string.Equals(providerId, AgentProviderIds.GitHubCopilotSubscription,
+                StringComparison.Ordinal) ? conversation.ProviderSessionId : null,
             ConversationId = conversation.Id,
             Mode = conversation.Mode,
+            PersistProviderSession = persistProviderSession,
             ProviderSessionObserver = update => AgentUiDispatch.Post(() =>
             {
                 if (update.ProviderSessionId is { } id) ReportProviderSessionId(conversation, id);
                 if (update.Change == AgentProviderSessionChange.ResumeFallback)
                 {
                     conversation.ResumeLost = true;
-                    conversation.ProviderSessionId = null;
+                    if (!string.Equals(providerId, AgentProviderIds.GitHubCopilotSubscription, StringComparison.Ordinal))
+                        conversation.ProviderSessionId = null;
                     conversation.Items.Add(new AgentChatNoticeItem(
                         Text.Resolve("agentResumeLost"),
                         isWarning: true));
@@ -317,6 +346,10 @@ public sealed partial class AgentChatViewModel
                 if (run.Tools.TryGetValue(callId, out var finished) && !finished.IsTerminal)
                 {
                     finished.Complete(MapToolState(item), SafeCodeOrNull(item.ErrorCode), _services.Clock);
+                    if (finished.CanReviewPermissions && finished.ToolName == AgentToolRegistry.GetWorkspaceContextToolName)
+                    {
+                        PermissionsRequested?.Invoke(this, null);
+                    }
                 }
 
                 RefreshRunningState(run);

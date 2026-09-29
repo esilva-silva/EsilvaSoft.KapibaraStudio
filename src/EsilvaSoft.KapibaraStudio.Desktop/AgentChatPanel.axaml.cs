@@ -82,6 +82,9 @@ public partial class AgentChatPanel : UserControl
     /// <summary>The settings dialog currently open from this panel, if any.</summary>
     public AgentSettingsWindow? OpenSettingsWindow { get; private set; }
 
+    /// <summary>The permissions dialog currently open from the chat panel, if any.</summary>
+    public AgentPermissionsWindow? OpenPermissionsWindow { get; private set; }
+
     public TextBox ComposerBox => Composer;
 
     private void Attach(AgentChatViewModel? viewModel)
@@ -90,6 +93,7 @@ public partial class AgentChatPanel : UserControl
         {
             _viewModel.ApprovalRequested -= OnApprovalRequested;
             _viewModel.SettingsRequested -= OnSettingsRequested;
+            _viewModel.PermissionsRequested -= OnPermissionsRequested;
             _viewModel.ComposerFocusRequested -= OnComposerFocusRequested;
             _viewModel.ExternalFilePickRequested -= OnExternalFilePickRequested;
             _viewModel.ProposalReviewRequested -= OnProposalReviewRequested;
@@ -100,6 +104,7 @@ public partial class AgentChatPanel : UserControl
         {
             viewModel.ApprovalRequested += OnApprovalRequested;
             viewModel.SettingsRequested += OnSettingsRequested;
+            viewModel.PermissionsRequested += OnPermissionsRequested;
             viewModel.ComposerFocusRequested += OnComposerFocusRequested;
             viewModel.ExternalFilePickRequested += OnExternalFilePickRequested;
             viewModel.ProposalReviewRequested += OnProposalReviewRequested;
@@ -261,6 +266,43 @@ public partial class AgentChatPanel : UserControl
     }
 
     private void OnSettingsRequested(object? sender, EventArgs e) => _ = ShowSettingsAsync();
+
+    private void OnPermissionsRequested(object? sender, string? section) => _ = ShowPermissionsDialogAsync(section);
+
+    private async Task ShowPermissionsDialogAsync(string? section)
+    {
+        if (_viewModel is null || OpenPermissionsWindow is not null || _viewModel.SelectedProvider is not { } selected)
+        {
+            return;
+        }
+
+        var permissions = _viewModel.CreatePermissionsViewModel(selected.ProviderId, section);
+        var window = new AgentPermissionsWindow { DataContext = permissions };
+        OpenPermissionsWindow = window;
+        try
+        {
+            if (TopLevel.GetTopLevel(this) is Window owner && owner.IsVisible)
+            {
+                await window.ShowDialog(owner);
+            }
+            else
+            {
+                var closed = new TaskCompletionSource();
+                window.Closed += (_, _) => closed.TrySetResult();
+                window.Show();
+                await closed.Task;
+            }
+        }
+        catch (Exception)
+        {
+            // The current permission set remains in effect; no denied tool is retried automatically.
+        }
+        finally
+        {
+            OpenPermissionsWindow = null;
+            Composer.Focus();
+        }
+    }
 
     private async Task ShowSettingsAsync()
     {

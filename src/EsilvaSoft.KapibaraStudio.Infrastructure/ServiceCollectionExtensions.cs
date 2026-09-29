@@ -47,8 +47,13 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ILegacyCredentialInventoryRepository>(services => services.GetRequiredService<LiteDbConnectionProfileRepository>());
         services.AddSingleton<ILegacyConnectionCredentialMigration, LegacyConnectionCredentialMigration>();
         services.AddSingleton<IConsoleHistoryRepository>(services => services.GetRequiredService<LiteDbConnectionProfileRepository>());
-        services.AddSingleton<IAgentAuthorizationPolicyProvider>(services => services.GetRequiredService<LiteDbConnectionProfileRepository>());
         services.AddSingleton<IAgentAuthorizationPolicyRepository>(services => services.GetRequiredService<LiteDbConnectionProfileRepository>());
+        services.AddSingleton<IAgentAuthorizationPolicyProvider>(provider => new NativeChatTurnPolicyProvider(
+            provider.GetRequiredService<IAgentAuthorizationPolicyRepository>(),
+            provider.GetRequiredService<IAgentPrincipalAuthority>(),
+            provider.GetRequiredService<IAgentNativeChatTurnScopes>(),
+            provider.GetRequiredService<IConnectionProfileRepository>(),
+            provider.GetServices<IAgentProvider>()));
         services.AddSingleton<IAgentAuditRepository>(services => services.GetRequiredService<LiteDbConnectionProfileRepository>());
         // ADR-056: conversations and per-provider permissions are facets of the same owner (never a second LiteDatabase).
         services.AddSingleton<IAgentConversationRepository>(services => services.GetRequiredService<LiteDbConnectionProfileRepository>());
@@ -153,6 +158,7 @@ public static class ServiceCollectionExtensions
         // tool unavailable (or, for confirmations, every answer a denial). Nothing is started here.
         services.AddSingleton<AgentMcpSessionRegistry>();
         services.AddSingleton<IAgentMcpSessionScopes>(provider => provider.GetRequiredService<AgentMcpSessionRegistry>());
+        services.AddSingleton<IAgentNativeChatTurnScopes, AgentNativeChatTurnScopeRegistry>();
         services.AddSingleton<IAgentToolRegistry>(provider =>
         {
             var literalQueries = options.ToolExposureStage >= AgentToolExposureStage.LiteralQueries
@@ -160,6 +166,7 @@ public static class ServiceCollectionExtensions
                 : null;
             var sessionTools = new AgentSessionToolPorts(provider.GetRequiredService<IAgentMcpSessionScopes>())
             {
+                NativeChatTurnScopes = provider.GetRequiredService<IAgentNativeChatTurnScopes>(),
                 MetadataCache = provider.GetService<IMetadataCache>(),
                 LearnedSchemas = provider.GetService<ILearnedSchemaRepository>(),
                 WorkspaceContext = provider.GetService<IAgentWorkspaceContextSource>(),
@@ -199,7 +206,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IAgentInteractionAuthority>(provider => new AgentWriteApprovalInteractionAuthority(
             provider.GetRequiredService<AgentWriteApprovalCoordinator>(), new FailClosedAgentInteractionAuthority()));
         services.AddSingleton<IAgentToolBindingProvider>(provider => new InternalAgentToolBindingProvider(
-            provider.GetRequiredService<IAgentPrincipalAuthority>(), provider.GetServices<IAgentProvider>()));
+            provider.GetRequiredService<IAgentPrincipalAuthority>(), provider.GetServices<IAgentProvider>(),
+            provider.GetRequiredService<IAgentAuthorizationPolicyRepository>()));
         services.AddSingleton<IAgentContextProvider>(provider => new AgentContextProvider(
             provider.GetRequiredService<IConnectionProfileRepository>()));
         services.AddSingleton<AgentProviderCatalog>(provider => new AgentProviderCatalog(provider.GetServices<IAgentProvider>()));
@@ -210,7 +218,8 @@ public static class ServiceCollectionExtensions
             provider.GetRequiredService<IAgentToolRegistry>(),
             provider.GetRequiredService<IAgentToolBindingProvider>(),
             provider.GetRequiredService<IAgentPrincipalAuthority>(),
-            provider.GetRequiredService<AgentRuntimeWriteApprovalBridge>()));
+            provider.GetRequiredService<AgentRuntimeWriteApprovalBridge>(),
+            provider.GetRequiredService<IAgentNativeChatTurnScopes>()));
         services.AddSingleton<IAgentRuntime>(provider => provider.GetRequiredService<AgentRuntimeHost>());
     }
 

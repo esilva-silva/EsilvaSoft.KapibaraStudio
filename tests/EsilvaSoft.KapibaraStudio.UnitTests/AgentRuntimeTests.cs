@@ -116,6 +116,62 @@ public sealed class AgentRuntimeTests
     }
 
     [Test]
+    public async Task NativeChatTurnScopeIsRegisteredBeforeProviderAndRemovedAfterTurnEnds()
+    {
+        var scopes = new AgentNativeChatTurnScopeRegistry();
+        var sessionKey = Guid.Empty;
+        var observed = new TaskCompletionSource<AgentNativeChatTurnScope?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        async IAsyncEnumerable<AgentProviderEvent> HoldScope(ScriptedAgentSession _, AgentTurnRequest request,
+            [EnumeratorCancellation] CancellationToken __)
+        {
+            observed.TrySetResult(scopes.Find(sessionKey, Guid.ParseExact(request.TurnId.Value, "N")));
+            await release.Task;
+            yield break;
+        }
+        var provider = new ScriptedAgentProvider("fake") { Script = HoldScope };
+        await using var runtime = new AgentRuntime([provider], nativeChatTurnScopes: scopes);
+        var session = await runtime.StartSessionAsync(new("fake"), CancellationToken.None);
+        sessionKey = Guid.ParseExact(session.Value, "N");
+        var turn = AgentTurnId.New();
+        var request = Request(turn) with
+        {
+            Plan = new AgentTurnPlan(AgentOperationMode.Agent, [], [], [], [AgentToolRegistry.GetWorkspaceContextToolName],
+                AgentProposalHandling.Disabled, false, AgentConfirmationCategories.WorkspaceContextRead),
+            Permissions = new AgentProviderPermissions
+            {
+                ProviderId = "fake",
+                DataSending = new AgentDataSendingPermissions { TabMetadata = true }
+            },
+            ConversationId = Guid.NewGuid(),
+            WorkspaceContext = new AgentWorkspaceContext(DateTimeOffset.UtcNow, "synthetic")
+        };
+
+        var run = ConsumeAsync(runtime.RunTurnAsync(session, request, CancellationToken.None));
+        var active = await observed.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        Assert.That(active, Is.Not.Null);
+        Assert.That(active!.WorkspaceContext?.WorkspaceFolder, Is.EqualTo("synthetic"));
+        release.TrySetResult();
+        await run.WaitAsync(TimeSpan.FromSeconds(3));
+        Assert.That(scopes.Find(sessionKey, Guid.ParseExact(turn.Value, "N")), Is.Null);
+    }
+
+    [Test]
+    public async Task NativeSessionDeletionIsForwardedAndIdentifiersAreValidated()
+    {
+        var provider = new FakeProvider();
+        await using var runtime = new AgentRuntime([provider]);
+
+        await runtime.DeleteProviderSessionAsync("fake", "native-session", CancellationToken.None);
+        Assert.That(provider.DeletedProviderSessionIds, Has.Count.EqualTo(1));
+        Assert.That(provider.DeletedProviderSessionIds[0], Is.EqualTo("native-session"));
+
+        var invalid = Assert.ThrowsAsync<AgentRuntimeException>(async () =>
+            await runtime.DeleteProviderSessionAsync("fake", "bad\nidentifier", CancellationToken.None));
+        Assert.That(invalid!.Code, Is.EqualTo("InvalidProviderSessionId"));
+    }
+
+    [Test]
     public async Task StuckProviderCancellationReturnsUnknownAndDefersDisposalUntilStreamStops()
     {
         var provider = new NonCooperativeProvider();
@@ -183,7 +239,7 @@ public sealed class AgentRuntimeTests
         return events;
     }
 
-    private sealed class FakeProvider : IAgentProvider
+    private sealed class FakeProvider : IAgentProvider, IAgentProviderSessionCleanup
     {
         public string ProviderId => "fake";
 
@@ -192,6 +248,15 @@ public sealed class AgentRuntimeTests
         public bool EmitToolRequest { get; init; }
 
         public List<FakeSession> Sessions { get; } = [];
+
+        public List<string> DeletedProviderSessionIds { get; } = [];
+
+        public Task DeleteProviderSessionAsync(string providerSessionId, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            DeletedProviderSessionIds.Add(providerSessionId);
+            return Task.CompletedTask;
+        }
 
         public Task<IAgentSession> CreateSessionAsync(AgentSessionOptions options, CancellationToken cancellationToken)
         {

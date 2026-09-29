@@ -90,9 +90,16 @@ public sealed partial class AgentChatViewModel
     private void OpenPermissions() => PermissionsRequested?.Invoke(this, null);
 
     /// <summary>Platform facts for the policy, captured on the UI thread.</summary>
+    /// <remarks>
+    /// Product tools can arrive through the shared MCP channel or through a provider's separately declared custom-tool
+    /// channel. Do not infer the latter from MCP availability; the catalog capability is the provider-neutral contract.
+    /// </remarks>
+    private bool ProductToolsAvailable => _services.McpChannels?.ProductToolsAvailable == true ||
+        SelectedProvider?.Presentation.SupportsToolCalling == true;
+
     private AgentPlatformFacts CapturePlatformFacts(string? folder) => new(
         AgentWorkspacePaths.TryGetWorkspaceRoot(folder, out _),
-        _services.McpChannels?.ProductToolsAvailable == true,
+        ProductToolsAvailable,
         SelectedProvider?.Presentation.SupportsNativeTools == true);
 
     /// <summary>
@@ -256,10 +263,10 @@ public sealed partial class AgentChatViewModel
         return new AgentPermissionsViewModel(
             _services.Permissions, _services.Conversations, provider?.ProviderId ?? "",
             provider?.Presentation.DisplayName ?? "", _host.WorkspaceFolder, _host.ListConnections(),
-            _services.McpChannels?.ProductToolsAvailable == true, _services.Clock, section)
+            ProductToolsAvailable, _services.Clock, section)
         {
             Saved = OnPermissionsSaved,
-            HistoryErased = OnHistoryErased,
+            EraseHistory = EraseProviderHistoryAsync,
         };
     }
 
@@ -288,7 +295,7 @@ public sealed partial class AgentChatViewModel
             }
             else
             {
-                var productTools = _services.McpChannels?.ProductToolsAvailable == true;
+                var productTools = ProductToolsAvailable;
                 if (productTools && (permissions.EnabledReadTools ?? []).Any(static tool =>
                         AgentProductToolNames.CategoryOf(tool) == AgentConfirmationCategories.MongoMetadataRead))
                 {

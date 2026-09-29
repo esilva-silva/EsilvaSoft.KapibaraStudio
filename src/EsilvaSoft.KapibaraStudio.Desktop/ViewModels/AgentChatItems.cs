@@ -145,7 +145,7 @@ public sealed partial class AgentToolCallItem : AgentChatItemViewModel
     public string Title => Text.Format(IsProviderObserved ? "agentToolNativeCard" : "agentToolCard", ToolLabel);
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(StatusText), nameof(IsError), nameof(IsTerminal), nameof(IsUncertain))]
+    [NotifyPropertyChangedFor(nameof(StatusText), nameof(IsError), nameof(IsTerminal), nameof(IsUncertain), nameof(CanReviewPermissions))]
     private AgentToolCallState _state;
 
     [ObservableProperty]
@@ -153,12 +153,16 @@ public sealed partial class AgentToolCallItem : AgentChatItemViewModel
     private long? _durationMilliseconds;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(StatusText))]
+    [NotifyPropertyChangedFor(nameof(StatusText), nameof(CanReviewPermissions))]
     private string? _errorCode;
 
     public bool IsError => State is AgentToolCallState.Failed or AgentToolCallState.Denied or AgentToolCallState.OutcomeUnknown;
 
     public bool IsUncertain => State == AgentToolCallState.OutcomeUnknown;
+
+    /// <summary>Permission denials can be corrected in the provider's persistent permissions window.</summary>
+    public bool CanReviewPermissions => State == AgentToolCallState.Denied &&
+        ErrorCode is "PermissionDenied" or "PermissionMissing";
 
     public bool IsTerminal => State is not (AgentToolCallState.Requested or AgentToolCallState.Running);
 

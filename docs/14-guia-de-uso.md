@@ -1,5 +1,9 @@
 # Guia rápido de uso
 
+> **GitHub Copilot por assinatura — integração em andamento:** após verificar login oficial e modelos elegíveis, o chat com ferramentas de leitura mediadas pelo registry está disponível no Windows. O painel abre **Permissões…** pelo botão correspondente; uma negação de `get_workspace_context` também abre a janela para revisar o opt-in de metadados. Salvar permissões não repete a chamada: envie uma nova mensagem para tentar novamente. Ferramentas nativas de shell, edição direta de arquivos e rede continuam desabilitadas. Consultas de documentos MongoDB e cenários reais de falha/concorrência/recuperação ainda estão pendentes. “Testar conexão” consulta conta e modelos sem enviar prompt/contexto ou iniciar inferência. A CLI deve ser instalada pelo canal oficial e o login é feito com `copilot login`; não compartilhe códigos de dispositivo em mensagens. Ao apagar conversa, a exclusão da sessão nativa antecede a remoção LiteDB e, para opt-out, a limpeza do store volátil. Falha de exclusão ou histórico ilegível impede a limpeza e é reportada. Linux não será homologado nesta meta. Consulte [P7-COP](phases/phase-07-v0.11.0/README.md#meta-p7-cop--github-copilot-por-assinatura).
+
+**Estado de validação em 29/09/2026:** o SDK oficial confirmou login `AuthType=user` e modelo elegível após o login concluído pelo usuário. A validação mais recente de ferramentas no registry usou somente perfil/pasta sintéticos; não acessou servidor MongoDB nem arquivos reais. Consulte a Fase 7 para evidências, limitações e próximos gates. Nenhuma homologação Linux está prevista para esta meta.
+
 ## O que está disponível na interface — 18/09/2026
 
 A fase em execução é a [v0.6.0](phases/phase-02-v0.6.0/README.md). Alguns fluxos descritos adiante **continuam implementados no código, mas não têm entrada na interface** e por isso não podem ser executados pelos passos indicados:

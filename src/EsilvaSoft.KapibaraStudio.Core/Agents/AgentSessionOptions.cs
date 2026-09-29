@@ -15,6 +15,13 @@ public sealed record AgentSessionOptions(string ProviderId, string? ModelId = nu
     /// </summary>
     public string? ResumeProviderSessionId { get; init; }
 
+    /// <summary>
+    /// Provider session ID durably reserved by the host before an SDK creates a session or sends a prompt.
+    /// Providers without a pre-reservation contract ignore it. A missing native session may be recreated only
+    /// under this same ID, so recovery and deletion can still find it after a crash.
+    /// </summary>
+    public string? ReservedProviderSessionId { get; init; }
+
     /// <summary>Workspace-global conversation this session serves.</summary>
     public Guid? ConversationId { get; init; }
 
@@ -24,6 +31,12 @@ public sealed record AgentSessionOptions(string ProviderId, string? ModelId = nu
     /// over this value.
     /// </summary>
     public AgentOperationMode Mode { get; init; } = AgentOperationMode.Agent;
+
+    /// <summary>
+    /// Whether provider-owned session files may be retained after this app session. Providers with a volatile session
+    /// store use false for the history opt-out; providers that do not support alternate retention ignore it.
+    /// </summary>
+    public bool PersistProviderSession { get; init; } = true;
 
     /// <summary>
     /// Optional observer of the effective provider session (P7-CLP-4, additive): receives

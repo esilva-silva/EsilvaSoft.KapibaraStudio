@@ -11,6 +11,8 @@ namespace EsilvaSoft.KapibaraStudio.Application.Agents;
 /// </summary>
 public sealed record AgentSessionToolPorts(IAgentMcpSessionScopes SessionScopes)
 {
+    /// <summary>Native chat scopes are keyed by the exact runtime session and turn, not by principal.</summary>
+    public IAgentNativeChatTurnScopes? NativeChatTurnScopes { get; init; }
     /// <summary>Autocomplete schema cache; read with <see cref="MetadataAccess.Peek"/> only (never samples).</summary>
     public IMetadataCache? MetadataCache { get; init; }
 

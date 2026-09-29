@@ -7,6 +7,9 @@
     <ProjectReference Include="../EsilvaSoft.KapibaraStudio.Core/EsilvaSoft.KapibaraStudio.Core.csproj" />
     <ProjectReference Include="../EsilvaSoft.KapibaraStudio.Application/EsilvaSoft.KapibaraStudio.Application.csproj" />
   </ItemGroup>
+  <PropertyGroup>
+    <RuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64</RuntimeIdentifiers>
+  </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="OpenAI" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
@@ -14,6 +17,10 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" VersionOverride="10.0.10" />
     <!-- Lote 8: Claude API (pasta Anthropic/, namespace ...Agents.Anthropic). -->
     <PackageReference Include="Anthropic" />
+    <!-- P7-COP-01: SDK oficial do GitHub Copilot; autenticação delegada à CLI, sem API key do produto. -->
+    <PackageReference Include="GitHub.Copilot.SDK" />
+    <!-- SQLite do SessionFs volátil do SDK Copilot, para conversas com retenção de histórico desativada. -->
+    <PackageReference Include="Microsoft.Data.Sqlite" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="EsilvaSoft.KapibaraStudio.UnitTests" />

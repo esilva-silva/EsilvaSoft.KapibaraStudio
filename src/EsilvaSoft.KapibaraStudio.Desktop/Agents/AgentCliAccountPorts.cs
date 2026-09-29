@@ -71,6 +71,9 @@ public enum AgentCliCommandOutcome
     /// <summary>The window is still open after the deadline or the user stopped waiting; only the status was re-read.</summary>
     StillRunning,
 
+    /// <summary>The official command ran but returned a failure status; its output is intentionally not captured.</summary>
+    CommandFailed,
+
     ExecutableUnavailable,
 
     /// <summary>No visible terminal can be opened on this platform: the user runs the command manually.</summary>
@@ -93,7 +96,11 @@ public sealed record AgentCliProviderProfile(
     string TranscriptLocation,
     string CredentialLocation,
     string? ConfigLocation = null,
-    bool UsesBrowserAppServerLogin = false);
+    bool UsesBrowserAppServerLogin = false,
+    string SignOutMessageKey = "agentCliSignOutMessage",
+    string CredentialNoticeKey = "agentCliNoticeCredential",
+    string? SubscriptionReadyMessageKey = null,
+    string? SignInCompletedMessageKey = null);
 
 /// <summary>Why the candidate folder was not used as the working directory (the dedicated empty folder is used instead).</summary>
 public enum AgentCliReadScopeRejection

@@ -11,6 +11,8 @@ using EsilvaSoft.KapibaraStudio.Desktop.ViewModels;
 using EsilvaSoft.KapibaraStudio.Infrastructure;
 using EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Anthropic;
 using EsilvaSoft.KapibaraStudio.Infrastructure.Agents.ClaudeCode;
+using EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Codex;
+using EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Copilot;
 using EsilvaSoft.KapibaraStudio.Infrastructure.Agents.OpenAi;
 using EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi;
 using Microsoft.Extensions.DependencyInjection;
@@ -105,7 +107,8 @@ public sealed class AgentChatHostTests
                     Is.SupersetOf(new[] { AgentToolRegistry.GetWorkspaceContextToolName,
                         AgentToolRegistry.ProposeFileEditToolName, AgentToolRegistry.ApproveToolName }));
                 Assert.That(chat.Providers.Select(option => option.ProviderId),
-                    Is.EquivalentTo(new[] { LocalAgentProvider.Id, OpenAiAgentProvider.Id, ClaudeAgentProvider.Id, ClaudeCodeAgentProvider.Id }));
+                    Is.EquivalentTo(new[] { LocalAgentProvider.Id, OpenAiAgentProvider.Id, ClaudeAgentProvider.Id,
+                        ClaudeCodeAgentProvider.Id, CodexSubscriptionAgentProvider.Id, CopilotSubscriptionAgentProvider.Id }));
                 Assert.That(chat.Providers.All(option => option.IsNotChecked), Is.True, "Listing is cache-only before a check.");
                 Assert.That(chat.ShowAvailabilityRetry, Is.True);
                 Assert.That(AgentSlotReads(), Is.Zero, "Opening the panel lists without reading the vault.");

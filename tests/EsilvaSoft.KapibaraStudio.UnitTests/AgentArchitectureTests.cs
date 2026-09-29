@@ -17,7 +17,7 @@ public sealed class AgentArchitectureTests
 {
     /// <summary>Assembly-name prefixes that only the composition root may name.</summary>
     private static readonly string[] ProviderSdkAssemblyNames =
-        ["EsilvaSoft.KapibaraStudio.Infrastructure.Agents", "OpenAI", "Anthropic", "ModelContextProtocol"];
+        ["EsilvaSoft.KapibaraStudio.Infrastructure.Agents", "OpenAI", "Anthropic", "ModelContextProtocol", "GitHub.Copilot"];
 
     private const BindingFlags AllMembers =
         BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly;
@@ -58,6 +58,7 @@ public sealed class AgentArchitectureTests
         string[] forbiddenTokens =
         [
             "Infrastructure.Agents", "OpenAiAgentProvider", "ClaudeAgentProvider",
+            "CopilotSubscriptionAgentProvider", "GitHub.Copilot",
             "AddKapibaraStudioOpenAiAgentProvider", "AddKapibaraStudioClaudeAgentProvider",
             "using OpenAI", "using Anthropic", "using ModelContextProtocol",
         ];

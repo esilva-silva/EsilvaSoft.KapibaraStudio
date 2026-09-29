@@ -24,7 +24,7 @@ public sealed class AgentChatUiTests
     private static readonly ThemeVariant[] Themes = [ThemeVariant.Light, ThemeVariant.Dark];
     private static readonly Key[] DialogKeys = [Key.Enter, Key.Escape];
     private static readonly AgentApprovalOutcome[] OnlyDenied = [AgentApprovalOutcome.Denied];
-    private static readonly string[] ChatStates = ["unavailable", "ready", "streaming", "outcome-unknown"];
+    private static readonly string[] ChatStates = ["unavailable", "ready", "streaming", "permission-denied", "outcome-unknown"];
 
     private static Task<bool> RunOnUiAsync(Func<Task> body)
     {
@@ -62,6 +62,10 @@ public sealed class AgentChatUiTests
                     if (state == "streaming" && window.Content is AgentChatPanel { OpenApprovalWindow: { } approval })
                     {
                         Save(approval, $"agent-chat-streaming-approval-dialog-{theme}.png");
+                    }
+                    if (state == "permission-denied" && window.Content is AgentChatPanel { OpenPermissionsWindow: { } permissions })
+                    {
+                        Save(permissions, $"agent-chat-permission-denied-dialog-{theme}.png");
                     }
                 }
 
@@ -323,9 +327,15 @@ public sealed class AgentChatUiTests
         runtime.Push(turn, AgentEventKind.ToolStarted, call: find, tool: "mongo_find");
         runtime.Push(turn, AgentEventKind.ToolCompleted, call: find, tool: "mongo_find", status: AgentToolResultStatus.Succeeded);
         var denied = AgentToolCallId.New();
-        runtime.Push(turn, AgentEventKind.ToolRequested, call: denied, tool: "get_collection_schema");
-        runtime.Push(turn, AgentEventKind.ToolFailed, call: denied, tool: "get_collection_schema",
+        var deniedTool = state == "permission-denied" ? "get_workspace_context" : "get_collection_schema";
+        runtime.Push(turn, AgentEventKind.ToolRequested, call: denied, tool: deniedTool);
+        runtime.Push(turn, AgentEventKind.ToolFailed, call: denied, tool: deniedTool,
             status: AgentToolResultStatus.Denied, errorCode: "PermissionDenied");
+        if (state == "permission-denied")
+        {
+            await PumpAsync(() => panel.OpenPermissionsWindow is not null);
+            return (window, chat, runtime);
+        }
         var second = AgentMessageId.New();
         runtime.Push(turn, AgentEventKind.MessageStarted, message: second);
         runtime.Push(turn, AgentEventKind.MessageDelta, "Encontrei 3 pedidos. Proponho marcar o primeiro como enviado.", message: second);
@@ -369,6 +379,11 @@ public sealed class AgentChatUiTests
                     Is.EqualTo(new[] { AgentToolCallState.Succeeded, AgentToolCallState.Denied }));
                 Assert.That(panel.FindControl<Button>("CancelTurnButton")!.IsVisible, Is.True);
                 break;
+            case "permission-denied":
+                Assert.That(panel.OpenPermissionsWindow, Is.Not.Null,
+                    "A denied workspace-context call opens the permissions window for review.");
+                Assert.That(panel.OpenPermissionsWindow!.DataContext, Is.TypeOf<AgentPermissionsViewModel>());
+                break;
             case "outcome-unknown":
                 Assert.That(chat.IsStatusError, Is.True);
                 Assert.That(chat.StatusText, Does.Contain("Resultado incerto"));
@@ -381,6 +396,10 @@ public sealed class AgentChatUiTests
         if (window.Content is AgentChatPanel { OpenApprovalWindow: { } approval })
         {
             approval.Close();
+        }
+        if (window.Content is AgentChatPanel { OpenPermissionsWindow: { } permissions })
+        {
+            permissions.Close();
         }
 
         if (chat.ActiveTurnId is { } turn)

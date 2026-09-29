@@ -122,6 +122,9 @@
                   <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Title}" />
                   <TextBlock Text="{Binding OriginText}" Classes="metadata" TextWrapping="Wrap" IsVisible="{Binding HasOriginText}" />
                   <TextBlock Text="{Binding StatusText}" Classes="metadata" Classes.error="{Binding IsError}" TextWrapping="Wrap" />
+                  <Button Content="{local:Loc Key=agentOpenPermissions}" IsVisible="{Binding CanReviewPermissions}"
+                          Command="{Binding $parent[ListBox].((vm:AgentChatViewModel)DataContext).OpenPermissionsCommand}"
+                          HorizontalAlignment="Left" />
                 </StackPanel>
               </Border>
             </DataTemplate>

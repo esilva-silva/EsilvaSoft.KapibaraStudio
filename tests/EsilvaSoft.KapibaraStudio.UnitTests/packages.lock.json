@@ -446,6 +446,7 @@
           "Anthropic": "[12.50.0, )",
           "EsilvaSoft.KapibaraStudio.Application": "[1.0.0, )",
           "EsilvaSoft.KapibaraStudio.Core": "[1.0.0, )",
+          "GitHub.Copilot.SDK": "[1.0.14, )",
           "Microsoft.Extensions.DependencyInjection": "[10.0.0, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.10, )",
           "OpenAI": "[2.14.0, )"
@@ -532,6 +533,16 @@
         "requested": "[8.4.0, )",
         "resolved": "8.4.0",
         "contentHash": "tqVU8yc/ADO9oiTRyTnwhFN68hCwvkliMierptWOudIAvWY1mWCh5VFh+guwHJmpMwfg0J0rY+yyd5Oy7ty9Uw=="
+      },
+      "GitHub.Copilot.SDK": {
+        "type": "CentralTransitive",
+        "requested": "[1.0.14, )",
+        "resolved": "1.0.14",
+        "contentHash": "soxTYo6FvEFCtWL/FzLCoSok0wdC2HPCBsHpyh2nosBvGVZT8m2dTfcoOorVodvE0zdtaCR3jiCe1qGcnM4gFw==",
+        "dependencies": {
+          "Microsoft.Extensions.AI.Abstractions": "10.2.0",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.2"
+        }
       },
       "Jint": {
         "type": "CentralTransitive",

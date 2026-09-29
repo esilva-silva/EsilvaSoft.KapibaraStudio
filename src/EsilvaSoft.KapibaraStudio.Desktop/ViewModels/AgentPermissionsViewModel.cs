@@ -89,7 +89,8 @@ public sealed partial class AgentPermissionsViewModel : ObservableObject
     public bool ConfirmNativeReads { get => Has(AgentConfirmationCategories.NativeFileRead); set => Confirm(AgentConfirmationCategories.NativeFileRead, value); }
     public bool ConfirmEdits { get => Has(AgentConfirmationCategories.EditProposal); set => Confirm(AgentConfirmationCategories.EditProposal, value); }
     public Action<AgentProviderPermissions>? Saved { get; set; }
-    public Func<string, Task>? HistoryErased { get; set; }
+    /// <summary>Coordinates provider-specific cleanup and durable history deletion as one ordered operation.</summary>
+    public Func<string, Task<int>>? EraseHistory { get; set; }
 
     private bool Has(AgentConfirmationCategories category) => (_permissions.ConfirmationCategories & category) != 0;
     private void Confirm(AgentConfirmationCategories category, bool on) => Change(p => p with { ConfirmationCategories = on ? p.ConfirmationCategories | category : p.ConfirmationCategories & ~category });
@@ -222,17 +223,28 @@ public sealed partial class AgentPermissionsViewModel : ObservableObject
         {
             Status = Text.Resolve("agentPermissionsDeleting");
             OnPropertyChanged(nameof(Status));
-            var result = await conversations.DeleteAllAsync(_providerId, CancellationToken.None);
-            if (result.Succeeded)
+            var erasedCount = 0;
+            var eraseHistory = EraseHistory;
+            if (eraseHistory is not null)
             {
-                if (HistoryErased is { } historyErased) await historyErased(_providerId);
-                Status = Text.Format("agentPermissionsHistoryDeleted", result.Value);
+                erasedCount = await eraseHistory(_providerId);
+                Status = Text.Format("agentPermissionsHistoryDeleted", erasedCount);
                 IsConfirmingHistoryDelete = false;
                 OnPropertyChanged(nameof(IsConfirmingHistoryDelete));
             }
             else
             {
-                Status = Text.Resolve("agentPermissionsHistoryDeleteFailed");
+                var result = await conversations.DeleteAllAsync(_providerId, CancellationToken.None);
+                if (result.Succeeded)
+                {
+                    Status = Text.Format("agentPermissionsHistoryDeleted", result.Value);
+                    IsConfirmingHistoryDelete = false;
+                    OnPropertyChanged(nameof(IsConfirmingHistoryDelete));
+                }
+                else
+                {
+                    Status = Text.Resolve("agentPermissionsHistoryDeleteFailed");
+                }
             }
         }
         catch { Status = Text.Resolve("agentPermissionsHistoryDeleteFailed"); }

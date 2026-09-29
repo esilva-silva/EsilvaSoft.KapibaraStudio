@@ -206,7 +206,7 @@ internal sealed class CodexAppServerJsonRpcTransportTests
             RedirectStandardError = true,
             CreateNoWindow = true,
         };
-        foreach (var part in new[] { "build", project, "--nologo", "--verbosity", "quiet", "-p:UsedAvaloniaProducts=" })
+        foreach (var part in new[] { "build", project, "--no-restore", "--nologo", "--verbosity", "quiet", "-p:UsedAvaloniaProducts=" })
         {
             info.ArgumentList.Add(part);
         }
@@ -216,7 +216,8 @@ internal sealed class CodexAppServerJsonRpcTransportTests
         var stderr = build.StandardError.ReadToEndAsync();
         await build.WaitForExitAsync();
         await Task.WhenAll(stdout, stderr);
-        Assert.That(build.ExitCode, Is.Zero, "The fake App Server must build before protocol tests.");
+        Assert.That(build.ExitCode, Is.Zero,
+            $"The fake App Server must build before protocol tests. stdout: {await stdout}; stderr: {await stderr}");
         _fake = Path.Combine(Path.GetDirectoryName(project)!, "bin", "Debug", "net10.0",
             OperatingSystem.IsWindows() ? "EsilvaSoft.KapibaraStudio.FakeCodexAppServer.exe" :
                 "EsilvaSoft.KapibaraStudio.FakeCodexAppServer");

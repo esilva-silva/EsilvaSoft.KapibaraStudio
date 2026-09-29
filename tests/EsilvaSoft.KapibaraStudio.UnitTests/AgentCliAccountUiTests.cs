@@ -86,6 +86,35 @@ public sealed class AgentCliAccountUiTests
     }
 
     [Test]
+    public async Task CopilotSubscriptionAccountRendersItsOwnNoticesInBothThemes()
+    {
+        await RunOnUiAsync(async () =>
+        {
+            var profile = new AgentCliProviderProfile(
+                "GitHub Copilot CLI", "GitHub Copilot", "copilot login",
+                "~/.copilot/session-state", "Copilot CLI keyring service", "Copilot CLI configuration",
+                SignOutMessageKey: "agentCliCopilotSignOutMessage",
+                CredentialNoticeKey: "agentCliCopilotCredentialNotice",
+                SubscriptionReadyMessageKey: "agentCliCopilotAccountChecked",
+                SignInCompletedMessageKey: "agentCliCopilotAccountChecked");
+            var (window, settings, _, _) = await BuildSettingsAsync("subscription", 660, 560, profile, copilot: true);
+            foreach (var theme in Themes)
+            {
+                Avalonia.Application.Current!.RequestedThemeVariant = theme;
+                await PumpAsync(() => true);
+                ScrollTo(window, top: true);
+                Assert.That(settings.CliProfile?.RecipientName, Is.EqualTo("GitHub Copilot"));
+                Save(window, $"agent-copilot-settings-{theme}-660.png");
+                ScrollTo(window, top: false);
+                Save(window, $"agent-copilot-settings-{theme}-660-end.png");
+            }
+
+            settings.Dispose();
+            window.Close();
+        });
+    }
+
+    [Test]
     public async Task SettingsFitNarrowWindowAt200Percent()
     {
         await RunOnUiAsync(async () =>
@@ -323,9 +352,13 @@ public sealed class AgentCliAccountUiTests
         : "/home/teste/workspace-sintetico/consultas";
 
     private static async Task<(AgentSettingsWindow Window, AgentSettingsViewModel Settings, FakeCliAccountManager Accounts, Task? Pending)>
-        BuildSettingsAsync(string state, double width, double height)
+        BuildSettingsAsync(string state, double width, double height, AgentCliProviderProfile? profile = null, bool copilot = false)
     {
-        var accounts = new FakeCliAccountManager { WorkspaceDirectory = state == "subscription" ? SyntheticWorkspace : null };
+        var accounts = new FakeCliAccountManager
+        {
+            WorkspaceDirectory = state == "subscription" ? SyntheticWorkspace : null,
+            Profile = profile ?? FakeCliAccountManager.TestProfile,
+        };
         var reason = state switch
         {
             "not-checked" => "StatusNotReported",
@@ -342,13 +375,22 @@ public sealed class AgentCliAccountUiTests
             "signed-out" or "waiting" or "no-terminal" => AgentProviderAuthState.NotConfigured,
             _ => AgentProviderAuthState.Unknown,
         };
-        var catalog = new MutableAgentCatalog(MutableAgentCatalog.Subscription(state == "subscription", auth, reason), MutableAgentCatalog.Api());
+        var subscriptionProvider = copilot
+            ? new AgentProviderPresentation(FakeCliAccountManager.ProviderId, "GitHub Copilot", AgentDataDestinationKind.External,
+                false, state == "subscription" ? ["gpt-4.1", "claude-sonnet-4"] : [],
+                [AgentAuthenticationMethod.OfficialCliDelegated], auth,
+                UnavailableReason: state == "subscription" ? "CopilotSessionNotHomologated" : reason,
+                FamilyName: "GitHub Copilot")
+            : MutableAgentCatalog.Subscription(state == "subscription", auth, reason);
+        var catalog = new MutableAgentCatalog(subscriptionProvider, MutableAgentCatalog.Api());
         accounts.Status = state switch
         {
             "not-found" => new AgentCliAccountStatus(AgentCliInstallState.NotFound, null, AgentCliAuthState.NotChecked),
             "unsupported" => new AgentCliAccountStatus(AgentCliInstallState.UnsupportedExecutable, null, AgentCliAuthState.NotChecked),
             "version-low" => new AgentCliAccountStatus(AgentCliInstallState.VersionTooLow, "2.0.14", AgentCliAuthState.NotChecked,
                 ExecutablePath: FakeCliAccountManager.FakeExecutablePath),
+            "subscription" when copilot => new AgentCliAccountStatus(AgentCliInstallState.Installed, "1.0.85",
+                AgentCliAuthState.Subscription),
             "subscription" => FakeCliAccountManager.Subscription(),
             "blocked" => FakeCliAccountManager.BlockedByApiKey(),
             _ => FakeCliAccountManager.SignedOut(),

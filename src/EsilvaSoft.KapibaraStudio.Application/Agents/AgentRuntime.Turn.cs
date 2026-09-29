@@ -47,6 +47,25 @@ public sealed partial class AgentRuntime
             turn.Queue.TryEnqueueControl(sequence => turn.Create(sequence, AgentEventKind.TaskStarted));
         }
 
+        if (_nativeChatTurnScopes is not null && request.Plan is { IsBlocked: false } plan &&
+            request.Permissions is { } permissions && request.ConversationId is { } conversationId && conversationId != Guid.Empty &&
+            plan.ProductTools.Count > 0)
+        {
+            var keySession = Guid.ParseExact(sessionId.Value, "N");
+            var keyTurn = Guid.ParseExact(request.TurnId.Value, "N");
+            if (!_nativeChatTurnScopes.Register(new AgentNativeChatTurnScope(keySession, keyTurn, session.ProviderId,
+                    plan, permissions, request.WorkspaceContext)))
+            {
+                turn.RequestCancel(TurnCancelReason.Failed);
+                lock (session.Gate)
+                {
+                    if (ReferenceEquals(session.ActiveTurn, turn)) session.ActiveTurn = null;
+                    session.TurnDrained = Task.CompletedTask;
+                }
+                throw new AgentRuntimeException("DuplicateTurnScope", "Turn scope is already registered.");
+            }
+        }
+
         turn.AttachCancellation(cancellationToken, session.Lifetime.Token);
         _ = RunTurnTimerAsync(turn);
         // The pump owns its lifetime through the turn token; the consumer token only requests cancellation.
@@ -217,6 +236,10 @@ public sealed partial class AgentRuntime
         finally
         {
             PublishTerminal(session, turn, drained, naturalEnd);
+            if (_nativeChatTurnScopes is not null &&
+                Guid.TryParseExact(turn.SessionId.Value, "N", out var scopeSession) &&
+                Guid.TryParseExact(turn.TurnId.Value, "N", out var scopeTurn))
+                _nativeChatTurnScopes.Remove(scopeSession, scopeTurn);
             turn.DetachCancellation();
         }
     }

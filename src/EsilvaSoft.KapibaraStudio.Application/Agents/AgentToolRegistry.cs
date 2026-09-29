@@ -371,7 +371,7 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
             return AgentToolInvocationResult.Failure(PermissionDenied);
         // Per-session tools and the turn plan: a session-only tool, or any tool outside the plan of a per-session
         // channel, is indistinguishable from an unknown tool (no audit, policy, profile or source access).
-        if (!IsExposedToPrincipal(principal, name))
+        if (!IsExposedToPrincipal(principal, name, invocationContext, destination, outputDataScope))
             return AgentToolInvocationResult.Failure(UnknownTool);
         // The confirmation waits for a human (up to the approval window), dispatches nothing and releases no data: it
         // has its own path, outside the 30 s execution deadline, the audit ledger and the per-turn budget.
@@ -776,7 +776,8 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
             cancellationToken.ThrowIfCancellationRequested();
             // Outside the turn plan of a per-session channel: skipped before validation, so a profile the channel may
             // not see can neither be listed nor make the whole listing fail.
-            if (profile is not null && profile.Id != Guid.Empty && !IsConnectionInSessionScope(principal, profile.Id)) continue;
+            if (profile is not null && profile.Id != Guid.Empty &&
+                !IsConnectionInSessionScope(principal, invocationContext, profile.Id)) continue;
             if (profile is null || profile.Id == Guid.Empty || profile.SourceGenerationId is not Guid generationId || generationId == Guid.Empty ||
                 !IsValidProfileName(profile.Name))
                 return AgentToolInvocationResult.Failure(PermissionDenied, AgentAuditDecisionReason.ValidationRejected);
@@ -853,7 +854,8 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
 
         // Revalidate the projected values and origin after all asynchronous permission reads. This does not
         // replace the eventual transport's authorization check at the point it releases output.
-        if (await RevalidateProfilesAsync(authorizedSnapshots, cancellationToken, id => IsConnectionInSessionScope(principal, id)).ConfigureAwait(false) is { } revalidationFailure)
+        if (await RevalidateProfilesAsync(authorizedSnapshots, cancellationToken,
+                id => IsConnectionInSessionScope(principal, invocationContext, id)).ConfigureAwait(false) is { } revalidationFailure)
             return AgentToolInvocationResult.Failure(PermissionDenied, revalidationFailure);
 
         // Keep policy validation last, including revocation during the final profile read.

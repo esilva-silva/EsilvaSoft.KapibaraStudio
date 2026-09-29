@@ -220,7 +220,7 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
 
     public string TranscriptNotice => CliProfile is { } profile ? Text.Format("agentCliNoticeTranscript", profile.CliName, profile.TranscriptLocation, Branding.ProductName) : "";
 
-    public string CredentialNotice => CliProfile is { } profile ? Text.Format("agentCliNoticeCredential", profile.CliName, profile.CredentialLocation, Branding.ProductName) : "";
+    public string CredentialNotice => CliProfile is { } profile ? Text.Format(profile.CredentialNoticeKey, profile.CliName, profile.CredentialLocation, Branding.ProductName) : "";
 
     public string EnvironmentNotice => CliProfile is { } profile ? Text.Format("agentCliNoticeEnvironment", profile.CliName) : "";
 
@@ -300,8 +300,8 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
 
     /// <summary>
     /// Re-checks only the selected provider. For a CLI-delegated account it re-detects the executable and re-reads the
-    /// authentication status (short local commands); it never sends a prompt nor calls the model. For key providers
-    /// it re-reads the local configuration/vault presence without network.
+    /// authentication status and any supported model catalog metadata; it never sends a prompt or runs inference. For
+    /// key providers it re-reads the local configuration/vault presence without network.
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanTestConnection))]
     private async Task TestConnectionAsync()
@@ -336,7 +336,7 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
     private string CliOutcomeKey() => CliStatus switch
     {
         { Install: not AgentCliInstallState.Installed } => "agentTestConnectionCliUnavailable",
-        { Auth: AgentCliAuthState.Subscription } => "agentTestConnectionCliReady",
+        { Auth: AgentCliAuthState.Subscription } => CliProfile?.SubscriptionReadyMessageKey ?? "agentTestConnectionCliReady",
         { IsBlockedMethod: true } => "agentTestConnectionCliBlocked",
         _ => "agentTestConnectionCliSignedOut",
     };
@@ -427,7 +427,7 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
         var confirmation = ConfirmSignOut;
         var prompt = new AgentCliSignOutPrompt(
             Text.Format("agentCliSignOutTitle", profile.CliName),
-            Text.Format("agentCliSignOutMessage", profile.CliName, Branding.ProductName),
+            Text.Format(profile.SignOutMessageKey, profile.CliName, Branding.ProductName),
             Text.Format("agentCliSignOutConfirm", profile.CliName),
             Text.Resolve("cancel"));
         bool confirmed;
@@ -504,6 +504,10 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
                 StatusText = Text.Format("agentCliStartFailed", profile.CliName);
                 IsStatusError = true;
                 return;
+            case AgentCliCommandOutcome.CommandFailed:
+                StatusText = Text.Format("agentCliCommandFailed", profile.CliName);
+                IsStatusError = true;
+                return;
             case AgentCliCommandOutcome.StillRunning:
                 StatusText = Text.Format("agentCliStillRunning", profile.CliName);
                 IsStatusError = false;
@@ -512,7 +516,7 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
 
         if (signIn)
         {
-            Report(IsCliSignedIn ? "agentCliSignInDone" : IsCliAuthBlocked ? "agentTestConnectionCliBlocked" : "agentCliSignInNotCompleted",
+            Report(IsCliSignedIn ? CliProfile?.SignInCompletedMessageKey ?? "agentCliSignInDone" : IsCliAuthBlocked ? "agentTestConnectionCliBlocked" : "agentCliSignInNotCompleted",
                 !IsCliSignedIn);
         }
         else

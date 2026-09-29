@@ -138,7 +138,8 @@ public sealed partial class AgentToolRegistry
             Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(original))),
             original, proposed, hunks, DateTimeOffset.UtcNow);
         // Release gate BEFORE the proposal leaves the registry: the channel and the plan must still be current.
-        if (await RevalidateSessionReleaseAsync(principal!, ProposeFileEditToolName, cancellationToken)
+        if (await RevalidateSessionReleaseAsync(principal!, context!, destination!, outputScope,
+                ProposeFileEditToolName, cancellationToken)
                 .ConfigureAwait(false) is { } lateDenial)
             return lateDenial;
         AgentEditProposalSubmission submission;

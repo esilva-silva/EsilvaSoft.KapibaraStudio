@@ -17,7 +17,7 @@ public sealed class AgentChatViewModelTests
 {
     private static readonly string[] OnlyUserMessage = ["oi"];
     // OfficialCliDelegated: login delegado ao binário oficial do Claude Code (ADR-053); nenhum OAuth próprio do app.
-    private static readonly string[] OfficialMethods = ["None", "ApiKey", "OfficialCliDelegated"];
+    private static readonly string[] OfficialMethods = ["None", "ApiKey", "OfficialCliDelegated", "OfficialAppServerDelegated"];
 
     private static Task<bool> RunOnUiAsync(Func<Task> body)
     {
@@ -112,6 +112,56 @@ public sealed class AgentChatViewModelTests
             var request = provider.Sessions.Single().Requests.Single();
             Assert.That(request.DocumentVersion, Is.EqualTo(1));
             Assert.That(request.TabId, Is.EqualTo("tab-a"));
+        });
+    }
+
+    [Test]
+    public async Task HistoryOptOutIsCapturedForProviderOwnedSessionRetention()
+    {
+        await RunOnUiAsync(async () =>
+        {
+            var provider = new ScriptedAgentProvider("ext");
+            await using var runtime = new AgentRuntime([provider], new AllowingInteractionAuthority());
+            var permissions = AgentProviderPermissions.Default("ext") with
+            {
+                KeepHistory = false,
+                ExternalDestinationConsentAt = DateTimeOffset.UtcNow,
+            };
+            var catalog = new FakeAgentCatalog(FakeAgentCatalog.External("ext", "Externo"));
+            await using var chat = new AgentChatViewModel(
+                Services(runtime, catalog, permissions: [permissions]), new AgentChatTabFixture().Capture);
+            await chat.Initialization;
+            chat.ComposerText = "mensagem sintética";
+
+            await chat.SendCommand.ExecuteAsync(null);
+
+            Assert.That(provider.Options.Single().PersistProviderSession, Is.False,
+                "The opt-out must reach providers that support volatile session storage.");
+        });
+    }
+
+    [Test]
+    public async Task CustomToolCapabilityDoesNotDependOnMcpChannelAvailability()
+    {
+        await RunOnUiAsync(async () =>
+        {
+            var provider = new ScriptedAgentProvider("custom-tools");
+            await using var runtime = new AgentRuntime([provider], new AllowingInteractionAuthority());
+            var permissions = AgentProviderPermissions.Default("custom-tools") with
+            {
+                ExternalDestinationConsentAt = DateTimeOffset.UtcNow,
+            };
+            // The catalog reports a provider-owned custom-tool channel. AgentChatServices intentionally has no MCP port.
+            var catalog = new FakeAgentCatalog(FakeAgentCatalog.External("custom-tools", "Custom tools"));
+            await using var chat = new AgentChatViewModel(
+                Services(runtime, catalog, permissions: [permissions]), new AgentChatTabFixture().Capture);
+            await chat.Initialization;
+            chat.ComposerText = "usar ferramenta autorizada";
+
+            await chat.SendCommand.ExecuteAsync(null);
+
+            Assert.That(provider.Sessions.Single().Requests.Single().Plan?.ProductTools, Is.Not.Empty,
+                "Provider custom tools must be represented by the plan without requiring an MCP service.");
         });
     }
 

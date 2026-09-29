@@ -22,7 +22,8 @@ public sealed class AgentRuntimeHost : IAgentRuntime, IDisposable
         IAgentToolRegistry toolRegistry,
         IAgentToolBindingProvider toolBindings,
         IAgentPrincipalAuthority principalAuthority,
-        AgentRuntimeWriteApprovalBridge? writeApprovalBridge = null)
+        AgentRuntimeWriteApprovalBridge? writeApprovalBridge = null,
+        IAgentNativeChatTurnScopes? nativeChatTurnScopes = null)
     {
         ArgumentNullException.ThrowIfNull(interactionAuthority);
         ArgumentNullException.ThrowIfNull(toolRegistry);
@@ -31,7 +32,7 @@ public sealed class AgentRuntimeHost : IAgentRuntime, IDisposable
         // Optional: only a composition that also builds the write approval coordinator on this bridge routes registry
         // approvals through the runtime stream. Without it, write approvals stay unavailable (fail closed).
         Runtime = new AgentRuntime(providers, interactionAuthority, options, toolRegistry, toolBindings, principalAuthority,
-            writeApprovalBridge);
+            writeApprovalBridge, nativeChatTurnScopes);
     }
 
     /// <summary>The owned runtime; disposed with this host.</summary>
@@ -55,6 +56,9 @@ public sealed class AgentRuntimeHost : IAgentRuntime, IDisposable
 
     public Task CloseSessionAsync(AgentSessionId sessionId, CancellationToken cancellationToken) =>
         Runtime.CloseSessionAsync(sessionId, cancellationToken);
+
+    public Task DeleteProviderSessionAsync(string providerId, string providerSessionId, CancellationToken cancellationToken) =>
+        Runtime.DeleteProviderSessionAsync(providerId, providerSessionId, cancellationToken);
 
     /// <summary>
     /// Closes every session. Blocking on purpose: each close is bounded by the runtime's own stop timeout and a

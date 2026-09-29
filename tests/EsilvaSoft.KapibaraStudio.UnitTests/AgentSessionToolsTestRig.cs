@@ -53,6 +53,7 @@ internal sealed class AgentSessionToolsTestRig : IDisposable
                 MetadataCache = Cache,
                 LearnedSchemas = Learned,
                 WorkspaceContext = Workspace,
+                NativeChatTurnScopes = NativeChatScopes,
                 ProposalSink = Sink,
                 ConfirmationPrompt = Confirmation,
                 ApprovalTimeout = approvalTimeout ?? TimeSpan.FromSeconds(5)
@@ -72,6 +73,7 @@ internal sealed class AgentSessionToolsTestRig : IDisposable
     public MemoryAudit Audit { get; } = new();
     public TestAgentPrincipalAuthority Authority { get; } = new();
     public AgentMcpSessionRegistry Sessions { get; } = new();
+    public AgentNativeChatTurnScopeRegistry NativeChatScopes { get; } = new();
     public ThrowingMetadataSource Metadata { get; } = new();
     public FakeIndexes Indexes { get; } = new();
     public FakeMetadataCache Cache { get; } = new();

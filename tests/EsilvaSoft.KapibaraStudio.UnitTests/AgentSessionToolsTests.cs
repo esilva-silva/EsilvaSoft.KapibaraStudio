@@ -91,6 +91,84 @@ public sealed class AgentSessionToolsTests
     }
 
     [Test]
+    public async Task NativeChatWorkspaceContextRequiresExactTurnPlanAndTabMetadataPermission()
+    {
+        using var rig = new AgentSessionToolsTestRig();
+        var principal = new AgentPrincipal(Guid.NewGuid(), AgentPrincipalOrigin.Internal, 1);
+        var sessionId = Guid.NewGuid();
+        var turnId = Guid.NewGuid();
+        var plan = AgentModePolicy.Plan(AgentOperationMode.Agent, rig.Permissions,
+            new AgentPlatformFacts(true, true));
+        var snapshot = new AgentWorkspaceContext(DateTimeOffset.UtcNow, rig.WorkspaceFolder,
+            ConnectionId: rig.Profile.Id.ToString("D"), ConnectionName: rig.Profile.Name,
+            DatabaseName: "db-test", CollectionName: "collection-test");
+        var scope = new AgentNativeChatTurnScope(sessionId, turnId, "claude-code", plan, rig.Permissions, snapshot);
+        Assert.That(rig.NativeChatScopes.Register(scope), Is.True);
+
+        var allowed = await InvokeNativeAsync(rig, principal, sessionId, turnId);
+        var missingTurn = await InvokeNativeAsync(rig, principal, sessionId, Guid.NewGuid());
+        var noToolPlan = plan with { ProductTools = [] };
+        var noPlanTurn = Guid.NewGuid();
+        rig.NativeChatScopes.Register(scope with { TurnId = noPlanTurn, Plan = noToolPlan });
+        var noPlan = await InvokeNativeAsync(rig, principal, sessionId, noPlanTurn);
+        var noTabPermissionTurn = Guid.NewGuid();
+        rig.NativeChatScopes.Register(scope with
+        {
+            TurnId = noTabPermissionTurn,
+            Permissions = rig.Permissions with { DataSending = rig.Permissions.DataSending with { TabMetadata = false } }
+        });
+        var noTabPermission = await InvokeNativeAsync(rig, principal, sessionId, noTabPermissionTurn);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(allowed.ErrorCode, Is.Null);
+            Assert.That(allowed.StructuredContentJson, Does.Contain("db-test"));
+            Assert.That(missingTurn.ErrorCode, Is.EqualTo("UnknownTool"));
+            Assert.That(noPlan.ErrorCode, Is.EqualTo("UnknownTool"));
+            Assert.That(noTabPermission.ErrorCode, Is.EqualTo("UnknownTool"));
+        });
+    }
+
+    [Test]
+    public async Task NativeChatWorkspaceScopesDoNotShareSnapshotsAcrossSessions()
+    {
+        using var rig = new AgentSessionToolsTestRig();
+        var principal = new AgentPrincipal(Guid.NewGuid(), AgentPrincipalOrigin.Internal, 1);
+        var firstSession = Guid.NewGuid();
+        var secondSession = Guid.NewGuid();
+        var firstTurn = Guid.NewGuid();
+        var secondTurn = Guid.NewGuid();
+        var firstFolder = Path.Combine(rig.WorkspaceFolder, "first");
+        var secondFolder = Path.Combine(rig.WorkspaceFolder, "second");
+        Directory.CreateDirectory(firstFolder);
+        Directory.CreateDirectory(secondFolder);
+        var plan = AgentModePolicy.Plan(AgentOperationMode.Agent, rig.Permissions,
+            new AgentPlatformFacts(true, true));
+        rig.NativeChatScopes.Register(new AgentNativeChatTurnScope(firstSession, firstTurn, "claude-code", plan,
+            rig.Permissions with { Workspace = new AgentWorkspacePermissions { UseFilesFolder = true } },
+            new AgentWorkspaceContext(DateTimeOffset.UtcNow, firstFolder)));
+        rig.NativeChatScopes.Register(new AgentNativeChatTurnScope(secondSession, secondTurn, "claude-code", plan,
+            rig.Permissions with { Workspace = new AgentWorkspacePermissions { UseFilesFolder = true } },
+            new AgentWorkspaceContext(DateTimeOffset.UtcNow, secondFolder)));
+
+        var first = await InvokeNativeAsync(rig, principal, firstSession, firstTurn);
+        var second = await InvokeNativeAsync(rig, principal, secondSession, secondTurn);
+
+        using var firstJson = JsonDocument.Parse(first.StructuredContentJson!);
+        using var secondJson = JsonDocument.Parse(second.StructuredContentJson!);
+        Assert.That(firstJson.RootElement.GetProperty("workspaceFolder").GetString(), Is.EqualTo(firstFolder));
+        Assert.That(firstJson.RootElement.GetProperty("workspaceFolder").GetString(), Is.Not.EqualTo(secondFolder));
+        Assert.That(secondJson.RootElement.GetProperty("workspaceFolder").GetString(), Is.EqualTo(secondFolder));
+        Assert.That(secondJson.RootElement.GetProperty("workspaceFolder").GetString(), Is.Not.EqualTo(firstFolder));
+    }
+
+    private static Task<AgentToolInvocationResult> InvokeNativeAsync(AgentSessionToolsTestRig rig,
+        AgentPrincipal principal, Guid sessionId, Guid turnId) => rig.Registry.InvokeAsync(principal,
+        new AgentInvocationContext("claude-code", null, sessionId, turnId),
+        AgentOutputDestination.ProviderExternal("claude-code"),
+        AgentToolOutputScopes.For("get_workspace_context"), "get_workspace_context", "{}");
+
+    [Test]
     public async Task TurnPlanLimitsToolsAndConnectionsNullMeansAllEmptyMeansNone()
     {
         using var rig = new AgentSessionToolsTestRig();

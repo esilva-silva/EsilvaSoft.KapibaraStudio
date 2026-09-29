@@ -18,6 +18,7 @@ public sealed partial class AgentRuntime : IAgentRuntime, IAsyncDisposable
     private readonly IAgentToolRegistry? _toolRegistry;
     private readonly IAgentToolBindingProvider? _toolBindings;
     private readonly IAgentPrincipalAuthority? _principalAuthority;
+    private readonly IAgentNativeChatTurnScopes? _nativeChatTurnScopes;
     private readonly AgentRuntimeOptions _options;
     private readonly SemaphoreSlim _globalToolSlots;
     private readonly bool _writeApprovalsBridged;
@@ -31,7 +32,8 @@ public sealed partial class AgentRuntime : IAgentRuntime, IAsyncDisposable
         IAgentToolRegistry? toolRegistry = null,
         IAgentToolBindingProvider? toolBindings = null,
         IAgentPrincipalAuthority? principalAuthority = null,
-        AgentRuntimeWriteApprovalBridge? writeApprovalBridge = null)
+        AgentRuntimeWriteApprovalBridge? writeApprovalBridge = null,
+        IAgentNativeChatTurnScopes? nativeChatTurnScopes = null)
     {
         ArgumentNullException.ThrowIfNull(providers);
         _options = options ?? AgentRuntimeOptions.Default;
@@ -46,6 +48,7 @@ public sealed partial class AgentRuntime : IAgentRuntime, IAsyncDisposable
         _toolRegistry = toolRegistry;
         _toolBindings = toolBindings;
         _principalAuthority = principalAuthority;
+        _nativeChatTurnScopes = nativeChatTurnScopes;
         _globalToolSlots = new SemaphoreSlim(_options.MaxConcurrentToolsGlobal, _options.MaxConcurrentToolsGlobal);
         var byId = new Dictionary<string, IAgentProvider>(StringComparer.Ordinal);
         foreach (var provider in providers)
@@ -199,6 +202,18 @@ public sealed partial class AgentRuntime : IAgentRuntime, IAsyncDisposable
         {
             throw new AgentRuntimeException("SessionShutdownUnconfirmed", "Provider session shutdown could not be confirmed.");
         }
+    }
+
+    public async Task DeleteProviderSessionAsync(string providerId, string providerSessionId, CancellationToken cancellationToken)
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        if (string.IsNullOrWhiteSpace(providerId) || !_providers.TryGetValue(providerId, out var provider))
+            throw new AgentRuntimeException("UnknownProvider", "Provider is unavailable.");
+        if (string.IsNullOrWhiteSpace(providerSessionId) || providerSessionId.Length > 256 || providerSessionId.Any(char.IsControl))
+            throw new AgentRuntimeException("InvalidProviderSessionId", "Provider session identifier is invalid.");
+        cancellationToken.ThrowIfCancellationRequested();
+        if (provider is IAgentProviderSessionCleanup cleanup)
+            await cleanup.DeleteProviderSessionAsync(providerSessionId, cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask DisposeAsync()

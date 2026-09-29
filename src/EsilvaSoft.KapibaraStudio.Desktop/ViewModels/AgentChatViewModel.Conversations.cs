@@ -445,6 +445,39 @@ public sealed partial class AgentChatViewModel
             return;
         }
 
+        var providerId = loaded?.ProviderId ?? item.Summary.ProviderId;
+        try
+        {
+            if (loaded is not null) await CloseSessionAsync(loaded);
+            string? providerSessionId = loaded?.ProviderSessionId;
+            if (string.Equals(providerId, AgentProviderIds.GitHubCopilotSubscription, StringComparison.Ordinal) &&
+                loaded is null && item.IsReadable && _services.Conversations is { } readableRepository)
+            {
+                var stored = await readableRepository.GetAsync(item.Id, _lifetime.Token);
+                if (!stored.Succeeded || stored.Value is null)
+                    throw new InvalidOperationException("CopilotConversationSessionUnavailable");
+                providerSessionId = stored.Value.ProviderSessionId;
+            }
+            else if (string.Equals(providerId, AgentProviderIds.GitHubCopilotSubscription, StringComparison.Ordinal) &&
+                     loaded is null && !item.IsReadable)
+            {
+                throw new InvalidOperationException("CopilotHistoryContainsUnreadableSession");
+            }
+
+            if (providerSessionId is not null && providerId is not null)
+                await DeleteNativeProviderSessionAsync(providerId, providerSessionId, _lifetime.Token);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+            return;
+        }
+        catch (Exception exception)
+        {
+            HistoryStatus = Text.Format("agentHistoryDeleteFailed", SafeCode(exception.Message));
+            HistoryStatusIsError = true;
+            return;
+        }
+
         AgentPersistenceOutcome outcome;
         try
         {
@@ -488,7 +521,7 @@ public sealed partial class AgentChatViewModel
     }
 
     /// <summary>Erases persisted and in-flight copies without letting cancelled turns recreate the deleted history.</summary>
-    private async Task OnHistoryErased(string providerId)
+    private async Task<int> EraseProviderHistoryAsync(string providerId)
     {
         var erased = _conversations.Values.Where(c => c.ProviderId == providerId).ToArray();
         foreach (var conversation in erased)
@@ -504,11 +537,41 @@ public sealed partial class AgentChatViewModel
             conversation.SaveGate.Release();
         }
 
+        if (string.Equals(providerId, AgentProviderIds.GitHubCopilotSubscription, StringComparison.Ordinal))
+        {
+            var providerSessionIds = erased.Select(static conversation => conversation.ProviderSessionId)
+                .Where(static id => !string.IsNullOrWhiteSpace(id)).Cast<string>().ToHashSet(StringComparer.Ordinal);
+            if (_services.Conversations is { } copilotRepository)
+            {
+                var summaries = await copilotRepository.ListAsync(providerId, _lifetime.Token);
+                if (!summaries.Succeeded || summaries.Value is null)
+                    throw new InvalidOperationException("CopilotHistoryReadFailed");
+                foreach (var summary in summaries.Value)
+                {
+                    if (summary.State != AgentConversationSummaryState.Readable)
+                        throw new InvalidOperationException("CopilotHistoryContainsUnreadableSession");
+                    var loadedConversation = erased.FirstOrDefault(c => c.Id == summary.Id);
+                    if (loadedConversation is not null) continue;
+                    var stored = await copilotRepository.GetAsync(summary.Id, _lifetime.Token);
+                    if (!stored.Succeeded || stored.Value is null)
+                        throw new InvalidOperationException("CopilotHistoryReadFailed");
+                    if (!string.IsNullOrWhiteSpace(stored.Value.ProviderSessionId))
+                        providerSessionIds.Add(stored.Value.ProviderSessionId);
+                }
+            }
+
+            foreach (var conversation in erased) await CloseSessionAsync(conversation);
+            foreach (var sessionId in providerSessionIds)
+                await DeleteNativeProviderSessionAsync(providerId, sessionId, _lifetime.Token);
+        }
+
+        var erasedCount = 0;
         if (_services.Conversations is { } repository)
         {
             var result = await repository.DeleteAllAsync(providerId, _lifetime.Token);
             if (!result.Succeeded)
                 throw new InvalidOperationException("AgentHistoryEraseFailed:" + SafeCode(result.ErrorCode ?? result.Status.ToString()));
+            erasedCount = result.Value;
         }
 
         foreach (var conversation in erased)
@@ -523,6 +586,14 @@ public sealed partial class AgentChatViewModel
 
         _history = [.. _history.Where(item => item.Summary.ProviderId != providerId)];
         ApplyHistoryFilter();
+        return erasedCount;
+    }
+
+    private async Task DeleteNativeProviderSessionAsync(string providerId, string providerSessionId, CancellationToken cancellationToken)
+    {
+        if (_services.Runtime is not { } runtime)
+            throw new InvalidOperationException("ProviderSessionCleanupUnavailable");
+        await runtime.DeleteProviderSessionAsync(providerId, providerSessionId, cancellationToken);
     }
 
     // ---- Persistence (IAgentConversationRepository; failures visible, conversation kept in memory). ----
@@ -546,6 +617,46 @@ public sealed partial class AgentChatViewModel
         var task = SaveConversationCoreAsync(conversation);
         LastSave = task;
         return task;
+    }
+
+    /// <summary>
+    /// Copilot's SDK writes native session files even when its cross-session store is disabled. Reserve the
+    /// native ID in the existing conversation repository before the SDK can create a session or receive a prompt.
+    /// A failed or unreadable write leaves the turn blocked; the same in-memory ID can be retried safely.
+    /// </summary>
+    private async Task<bool> ReserveCopilotSessionAsync(AgentChatConversation conversation, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (_services.Conversations is not { } repository || conversation.IsWriteBlocked ||
+            _erasedConversationIds.ContainsKey(conversation.Id))
+        {
+            SetPersistence(conversation, Text.Resolve("agentHistoryNoStore"), isError: true);
+            return false;
+        }
+
+        conversation.ProviderSessionId ??= Guid.NewGuid().ToString("D");
+        var reservedId = conversation.ProviderSessionId;
+        await SaveConversationAsync(conversation);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        try
+        {
+            var stored = await repository.GetAsync(conversation.Id, cancellationToken);
+            if (stored.Succeeded && string.Equals(stored.Value?.ProviderSessionId, reservedId, StringComparison.Ordinal) &&
+                MaySaveHistory(conversation) && !_erasedConversationIds.ContainsKey(conversation.Id))
+                return true;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            // The persisted reservation cannot be verified, so no prompt may be sent.
+        }
+
+        SetPersistence(conversation, Text.Format("agentPersistenceFailed", "CopilotHistoryReservationFailed"), isError: true);
+        return false;
     }
 
     private async Task SaveConversationCoreAsync(AgentChatConversation conversation)

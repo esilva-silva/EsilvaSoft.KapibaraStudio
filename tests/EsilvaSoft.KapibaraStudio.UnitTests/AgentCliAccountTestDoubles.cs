@@ -14,6 +14,8 @@ internal sealed class FakeCliAccountManager : IAgentCliAccountManager
     public static readonly AgentCliProviderProfile TestProfile = new("Claude Code", "Anthropic", "claude auth login",
         "~/.claude/projects", "~/.claude/.credentials.json", "~/.claude");
 
+    public AgentCliProviderProfile Profile { get; set; } = TestProfile;
+
     public AgentCliAccountStatus Status { get; set; } = new(AgentCliInstallState.NotFound, null, AgentCliAuthState.NotChecked);
 
     public AgentCliCommandResult? SignInResult { get; set; }
@@ -33,7 +35,7 @@ internal sealed class FakeCliAccountManager : IAgentCliAccountManager
 
     public bool? LastSignOutConfirmation { get; private set; }
 
-    public AgentCliProviderProfile? Describe(string providerId) => providerId == ProviderId ? TestProfile : null;
+    public AgentCliProviderProfile? Describe(string providerId) => providerId == ProviderId ? Profile : null;
 
     /// <summary>Scripted provider decision; null derives it from the candidate (accepted when given, none otherwise).</summary>
     public Func<string?, AgentCliReadScope>? ScopeFor { get; set; }

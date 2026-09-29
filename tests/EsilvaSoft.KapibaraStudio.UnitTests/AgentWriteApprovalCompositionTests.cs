@@ -35,12 +35,12 @@ public sealed class AgentWriteApprovalCompositionTests
         [AgentToolExposureStage.None, AgentToolExposureStage.Metadata, AgentToolExposureStage.LiteralQueries];
 
     [TestCaseSource(nameof(ReleasedStages))]
-    public void ProductionCompositionWiresOneApprovalChainAndExposesNoWriteTool(AgentToolExposureStage stage)
+    public async Task ProductionCompositionWiresOneApprovalChainAndExposesNoWriteTool(AgentToolExposureStage stage)
     {
         using var workspace = new ConnectionCredentialRecoveryTests.Workspace();
         var platform = new AgentPlatformOptions { ToolExposureStage = stage };
         var services = ComposeLikeDesktop(workspace.Path, platform);
-        using var provider = services.BuildServiceProvider();
+        await using var provider = services.BuildServiceProvider();
 
         var coordinator = provider.GetRequiredService<AgentWriteApprovalCoordinator>();
         var host = provider.GetRequiredService<AgentRuntimeHost>();

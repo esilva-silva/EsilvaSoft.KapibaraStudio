@@ -27,18 +27,39 @@ public sealed partial class AgentToolRegistry
             ? ports.SessionScopes.FindByPrincipal(principal.Id)
             : null;
 
-    private bool IsExposedToPrincipal(AgentPrincipal? principal, string? name)
+    private bool IsExposedToPrincipal(AgentPrincipal? principal, string? name, AgentInvocationContext? context,
+        AgentOutputDestination? destination, AgentOutputDataScope? outputScope)
     {
         var scope = SessionScopeOf(principal);
         // A session channel is authorized only through its active scope: an orphan (crash, kill, closed session) is
         // denied even when external MCP clients are enabled.
         if (principal is { IsSessionChannel: true } && scope is null) return false;
-        if (IsSessionTool(name)) return scope?.Exposes(name) == true;
+        if (IsSessionTool(name))
+            return scope?.Exposes(name) == true ||
+                name is GetWorkspaceContextToolName or GetCachedSchemaToolName &&
+                IsSessionCallBound(principal, context, destination, outputScope, name, out _);
+        if (principal?.Origin == AgentPrincipalOrigin.Internal && context?.SessionId is { } sessionId &&
+            context.TurnId is { } turnId && _sessionTools?.NativeChatTurnScopes?.Find(sessionId, turnId) is { } native)
+            return !native.Plan.IsBlocked && native.Permissions.IsWellFormed &&
+                native.Permissions.HasExternalDestinationConsent &&
+                native.Permissions.EnabledReadTools?.Contains(name!, StringComparer.Ordinal) == true &&
+                native.Plan.ProductTools.Contains(name!, StringComparer.Ordinal) &&
+                string.Equals(native.ProviderId, context.ProviderId, StringComparison.Ordinal);
         return scope is null || scope.Exposes(name);
     }
 
-    private bool IsConnectionInSessionScope(AgentPrincipal? principal, Guid connectionId) =>
-        SessionScopeOf(principal) is { } scope ? scope.AllowsConnection(connectionId) : principal is not { IsSessionChannel: true };
+    private bool IsConnectionInSessionScope(AgentPrincipal? principal, AgentInvocationContext? context,
+        Guid connectionId)
+    {
+        if (SessionScopeOf(principal) is { } scope) return scope.AllowsConnection(connectionId);
+        if (principal is { IsSessionChannel: true }) return false;
+        if (principal?.Origin == AgentPrincipalOrigin.Internal && context?.SessionId is { } sessionId &&
+            context.TurnId is { } turnId && _sessionTools?.NativeChatTurnScopes?.Find(sessionId, turnId) is { } native)
+            return (native.Plan.AllowedConnectionIds is null || native.Plan.AllowedConnectionIds.Contains(connectionId)) &&
+                (native.Permissions.ConnectionScope != AgentConnectionScope.Selected ||
+                 native.Permissions.SelectedConnectionIds?.Contains(connectionId) == true);
+        return true;
+    }
 
     private AgentToolInvocationResult? SessionConnectionDenial(AgentPrincipal? principal, string? name, string? argumentsJson)
     {
@@ -67,10 +88,33 @@ public sealed partial class AgentToolRegistry
     {
         scope = null!;
         if (principal is null || !IsCompleteInvocationContext(context) || destination is null ||
-            !IsValidDestination(destination, context!) || outputScope != AgentToolOutputScopes.For(name) ||
-            SessionScopeOf(principal) is not { } found || !found.Exposes(name) || found.Permissions is null)
+            !IsValidDestination(destination, context!) || outputScope != AgentToolOutputScopes.For(name))
             return false;
-        scope = found;
+
+        if (SessionScopeOf(principal) is { } found)
+        {
+            if (!found.Exposes(name) || found.Permissions is null) return false;
+            scope = found;
+            return true;
+        }
+
+        // Native chat receives only read-only session tools from its exact active runtime turn.
+        if (name is not (GetWorkspaceContextToolName or GetCachedSchemaToolName) ||
+            principal.Origin != AgentPrincipalOrigin.Internal ||
+            destination.Kind != AgentOutputDestinationKind.ProviderExternal || context!.SessionId is not { } sessionId ||
+            context.TurnId is not { } turnId || _sessionTools?.NativeChatTurnScopes?.Find(sessionId, turnId) is not { } native ||
+            !string.Equals(native.ProviderId, context.ProviderId, StringComparison.Ordinal) ||
+            !string.Equals(native.ProviderId, destination.ProviderId, StringComparison.Ordinal) ||
+            !native.Plan.ProductTools.Contains(name, StringComparer.Ordinal) || native.Plan.IsBlocked ||
+            !native.Permissions.IsWellFormed || !native.Permissions.HasExternalDestinationConsent ||
+            native.Permissions.EnabledReadTools?.Contains(name, StringComparer.Ordinal) != true ||
+            (name == GetWorkspaceContextToolName && native.Permissions.DataSending?.TabMetadata != true) ||
+            (name == GetCachedSchemaToolName && native.Permissions.DataSending?.InferredSchema != true))
+            return false;
+
+        scope = new AgentMcpSessionScope(Guid.Empty, Guid.Empty, native.ProviderId, Guid.Empty,
+            native.Plan with { ProductTools = [name] }, native.Permissions,
+            WorkspaceContext: native.WorkspaceContext);
         return true;
     }
 
@@ -142,12 +186,14 @@ public sealed partial class AgentToolRegistry
     /// Release gate of per-session tools that touch no MongoDB namespace: the channel is still current and the tool is
     /// still in the turn plan of its scope. There is no profile or grant to revalidate.
     /// </summary>
-    private async Task<AgentToolInvocationResult?> RevalidateSessionReleaseAsync(AgentPrincipal principal, string name,
-        CancellationToken cancellationToken)
+    private async Task<AgentToolInvocationResult?> RevalidateSessionReleaseAsync(AgentPrincipal principal,
+        AgentInvocationContext context, AgentOutputDestination destination, AgentOutputDataScope? outputScope,
+        string name, CancellationToken cancellationToken)
     {
-        if (await CheckPrincipalCurrentAsync(principal, cancellationToken).ConfigureAwait(false) is { } channelDenial)
+        if (principal.Origin == AgentPrincipalOrigin.External &&
+            await CheckPrincipalCurrentAsync(principal, cancellationToken).ConfigureAwait(false) is { } channelDenial)
             return channelDenial;
-        return SessionScopeOf(principal)?.Exposes(name) == true
+        return IsSessionCallBound(principal, context, destination, outputScope, name, out _)
             ? null
             : AgentToolInvocationResult.Failure(PermissionDenied, AgentAuditDecisionReason.PermissionMissing);
     }
