@@ -43,7 +43,7 @@ public sealed partial class AgentToolRegistry
     }
 
     private const string ProposeFileEditInputSchema = """
-        {"type":"object","additionalProperties":false,"required":["path"],"properties":{"path":{"type":"string","minLength":1,"maxLength":1024},"edits":{"type":"array","minItems":1,"maxItems":50,"items":{"type":"object","additionalProperties":false,"required":["old_text","new_text"],"properties":{"old_text":{"type":"string","minLength":1,"maxLength":65536},"new_text":{"type":"string","maxLength":65536}}}},"new_content":{"type":"string","maxLength":65536}},"oneOf":[{"required":["edits"]},{"required":["new_content"]}]}
+        {"type":"object","additionalProperties":false,"properties":{"target":{"type":"string","const":"active_buffer"},"path":{"type":"string","minLength":1,"maxLength":1024},"edits":{"type":"array","minItems":1,"maxItems":50,"items":{"type":"object","additionalProperties":false,"required":["old_text","new_text"],"properties":{"old_text":{"type":"string","minLength":1,"maxLength":65536},"new_text":{"type":"string","maxLength":65536}}}},"new_content":{"type":"string","maxLength":65536}},"oneOf":[{"required":["path"],"not":{"required":["target"]}},{"required":["target"],"properties":{"target":{"const":"active_buffer"}},"not":{"required":["path"]}}],"allOf":[{"oneOf":[{"required":["edits"]},{"required":["new_content"]}]}]}
         """;
 
     private const string ProposeFileEditOutputSchema = """
@@ -56,7 +56,7 @@ public sealed partial class AgentToolRegistry
         AgentPrincipal? principal, AgentInvocationContext? context, AgentOutputDestination? destination,
         AgentOutputDataScope? outputScope, string? argumentsJson, CancellationToken cancellationToken)
     {
-        if (!TryParseProposalArguments(argumentsJson, out var path, out var edits, out var newContent))
+        if (!TryParseProposalArguments(argumentsJson, out var path, out var activeBuffer, out var edits, out var newContent))
             return AgentToolInvocationResult.Failure(InvalidArguments);
         if (!IsSessionCallBound(principal, context, destination, outputScope, ProposeFileEditToolName, out var scope) ||
             _sessionTools is not { ProposalSink: { } sink } || scope.WorkspaceContext is not { } snapshot)
@@ -64,24 +64,33 @@ public sealed partial class AgentToolRegistry
         var permissions = scope.Permissions!;
         var editPermissions = permissions.EditProposals ?? new AgentEditProposalPermissions();
 
-        if (permissions.Workspace?.UseFilesFolder != true ||
-            !AgentWorkspacePaths.TryGetWorkspaceRoot(snapshot.WorkspaceFolder, out var workspace))
-            return Refuse(ProposalErrors.NoWorkspace);
-        var exclusions = permissions.Workspace?.Exclusions ?? [];
-        // Single path-safety rule shared with the attachment resolver (containment, ADS/8.3 aliases, links, exclusions).
-        if (!AgentWorkspacePaths.TryResolveInside(workspace, path, exclusions, out var fullPath, out _, out var pathError))
-            return Refuse(pathError switch
-            {
-                AgentWorkspacePathError.NoWorkspace => ProposalErrors.NoWorkspace,
-                AgentWorkspacePathError.OutsideWorkspace or AgentWorkspacePathError.LinkTraversal => ProposalErrors.OutsideWorkspace,
-                AgentWorkspacePathError.Excluded or AgentWorkspacePathError.InvalidExclusion => ProposalErrors.Excluded,
-                _ => ProposalErrors.InvalidPath
-            });
-
-        var isActive = snapshot.BufferText is not null && snapshot.ActiveFilePath is { } activePath &&
-            AgentWorkspacePaths.TryResolveInside(workspace, activePath, exclusions, out var activeFull, out _, out _) &&
-            string.Equals(activeFull, fullPath, OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
-                ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+        var isActive = activeBuffer;
+        string? fullPath = null;
+        if (activeBuffer)
+        {
+            if (string.IsNullOrWhiteSpace(snapshot.TabId) || snapshot.BufferText is null)
+                return Refuse(ProposalErrors.TargetUnavailable);
+        }
+        else
+        {
+            if (permissions.Workspace?.UseFilesFolder != true ||
+                !AgentWorkspacePaths.TryGetWorkspaceRoot(snapshot.WorkspaceFolder, out var workspace))
+                return Refuse(ProposalErrors.NoWorkspace);
+            var exclusions = permissions.Workspace?.Exclusions ?? [];
+            // Single path-safety rule shared with the attachment resolver (containment, ADS/8.3 aliases, links, exclusions).
+            if (!AgentWorkspacePaths.TryResolveInside(workspace, path!, exclusions, out fullPath, out _, out var pathError))
+                return Refuse(pathError switch
+                {
+                    AgentWorkspacePathError.NoWorkspace => ProposalErrors.NoWorkspace,
+                    AgentWorkspacePathError.OutsideWorkspace or AgentWorkspacePathError.LinkTraversal => ProposalErrors.OutsideWorkspace,
+                    AgentWorkspacePathError.Excluded or AgentWorkspacePathError.InvalidExclusion => ProposalErrors.Excluded,
+                    _ => ProposalErrors.InvalidPath
+                });
+            isActive = snapshot.BufferText is not null && snapshot.ActiveFilePath is { } activePath &&
+                AgentWorkspacePaths.TryResolveInside(workspace, activePath, exclusions, out var activeFull, out _, out _) &&
+                string.Equals(activeFull, fullPath, OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+                    ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+        }
         var sending = permissions.DataSending ?? new AgentDataSendingPermissions();
         if (isActive
                 ? !editPermissions.ActiveFile || !sending.ActiveFile
@@ -95,7 +104,7 @@ public sealed partial class AgentToolRegistry
         }
         else
         {
-            var read = await ReadProposalBaseAsync(fullPath, cancellationToken).ConfigureAwait(false);
+            var read = await ReadProposalBaseAsync(fullPath!, cancellationToken).ConfigureAwait(false);
             if (read.Error is { } readError) return Refuse(readError);
             original = read.Text!;
         }
@@ -136,7 +145,8 @@ public sealed partial class AgentToolRegistry
         var proposal = new AgentEditProposal(Guid.NewGuid(), scope.ConversationId, fullPath,
             isActive ? snapshot.TabId : null,
             Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(original))),
-            original, proposed, hunks, DateTimeOffset.UtcNow);
+            original, proposed, hunks, DateTimeOffset.UtcNow)
+        { TargetName = snapshot.ActiveFileName ?? (activeBuffer ? "Aba sem título" : Path.GetFileName(fullPath)) };
         // Release gate BEFORE the proposal leaves the registry: the channel and the plan must still be current.
         if (await RevalidateSessionReleaseAsync(principal!, context!, destination!, outputScope,
                 ProposeFileEditToolName, cancellationToken)
@@ -360,10 +370,11 @@ public sealed partial class AgentToolRegistry
         }
     }
 
-    private static bool TryParseProposalArguments(string? json, out string? path,
+    private static bool TryParseProposalArguments(string? json, out string? path, out bool activeBuffer,
         out IReadOnlyList<(string OldText, string NewText)>? edits, out string? newContent)
     {
         path = null;
+        activeBuffer = false;
         edits = null;
         newContent = null;
         if (json is null || Utf8ByteCount(json) > MaximumInputBytes) return false;
@@ -380,6 +391,10 @@ public sealed partial class AgentToolRegistry
                     case "path" when property.Value.ValueKind == JsonValueKind.String &&
                         property.Value.GetString() is { Length: > 0 and <= 1024 } value:
                         path = value;
+                        break;
+                    case "target" when property.Value.ValueKind == JsonValueKind.String &&
+                        property.Value.GetString() == "active_buffer":
+                        activeBuffer = true;
                         break;
                     case "new_content" when property.Value.ValueKind == JsonValueKind.String:
                         newContent = property.Value.GetString();
@@ -398,7 +413,7 @@ public sealed partial class AgentToolRegistry
                         return false;
                 }
             }
-            return path is not null && (edits is null) != (newContent is null);
+            return (path is not null) != activeBuffer && (edits is null) != (newContent is null);
         }
         catch (JsonException) { return false; }
 

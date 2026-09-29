@@ -406,7 +406,7 @@ public sealed partial class AgentEditProposalCardItem : AgentChatItemViewModel
     }
 
     internal static AgentEditProposalCardItem From(AgentEditProposalEntry entry) =>
-        new(entry.Id, Path.GetFileName(entry.Proposal.TargetPath), entry.Proposal.AddedLineCount,
+        new(entry.Id, entry.Proposal.TargetName ?? (entry.Proposal.TargetPath is { } path ? Path.GetFileName(path) : "Aba sem título"), entry.Proposal.AddedLineCount,
             entry.Proposal.RemovedLineCount, entry)
         {
             TargetPath = entry.Proposal.TargetPath,

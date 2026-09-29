@@ -130,6 +130,38 @@ public sealed class AgentSessionToolsTests
     }
 
     [Test]
+    public async Task NativeChatCanProposeEditToCapturedUntitledBufferWithConversationBinding()
+    {
+        using var rig = new AgentSessionToolsTestRig();
+        var principal = new AgentPrincipal(Guid.NewGuid(), AgentPrincipalOrigin.Internal, 1);
+        var sessionId = Guid.NewGuid();
+        var turnId = Guid.NewGuid();
+        const string original = "db.collection.find().limit(10);\n";
+        var context = new AgentWorkspaceContext(DateTimeOffset.UtcNow, WorkspaceFolder: null,
+            ActiveFileName: "Aba sem título", TabId: "tab-native", BufferText: original);
+        var plan = AgentModePolicy.Plan(AgentOperationMode.Agent, rig.Permissions,
+            new AgentPlatformFacts(true, true));
+        rig.NativeChatScopes.Register(new AgentNativeChatTurnScope(sessionId, turnId, "claude-code", plan,
+            rig.Permissions, context) { ConversationId = rig.ConversationId });
+
+        var result = await rig.Registry.InvokeAsync(principal,
+            new AgentInvocationContext("claude-code", null, sessionId, turnId),
+            AgentOutputDestination.ProviderExternal("claude-code"),
+            AgentToolOutputScopes.For("propose_file_edit"), "propose_file_edit",
+            """{"target":"active_buffer","edits":[{"old_text":"limit(10)","new_text":"limit(5)"}]}""");
+
+        Assert.That(result.Succeeded, Is.True, result.ErrorCode);
+        var proposal = rig.Sink.Proposals.Single();
+        Assert.Multiple(() =>
+        {
+            Assert.That(proposal.ConversationId, Is.EqualTo(rig.ConversationId));
+            Assert.That(proposal.TargetPath, Is.Null);
+            Assert.That(proposal.TabId, Is.EqualTo("tab-native"));
+            Assert.That(proposal.ProposedText, Does.Contain("limit(5)"));
+        });
+    }
+
+    [Test]
     public async Task NativeChatWorkspaceScopesDoNotShareSnapshotsAcrossSessions()
     {
         using var rig = new AgentSessionToolsTestRig();
@@ -424,6 +456,35 @@ public sealed class AgentSessionToolsTests
             Assert.That(proposal.OriginalText, Is.EqualTo("db.a.find()\r\ndb.b.find()\r\n"), "Base é o buffer, não o disco.");
             Assert.That(proposal.ProposedText, Is.EqualTo("db.a.find({})\r\ndb.b.find()\r\n"));
             Assert.That(File.ReadAllText(file), Is.EqualTo("disco\r\n"));
+        });
+    }
+
+    [Test]
+    public async Task ProposeFileEditCanTargetAnUntitledActiveBufferWithoutWorkspaceFolder()
+    {
+        using var rig = new AgentSessionToolsTestRig();
+        const string original = "db.getCollection(\"Customers\").find({}).limit(100);\n";
+        rig.Workspace.Context = new AgentWorkspaceContext(DateTimeOffset.UtcNow,
+            WorkspaceFolder: null, ActiveFilePath: null, ActiveFileName: "Aba sem título",
+            TabId: "active-tab", DocumentVersion: 3, BufferText: original);
+        rig.BindPlan(AgentModePolicy.Plan(AgentOperationMode.Agent, rig.Permissions,
+            new AgentPlatformFacts(true, true)));
+
+        var result = await rig.CallAsync("propose_file_edit", new
+        {
+            target = "active_buffer",
+            edits = new[] { new { old_text = ".limit(100)", new_text = ".limit(25)" } }
+        });
+
+        Assert.That(result.Succeeded, Is.True, result.ErrorCode);
+        var proposal = rig.Sink.Proposals.Single();
+        Assert.Multiple(() =>
+        {
+            Assert.That(proposal.TargetPath, Is.Null);
+            Assert.That(proposal.TargetName, Is.EqualTo("Aba sem título"));
+            Assert.That(proposal.TabId, Is.EqualTo("active-tab"));
+            Assert.That(proposal.OriginalText, Is.EqualTo(original));
+            Assert.That(proposal.ProposedText, Is.EqualTo(original.Replace(".limit(100)", ".limit(25)", StringComparison.Ordinal)));
         });
     }
 

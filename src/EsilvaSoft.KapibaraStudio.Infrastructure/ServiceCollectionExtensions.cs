@@ -52,8 +52,7 @@ public static class ServiceCollectionExtensions
             provider.GetRequiredService<IAgentAuthorizationPolicyRepository>(),
             provider.GetRequiredService<IAgentPrincipalAuthority>(),
             provider.GetRequiredService<IAgentNativeChatTurnScopes>(),
-            provider.GetRequiredService<IConnectionProfileRepository>(),
-            provider.GetServices<IAgentProvider>()));
+            provider.GetRequiredService<IConnectionProfileRepository>()));
         services.AddSingleton<IAgentAuditRepository>(services => services.GetRequiredService<LiteDbConnectionProfileRepository>());
         // ADR-056: conversations and per-provider permissions are facets of the same owner (never a second LiteDatabase).
         services.AddSingleton<IAgentConversationRepository>(services => services.GetRequiredService<LiteDbConnectionProfileRepository>());

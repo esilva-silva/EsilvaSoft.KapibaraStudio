@@ -74,7 +74,7 @@ public sealed class AgentChatEditorRevisionTests
         public AgentWorkspaceContext CaptureWorkspace() => tab.CaptureAgentChatSnapshot();
         public string? WorkspaceFolder => null;
         public IReadOnlyList<AgentConnectionChoice> ListConnections() => [];
-        public Task<IAgentBufferEditor?> OpenEditorAsync(string targetPath, string? tabId) =>
+        public Task<IAgentBufferEditor?> OpenEditorAsync(string? targetPath, string? tabId) =>
             Task.FromResult<IAgentBufferEditor?>(null);
         public void OnPanelPreferencesChanged() { }
     }

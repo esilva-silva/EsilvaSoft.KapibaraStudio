@@ -54,7 +54,7 @@ public sealed record AgentEditHunk(
 public sealed record AgentEditProposal(
     Guid Id,
     Guid ConversationId,
-    string TargetPath,
+    string? TargetPath,
     string? TabId,
     string BaseTextSha256,
     string OriginalText,
@@ -62,6 +62,9 @@ public sealed record AgentEditProposal(
     IReadOnlyList<AgentEditHunk> Hunks,
     DateTimeOffset CreatedAt)
 {
+    /// <summary>Friendly name captured from the editor tab when the target has no filesystem path.</summary>
+    public string? TargetName { get; init; }
+
     public int AddedLineCount => Hunks.Sum(static hunk => hunk.AddedLineCount);
 
     public int RemovedLineCount => Hunks.Sum(static hunk => hunk.RemovedLineCount);

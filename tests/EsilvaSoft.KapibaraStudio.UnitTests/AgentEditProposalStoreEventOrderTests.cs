@@ -13,6 +13,27 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests;
 public sealed class AgentEditProposalStoreEventOrderTests
 {
     [Test]
+    public async Task UntitledBufferProposalUsesCapturedTabResolverWithoutDiskPath()
+    {
+        var session = HeadlessUnitTestSession.GetOrStartForAssembly(typeof(UiTestApp).Assembly);
+        await session.Dispatch<bool>(async () =>
+        {
+            const string original = "db.collection.find();\n";
+            const string proposed = "db.collection.find({});\n";
+            Assert.That(LineDiff.TryCompute(original, proposed, out var hunks), Is.True);
+            var proposal = new AgentEditProposal(Guid.NewGuid(), Guid.NewGuid(), null, "untitled-tab",
+                AgentEditProposalStore.Sha256(original), original, proposed, hunks, DateTimeOffset.UtcNow);
+            var store = new AgentEditProposalStore();
+            using var resolver = store.AttachTextResolver((path, tabId) =>
+                path is null && tabId == "untitled-tab" ? original : null);
+
+            Assert.That(store.Submit(proposal).Status, Is.EqualTo(AgentEditProposalSubmissionStatus.Registered));
+            await Task.CompletedTask;
+            return true;
+        });
+    }
+
+    [Test]
     public async Task ConcurrentMutationsPublishTheLatestSnapshotWhenUiQueueIsDrained()
     {
         var session = HeadlessUnitTestSession.GetOrStartForAssembly(typeof(UiTestApp).Assembly);

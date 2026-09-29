@@ -32,7 +32,7 @@ public sealed class NativeChatTurnPolicyProviderTests
         var plan = Plan(permissions);
         Assert.That(turns.Register(new AgentNativeChatTurnScope(session, turn, ProviderId, plan, permissions, null)), Is.True);
         var policy = new NativeChatTurnPolicyProvider(repository, owner, turns,
-            new Mcp.McpBrokerFixture.FixedProfiles(first, second), [new Provider()]);
+            new Mcp.McpBrokerFixture.FixedProfiles(first, second));
 
         var loaded = await policy.LoadAsync(principalId, default);
         Assert.That(loaded, Is.Not.Null);
@@ -95,7 +95,7 @@ public sealed class NativeChatTurnPolicyProviderTests
         turns.Register(new AgentNativeChatTurnScope(sessionA, turnA, ProviderId, plan, permissions, null));
         turns.Register(new AgentNativeChatTurnScope(sessionB, turnB, ProviderId, plan, permissions, null));
         var policy = new NativeChatTurnPolicyProvider(repository, owner, turns,
-            new Mcp.McpBrokerFixture.FixedProfiles(profile), [new Provider()]);
+            new Mcp.McpBrokerFixture.FixedProfiles(profile));
 
         var both = await policy.LoadAsync(principalId, default);
         Assert.That(both!.Grants, Has.Count.EqualTo(2));
@@ -129,13 +129,13 @@ public sealed class NativeChatTurnPolicyProviderTests
         var profiles = new Mcp.McpBrokerFixture.FixedProfiles(profile);
         var provider = new Provider();
         var repository = (IAgentAuthorizationPolicyRepository)owner;
-        var policy = new NativeChatTurnPolicyProvider(repository, owner, turns, profiles, [provider]);
+        var policy = new NativeChatTurnPolicyProvider(repository, owner, turns, profiles);
 
         Assert.That(await policy.LoadAsync(principalId, default), Is.Null, "Missing anchor denies all turns.");
 
         var invalid = AgentAuthorizationPolicySnapshot.Load(principalId, 999, 1, []);
         var invalidPolicy = new NativeChatTurnPolicyProvider(new StubPolicyRepository(invalid), owner,
-            turns, profiles, [provider]);
+            turns, profiles);
         Assert.That((await invalidPolicy.LoadAsync(principalId, default))?.IsValid, Is.False,
             "A corrupt or unsupported policy is never replaced by an effective overlay.");
 

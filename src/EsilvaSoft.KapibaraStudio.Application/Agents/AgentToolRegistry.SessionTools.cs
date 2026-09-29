@@ -36,7 +36,7 @@ public sealed partial class AgentToolRegistry
         if (principal is { IsSessionChannel: true } && scope is null) return false;
         if (IsSessionTool(name))
             return scope?.Exposes(name) == true ||
-                name is GetWorkspaceContextToolName or GetCachedSchemaToolName &&
+                name is GetWorkspaceContextToolName or GetCachedSchemaToolName or ProposeFileEditToolName &&
                 IsSessionCallBound(principal, context, destination, outputScope, name, out _);
         if (principal?.Origin == AgentPrincipalOrigin.Internal && context?.SessionId is { } sessionId &&
             context.TurnId is { } turnId && _sessionTools?.NativeChatTurnScopes?.Find(sessionId, turnId) is { } native)
@@ -98,8 +98,8 @@ public sealed partial class AgentToolRegistry
             return true;
         }
 
-        // Native chat receives only read-only session tools from its exact active runtime turn.
-        if (name is not (GetWorkspaceContextToolName or GetCachedSchemaToolName) ||
+        // Native chat receives only the explicitly planned session tools from its exact active runtime turn.
+        if (name is not (GetWorkspaceContextToolName or GetCachedSchemaToolName or ProposeFileEditToolName) ||
             principal.Origin != AgentPrincipalOrigin.Internal ||
             destination.Kind != AgentOutputDestinationKind.ProviderExternal || context!.SessionId is not { } sessionId ||
             context.TurnId is not { } turnId || _sessionTools?.NativeChatTurnScopes?.Find(sessionId, turnId) is not { } native ||
@@ -107,12 +107,16 @@ public sealed partial class AgentToolRegistry
             !string.Equals(native.ProviderId, destination.ProviderId, StringComparison.Ordinal) ||
             !native.Plan.ProductTools.Contains(name, StringComparer.Ordinal) || native.Plan.IsBlocked ||
             !native.Permissions.IsWellFormed || !native.Permissions.HasExternalDestinationConsent ||
-            native.Permissions.EnabledReadTools?.Contains(name, StringComparer.Ordinal) != true ||
             (name == GetWorkspaceContextToolName && native.Permissions.DataSending?.TabMetadata != true) ||
-            (name == GetCachedSchemaToolName && native.Permissions.DataSending?.InferredSchema != true))
+            (name == GetCachedSchemaToolName && (native.Permissions.EnabledReadTools?.Contains(name, StringComparer.Ordinal) != true ||
+                native.Permissions.DataSending?.InferredSchema != true)) ||
+            (name == GetWorkspaceContextToolName && native.Permissions.EnabledReadTools?.Contains(name, StringComparer.Ordinal) != true) ||
+            (name == ProposeFileEditToolName && (native.ConversationId == Guid.Empty ||
+                native.Plan.ProposalHandling == AgentProposalHandling.Disabled || native.Plan.Mode == AgentOperationMode.Planning ||
+                native.Permissions.EditProposals?.ActiveFile != true || native.Permissions.DataSending?.ActiveFile != true)))
             return false;
 
-        scope = new AgentMcpSessionScope(Guid.Empty, Guid.Empty, native.ProviderId, Guid.Empty,
+        scope = new AgentMcpSessionScope(Guid.Empty, Guid.Empty, native.ProviderId, native.ConversationId,
             native.Plan with { ProductTools = [name] }, native.Permissions,
             WorkspaceContext: native.WorkspaceContext);
         return true;

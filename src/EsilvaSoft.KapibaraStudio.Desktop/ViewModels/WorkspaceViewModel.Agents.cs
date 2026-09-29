@@ -77,7 +77,7 @@ public sealed partial class WorkspaceViewModel : IAgentChatHost
         var context = new AgentWorkspaceContext(DateTimeOffset.UtcNow,
             WorkspaceRootPath,
             path,
-            path is null ? null : Path.GetFileName(path),
+            path is null ? (tab is null ? null : "Aba sem título") : Path.GetFileName(path),
             tab?.Id.ToString("N"),
             tab?.EditorRevision,
             tab?.Text,
@@ -88,11 +88,12 @@ public sealed partial class WorkspaceViewModel : IAgentChatHost
         return context;
     }
 
-    private string? ResolveAgentProposalText(string path, string? tabId)
+    private string? ResolveAgentProposalText(string? path, string? tabId)
     {
-        var tab = Tabs.FirstOrDefault(candidate =>
-            string.Equals(candidate.FilePath, path, FilePathComparison) &&
-            (tabId is null || string.Equals(candidate.Id.ToString("N"), tabId, StringComparison.OrdinalIgnoreCase)));
+        var tab = Tabs.FirstOrDefault(candidate => tabId is not null
+            ? string.Equals(candidate.Id.ToString("N"), tabId, StringComparison.OrdinalIgnoreCase) &&
+              (path is null || string.Equals(candidate.FilePath, path, FilePathComparison))
+            : path is not null && string.Equals(candidate.FilePath, path, FilePathComparison));
         return tab?.Text;
     }
 
@@ -101,17 +102,20 @@ public sealed partial class WorkspaceViewModel : IAgentChatHost
     public IReadOnlyList<AgentConnectionChoice> ListConnections() =>
         Profiles.Select(static profile => new AgentConnectionChoice(profile.Id, profile.Name)).ToArray();
 
-    public async Task<IAgentBufferEditor?> OpenEditorAsync(string targetPath, string? tabId)
+    public async Task<IAgentBufferEditor?> OpenEditorAsync(string? targetPath, string? tabId)
     {
-        if (string.IsNullOrWhiteSpace(targetPath) || !File.Exists(targetPath) || tabId is { Length: 0 }) return null;
+        if (tabId is { Length: 0 } || targetPath is null && string.IsNullOrWhiteSpace(tabId)) return null;
+        if (targetPath is not null && (string.IsNullOrWhiteSpace(targetPath) || !File.Exists(targetPath))) return null;
         var pathComparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-        var tab = tabId is null
+        var tab = targetPath is null
+            ? Tabs.FirstOrDefault(candidate => string.Equals(candidate.Id.ToString("N"), tabId, StringComparison.OrdinalIgnoreCase))
+            : tabId is null
             ? Tabs.FirstOrDefault(candidate => string.Equals(candidate.FilePath, targetPath, pathComparison))
             : Tabs.FirstOrDefault(candidate =>
                 string.Equals(candidate.Id.ToString("N"), tabId, StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(candidate.FilePath, targetPath, pathComparison));
         if (tab is null && tabId is not null) return null;
-        if (tab is null) tab = await OpenTextFileAsync(targetPath);
+        if (tab is null) tab = await OpenTextFileAsync(targetPath!);
         if (tab is null || !Tabs.Contains(tab)) return null;
         ActiveTab = tab;
 
@@ -119,9 +123,10 @@ public sealed partial class WorkspaceViewModel : IAgentChatHost
         if (desktop?.MainWindow is MainWindow mainWindow) mainWindow.FocusEditorForAgent(tab);
         for (var attempt = 0; attempt < 40; attempt++)
         {
-            if (!Tabs.Contains(tab) || !string.Equals(tab.FilePath, targetPath, pathComparison)) return null;
+            if (!Tabs.Contains(tab) || targetPath is not null && !string.Equals(tab.FilePath, targetPath, pathComparison)) return null;
             var editor = await Dispatcher.UIThread.InvokeAsync(() => tab.EditorBufferProvider?.Invoke());
-            if (editor is not null && Tabs.Contains(tab) && string.Equals(tab.FilePath, targetPath, pathComparison)) return editor;
+            if (editor is not null && Tabs.Contains(tab) &&
+                (targetPath is null || string.Equals(tab.FilePath, targetPath, pathComparison))) return editor;
             await Task.Delay(25);
         }
         return null;

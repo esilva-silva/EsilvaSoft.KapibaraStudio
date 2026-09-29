@@ -88,7 +88,7 @@ public sealed class AgentEditProposalStore : IAgentEditProposalSink
 
     private readonly ConcurrentDictionary<Guid, AgentEditProposalEntry> _entries = new();
     private readonly object _mutationGate = new();
-    private volatile Func<string, string?, string?>? _currentText;
+    private volatile Func<string?, string?, string?>? _currentText;
 
     /// <summary>A proposal was registered (UI thread).</summary>
     public event EventHandler<AgentEditProposalEntry>? ProposalAdded;
@@ -106,7 +106,7 @@ public sealed class AgentEditProposalStore : IAgentEditProposalSink
     /// Attaches the read of the current buffer text of a target (path, tab ID) → text, or null when no tab shows it.
     /// It runs on the UI thread (marshalled with a short deadline). Returns a detach token.
     /// </summary>
-    public IDisposable AttachTextResolver(Func<string, string?, string?> currentText)
+    public IDisposable AttachTextResolver(Func<string?, string?, string?> currentText)
     {
         ArgumentNullException.ThrowIfNull(currentText);
         _currentText = currentText;
@@ -116,7 +116,9 @@ public sealed class AgentEditProposalStore : IAgentEditProposalSink
     public AgentEditProposalSubmission Submit(AgentEditProposal proposal)
     {
         if (proposal is null || proposal.Id == Guid.Empty || proposal.ConversationId == Guid.Empty ||
-            string.IsNullOrWhiteSpace(proposal.TargetPath) || proposal.Hunks is null || proposal.Hunks.Count == 0 ||
+            proposal.TargetPath is null && string.IsNullOrWhiteSpace(proposal.TabId) ||
+            proposal.TargetPath is not null && string.IsNullOrWhiteSpace(proposal.TargetPath) ||
+            proposal.Hunks is null || proposal.Hunks.Count == 0 ||
             string.IsNullOrWhiteSpace(proposal.BaseTextSha256) || proposal.OriginalText is null || proposal.ProposedText is null)
         {
             return new AgentEditProposalSubmission(AgentEditProposalSubmissionStatus.Rejected, "ProposalInvalid");
@@ -231,7 +233,7 @@ public sealed class AgentEditProposalStore : IAgentEditProposalSink
     /// <summary>Lowercase hex SHA-256 of the UTF-8 text (the contract of <see cref="AgentEditProposal.BaseTextSha256"/>).</summary>
     public static string Sha256(string text) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text)));
 
-    private string? ReadCurrentText(string targetPath, string? tabId)
+    private string? ReadCurrentText(string? targetPath, string? tabId)
     {
         if (_currentText is { } resolver)
         {
@@ -245,7 +247,7 @@ public sealed class AgentEditProposalStore : IAgentEditProposalSink
             if (tabId is not null) return null;
         }
 
-        if (tabId is not null) return null;
+        if (tabId is not null || targetPath is null) return null;
 
         // Not open in any tab: the base is the file on disk (bounded read; never written).
         try
@@ -269,7 +271,7 @@ public sealed class AgentEditProposalStore : IAgentEditProposalSink
         }
     }
 
-    private sealed class Detacher(AgentEditProposalStore owner, Func<string, string?, string?> resolver) : IDisposable
+    private sealed class Detacher(AgentEditProposalStore owner, Func<string?, string?, string?> resolver) : IDisposable
     {
         public void Dispose()
         {

@@ -359,7 +359,7 @@ Modal proprietária aberta por **Configurações → Claude (assinatura) → Per
 | Seção | Controles |
 | --- | --- |
 | Envio de dados | Consentimento de destino externo (checkbox, data e hora do consentimento, revogar); dados enviáveis: mensagem, arquivo ativo, arquivos do workspace, anexos externos, metadados da aba, schema inferido |
-| Workspace e arquivos | Usar a pasta de Arquivos (caminho exibido); globs de exclusão (lista editável, padrão `.env`, `*.pem`, `*.key`, `**/secrets/**`); leitura de arquivos pelo agente (Read/Glob/Grep) com aviso de envio à Anthropic; propostas de edição no arquivo ativo / em outros arquivos do workspace |
+| Workspace e arquivos | Usar a pasta de Arquivos (caminho exibido); globs de exclusão (lista editável, padrão `.env`, `*.pem`, `*.key`, `**/secrets/**`); leitura de arquivos pelo agente (Read/Glob/Grep) com aviso de envio ao provider externo; propostas de edição no arquivo ativo, inclusive buffer sem caminho, / em outros arquivos do workspace |
 | Anexos externos | Permitir "Arquivo externo…"; aviso de limite (256 KB por arquivo, 1 MB por mensagem) |
 | Contexto automático | Arquivo ativo e metadados da aba como chips automáticos |
 | Tools do KapibaraStudio | Conexões acessíveis (todas / selecionadas, lista com checkboxes); grupo **Somente leitura** com cada tool; grupo **Escrita** com as tools listadas e o rótulo "Não disponível nesta versão" |

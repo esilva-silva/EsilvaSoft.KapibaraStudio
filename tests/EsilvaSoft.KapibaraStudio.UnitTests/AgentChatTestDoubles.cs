@@ -33,7 +33,7 @@ internal sealed class AgentChatTabFixture : IAgentChatHost
 
     public IReadOnlyList<AgentConnectionChoice> ListConnections() => [];
 
-    public Task<IAgentBufferEditor?> OpenEditorAsync(string targetPath, string? tabId) => Task.FromResult<IAgentBufferEditor?>(null);
+    public Task<IAgentBufferEditor?> OpenEditorAsync(string? targetPath, string? tabId) => Task.FromResult<IAgentBufferEditor?>(null);
 
     public void OnPanelPreferencesChanged() { }
 }

@@ -25,7 +25,7 @@ public interface IAgentChatHost
     /// Activates the tab that shows <paramref name="targetPath"/> (by tab ID first), opening the file in a new tab when
     /// needed, and returns its editor buffer once the view shows it; null when the target cannot be opened.
     /// </summary>
-    Task<IAgentBufferEditor?> OpenEditorAsync(string targetPath, string? tabId);
+    Task<IAgentBufferEditor?> OpenEditorAsync(string? targetPath, string? tabId);
 
     /// <summary>The panel state that is part of the workspace session changed (provider, model, mode, conversation).</summary>
     void OnPanelPreferencesChanged();

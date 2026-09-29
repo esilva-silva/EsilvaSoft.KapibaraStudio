@@ -6,7 +6,10 @@ namespace EsilvaSoft.KapibaraStudio.Application.Agents;
 /// <summary>Captured, per-turn context for native provider tool calls. Never keyed by the stable provider principal.</summary>
 public sealed record AgentNativeChatTurnScope(
     Guid SessionId, Guid TurnId, string ProviderId, AgentTurnPlan Plan,
-    AgentProviderPermissions Permissions, AgentWorkspaceContext? WorkspaceContext);
+    AgentProviderPermissions Permissions, AgentWorkspaceContext? WorkspaceContext)
+{
+    public Guid ConversationId { get; init; }
+}
 
 public interface IAgentNativeChatTurnScopes
 {

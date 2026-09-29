@@ -52,8 +52,8 @@ public sealed partial class AgentChatViewModel
     /// <summary>Activates the captured target tab before opening the hunk review.</summary>
     private async Task ReviewProposalAsync(AgentEditProposalCardItem card)
     {
-        if (card.TargetPath is not { Length: > 0 } path || _services.Proposals is not AgentEditProposalStore store) return;
-        var editor = await _host.OpenEditorAsync(path, card.TabId);
+        if (card.TargetPath is null && card.TabId is null || _services.Proposals is not AgentEditProposalStore store) return;
+        var editor = await _host.OpenEditorAsync(card.TargetPath, card.TabId);
         if (editor is null) { card.ErrorText = Text.Resolve("agentDiffEditorUnavailable"); return; }
         _proposalEditors[card.ProposalId] = editor;
         store.RequestReview(card.ProposalId);
@@ -69,8 +69,8 @@ public sealed partial class AgentChatViewModel
 
     private async Task ApplyAutomaticProposalAsync(AgentEditProposalCardItem card)
     {
-        if (card.TargetPath is not { Length: > 0 } path || _services.Proposals is not { } store) return;
-        var editor = await _host.OpenEditorAsync(path, card.TabId);
+        if (card.TargetPath is null && card.TabId is null || _services.Proposals is not { } store) return;
+        var editor = await _host.OpenEditorAsync(card.TargetPath, card.TabId);
         if (editor is null) { card.ErrorText = Text.Resolve("agentDiffEditorUnavailable"); return; }
         var mutation = store.Mutate(card.ProposalId, current =>
         {
@@ -85,8 +85,8 @@ public sealed partial class AgentChatViewModel
 
     private async Task ApplyProposalAllAsync(AgentEditProposalCardItem card)
     {
-        if (_services.Proposals is not { } store || card.TargetPath is not { } path) return;
-        var editor = await _host.OpenEditorAsync(path, card.TabId);
+        if (_services.Proposals is not { } store || card.TargetPath is null && card.TabId is null) return;
+        var editor = await _host.OpenEditorAsync(card.TargetPath, card.TabId);
         if (editor is null) { card.ErrorText = Text.Resolve("agentDiffEditorUnavailable"); return; }
         var mutation = store.Mutate(card.ProposalId, current =>
         {
@@ -106,8 +106,8 @@ public sealed partial class AgentChatViewModel
             store.Mutate(card.ProposalId, entry => (true, AgentEditProposalApplier.DiscardPending(entry)));
             return;
         }
-        if (card.TargetPath is not { } path) return;
-        var editor = await _host.OpenEditorAsync(path, card.TabId);
+        if (card.TargetPath is null && card.TabId is null) return;
+        var editor = await _host.OpenEditorAsync(card.TargetPath, card.TabId);
         if (editor is null) { card.ErrorText = Text.Resolve("agentDiffEditorUnavailable"); return; }
         var mutation = store.Mutate(card.ProposalId, entry =>
         {
@@ -127,8 +127,8 @@ public sealed partial class AgentChatViewModel
 
     private async Task RevertProposalAsync(AgentEditProposalCardItem card)
     {
-        if (_services.Proposals is not { } store || card.TargetPath is not { } path) return;
-        var editor = await _host.OpenEditorAsync(path, card.TabId);
+        if (_services.Proposals is not { } store || card.TargetPath is null && card.TabId is null) return;
+        var editor = await _host.OpenEditorAsync(card.TargetPath, card.TabId);
         if (editor is null) { card.ErrorText = Text.Resolve("agentDiffEditorUnavailable"); return; }
         var mutation = store.Mutate(card.ProposalId, entry =>
         {

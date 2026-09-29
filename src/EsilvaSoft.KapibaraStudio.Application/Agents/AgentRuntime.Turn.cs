@@ -54,7 +54,7 @@ public sealed partial class AgentRuntime
             var keySession = Guid.ParseExact(sessionId.Value, "N");
             var keyTurn = Guid.ParseExact(request.TurnId.Value, "N");
             if (!_nativeChatTurnScopes.Register(new AgentNativeChatTurnScope(keySession, keyTurn, session.ProviderId,
-                    plan, permissions, request.WorkspaceContext)))
+                    plan, permissions, request.WorkspaceContext) { ConversationId = conversationId }))
             {
                 turn.RequestCancel(TurnCancelReason.Failed);
                 lock (session.Gate)

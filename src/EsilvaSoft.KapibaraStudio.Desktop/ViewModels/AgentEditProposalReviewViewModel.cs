@@ -28,7 +28,7 @@ public sealed partial class AgentEditProposalReviewViewModel : ObservableObject
     [ObservableProperty] private string? _status;
 
     public bool IsAutomatic { get; }
-    public string Title => Path.GetFileName(Entry.Proposal.TargetPath);
+    public string Title => Entry.Proposal.TargetName ?? (Entry.Proposal.TargetPath is { } path ? Path.GetFileName(path) : "Aba sem título");
     public ObservableCollection<AgentEditProposalHunkViewModel> Hunks { get; } = [];
     public bool HasPending => Entry.HasPending;
     public bool HasApplied => Entry.HasApplied;
