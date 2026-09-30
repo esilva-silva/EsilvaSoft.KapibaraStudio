@@ -1,5 +1,7 @@
 # Roadmap de evolução do Kapibara Studio
 
+**Planejado — 30/09/2026:** [P7-AUTH](phases/phase-07-v0.11.0/meta-inicializacao-autenticacao-agentes.md) padroniza inicialização da conta existente e integração dos agentes por interfaces, com Copilot como primeira entrega. Diagnóstico concluído; implementação e homologação pendentes. Não altera os gates da Fase 7.
+
 ## Meta transversal ativa — adapters do SO e isolamento unitário (30/09/2026)
 
 O pedido de arquitetura exige completar a migração de todos os acessos reais ao SO para adapters em projeto separado e substituir seu uso unitário por interfaces com doubles. Console STDIO MCP, segredos Windows/Linux, broker/socket, paths, launcher, diagnóstico, owner LiteDB, catálogo/cache de modelos, exportação e atualização passam por adapters em `Infrastructure.System`; ONNX está isolado em `Infrastructure.LocalAi.OnnxAdapter`. Na verificação integrada de 30/09, restore locked passou offline, build CPU teve 0 avisos/erros e a suíte completa aprovou Benchmarks 41/41, Infrastructure.Agents.Tests 198/198, UnitTests 3323 aprovados/20 ignorados e IntegrationTests 868 aprovados/14 ignorados. Builds cruzados `linux-x64` de Desktop/McpServer passaram. Runtime/testes nativos em Linux e homologações explícitas dos adapters continuam pendentes por falta de distribuição Linux neste host. Critérios completos, sequência e inventário em [system-adapters](architecture/system-adapters.md). Esta meta não redefine nem encerra os gates funcionais do roadmap.

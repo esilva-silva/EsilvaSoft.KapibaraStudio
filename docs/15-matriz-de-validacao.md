@@ -1,5 +1,7 @@
 # Matriz de validação
 
+**P7-AUTH — planejado em 30/09/2026:** análise de código concluída; startup automático com CLI oficial ainda não validado nem implementado. A [matriz de aceite da meta](phases/phase-07-v0.11.0/meta-inicializacao-autenticacao-agentes.md#matriz-de-aceite-a-executar) inclui conta expirada, concorrência, logout, timeout, recuperação, catálogo passivo e UI nativa. Não reutilizar evidências anteriores de Testar conexão como prova de inicialização automática.
+
 ## Adapters do SO — incremento de 30/09/2026
 
 | Verificação | Evidência | Limite |
