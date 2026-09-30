@@ -93,7 +93,7 @@ public sealed class CopilotProductToolRuntimeTests
             {
                 var conversationId = Guid.NewGuid();
                 var request = new AgentTurnRequest(AgentTurnId.New(), "Use the only planned product tool for this synthetic query.",
-                    "synthetic-query-tab", 12)
+                    tabId, workspaceContextSnapshot.DocumentVersion ?? 0)
                 {
                     Plan = plan,
                     Permissions = permissions,

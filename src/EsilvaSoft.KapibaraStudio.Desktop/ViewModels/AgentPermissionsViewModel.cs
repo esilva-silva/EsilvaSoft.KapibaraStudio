@@ -45,6 +45,7 @@ public sealed partial class AgentPermissionsViewModel : ObservableObject
     public string ProviderName { get; }
     public string WorkspacePath { get; }
     public bool ShowMongoDocumentConsent => _providerId == AgentProviderIds.GitHubCopilotSubscription;
+    public bool ShowNativeToolOptions => _providerId != AgentProviderIds.GitHubCopilotSubscription;
     public bool ProductToolsAvailable { get; }
     public string Status { get; private set; } = Text.Resolve("agentPermissionsLoading");
     public bool IsBusy { get; private set; }

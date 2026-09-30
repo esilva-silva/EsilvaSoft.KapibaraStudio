@@ -137,14 +137,13 @@ Este checklist é de homologação, não declaração de inexistência do códig
 
 Evidência e limites em [25 — Auditoria](done/release_v0.5.0/25-auditoria-mvp-performance.md). Os gates históricos da v0.5.0 foram transferidos para esta Fase 9; arquivar a release não os fechou. Os itens de ambiente deste checklist referem-se ao armazenamento local não criptografado, não a um cofre: ver [bkl-01](backlog/bkl-01-key-vault-criptografico.md).
 
-## Gates adicionais da v0.11.0 — pendentes
+## Gates da v0.11.0 pré-release — escopo limitado, validação aberta
 
-Os gates existentes permanecem abertos. Quando o [plano MCP/agentes](phases/phase-07-v0.11.0/README.md) for implementado, acrescentar evidências reais para:
+O código da Fase 7 já oferece Copilot por assinatura de forma limitada no Windows. O próximo pacote 0.11.x deve continuar marcado como **pré-release**, e a página [P7-COP](phases/phase-07-v0.11.0/README.md) é a fonte do comportamento presente, testes executados e limitações. Antes de publicar qualquer tag, executar o workflow `ci.yml`/`release.yml` no commit exato e inspecionar os quatro artefatos e checksums. Estes itens permanecem gates de homologação e impedem declarar suporte completo ou estável:
 
-- [ ] Clientes MCP escolhidos descobrem e executam leituras com limites e Extended JSON, sem exposição de segredos MongoDB.
-- [ ] OpenAI/Codex e Claude exercitados por adaptadores com mecanismos oficiais, conta autorizada e sem credenciais de produção/CI.
-- [ ] Login cancelado, chave inválida, token expirado, indisponibilidade e revogação não bloqueiam a IDE.
-- [ ] Cofre nativo Windows/Linux protege segredos; bloqueio ou ausência oferece somente sessão ou indisponibilidade explícita, nunca texto puro.
-- [ ] Permissão/approval negados, expirados ou com alvo alterado impedem efeito; cancelamento de escrita não promete rollback.
-- [ ] Contexto externo autorizado é observável; nenhuma coleta/envio implícito; auditoria registra metadados sem secrets.
-- [ ] Chat Avalonia funciona por teclado/leitor de tela, dois temas e escalas; modelo local e IDE continuam funcionais offline.
+- [ ] Runtime oficial do Copilot chama ferramentas de leitura em MongoDB de teste com limites/Extended JSON, autorização escopada e sem expor segredos.
+- [ ] Runtime oficial cobre negação, revogação, falha de auditoria, timeout, concorrência e recuperação sem repetir efeitos.
+- [ ] Conta oficial, indisponibilidade e erro de autenticação não bloqueiam a IDE nem acionam fallback de API.
+- [ ] Caixa de confirmação nativa e navegação por teclado/leitor de tela homologadas; renderização Headless é evidência complementar.
+- [ ] Linux e cofre nativo Linux continuam gates de plataforma; a Fase 7 Copilot não declara homologação Linux.
+- [ ] Contexto externo autorizado é observável; nenhum envio implícito; auditoria registra metadados sem secrets.

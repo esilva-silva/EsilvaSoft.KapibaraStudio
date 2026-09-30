@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using EsilvaSoft.KapibaraStudio.Infrastructure.Agents.CodexAppServer;
 using EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Codex;
 using NUnit.Framework;
@@ -131,29 +133,6 @@ internal sealed class CodexAppServerJsonRpcTransportTests
     }
 
     [Test]
-    public void EnvironmentPolicyRejectsProviderAndTokenVariables()
-    {
-        var info = new ProcessStartInfo();
-        info.Environment["OPENAI_API_KEY"] = "sentinel";
-        info.Environment["HTTP_PROXY"] = "http://untrusted.invalid";
-        info.Environment["LD_PRELOAD"] = "untrusted.so";
-        info.Environment["DOTNET_STARTUP_HOOKS"] = "untrusted.dll";
-        CodexAppServerProcess.ConfigureEnvironment(info, _home);
-        Assert.Multiple(() =>
-        {
-            Assert.That(CodexAppServerProcess.IsSensitiveOrProviderEnvironmentKey("OPENAI_API_KEY"), Is.True);
-            Assert.That(CodexAppServerProcess.IsSensitiveOrProviderEnvironmentKey("CODEX_HOME"), Is.True);
-            Assert.That(CodexAppServerProcess.IsSensitiveOrProviderEnvironmentKey("SLOP_TEST_API_KEY"), Is.True);
-            Assert.That(CodexAppServerProcess.IsSensitiveOrProviderEnvironmentKey("PATH"), Is.False);
-            Assert.That(info.Environment["CODEX_HOME"], Is.EqualTo(_home));
-            Assert.That(info.Environment.ContainsKey("OPENAI_API_KEY"), Is.False);
-            Assert.That(info.Environment.ContainsKey("HTTP_PROXY"), Is.False);
-            Assert.That(info.Environment.ContainsKey("LD_PRELOAD"), Is.False);
-            Assert.That(info.Environment.ContainsKey("DOTNET_STARTUP_HOOKS"), Is.False);
-        });
-    }
-
-    [Test]
     public async Task AccountFlowUsesOnlyChatGptAndRequiresConfirmedLogout()
     {
         await using var flow = await CodexAppServerAccountFlow.InitializeAsync(Start());
@@ -198,6 +177,8 @@ internal sealed class CodexAppServerJsonRpcTransportTests
     [OneTimeSetUp]
     public async Task BuildFakeAsync()
     {
+        EnsureWindowsAclAvailable();
+
         var project = FindFakeProject();
         var info = new ProcessStartInfo("dotnet")
         {
@@ -222,6 +203,70 @@ internal sealed class CodexAppServerJsonRpcTransportTests
             OperatingSystem.IsWindows() ? "EsilvaSoft.KapibaraStudio.FakeCodexAppServer.exe" :
                 "EsilvaSoft.KapibaraStudio.FakeCodexAppServer");
         Assert.That(File.Exists(_fake), Is.True);
+    }
+
+    private static void EnsureWindowsAclAvailable()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+
+        var probeRoot = Path.Combine(Path.GetTempPath(), "slop-codex-acl-preflight", Guid.NewGuid().ToString("N"));
+        try
+        {
+            var sid = WindowsIdentity.GetCurrent().User ??
+                throw new UnauthorizedAccessException("A identidade Windows atual não está disponível.");
+            var security = new DirectorySecurity();
+            security.SetOwner(sid);
+            security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+            security.AddAccessRule(new FileSystemAccessRule(sid, FileSystemRights.FullControl,
+                InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None,
+                AccessControlType.Allow));
+
+            var directory = Directory.CreateDirectory(probeRoot);
+            directory.SetAccessControl(security);
+
+            var currentSecurity = new DirectoryInfo(probeRoot).GetAccessControl(AccessControlSections.Owner |
+                AccessControlSections.Access);
+            if (!sid.Equals(currentSecurity.GetOwner(typeof(SecurityIdentifier))) ||
+                !currentSecurity.AreAccessRulesProtected)
+            {
+                throw new UnauthorizedAccessException("O host não aplicou a ACL privada do diretório de teste.");
+            }
+
+            var hasOwnerGrant = false;
+            foreach (FileSystemAccessRule rule in currentSecurity.GetAccessRules(includeExplicit: true,
+                         includeInherited: true, typeof(SecurityIdentifier)))
+            {
+                if (!sid.Equals(rule.IdentityReference) && rule.AccessControlType == AccessControlType.Allow)
+                {
+                    throw new UnauthorizedAccessException("A ACL de teste permite acesso a outra identidade.");
+                }
+
+                hasOwnerGrant |= sid.Equals(rule.IdentityReference) && rule.AccessControlType == AccessControlType.Allow &&
+                    (rule.FileSystemRights & FileSystemRights.FullControl) == FileSystemRights.FullControl;
+            }
+
+            if (!hasOwnerGrant)
+            {
+                throw new UnauthorizedAccessException("A ACL de teste não concedeu controle total à identidade atual.");
+            }
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            Assert.Ignore($"Testes E2E do Codex ignorados: o host bloqueou a operação ACL exigida pelo CodexAppServerHome.PrepareWindows ({exception.GetType().Name}).");
+        }
+        catch (System.Security.SecurityException exception)
+        {
+            Assert.Ignore($"Testes E2E do Codex ignorados: o host bloqueou a operação ACL exigida pelo CodexAppServerHome.PrepareWindows ({exception.GetType().Name}).");
+        }
+        finally
+        {
+            if (Directory.Exists(probeRoot))
+            {
+                try { Directory.Delete(probeRoot, recursive: true); }
+                catch (UnauthorizedAccessException) { }
+                catch (IOException) { }
+            }
+        }
     }
 
     [SetUp]
@@ -288,5 +333,33 @@ internal sealed class CodexAppServerJsonRpcTransportTests
         }
 
         throw new FileNotFoundException("Fake Codex App Server project was not found.");
+    }
+}
+
+[TestFixture]
+internal sealed class CodexAppServerProcessPolicyTests
+{
+    [Test]
+    public void EnvironmentPolicyRejectsProviderAndTokenVariables()
+    {
+        var home = Path.Combine(Path.GetTempPath(), "slop-codex-policy-test", Guid.NewGuid().ToString("N"));
+        var info = new ProcessStartInfo();
+        info.Environment["OPENAI_API_KEY"] = "sentinel";
+        info.Environment["HTTP_PROXY"] = "http://untrusted.invalid";
+        info.Environment["LD_PRELOAD"] = "untrusted.so";
+        info.Environment["DOTNET_STARTUP_HOOKS"] = "untrusted.dll";
+        CodexAppServerProcess.ConfigureEnvironment(info, home);
+        Assert.Multiple(() =>
+        {
+            Assert.That(CodexAppServerProcess.IsSensitiveOrProviderEnvironmentKey("OPENAI_API_KEY"), Is.True);
+            Assert.That(CodexAppServerProcess.IsSensitiveOrProviderEnvironmentKey("CODEX_HOME"), Is.True);
+            Assert.That(CodexAppServerProcess.IsSensitiveOrProviderEnvironmentKey("SLOP_TEST_API_KEY"), Is.True);
+            Assert.That(CodexAppServerProcess.IsSensitiveOrProviderEnvironmentKey("PATH"), Is.False);
+            Assert.That(info.Environment["CODEX_HOME"], Is.EqualTo(home));
+            Assert.That(info.Environment.ContainsKey("OPENAI_API_KEY"), Is.False);
+            Assert.That(info.Environment.ContainsKey("HTTP_PROXY"), Is.False);
+            Assert.That(info.Environment.ContainsKey("LD_PRELOAD"), Is.False);
+            Assert.That(info.Environment.ContainsKey("DOTNET_STARTUP_HOOKS"), Is.False);
+        });
     }
 }

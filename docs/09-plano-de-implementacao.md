@@ -1,8 +1,8 @@
 # Roadmap de evolução do Kapibara Studio
 
-Referência: **22/09/2026**. Este plano substitui o cronograma antigo F0–F7 e as numerações anteriores de seis e nove fases. As fases são compromissos de consolidação, não a ordem em que todo código foi escrito. Recursos antecipados continuam disponíveis com seus limites; sua existência não encerra uma fase.
+Referência: **29/09/2026**. Este plano substitui o cronograma antigo F0–F7 e as numerações anteriores de seis e nove fases. As fases são compromissos de consolidação, não a ordem em que todo código foi escrito. Recursos antecipados continuam disponíveis com seus limites; sua existência não encerra uma fase.
 
-**Versão atual identificável:** a meta v0.8.0 fechou os escopos funcionais das fases 1–4 e arquivou suas documentações em [`done/`](done/README.md). A homologação manual permanece na Fase 9; os pacotes locais são gerados pelo fluxo de release e não implicam publicação remota. As tags históricas não foram alteradas.
+**Versão atual identificável:** a última release/tag publicada continua sendo v0.8.0. O estado de desenvolvimento está na meta v0.11.0, com Copilot por assinatura liberado de forma limitada no Windows; o próximo artefato deve ser pré-release até que os gates de homologação sejam fechados. A homologação manual ampla permanece na Fase 9; builds locais não implicam publicação remota. As tags históricas não foram alteradas.
 
 ## Status e evidências
 
@@ -27,7 +27,7 @@ O incremento cobre catálogo, barra principal, Explorer, editor/resultados, ferr
 | 4 | v0.8.0 | Abertura e salvamento de arquivos de texto e workspace local de uma pasta | [Arquivada](done/release_v0.8.0/README.md). Inclui Abrir/Salvar/Salvar como, painel Arquivos com raiz única e operações de arquivo/pasta |
 | 5 | v0.9.0 | IA local e produtividade contextual | Escopo automatizável implementado; [experimental](phases/phase-05-v0.9.0/README.md) até inferência real/homologação da Fase 9. Inclui prévia de contexto, propostas revisáveis, IME e gate Headless de latência |
 | 6 | v0.10.0 | Administração e manutenção | [Em desenvolvimento](phases/phase-06-v0.10.0/README.md). Coleções, views, validação, índices, estatísticas, usuários, papéis e exportação/importação lógica |
-| 7 | v0.11.0 | Claude e integração com agentes | Claude Code, chat e tools MCP presentes no código; validação Windows em andamento. [Estado, limites e roteiro](phases/phase-07-v0.11.0/README.md) |
+| 7 | v0.11.0 | Claude e integração com agentes | Claude Code e GitHub Copilot por assinatura; Copilot com liberação limitada no Windows e homologação incompleta. [Estado, limites e roteiro](phases/phase-07-v0.11.0/README.md) |
 | 8 | v0.12.0 | Chat simples com IA baseado em workflow | [Planejada](phases/phase-08-v0.12.0/README.md). Fluxo predefinido, escopo limitado e ações controladas |
 | 9 | v0.13.0 | Homologação manual e validação em ambientes reais | [Planejada](phases/phase-09-v0.13.0/README.md). Consolida plataformas, acessibilidade, MongoDB/mongosh, hardware, instalação e atualização reais |
 | 10 | v1.0.0 | Estabilidade, revisão completa, instalação e atualizações | [Planejada](phases/phase-10-v1.0.0/README.md). Release estável após os aceites funcionais e a Fase 9 |

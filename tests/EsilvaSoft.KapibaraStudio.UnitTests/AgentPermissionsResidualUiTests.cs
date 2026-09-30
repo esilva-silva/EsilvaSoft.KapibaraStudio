@@ -93,6 +93,7 @@ public sealed class AgentPermissionsResidualUiTests
         Assert.That(vm.CanSave, Is.True);
         Assert.That(vm.HasConsent, Is.False);
         Assert.That(vm.ShowMongoDocumentConsent, Is.False);
+        Assert.That(vm.ShowNativeToolOptions, Is.True);
         Assert.That(vm.ReadTools.Select(tool => tool.Name), Does.Not.Contain(AgentProductToolNames.MongoFind));
         Assert.That(vm.ReadTools.Select(tool => tool.Name), Does.Not.Contain(AgentProductToolNames.MongoCount));
         Assert.That(vm.ProductToolsStatus, Does.Not.Contain(AgentProductToolNames.MongoFind));
@@ -111,6 +112,8 @@ public sealed class AgentPermissionsResidualUiTests
 
         await vm.LoadTask;
         Assert.That(vm.ShowMongoDocumentConsent, Is.True);
+        Assert.That(vm.ShowNativeToolOptions, Is.False,
+            "Copilot uses product registry tools and must not present unavailable native CLI permissions.");
         Assert.That(vm.MongoDocuments, Is.False);
         Assert.That(vm.ReadTools.Select(tool => tool.Name), Does.Contain(AgentProductToolNames.MongoFind));
         Assert.That(vm.ReadTools.Select(tool => tool.Name), Does.Contain(AgentProductToolNames.MongoCount));

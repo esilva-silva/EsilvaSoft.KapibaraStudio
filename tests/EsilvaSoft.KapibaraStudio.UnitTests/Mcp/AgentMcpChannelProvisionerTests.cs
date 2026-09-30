@@ -73,7 +73,10 @@ public sealed class AgentMcpChannelProvisionerTests
                 EnabledReadTools = ["list_connections", "list_databases", "list_collections", "get_indexes"],
                 EditProposals = new AgentEditProposalPermissions { ActiveFile = false },
             };
-            var plan = AgentModePolicy.Plan(AgentOperationMode.AskConfirmations, permissions, new AgentPlatformFacts(true, true));
+            // This raw broker test verifies plan scoping and revocation. Confirmations are exercised through
+            // the separate approval-flow tests; the protocol peer here does not invoke the user's approve prompt.
+            permissions = permissions with { ConfirmationCategories = AgentConfirmationCategories.None };
+            var plan = AgentModePolicy.Plan(AgentOperationMode.Agent, permissions, new AgentPlatformFacts(true, true));
             Assert.That(await provisioner.UpdateTurnAsync(opened.Handle, plan, permissions), Is.EqualTo(AgentMcpChannelStatus.Ready));
             var tools = await ListToolsAsync(peer, 3);
             var listed = await CallAsync(peer, 4, "list_connections", "{}");
@@ -87,7 +90,7 @@ public sealed class AgentMcpChannelProvisionerTests
                 Assert.That(beforePlan, Is.Empty, "Sem plano, nada é listado.");
                 Assert.That(beforeCall.ErrorCode, Is.EqualTo("UnknownTool"));
                 // get_cached_schema is off (InferredSchema off by default); no workspace/sink/prompt port in this rig.
-                Assert.That(tools, Is.EquivalentTo(PlannedTools));
+                Assert.That(tools, Is.EquivalentTo(["list_connections", "list_databases", "list_collections", "get_indexes"]));
                 Assert.That(listed.Status, Is.EqualTo(AgentBrokerMessage.SucceededStatus), listed.ErrorCode);
                 Assert.That(listed.StructuredContent!.Value.GetProperty("connections").EnumerateArray()
                     .Select(item => item.GetProperty("id").GetGuid()), Is.EqualTo(new[] { rig.Allowed.Id }));

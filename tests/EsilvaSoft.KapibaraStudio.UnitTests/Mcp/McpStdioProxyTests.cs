@@ -316,6 +316,8 @@ public sealed class McpStdioProxyTests
         var availability = store.GetAvailabilityAsync().GetAwaiter().GetResult();
         if (!availability.IsSuccess || availability.Value != SecretStoreAvailability.Available)
             Assert.Ignore("Credential Manager indisponível nesta sessão; a prova STDIO ponta a ponta exige o cofre real.");
+        var writeFailure = WindowsCredentialStoreWritePreflight.CheckAsync(store).GetAwaiter().GetResult();
+        if (writeFailure is not null) Assert.Ignore(writeFailure);
         return store;
     }
 

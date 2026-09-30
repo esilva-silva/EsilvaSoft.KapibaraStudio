@@ -31,6 +31,8 @@ public sealed partial class AgentToolRegistry
         public const string OutsideWorkspace = "OutsideWorkspace";
         public const string Excluded = "Excluded";
         public const string TargetNotPermitted = "TargetNotPermitted";
+        public const string ActiveFileNotAttached = "ActiveFileNotAttached";
+        public const string ActiveFileSnapshotMismatch = "ActiveFileSnapshotMismatch";
         public const string NotFound = "NotFound";
         public const string FileTooLarge = "FileTooLarge";
         public const string NotText = "NotText";
@@ -68,6 +70,13 @@ public sealed partial class AgentToolRegistry
         string? fullPath = null;
         if (activeBuffer)
         {
+            // A native chat turn may only inspect/propose against the buffer when its resolved attachment was
+            // actually included in that turn. This is stronger than persisted consent: the user can remove the
+            // automatic chip for one message. Workspace-path proposals remain governed by their own permissions.
+            if (scope.ActiveFileAttachmentResolved is false)
+                return Refuse(ProposalErrors.ActiveFileNotAttached);
+            if (scope.ActiveFileAttachmentResolved is not null && scope.ActiveFileAttachmentMatchesSnapshot is not true)
+                return Refuse(ProposalErrors.ActiveFileSnapshotMismatch);
             if (string.IsNullOrWhiteSpace(snapshot.TabId) || snapshot.BufferText is null)
                 return Refuse(ProposalErrors.TargetUnavailable);
         }

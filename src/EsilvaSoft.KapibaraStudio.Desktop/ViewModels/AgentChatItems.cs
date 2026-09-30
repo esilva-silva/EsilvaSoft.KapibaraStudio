@@ -274,8 +274,6 @@ public enum AgentToolConfirmationState
 /// </summary>
 public sealed partial class AgentToolConfirmationCardItem : AgentChatItemViewModel
 {
-    public const int MaximumDisplayedInputChars = 2000;
-
     private const string McpPrefix = "mcp__" + McpServerLaunchSpec.DefaultServerName + "__";
     private readonly TaskCompletionSource<AgentToolConfirmationDecision> _decision =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -285,8 +283,9 @@ public sealed partial class AgentToolConfirmationCardItem : AgentChatItemViewMod
         ArgumentNullException.ThrowIfNull(request);
         Request = request;
         ToolLabel = DisplayToolName(request.ToolName);
-        var input = request.InputJson ?? "";
-        InputText = input.Length > MaximumDisplayedInputChars ? input[..MaximumDisplayedInputChars] + "…" : input;
+        // The approval applies to this exact invocation. Keep the complete serialized arguments available in the
+        // read-only, internally scrollable text box; silently truncating them would hide data the user is approving.
+        InputText = request.InputJson ?? "";
         if (deadline.CanBeCanceled)
         {
             deadline.Register(() =>

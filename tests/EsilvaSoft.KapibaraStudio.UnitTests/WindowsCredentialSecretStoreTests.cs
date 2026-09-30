@@ -14,6 +14,34 @@ public sealed class WindowsCredentialSecretStoreTests
     private const int ErrorNoSuchLogonSession = 1312;
 
     [Test]
+    public async Task WritePreflightValidatesAndRemovesItsDisposableSecret()
+    {
+        var store = new InMemoryProfileSecretStore();
+
+        var failure = await WindowsCredentialStoreWritePreflight.CheckAsync(store);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(failure, Is.Null);
+            Assert.That(store.Count, Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task WritePreflightReportsDeniedWriteAndLeavesNoDisposableSecret()
+    {
+        var store = new InMemoryProfileSecretStore { DenySet = true };
+
+        var failure = await WindowsCredentialStoreWritePreflight.CheckAsync(store);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(failure, Does.Contain("Denied"));
+            Assert.That(store.Count, Is.Zero);
+        });
+    }
+
+    [Test]
     public async Task SetWritesGenericSecretToVersionedTargetAndClearsManagedUtf8Buffer()
     {
         var native = new FakeCredentialManager();

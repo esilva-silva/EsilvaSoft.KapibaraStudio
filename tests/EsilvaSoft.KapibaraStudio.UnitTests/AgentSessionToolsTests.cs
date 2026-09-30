@@ -197,11 +197,16 @@ public sealed class AgentSessionToolsTests
         var turnId = Guid.NewGuid();
         const string original = "db.collection.find().limit(10);\n";
         var context = new AgentWorkspaceContext(DateTimeOffset.UtcNow, WorkspaceFolder: null,
-            ActiveFileName: "Aba sem título", TabId: "tab-native", BufferText: original);
+            ActiveFileName: "Aba sem título", TabId: "tab-native", DocumentVersion: 0, BufferText: original);
         var plan = AgentModePolicy.Plan(AgentOperationMode.Agent, rig.Permissions,
             new AgentPlatformFacts(true, true));
         rig.NativeChatScopes.Register(new AgentNativeChatTurnScope(sessionId, turnId, "claude-code", plan,
-            rig.Permissions, context) { ConversationId = rig.ConversationId });
+            rig.Permissions, context)
+        {
+            ConversationId = rig.ConversationId,
+            ActiveFileAttachmentResolved = true,
+            ActiveFileAttachmentMatchesSnapshot = true,
+        });
 
         var result = await rig.Registry.InvokeAsync(principal,
             new AgentInvocationContext("claude-code", null, sessionId, turnId),
@@ -218,6 +223,93 @@ public sealed class AgentSessionToolsTests
             Assert.That(proposal.TabId, Is.EqualTo("tab-native"));
             Assert.That(proposal.ProposedText, Does.Contain("limit(5)"));
         });
+    }
+
+    [Test]
+    public async Task NativeChatActiveBufferProposalRequiresResolvedAttachmentForThatTurn()
+    {
+        using var rig = new AgentSessionToolsTestRig();
+        var principal = new AgentPrincipal(Guid.NewGuid(), AgentPrincipalOrigin.Internal, 1);
+        const string provider = AgentProviderIds.GitHubCopilotSubscription;
+        const string original = "db.collection.find().limit(10);\n";
+        var permissions = rig.Permissions with
+        {
+            ProviderId = provider,
+            Workspace = new AgentWorkspacePermissions { UseFilesFolder = true },
+            DataSending = rig.Permissions.DataSending with { WorkspaceFiles = true },
+            EditProposals = rig.Permissions.EditProposals with { OtherWorkspaceFiles = true },
+        };
+        var context = new AgentWorkspaceContext(DateTimeOffset.UtcNow, WorkspaceFolder: rig.WorkspaceFolder,
+            ActiveFileName: "Aba sem título", TabId: "tab-copilot", DocumentVersion: 7, BufferText: original);
+        var plan = AgentModePolicy.Plan(AgentOperationMode.Agent, permissions,
+            new AgentPlatformFacts(HasWorkspaceFolder: false, ProductToolsAvailable: true, NativeToolsAvailable: false));
+        Assert.That(plan.ProductTools, Does.Contain(AgentToolRegistry.ProposeFileEditToolName));
+
+        var sessionId = Guid.NewGuid();
+        var removedChipTurn = Guid.NewGuid();
+        var reattachedChipTurn = Guid.NewGuid();
+        var mismatchedAttachmentTurn = Guid.NewGuid();
+        var workspaceFileTurn = Guid.NewGuid();
+        rig.NativeChatScopes.Register(new AgentNativeChatTurnScope(sessionId, removedChipTurn, provider,
+            plan, permissions, context)
+        {
+            ConversationId = rig.ConversationId,
+            ActiveFileAttachmentResolved = false,
+        });
+        rig.NativeChatScopes.Register(new AgentNativeChatTurnScope(sessionId, reattachedChipTurn, provider,
+            plan, permissions, context)
+        {
+            ConversationId = rig.ConversationId,
+            ActiveFileAttachmentResolved = true,
+            ActiveFileAttachmentMatchesSnapshot = true,
+        });
+        rig.NativeChatScopes.Register(new AgentNativeChatTurnScope(sessionId, mismatchedAttachmentTurn, provider,
+            plan, permissions, context)
+        {
+            ConversationId = rig.ConversationId,
+            ActiveFileAttachmentResolved = true,
+            ActiveFileAttachmentMatchesSnapshot = false,
+        });
+        rig.NativeChatScopes.Register(new AgentNativeChatTurnScope(sessionId, workspaceFileTurn, provider,
+            plan, permissions, context)
+        {
+            ConversationId = rig.ConversationId,
+            ActiveFileAttachmentResolved = false,
+        });
+
+        async Task<AgentToolInvocationResult> Invoke(Guid turnId, string arguments) => await rig.Registry.InvokeAsync(principal,
+            new AgentInvocationContext(provider, null, sessionId, turnId),
+            AgentOutputDestination.ProviderExternal(provider), AgentToolOutputScopes.For("propose_file_edit"),
+            "propose_file_edit", arguments);
+
+        var activeBufferArguments = """{"target":"active_buffer","edits":[{"old_text":"limit(10)","new_text":"limit(5)"}]}""";
+        var denied = await Invoke(removedChipTurn, activeBufferArguments);
+        Assert.Multiple(() =>
+        {
+            Assert.That(denied.ErrorCode, Is.EqualTo("ActiveFileNotAttached"));
+            Assert.That(rig.Sink.Proposals, Is.Empty, "A removed ActiveFile chip must not register a proposal.");
+        });
+
+        var allowed = await Invoke(reattachedChipTurn, activeBufferArguments);
+        Assert.That(allowed.Succeeded, Is.True, allowed.ErrorCode);
+        Assert.That(rig.Sink.Proposals, Has.Count.EqualTo(1));
+        Assert.That(rig.Sink.Proposals.Single().TabId, Is.EqualTo("tab-copilot"));
+
+        var mismatch = await Invoke(mismatchedAttachmentTurn, activeBufferArguments);
+        Assert.Multiple(() =>
+        {
+            Assert.That(mismatch.ErrorCode, Is.EqualTo("ActiveFileSnapshotMismatch"));
+            Assert.That(rig.Sink.Proposals, Has.Count.EqualTo(1), "A mismatched attachment must never register a proposal.");
+        });
+
+        const string workspaceOriginal = "const value = 1;\n";
+        rig.WriteFile("query.js", workspaceOriginal);
+        var workspaceProposal = await Invoke(workspaceFileTurn,
+            """{"path":"query.js","edits":[{"old_text":"value = 1","new_text":"value = 2"}]}""");
+        Assert.That(workspaceProposal.Succeeded, Is.True, workspaceProposal.ErrorCode,
+            "Removing the active-buffer attachment does not revoke an independently permitted workspace-file proposal.");
+        Assert.That(rig.Sink.Proposals, Has.Count.EqualTo(2));
+        Assert.That(rig.Sink.Proposals.Last().TargetPath, Is.EqualTo(Path.Combine(rig.WorkspaceFolder, "query.js")));
     }
 
     [Test]

@@ -22,6 +22,12 @@ public sealed record AgentMcpSessionScope(
     object? ApprovalGate = null,
     long Generation = 0)
 {
+    /// <summary>Native-turn attestation that the active buffer was resolved and sent as an attachment; null for MCP channels.</summary>
+    public bool? ActiveFileAttachmentResolved { get; init; }
+
+    /// <summary>Native-turn attestation that the attachment matches the captured buffer; null for MCP channels.</summary>
+    public bool? ActiveFileAttachmentMatchesSnapshot { get; init; }
+
     /// <summary>
     /// Whether the current turn exposes <paramref name="toolName"/> (registry name, without the MCP prefix). The
     /// permission-prompt tool is exposed only when the plan requires confirmations.

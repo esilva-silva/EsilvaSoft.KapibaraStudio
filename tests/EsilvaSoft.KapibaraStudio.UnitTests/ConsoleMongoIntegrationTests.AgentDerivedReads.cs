@@ -14,7 +14,6 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests;
 // facilidade (Int64 além de 2^53, Decimal128, UUID subtipo 3 e 4, ObjectId, Date e subdocumentos).
 public sealed partial class ConsoleMongoIntegrationTests
 {
-    private const string DerivedDatabase = "agentdb";
     private const string DerivedItems = "items";
     private const string DerivedLarge = "large";
     private const long BeyondDoublePrecision = 9_007_199_254_740_993L;
@@ -408,7 +407,7 @@ public sealed partial class ConsoleMongoIntegrationTests
             });
             using (var client = new MongoClient(harness.ServerUri))
             {
-                var names = await (await client.GetDatabase(DerivedDatabase).ListCollectionNamesAsync()).ToListAsync();
+                var names = await (await client.GetDatabase(harness.Database).ListCollectionNamesAsync()).ToListAsync();
                 Assert.That(names, Does.Not.Contain("stolen"), "Nenhum $out/$merge executado.");
             }
             await harness.AssertLedgerCleanAsync();
@@ -472,18 +471,25 @@ public sealed partial class ConsoleMongoIntegrationTests
 
     private static async Task RunDerivedReadsAsync(string name, Func<DerivedReadsHarness, Task> body)
     {
-        var executable = ResolveMongodExecutable();
-        if (executable is null) Assert.Ignore("Fixture MongoDB portátil ausente.");
+        var configuredUri = Environment.GetEnvironmentVariable("SLOP_CONSOLE_MONGODB_URI");
+        var executable = configuredUri is null ? ResolveMongodExecutable() : null;
+        if (configuredUri is null && executable is null) Assert.Ignore("Fixture MongoDB portátil ausente.");
+        var databaseName = "agentdb_" + Guid.NewGuid().ToString("N");
         var directory = Path.Combine(TestContext.CurrentContext.WorkDirectory, name + "-" + Guid.NewGuid().ToString("N"));
         var logPath = Path.Combine(TestContext.CurrentContext.WorkDirectory,
             $"mongod-{Path.GetFileName(Path.GetDirectoryName(directory))}-{Path.GetFileName(directory)}.log");
         var completed = false;
+        var ownsDatabase = false;
         try
         {
-            using var server = await StartServer(executable!, directory);
+            Directory.CreateDirectory(directory);
+            using var server = configuredUri is null ? await StartServer(executable!, directory) : null;
+            var serverUri = configuredUri ?? server!.Uri;
             using var repository = new LiteDbConnectionProfileRepository(Path.Combine(directory, "workspace.db"));
             using var pool = new MongoClientPool();
-            await SeedDerivedReadsAsync(server.Uri);
+            await EnsureDerivedDatabaseAvailableAsync(serverUri, databaseName);
+            ownsDatabase = true;
+            await SeedDerivedReadsAsync(serverUri, databaseName);
 
 #pragma warning disable CA1859 // The facet is exercised through its interface, exactly as DI composes it.
             IAgentPrincipalAuthority authority = repository;
@@ -491,12 +497,12 @@ public sealed partial class ConsoleMongoIntegrationTests
             IAgentAuthorizationPolicyRepository policies = repository;
             IAgentAuditRepository ledger = repository;
             var principalId = await authority.GetInternalPrincipalIdAsync();
-            var profile = ConnectionProfile.Create("Agente derivado", server.Uri) with { SourceGenerationId = Guid.NewGuid() };
+            var profile = ConnectionProfile.Create("Agente derivado", serverUri) with { SourceGenerationId = Guid.NewGuid() };
             var sessionId = Guid.NewGuid();
             var grants = new List<AgentPermissionGrant>();
             foreach (var collection in GrantedDerivedCollections)
             {
-                var scope = AgentNamespaceScope.ForCollection(profile.Id, DerivedDatabase, collection);
+                var scope = AgentNamespaceScope.ForCollection(profile.Id, databaseName, collection);
                 AgentPermissionGrant Grant(AgentPermission permission, AgentOutputDataScope output) =>
                     new(principalId, AgentInvocationScope.ForSession(sessionId), profile.SourceGenerationId!.Value,
                         permission, scope, AgentOutputDestination.Local(), output);
@@ -514,7 +520,7 @@ public sealed partial class ConsoleMongoIntegrationTests
             var secrets = new SessionConnectionSecretStore();
             var sources = new CountingDerivedSources(new MongoAgentFindSource(secrets, repository, pool),
                 new MongoAgentIndexSource(secrets, repository, pool), new MongoAgentExplainSource(secrets, repository, pool));
-            var consent = new ExactSchemaConsent(profile.Id, DerivedDatabase, DerivedItems);
+            var consent = new ExactSchemaConsent(profile.Id, databaseName, DerivedItems);
             var registry = new AgentToolRegistry(new FixedProfiles(profile), policies,
                 new AgentPermissionEvaluator(policies), ledger, TimeSpan.FromSeconds(20),
                 new MongoMetadataSource(secrets, repository, pool), consent, find: sources, count: sources,
@@ -522,12 +528,14 @@ public sealed partial class ConsoleMongoIntegrationTests
                 exposure: AgentToolExposure.Through(AgentToolExposureStage.DerivedReads),
                 principalAuthority: authority);
             await body(new DerivedReadsHarness(registry, issued.Principal!, profile, sessionId, sources, consent,
-                ledger, server.Uri));
-            TestContext.Out.WriteLine($"MongoDB {server.Version}: {name} via registry DerivedReads com fontes reais.");
+                ledger, serverUri, databaseName));
+            TestContext.Out.WriteLine($"MongoDB {(server?.Version ?? "serviço externo")}: {name} via registry DerivedReads com fontes reais.");
             completed = true;
         }
         finally
         {
+            if (configuredUri is not null && ownsDatabase)
+                await DropDerivedDatabaseAsync(configuredUri, databaseName, completed);
             CleanupDatabaseDirectory(directory, completed);
             if (completed && File.Exists(logPath)) File.Delete(logPath);
         }
@@ -545,10 +553,10 @@ public sealed partial class ConsoleMongoIntegrationTests
                 : null);
     }
 
-    private static async Task SeedDerivedReadsAsync(string uri)
+    private static async Task SeedDerivedReadsAsync(string uri, string databaseName)
     {
         using var client = new MongoClient(uri);
-        var database = client.GetDatabase(DerivedDatabase);
+        var database = client.GetDatabase(databaseName);
         var items = database.GetCollection<BsonDocument>(DerivedItems);
         await items.InsertManyAsync(
         [
@@ -700,25 +708,27 @@ public sealed partial class ConsoleMongoIntegrationTests
         CountingDerivedSources sources,
         ExactSchemaConsent consent,
         IAgentAuditRepository ledger,
-        string serverUri)
+        string serverUri,
+        string database)
     {
         public CountingDerivedSources Sources { get; } = sources;
         public ExactSchemaConsent Consent { get; } = consent;
         public string ServerUri { get; } = serverUri;
+        public string Database { get; } = database;
 
         // A fresh turn per call keeps the per-turn quota out of the way; the session grant still applies.
         public Task<AgentToolInvocationResult> InvokeAsync(string tool, AgentOutputDataScope scope, string arguments) =>
             registry.InvokeAsync(principal, new AgentInvocationContext(null, null, sessionId, Guid.NewGuid()),
                 AgentOutputDestination.Local(), scope, tool, arguments);
 
-        public string Args(string collection, string database = DerivedDatabase, string? filterEjson = null,
+        public string Args(string collection, string? database = null, string? filterEjson = null,
             string? projectionEjson = null, string? sortEjson = null, string? idEjson = null, string? field = null,
             int? limit = null, int? sampleSize = null, int? maximumValues = null, int? maxTimeMs = null)
         {
             var arguments = new Dictionary<string, object>(StringComparer.Ordinal)
             {
                 ["connectionId"] = profile.Id,
-                ["database"] = database,
+                ["database"] = database ?? Database,
                 ["collection"] = collection
             };
             if (filterEjson is not null) arguments["filterEjson"] = filterEjson;
@@ -736,7 +746,7 @@ public sealed partial class ConsoleMongoIntegrationTests
         public async Task<IReadOnlyDictionary<BsonValue, BsonDocument>> ReadAllAsync(string collection)
         {
             using var client = new MongoClient(ServerUri);
-            var documents = await client.GetDatabase(DerivedDatabase).GetCollection<BsonDocument>(collection)
+            var documents = await client.GetDatabase(Database).GetCollection<BsonDocument>(collection)
                 .Find(new BsonDocument()).ToListAsync();
             return documents.ToDictionary(document => document["_id"]);
         }
@@ -750,6 +760,29 @@ public sealed partial class ConsoleMongoIntegrationTests
                 .And.Not.Contain("9007199254740993").And.Not.Contain(ExplainCanary).And.Not.Contain("text-id")
                 .And.Not.Contain("sleep(").And.Not.Contain("dropDatabase"));
         }
+    }
+
+    private static async Task DropDerivedDatabaseAsync(string uri, string databaseName, bool testCompleted)
+    {
+        try
+        {
+            using var client = new MongoClient(uri);
+            await client.DropDatabaseAsync(databaseName);
+        }
+        catch (Exception exception)
+        {
+            if (testCompleted)
+                throw new IOException($"Falha ao remover somente o banco isolado '{databaseName}'.", exception);
+            TestContext.Error.WriteLine($"Limpeza do banco isolado também falhou após falha de teste; preservando a falha original. Banco: {databaseName}; erro: {exception.GetType().Name}: {exception.Message}");
+        }
+    }
+
+    private static async Task EnsureDerivedDatabaseAvailableAsync(string uri, string databaseName)
+    {
+        using var client = new MongoClient(uri);
+        var names = await (await client.ListDatabaseNamesAsync()).ToListAsync();
+        if (names.Contains(databaseName, StringComparer.Ordinal))
+            throw new InvalidOperationException($"O nome aleatório da fixture já existe; nenhum dado foi alterado ('{databaseName}').");
     }
 
     // Local consent is trusted host state; this stub grants exactly one namespace and records every request.

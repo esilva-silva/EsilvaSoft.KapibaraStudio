@@ -151,6 +151,8 @@ public sealed class AgentRuntimeTests
         var active = await observed.Task.WaitAsync(TimeSpan.FromSeconds(3));
         Assert.That(active, Is.Not.Null);
         Assert.That(active!.WorkspaceContext?.WorkspaceFolder, Is.EqualTo("synthetic"));
+        Assert.That(active.ActiveFileAttachmentResolved, Is.False,
+            "The runtime scope records the exact attachments sent in this turn; the default request has no active-file attachment.");
         release.TrySetResult();
         await run.WaitAsync(TimeSpan.FromSeconds(3));
         Assert.That(scopes.Find(sessionKey, Guid.ParseExact(turn.Value, "N")), Is.Null);

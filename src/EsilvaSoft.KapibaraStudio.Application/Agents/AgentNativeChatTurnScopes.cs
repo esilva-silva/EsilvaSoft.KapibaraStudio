@@ -9,6 +9,15 @@ public sealed record AgentNativeChatTurnScope(
     AgentProviderPermissions Permissions, AgentWorkspaceContext? WorkspaceContext)
 {
     public Guid ConversationId { get; init; }
+
+    /// <summary>
+    /// Whether the active editor buffer was resolved as a redacted attachment for this exact native chat turn.
+    /// Defaults to false so an incomplete native scope fails closed.
+    /// </summary>
+    public bool ActiveFileAttachmentResolved { get; init; }
+
+    /// <summary>Whether the attachment exactly matches this turn's captured buffer, tab and revision.</summary>
+    public bool ActiveFileAttachmentMatchesSnapshot { get; init; }
 }
 
 public interface IAgentNativeChatTurnScopes

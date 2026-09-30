@@ -224,6 +224,16 @@ public sealed class AgentChatUiTests
             Assert.That(await deniedDecision, Is.EqualTo(AgentToolConfirmationDecision.Rejected));
             Assert.That(deniedCard.State, Is.EqualTo(AgentToolConfirmationState.Rejected));
 
+            var longArguments = "{\"filter\":{\"value\":\"" + new string('x', 2500) + "\"}}";
+            var longRequest = request with { InputJson = longArguments };
+            var longDecision = prompt.ConfirmAsync(longRequest, deadline.Token);
+            await PumpAsync(() => chat.Items.OfType<AgentToolConfirmationCardItem>().Count() == 3);
+            var longCard = chat.Items.OfType<AgentToolConfirmationCardItem>().Last();
+            Assert.That(longCard.InputText, Is.EqualTo(longArguments),
+                "The approval card must retain all arguments so the user can inspect the exact invocation.");
+            longCard.RejectCommand.Execute(null);
+            Assert.That(await longDecision, Is.EqualTo(AgentToolConfirmationDecision.Rejected));
+
             deadline.Cancel();
             window.Close();
             await chat.DisposeAsync();

@@ -121,7 +121,11 @@ public sealed partial class AgentToolRegistry
 
         scope = new AgentMcpSessionScope(Guid.Empty, Guid.Empty, native.ProviderId, native.ConversationId,
             native.Plan with { ProductTools = [name] }, native.Permissions,
-            WorkspaceContext: native.WorkspaceContext);
+            WorkspaceContext: native.WorkspaceContext)
+        {
+            ActiveFileAttachmentResolved = native.ActiveFileAttachmentResolved,
+            ActiveFileAttachmentMatchesSnapshot = native.ActiveFileAttachmentMatchesSnapshot,
+        };
         return true;
     }
 

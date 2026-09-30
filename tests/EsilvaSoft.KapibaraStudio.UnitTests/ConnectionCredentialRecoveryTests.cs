@@ -299,6 +299,8 @@ public sealed class ConnectionCredentialRecoveryTests
         var availability = await store.GetAvailabilityAsync();
         if (!availability.IsSuccess || availability.Value != SecretStoreAvailability.Available)
             Assert.Ignore("Credential Manager indisponível nesta sessão de logon; nenhum target foi criado.");
+        var writeFailure = await WindowsCredentialStoreWritePreflight.CheckAsync(store);
+        if (writeFailure is not null) Assert.Ignore(writeFailure);
 
         using var fixture = new Workspace();
         const string uri = "mongodb://u:" + Canary + "-native@host:27017/db?authSource=admin";
