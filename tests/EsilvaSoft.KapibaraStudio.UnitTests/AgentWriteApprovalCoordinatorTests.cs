@@ -1,7 +1,7 @@
 using EsilvaSoft.KapibaraStudio.Application.Agents;
 using EsilvaSoft.KapibaraStudio.Core;
 using EsilvaSoft.KapibaraStudio.Core.Agents;
-using static EsilvaSoft.KapibaraStudio.UnitTests.AgentWriteTestDoubles;
+using static EsilvaSoft.KapibaraStudio.Testing.AgentWriteTestDoubles;
 
 namespace EsilvaSoft.KapibaraStudio.UnitTests;
 

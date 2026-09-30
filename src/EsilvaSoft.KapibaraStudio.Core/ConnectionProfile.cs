@@ -87,10 +87,10 @@ public sealed record ConnectionProfile(
         return new ConnectionProfile(Guid.NewGuid(), name.Trim(), connectionString.Trim(), defaultDatabase?.Trim(), environment?.Trim(), color?.Trim(), NormalizeTags(tags), isReadOnly, isFavorite, Folder: NormalizeFolder(folder));
     }
 
-    /// <summary>Resolves environment placeholders such as ${MONGODB_PASSWORD} only at connection time.</summary>
+    /// <summary>Resolves environment placeholders such as ${MONGODB_PASSWORD} using an explicit captured resolver.</summary>
     public string ResolveConnectionString(Func<string, string?>? getEnvironmentVariable = null, Func<string, string>? getVaultValue = null)
     {
-        getEnvironmentVariable ??= global::System.Environment.GetEnvironmentVariable;
+        getEnvironmentVariable ??= static _ => null;
         var template = DynamicValues.ResolveText(ConnectionString, getVaultValue ?? (key => getEnvironmentVariable(key) ?? throw new InvalidOperationException($"Chave {key} não definida.")), uriEncode: true);
         return EnvironmentToken.Replace(template, match =>
         {

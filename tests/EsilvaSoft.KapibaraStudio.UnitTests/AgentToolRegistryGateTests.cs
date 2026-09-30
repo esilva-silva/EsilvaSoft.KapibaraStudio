@@ -536,55 +536,6 @@ public sealed class AgentToolRegistryGateTests
     }
 
     [Test]
-    public async Task DurableLedgerKeepsIntentPendingWhenOutcomeCannotBeRecordedAndNeverReplays()
-    {
-        var directory = Path.Combine(Path.GetTempPath(), "slop-agent-ledger-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(directory);
-        try
-        {
-            using var repository = new LiteDbConnectionProfileRepository(Path.Combine(directory, "workspace.db"));
-            IAgentAuthorizationPolicyRepository policies = repository;
-            IAgentAuditRepository owner = repository;
-            var profile = Connection();
-            var local = AgentOutputDestination.Local();
-            await policies.SaveAsync(InternalPrincipalId, FindGrants(InternalPrincipalId, profile, local), 0);
-            var ledger = new TerminalFailingAudit(owner);
-            var find = new CountingFind { Documents = [DocumentEjson] };
-            var registry = new AgentToolRegistry(new CountingProfiles(profile), policies,
-                new AgentPermissionEvaluator(policies), ledger, find: find,
-                exposure: AgentToolExposure.Through(AgentToolExposureStage.LiteralQueries),
-                principalAuthority: new TestAgentPrincipalAuthority());
-
-            var suppressed = await registry.InvokeAsync(Internal(1), Context(), local,
-                AgentOutputDataScope.DocumentValues, AgentToolRegistry.MongoFindToolName, FindArguments(profile, "{}"));
-            var pending = await owner.GetPendingAsync();
-
-            ledger.FailTerminals = false;
-            var next = await registry.InvokeAsync(Internal(1), Context(), local,
-                AgentOutputDataScope.DocumentValues, AgentToolRegistry.MongoFindToolName, FindArguments(profile, "{}"));
-            var recent = await owner.GetRecentAsync();
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(suppressed.Succeeded, Is.False);
-                Assert.That(suppressed.StructuredContentJson, Is.Null);
-                Assert.That(pending, Has.Count.EqualTo(1));
-                Assert.That(pending[0].ToolName, Is.EqualTo(AgentToolRegistry.MongoFindToolName));
-                Assert.That(next.Succeeded, Is.True, next.ErrorCode);
-                // One read per call: the unrecorded outcome is left for reconciliation, never re-executed.
-                Assert.That(find.Calls, Is.EqualTo(2));
-                Assert.That(recent.Count(item => item.Outcome == AgentAuditOutcome.Intent), Is.EqualTo(2));
-                Assert.That(recent.Count(item => item.Outcome == AgentAuditOutcome.Succeeded), Is.EqualTo(1));
-            });
-            Assert.That(await owner.GetPendingAsync(), Has.Count.EqualTo(1));
-        }
-        finally
-        {
-            Directory.Delete(directory, recursive: true);
-        }
-    }
-
-    [Test]
     public async Task DurableLedgerUnavailableDeniesBeforePolicyProfileOrSource()
     {
         var profile = Connection();

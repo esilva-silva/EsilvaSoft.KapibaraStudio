@@ -231,9 +231,12 @@ tests/EsilvaSoft.KapibaraStudio.Benchmarks/
   Context/ContextEngineBenchmarks.cs       fixtures de testing.md
   Completion/RankingBenchmarks.cs
   Ai/ContextSelectionBenchmarks.cs
-  Ai/AiRuntimeHarness.cs                   Explicit, modelo por variável de ambiente
+  Ai/AiRuntimeHarness.cs                   harness de medição compartilhado
   Data/SyntheticCatalogGenerator.cs        semente fixa, sem dados reais
 ```
+
+O perfil manual com pesos ONNX reais fica em
+`tests/EsilvaSoft.KapibaraStudio.IntegrationTests/AiRuntimeRealModelRunner.cs`, marcado `Integration` e `Explicit`.
 
 BenchmarkDotNet com `MemoryDiagnoser`; nova dependência justificada por ser ferramenta de medição fora do produto, fixada em `Directory.Packages.props` com lockfile.
 
@@ -529,11 +532,12 @@ Execução de 19/09/2026 em AMD Ryzen 9 7900 (12 núcleos físicos, 24 lógicos)
 sem depurador. Pacotes reais instalados em `%LOCALAPPDATA%\EsilvaSoft\KapibaraStudio\Models`. Reproduzir:
 
 ```bash
-dotnet test tests/EsilvaSoft.KapibaraStudio.Benchmarks -c Release --filter "FullyQualifiedName~AiRuntimeRealModelRunner"
+dotnet test tests/EsilvaSoft.KapibaraStudio.IntegrationTests -c Release --filter "FullyQualifiedName~AiRuntimeRealModelRunner"
 dotnet run -c Release --project tests/EsilvaSoft.KapibaraStudio.Benchmarks -- --filter "*IncrementalDecode*" --job short --inProcess
 ```
 
-O instrumento é `tests/EsilvaSoft.KapibaraStudio.Benchmarks/Ai/AiRuntimeHarness.cs`; a saída JSON e Markdown vai para
+O harness é `tests/EsilvaSoft.KapibaraStudio.Benchmarks/Ai/AiRuntimeHarness.cs`; o runner de integração usa esse
+instrumento e grava a saída JSON e Markdown em
 `tests/EsilvaSoft.KapibaraStudio.Benchmarks/Ai/output/ai-runtime-latency.json|.md`, é efêmera e não é commitada — ela só
 vale junto com a máquina, e a máquina está dentro do arquivo.
 
@@ -543,7 +547,7 @@ Esta seção **nunca** mistura as duas categorias. Cada número abaixo carrega a
 
 | Origem | O que prova | Onde |
 | --- | --- | --- |
-| **Modelo real** (pesos ONNX, hardware desta máquina) | Carga, TTFT, total, tokens/s, working set, montagem de contexto e tokenização | `AiRuntimeRealModelRunner`, relatório JSON com `evidence: RealModel` |
+| **Modelo real** (pesos ONNX, hardware desta máquina) | Carga, TTFT, total, tokens/s, working set, montagem de contexto e tokenização | `IntegrationTests/AiRuntimeRealModelRunner`, relatório JSON com `evidence: RealModel` |
 | **Fake determinístico** (runtime falso, relógio simulado) | Serialização da fila, prioridade chat × autocomplete, percentis de espera na fila | `LocalAiModelServiceTests`, `AiRuntimeHarnessTests` |
 | **Microbenchmark sem pesos** | Custo de decodificação por token | `IncrementalDecodeBenchmarks` |
 

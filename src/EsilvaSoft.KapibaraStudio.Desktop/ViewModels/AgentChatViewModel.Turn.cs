@@ -121,7 +121,7 @@ public sealed partial class AgentChatViewModel
     {
         try
         {
-            var resolution = await AgentAttachmentResolver.ResolveAsync(requests, context, permissions, message, run.Cancellation.Token);
+            var resolution = await AgentAttachmentResolver.ResolveAsync(requests, context, permissions, message, run.Cancellation.Token, _services.FileReader, _services.PathProbe);
             if (!resolution.Succeeded)
             {
                 foreach (var failure in resolution.Failures)

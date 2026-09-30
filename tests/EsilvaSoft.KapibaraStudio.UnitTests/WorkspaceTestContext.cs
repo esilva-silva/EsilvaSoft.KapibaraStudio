@@ -6,16 +6,14 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests;
 
 internal sealed class WorkspaceTestContext : IDisposable
 {
-    private readonly string _directory = Path.Combine(Path.GetTempPath(), "slop-ui-" + Guid.NewGuid().ToString("N"));
-    public LiteDbConnectionProfileRepository Repository { get; }
+    public MemoryWorkspaceRepository Repository { get; }
     public WorkspaceService Workspace { get; }
     public ControlledScripts Scripts { get; } = new();
     public MongoTestProxy Mongo { get; }
     public WorkspaceTestContext(IConsoleHistoryRepository? historyOverride = null, ITextFileService? textFiles = null,
-        ISecretStore? profileSecrets = null)
+        ITextExportFileService? textExports = null)
     {
-        Repository = new LiteDbConnectionProfileRepository(Path.Combine(_directory, "workspace.db"),
-            profileSecrets ?? new InMemoryProfileSecretStore());
+        Repository = new MemoryWorkspaceRepository();
         var mongo = DispatchProxy.Create<IMongoWorkspaceService, MongoTestProxy>();
         Mongo = (MongoTestProxy)mongo;
         Mongo.Handler = (name, _) => name switch
@@ -26,7 +24,7 @@ internal sealed class WorkspaceTestContext : IDisposable
         };
         var secrets = new SessionConnectionSecretStore();
         var console = new ConsoleRuntime(Repository, Repository, secrets, new WorkspaceConsoleSession(mongo), Repository, Repository);
-        Workspace = new WorkspaceService(Repository, Repository, Repository, Repository, Repository, mongo, Scripts, new LocalScriptFileService(), secrets, Repository, new ExplorerMetadataService(mongo), console, historyOverride ?? Repository, formatter: new MongoCodeFormatter(), validator: new MongoCodeValidator(), textFiles: textFiles);
+        Workspace = new WorkspaceService(Repository, Repository, Repository, Repository, Repository, mongo, Scripts, new MemoryTextFiles(), secrets, Repository, new ExplorerMetadataService(mongo), console, historyOverride ?? Repository, formatter: new MongoCodeFormatter(), validator: new MongoCodeValidator(), textFiles: textFiles, textExports: textExports);
     }
-    public void Dispose() { Repository.Dispose(); Directory.Delete(_directory, true); }
+    public void Dispose() => Repository.Dispose();
 }

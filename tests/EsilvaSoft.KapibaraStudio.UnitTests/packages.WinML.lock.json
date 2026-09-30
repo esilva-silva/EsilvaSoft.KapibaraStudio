@@ -465,11 +465,10 @@
         "type": "Project",
         "dependencies": {
           "EsilvaSoft.KapibaraStudio.Application": "[1.0.0, )",
+          "EsilvaSoft.KapibaraStudio.Infrastructure.System": "[1.0.0, )",
           "Jint": "[4.16.0, )",
-          "LiteDB": "[5.0.21, )",
-          "Microsoft.Extensions.Logging.Abstractions": "[10.0.0, )",
-          "MongoDB.Driver": "[3.11.1, )",
-          "Tmds.DBus.Protocol": "[0.94.1, )"
+          "Microsoft.Extensions.Logging.Abstractions": "[10.0.10, )",
+          "MongoDB.Driver": "[3.11.1, )"
         }
       },
       "esilvasoft.kapibarastudio.infrastructure.agents": {
@@ -478,6 +477,7 @@
           "Anthropic": "[12.50.0, )",
           "EsilvaSoft.KapibaraStudio.Application": "[1.0.0, )",
           "EsilvaSoft.KapibaraStudio.Core": "[1.0.0, )",
+          "EsilvaSoft.KapibaraStudio.Infrastructure.System": "[1.0.0, )",
           "GitHub.Copilot.SDK": "[1.0.14, )",
           "Microsoft.Data.Sqlite": "[10.0.12, )",
           "Microsoft.Extensions.DependencyInjection": "[10.0.0, )",
@@ -488,6 +488,12 @@
       "esilvasoft.kapibarastudio.infrastructure.localai": {
         "type": "Project",
         "dependencies": {
+          "EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi.OnnxAdapter": "[1.0.0, )"
+        }
+      },
+      "esilvasoft.kapibarastudio.infrastructure.localai.onnxadapter": {
+        "type": "Project",
+        "dependencies": {
           "EsilvaSoft.KapibaraStudio.Application": "[1.0.0, )",
           "EsilvaSoft.KapibaraStudio.LocalAi.Core": "[1.0.0, )",
           "Microsoft.Extensions.DependencyInjection": "[10.0.0, )",
@@ -495,10 +501,30 @@
           "Microsoft.ML.OnnxRuntimeGenAI.WinML": "[0.15.2, )"
         }
       },
+      "esilvasoft.kapibarastudio.infrastructure.system": {
+        "type": "Project",
+        "dependencies": {
+          "EsilvaSoft.KapibaraStudio.Application": "[1.0.0, )",
+          "EsilvaSoft.KapibaraStudio.LocalAi.Core": "[1.0.0, )",
+          "GitHub.Copilot.SDK": "[1.0.14, )",
+          "LiteDB": "[5.0.21, )",
+          "Microsoft.Data.Sqlite": "[10.0.12, )",
+          "Microsoft.Extensions.Logging.Abstractions": "[10.0.10, )",
+          "Tmds.DBus.Protocol": "[0.94.1, )"
+        }
+      },
       "esilvasoft.kapibarastudio.localai.core": {
         "type": "Project",
         "dependencies": {
           "EsilvaSoft.KapibaraStudio.Core": "[1.0.0, )"
+        }
+      },
+      "esilvasoft.kapibarastudio.testsupport": {
+        "type": "Project",
+        "dependencies": {
+          "EsilvaSoft.KapibaraStudio.Application": "[1.0.0, )",
+          "EsilvaSoft.KapibaraStudio.Autocomplete.Core": "[1.0.0, )",
+          "EsilvaSoft.KapibaraStudio.LocalAi.Core": "[1.0.0, )"
         }
       },
       "Anthropic": {

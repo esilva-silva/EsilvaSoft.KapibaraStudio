@@ -1,4 +1,5 @@
 using EsilvaSoft.KapibaraStudio.Application;
+using EsilvaSoft.KapibaraStudio.Application.Agents;
 
 namespace EsilvaSoft.KapibaraStudio.Infrastructure.Agents.ClaudeCode;
 
@@ -78,10 +79,10 @@ public sealed class ClaudeCodeAgentProviderOptions
     /// <summary>Pasta vazia do app usada como cwd sem workspace. Nula usa o padrão (irmã, fora do diretório de dados).</summary>
     public string? DedicatedWorkingDirectory { get; init; }
 
-    /// <summary>Diretório de dados do app (LiteDB, modelos, exports). Nulo usa <see cref="LocalWorkspacePaths"/>.</summary>
+    /// <summary>Diretório de dados do app (LiteDB, modelos, exports). Nulo usa o caminho capturado pelo adapter de sistema.</summary>
     public string? AppDataDirectory { get; init; }
 
-    /// <summary>Arquivo LiteDB do app. Nulo usa <see cref="LocalWorkspacePaths.GetDatabasePath"/>.</summary>
+    /// <summary>Arquivo LiteDB do app. Nulo usa o caminho capturado pelo adapter de sistema.</summary>
     public string? DatabasePath { get; init; }
 
     /// <summary>
@@ -90,22 +91,22 @@ public sealed class ClaudeCodeAgentProviderOptions
     /// </summary>
     internal Func<string, bool>? IsEnvironmentVariableSet { get; init; }
 
-    internal string ResolveAppDataDirectory() =>
-        AppDataDirectory ?? Path.GetDirectoryName(ResolveDatabasePath())!;
+    internal string ResolveAppDataDirectory(IClaudeCodeSystem system) =>
+        AppDataDirectory ?? Path.GetDirectoryName(ResolveDatabasePath(system))!;
 
-    internal string ResolveDatabasePath() => DatabasePath ?? LocalWorkspacePaths.GetDatabasePath();
+    internal string ResolveDatabasePath(IClaudeCodeSystem system) => DatabasePath ?? system.DefaultDatabasePath;
 
     /// <summary>
     /// Padrão: <c>…/EsilvaSoft/KapibaraStudio.ClaudeCode/empty</c>, irmã do diretório de dados (nunca dentro dele).
     /// </summary>
-    internal string ResolveDedicatedWorkingDirectory()
+    internal string ResolveDedicatedWorkingDirectory(IClaudeCodeSystem system)
     {
         if (DedicatedWorkingDirectory is { } configured)
         {
             return configured;
         }
 
-        var data = Path.TrimEndingDirectorySeparator(ResolveAppDataDirectory());
+        var data = Path.TrimEndingDirectorySeparator(ResolveAppDataDirectory(system));
         var parent = Path.GetDirectoryName(data) ?? data;
         return Path.Combine(parent, Path.GetFileName(data) + ".ClaudeCode", "empty");
     }

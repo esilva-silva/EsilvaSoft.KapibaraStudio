@@ -1,4 +1,3 @@
-using System.Collections;
 using EsilvaSoft.KapibaraStudio.Application;
 using EsilvaSoft.KapibaraStudio.Core;
 
@@ -12,12 +11,13 @@ internal sealed class OperationEnvironment
     public string ResolvedConnection { get; private set; } = "";
 
     public OperationEnvironment(IEnvironmentVaultRepository? repository, IConnectionSecretStore? secrets, Guid profileId,
-        ISecretStore? credentialStore = null)
+        ISecretStore? credentialStore = null, IHostEnvironmentSnapshot? hostEnvironment = null,
+        IHostPlatformSnapshot? hostPlatform = null)
     {
         _credentialStore = credentialStore;
         Vault = (repository?.LoadEnvironments() ?? EnvironmentVault.CreateDefault()).Capture();
-        _legacy = Environment.GetEnvironmentVariables().Cast<DictionaryEntry>()
-            .ToDictionary(e => (string)e.Key, e => (string)e.Value!, OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+        _legacy = new Dictionary<string, string>(hostEnvironment?.Capture() ??
+            new Dictionary<string, string>(), hostPlatform?.IsWindows == true ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
         if (secrets?.GetPassword(profileId) is { } password) _legacy["MONGODB_PASSWORD"] = password;
     }
 

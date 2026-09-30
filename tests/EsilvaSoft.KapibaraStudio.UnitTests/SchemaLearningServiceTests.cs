@@ -94,7 +94,7 @@ public sealed class SchemaLearningServiceTests
             _ => throw new NotSupportedException(name)
         };
         var workspace = new WorkspaceService(context.Repository, context.Repository, context.Repository, context.Repository, context.Repository,
-            mongo, context.Scripts, new LocalScriptFileService(), new SessionConnectionSecretStore(), schemaLearning: service);
+            mongo, context.Scripts, new MemoryTextFiles(), new SessionConnectionSecretStore(), schemaLearning: service);
         var profile = ConnectionProfile.Create("Dev", "mongodb://host");
         var tab = new WorkspaceTabViewModel(workspace) { Profile = profile, Database = "loja", Collection = "clientes", Mode = "Consulta JSON", IsConnected = true, Text = "{}" };
 
@@ -234,7 +234,7 @@ public sealed class SchemaLearningServiceTests
             };
         };
         var workspace = new WorkspaceService(context.Repository, context.Repository, context.Repository, context.Repository, context.Repository,
-            mongo, context.Scripts, new LocalScriptFileService(), new SessionConnectionSecretStore(), schemaLearning: service);
+            mongo, context.Scripts, new MemoryTextFiles(), new SessionConnectionSecretStore(), schemaLearning: service);
         var profile = ConnectionProfile.Create("Dev", "mongodb://host");
         var tab = new WorkspaceTabViewModel(workspace) { Profile = profile, Database = "loja", Collection = "clientes", Mode = "Consulta JSON", IsConnected = true, Text = "{}" };
 

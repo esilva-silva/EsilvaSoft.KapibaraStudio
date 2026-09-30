@@ -1,11 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!--
-    Adapters de providers externos da fase 7 (lote 7: OpenAI API direta). Referencia apenas Core/Application:
+    Adapters de providers externos da fase 7. Contratos em Core/Application; recursos nativos em Infrastructure.System:
     os DTOs do SDK OpenAI ficam confinados a este assembly e nunca atravessam as portas do runtime.
   -->
   <ItemGroup>
     <ProjectReference Include="../EsilvaSoft.KapibaraStudio.Core/EsilvaSoft.KapibaraStudio.Core.csproj" />
     <ProjectReference Include="../EsilvaSoft.KapibaraStudio.Application/EsilvaSoft.KapibaraStudio.Application.csproj" />
+    <ProjectReference Include="../EsilvaSoft.KapibaraStudio.Infrastructure.System/EsilvaSoft.KapibaraStudio.Infrastructure.System.csproj" />
   </ItemGroup>
   <PropertyGroup>
     <RuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64</RuntimeIdentifiers>
@@ -25,5 +26,6 @@
   <ItemGroup>
     <InternalsVisibleTo Include="EsilvaSoft.KapibaraStudio.UnitTests" />
     <InternalsVisibleTo Include="EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Tests" />
+    <InternalsVisibleTo Include="EsilvaSoft.KapibaraStudio.IntegrationTests" />
   </ItemGroup>
 </Project>

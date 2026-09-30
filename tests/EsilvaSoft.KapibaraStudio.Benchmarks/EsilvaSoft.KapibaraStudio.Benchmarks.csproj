@@ -23,5 +23,6 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="NUnit" />
     <PackageReference Include="NUnit3TestAdapter" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" VersionOverride="10.0.10" />
   </ItemGroup>
 </Project>

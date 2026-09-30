@@ -1,5 +1,39 @@
 # Matriz de validação
 
+## Adapters do SO — incremento de 30/09/2026
+
+| Verificação | Evidência | Limite |
+| --- | --- | --- |
+| Restore travado | CPU Windows: passou em `--locked-mode` usando cache local e `NuGet.Config` temporário | Restore offline; auditoria online do NuGet e execução Linux pendentes |
+| Build solução | CPU Windows: zero avisos/erros | `UsedAvaloniaProducts=` evita telemetria externa |
+| UnitTests após migrações | 3323 aprovados, 20 ignorados | Execução Windows; recursos reais movidos para integração |
+| Infrastructure.Agents.Tests | 198/198 aprovados | Doubles/providers; não homologa SDKs ou CLIs oficiais |
+| Benchmarks unitários | 41/41 aprovados com agregação e ambiente sintético | BenchmarkDotNet não é varrido como fonte de teste; runner ONNX real foi movido para integração explícita |
+| IntegrationTests completa | 868 aprovados, 14 ignorados, 882 total | Testes `Explicit` não são executados por padrão; WSL sem distribuição Linux |
+| `dotnet test` da solução completa | Benchmarks 41/41; UnitTests 3323/20 ignorados; Agents.Tests 198/198; IntegrationTests 868/14 ignorados | Windows; homologações reais externas/ONNX explícitas não executadas |
+| Build cruzado Linux | Desktop e McpServer com `-r linux-x64`: zero avisos/erros | Compilação cruzada Windows; runtime e testes Linux não executados |
+| Guarda e inventário de fronteiras | Guarda passou em UnitTests, Agents.Tests, TestSupport e fontes `*Tests.cs` de Benchmarks; três ocorrências em memória/handler falso revisadas | Regex e execução local não provam ausência de I/O por toda dependência transitiva |
+| Regras de workspace e sessão com doubles | 118/118 + 13/13 casos distintos | Seleção focalizada; não prova isolamento da suíte inteira |
+| Adapters de arquivos e armazenamento de sessão | Integração 57/57 | Recursos sintéticos locais; não homologa cofre/CLI/MongoDB real |
+| Protocolo/conta/provider Codex com doubles | 38/38 Windows; STDIO em memória, pasta simulada | Não homologa a conta ou o CLI oficial |
+| Processo Codex, ambiente, home privado e descendentes | Integração 11/11 Windows com servidor falso local | Requer ACL fora do sandbox; Linux pendente |
+| Suíte separada de integração após extração Codex | 68/68 Windows, sem skips | Inclui os 57 casos de armazenamento e os 11 de Codex; não somar novamente |
+| Copilot com doubles + regressão Codex | 80/80 Windows | Inclui os 69 anteriores e 11 novos de provider/composição; SDK não iniciado |
+| Ponte Copilot→runtime→registry→Desktop | 6/6 Windows em memória | Proposta e resultados de confirmação; serialização SDK validada na integração |
+| Política/binding dos turnos nativos | 11/11 Windows em memória | Oito casos migrados de LiteDB e três de falhas/cancelamento; não valida armazenamento da identidade |
+| Buffer de anexos com reader simulado | 5/5 Windows | Texto não salvo, consentimento/permissão, tamanho e cancelamento; zero chamadas ao reader |
+| Ferramentas de sessão e anexos com probe/reader em memória | 71/71 Windows | 35 sessão, 14 arquivos simulados, 5 buffer, 11 políticas e 6 ponte Desktop; inclui casos anteriores |
+| Integração após probe e store Desktop | 171 aprovados, 2 ignorados, 173 automatizados Windows | Três novos casos de validação de base de arquivos fechados; duas criações de symlink recusadas; quinze homologações explícitas não executadas |
+| Integração após leitura limitada/anexos | 168 aprovados, 2 ignorados, 170 automatizados Windows | Inclui 121 anteriores, 44 anexos movidos e cinco contratos do reader; symlinks recusados pelo Windows local; quinze homologações explícitas não executadas |
+| Integração após extração Copilot e separação manual | 121/121 casos automatizados Windows | Quinze testes oficiais explícitos não executados, incluindo seis movidos de UnitTests; inclui os 68 anteriores, não somar novamente |
+| Isolamento completo da produção | Em validação final | Recursos ONNX isolados em `Infrastructure.LocalAi.OnnxAdapter`; restantes adapters do SO em `Infrastructure.System`; repetição da integração após injeção Mongo e execução Linux pendentes |
+| Mongosh/console/ambiente/admissão MCP/conta com doubles | Filtro 125/125 Windows; build CPU zero avisos/erros | Inclui os 84 anteriores; driver console/DNS/broker de produção ainda pendentes; nenhuma integração nativa reexecutada |
+| Claude com doubles e regressão Codex/Copilot | 101/101 Windows | 21 novos Claude e 80 anteriores; stream/resume, recusas e cancelamento entre sessões em memória. Integração CLI real e Linux pendentes |
+| Picker, privacidade e arquitetura em memória | 84/84 Windows; build CPU zero avisos/erros | Inclui os 71 anteriores, sete picker, três privacidade e três metadados de assemblies; scanner de fonte separado na integração |
+| Integração após catálogo | 175 aprovados, uma falha, dois ignorados de 178 automatizados | Asserção de cancelamento corrigida após falha de tipo exato; reexecução fora do sandbox impedida por limite da revisão automática. Não declarar verde |
+
+Detalhes e critérios de conclusão em [system-adapters](architecture/system-adapters.md). Nenhuma mudança visual foi realizada neste incremento; homologação nativa não é inferida dos testes de ViewModels.
+
 ## Meta P7-COP — GitHub Copilot por assinatura — 29/09/2026
 
 **Estado corrente (29/09/2026):** o chat Copilot está habilitado de forma limitada após checagem explícita de conta/modelos. O provider informa `Chat`, `Streaming`, `Sessions`, `ModelSelection`, `TurnPlan` e `ToolCalling`; `NativeTools` permanece falso. Os registros intermediários desta matriz que diziam “provider indisponível” ou “chat não habilitado” preservam o estado observado naquela data/etapa e foram superados pela correção de permissões descrita na Fase 7.

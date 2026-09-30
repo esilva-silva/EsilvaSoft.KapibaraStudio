@@ -1,5 +1,9 @@
 # Roadmap de evolução do Kapibara Studio
 
+## Meta transversal ativa — adapters do SO e isolamento unitário (30/09/2026)
+
+O pedido de arquitetura exige completar a migração de todos os acessos reais ao SO para adapters em projeto separado e substituir seu uso unitário por interfaces com doubles. Console STDIO MCP, segredos Windows/Linux, broker/socket, paths, launcher, diagnóstico, owner LiteDB, catálogo/cache de modelos, exportação e atualização passam por adapters em `Infrastructure.System`; ONNX está isolado em `Infrastructure.LocalAi.OnnxAdapter`. Na verificação integrada de 30/09, restore locked passou offline, build CPU teve 0 avisos/erros e a suíte completa aprovou Benchmarks 41/41, Infrastructure.Agents.Tests 198/198, UnitTests 3323 aprovados/20 ignorados e IntegrationTests 868 aprovados/14 ignorados. Builds cruzados `linux-x64` de Desktop/McpServer passaram. Runtime/testes nativos em Linux e homologações explícitas dos adapters continuam pendentes por falta de distribuição Linux neste host. Critérios completos, sequência e inventário em [system-adapters](architecture/system-adapters.md). Esta meta não redefine nem encerra os gates funcionais do roadmap.
+
 Referência: **29/09/2026**. Este plano substitui o cronograma antigo F0–F7 e as numerações anteriores de seis e nove fases. As fases são compromissos de consolidação, não a ordem em que todo código foi escrito. Recursos antecipados continuam disponíveis com seus limites; sua existência não encerra uma fase.
 
 **Versão atual identificável:** a última release/tag publicada continua sendo v0.8.0. O estado de desenvolvimento está na meta v0.11.0, com Copilot por assinatura liberado de forma limitada no Windows; o próximo artefato deve ser pré-release até que os gates de homologação sejam fechados. A homologação manual ampla permanece na Fase 9; builds locais não implicam publicação remota. As tags históricas não foram alteradas.

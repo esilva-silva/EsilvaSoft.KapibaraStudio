@@ -83,11 +83,11 @@ public sealed partial class AgentToolRegistry
         else
         {
             if (permissions.Workspace?.UseFilesFolder != true ||
-                !AgentWorkspacePaths.TryGetWorkspaceRoot(snapshot.WorkspaceFolder, out var workspace))
+                !AgentWorkspacePaths.TryGetWorkspaceRoot(snapshot.WorkspaceFolder, out var workspace, _sessionTools?.PathProbe))
                 return Refuse(ProposalErrors.NoWorkspace);
             var exclusions = permissions.Workspace?.Exclusions ?? [];
             // Single path-safety rule shared with the attachment resolver (containment, ADS/8.3 aliases, links, exclusions).
-            if (!AgentWorkspacePaths.TryResolveInside(workspace, path!, exclusions, out fullPath, out _, out var pathError))
+            if (!AgentWorkspacePaths.TryResolveInside(workspace, path!, exclusions, out fullPath, out _, out var pathError, _sessionTools?.PathProbe))
                 return Refuse(pathError switch
                 {
                     AgentWorkspacePathError.NoWorkspace => ProposalErrors.NoWorkspace,
@@ -96,7 +96,7 @@ public sealed partial class AgentToolRegistry
                     _ => ProposalErrors.InvalidPath
                 });
             isActive = snapshot.BufferText is not null && snapshot.ActiveFilePath is { } activePath &&
-                AgentWorkspacePaths.TryResolveInside(workspace, activePath, exclusions, out var activeFull, out _, out _) &&
+                AgentWorkspacePaths.TryResolveInside(workspace, activePath, exclusions, out var activeFull, out _, out _, _sessionTools?.PathProbe) &&
                 string.Equals(activeFull, fullPath, OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
                     ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
         }
@@ -113,7 +113,7 @@ public sealed partial class AgentToolRegistry
         }
         else
         {
-            var read = await ReadProposalBaseAsync(fullPath!, cancellationToken).ConfigureAwait(false);
+            var read = await ReadProposalBaseAsync(fullPath!, _sessionTools?.FileReader, cancellationToken).ConfigureAwait(false);
             if (read.Error is { } readError) return Refuse(readError);
             original = read.Text!;
         }
@@ -326,30 +326,17 @@ public sealed partial class AgentToolRegistry
         return count;
     }
 
-    private static async Task<(string? Text, string? Error)> ReadProposalBaseAsync(string fullPath,
+    private static async Task<(string? Text, string? Error)> ReadProposalBaseAsync(string fullPath, IAgentBoundedFileReader? fileReader,
         CancellationToken cancellationToken)
     {
         byte[] bytes;
         try
         {
-            var info = new FileInfo(fullPath);
-            if (!info.Exists) return (null, ProposalErrors.NotFound);
-            if (info.Length > MaximumProposalTextBytes + 4) return (null, ProposalErrors.FileTooLarge);
-            await using var stream = new FileStream(fullPath, new FileStreamOptions
-            {
-                Mode = FileMode.Open,
-                Access = FileAccess.Read,
-                Share = FileShare.ReadWrite | FileShare.Delete,
-                Options = FileOptions.Asynchronous | FileOptions.SequentialScan,
-            });
-            var buffer = new byte[MaximumProposalTextBytes + 5];
-            var read = 0;
-            int chunk;
-            while (read < buffer.Length &&
-                   (chunk = await stream.ReadAsync(buffer.AsMemory(read), cancellationToken).ConfigureAwait(false)) > 0)
-                read += chunk;
-            if (read > MaximumProposalTextBytes + 4) return (null, ProposalErrors.FileTooLarge);
-            bytes = buffer[..read];
+            if (fileReader is null) return (null, ProposalErrors.NotFound);
+            var result = await fileReader.ReadAsync(fullPath, MaximumProposalTextBytes + 4, cancellationToken).ConfigureAwait(false);
+            if (result.State == AgentFileReadState.NotFound) return (null, ProposalErrors.NotFound);
+            if (result.State == AgentFileReadState.TooLarge) return (null, ProposalErrors.FileTooLarge);
+            bytes = result.Bytes;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException)

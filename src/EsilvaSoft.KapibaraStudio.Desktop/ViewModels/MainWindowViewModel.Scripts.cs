@@ -38,9 +38,10 @@ public sealed partial class MainWindowViewModel
     [ObservableProperty]
     private bool _persistScriptInput;
 
-    public bool CanSaveScript => !string.IsNullOrWhiteSpace(ScriptFilePath) && !string.IsNullOrWhiteSpace(ScriptText);
+    public bool CanSaveScript => !string.IsNullOrWhiteSpace(ScriptFilePath) && Path.IsPathFullyQualified(ScriptFilePath) &&
+        !string.IsNullOrWhiteSpace(ScriptText);
 
-    public bool CanLoadScript => !string.IsNullOrWhiteSpace(ScriptFilePath);
+    public bool CanLoadScript => !string.IsNullOrWhiteSpace(ScriptFilePath) && Path.IsPathFullyQualified(ScriptFilePath);
 
     partial void OnSelectedScriptHistoryChanged(ScriptHistoryEntry? value)
     {

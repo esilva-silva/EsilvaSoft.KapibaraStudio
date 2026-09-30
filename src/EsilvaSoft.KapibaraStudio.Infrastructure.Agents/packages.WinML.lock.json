@@ -188,11 +188,35 @@
       "esilvasoft.kapibarastudio.core": {
         "type": "Project"
       },
+      "esilvasoft.kapibarastudio.infrastructure.system": {
+        "type": "Project",
+        "dependencies": {
+          "EsilvaSoft.KapibaraStudio.Application": "[1.0.0, )",
+          "EsilvaSoft.KapibaraStudio.LocalAi.Core": "[1.0.0, )",
+          "GitHub.Copilot.SDK": "[1.0.14, )",
+          "LiteDB": "[5.0.21, )",
+          "Microsoft.Data.Sqlite": "[10.0.12, )",
+          "Microsoft.Extensions.Logging.Abstractions": "[10.0.10, )",
+          "Tmds.DBus.Protocol": "[0.94.1, )"
+        }
+      },
       "esilvasoft.kapibarastudio.localai.core": {
         "type": "Project",
         "dependencies": {
           "EsilvaSoft.KapibaraStudio.Core": "[1.0.0, )"
         }
+      },
+      "LiteDB": {
+        "type": "CentralTransitive",
+        "requested": "[5.0.21, )",
+        "resolved": "5.0.21",
+        "contentHash": "ykJ7ffFl7P9YQKR/PLci6zupiLrsSCNkOTiw6OtzntH7d2kCYp5L1+3a/pksKgTEHcJBoPXFtg7VZSGVBseN9w=="
+      },
+      "Tmds.DBus.Protocol": {
+        "type": "CentralTransitive",
+        "requested": "[0.94.1, )",
+        "resolved": "0.94.1",
+        "contentHash": "11YMr7FnAbL83bQmVxlhbIKHvSLxjO81D12Ej0QMSGXMDTxNA9MTOa4MQxx43nv5el/efuPHwzyrj6a5ha2gug=="
       }
     },
     "net10.0/linux-arm64": {

@@ -7,6 +7,7 @@ using EsilvaSoft.KapibaraStudio.Infrastructure;
 using EsilvaSoft.KapibaraStudio.Desktop.ViewModels;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
+using MongoDB.Driver;
 
 namespace EsilvaSoft.KapibaraStudio.UnitTests;
 
@@ -75,10 +76,14 @@ public sealed class AdvancedAggregationTests
     [TestCase("[{ $lookup: { from: 'other', pipeline: [{ $merge: 'copy' }], as: 'rows' } }]", "$lookup.pipeline")]
     public void DirectAggregationRejectsWritesBeforeConnecting(string pipeline, string location)
     {
-        var service = new MongoWorkspaceService();
+        var files = new RefusingMongoDatabaseExportFileAccess();
+        var clients = new RefusingMongoClientPool();
+        var service = new MongoWorkspaceService(files, clients: clients);
         var profile = ConnectionProfile.Create("Leitura", "mongodb://127.0.0.1:1", isReadOnly: true);
         var error = Assert.ThrowsAsync<InvalidOperationException>(() => service.AggregateAsync(profile, new("sample", "orders", pipeline)));
         Assert.That(error!.Message, Does.Contain(location).And.Contain("não foi enviado"));
+        Assert.That(files.Calls, Is.Zero);
+        Assert.That(clients.Requests, Is.Zero);
     }
 
     [TestCase("[{}]")]
@@ -96,6 +101,17 @@ public sealed class AdvancedAggregationTests
     {
         var pipeline = BsonSerializer.Deserialize<BsonArray>("[{ $project: { value: { $literal: { $out: 'data' } } } }, { $futureStage: {} }]");
         Assert.DoesNotThrow(() => AggregationPipelineValidator.ValidateReadPipeline(pipeline));
+    }
+
+    private sealed class RefusingMongoClientPool : IMongoClientPool
+    {
+        public int Requests { get; private set; }
+
+        public IMongoClient GetClient(MongoClientSettings settings)
+        {
+            Requests++;
+            throw new AssertionException("Agregação recusada não pode solicitar um cliente MongoDB.");
+        }
     }
 
     [TestCase("$match")]

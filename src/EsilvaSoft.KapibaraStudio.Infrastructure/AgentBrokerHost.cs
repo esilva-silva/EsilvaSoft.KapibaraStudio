@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.IO.Pipes;
 using System.Text.Json;
 using EsilvaSoft.KapibaraStudio.Application;
 using EsilvaSoft.KapibaraStudio.Application.Agents;
@@ -26,6 +25,7 @@ public sealed class AgentBrokerHost : IAsyncDisposable
     private readonly AgentBrokerAuthenticationLimiter _limiter;
     private readonly AgentBrokerCallAdmission _admission;
     private readonly IAgentMcpSessionScopes? _sessionScopes;
+    private readonly IAgentBrokerLocalTransport _transport;
     private readonly ConcurrentDictionary<AgentBrokerConnection, Task> _connections = new();
     private readonly SemaphoreSlim _lifecycle = new(1, 1);
     private SemaphoreSlim? _slots;
@@ -39,20 +39,22 @@ public sealed class AgentBrokerHost : IAsyncDisposable
     /// off, and they see only their turn plan. With external clients disabled, any other channel fails authentication.
     /// </remarks>
     public AgentBrokerHost(IAgentToolRegistry registry, IAgentPrincipalAuthority authority, AgentBrokerOptions options,
-        TimeProvider? timeProvider = null, IAgentMcpSessionScopes? sessionScopes = null)
+        TimeProvider? timeProvider = null, IAgentMcpSessionScopes? sessionScopes = null,
+        IAgentBrokerLocalTransport? transport = null)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _authority = authority ?? throw new ArgumentNullException(nameof(authority));
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _options.Validate();
         _sessionScopes = sessionScopes;
+        _transport = transport ?? throw new ArgumentNullException(nameof(transport));
         _limiter = new AgentBrokerAuthenticationLimiter(options.MaximumAuthenticationFailuresPerChannel,
             options.MaximumAuthenticationFailuresGlobal, options.AuthenticationFailureWindow,
             timeProvider ?? TimeProvider.System);
         // Host-wide, keyed by channel: reconnecting never refills a channel's budget.
         _admission = new AgentBrokerCallAdmission(options.CallBurstPerChannel, options.CallsPerMinutePerChannel,
             AgentToolRegistry.MaximumConcurrentCallsPerSession, timeProvider ?? TimeProvider.System);
-        Endpoint = AgentBrokerEndpoint.ForWorkspace(options.WorkspaceId);
+        Endpoint = _transport.GetEndpoint(options.WorkspaceId);
     }
 
     public AgentBrokerEndpoint Endpoint { get; }
@@ -86,11 +88,10 @@ public sealed class AgentBrokerHost : IAsyncDisposable
             _tools = BuildDescriptors(_registry);
             // Session channels left by a crash, kill or cancellation are revoked before anything is accepted.
             await RevokeOrphanSessionChannelsAsync(cancellationToken).ConfigureAwait(false);
-            Endpoint.EnsurePrivateDirectory();
-            RemoveStaleUnixSocket();
+            _transport.PrepareServerEndpoint(Endpoint);
             var slots = new SemaphoreSlim(_options.MaximumConnections, _options.MaximumConnections);
             await slots.WaitAsync(cancellationToken).ConfigureAwait(false);
-            NamedPipeServerStream first;
+            IAgentBrokerServerInstance first;
             try
             {
                 first = CreateInstance(firstInstance: true);
@@ -149,12 +150,7 @@ public sealed class AgentBrokerHost : IAsyncDisposable
             _acceptLoop = null;
             _slots?.Dispose();
             _slots = null;
-            if (!OperatingSystem.IsWindows() && File.Exists(Endpoint.PipeName))
-            {
-                try { File.Delete(Endpoint.PipeName); }
-                catch (IOException) { }
-                catch (UnauthorizedAccessException) { }
-            }
+            _transport.RemoveServerEndpoint(Endpoint);
         }
         finally
         {
@@ -182,7 +178,7 @@ public sealed class AgentBrokerHost : IAsyncDisposable
         _lifecycle.Dispose();
     }
 
-    private async Task AcceptLoopAsync(NamedPipeServerStream first, SemaphoreSlim slots, CancellationToken stop)
+    private async Task AcceptLoopAsync(IAgentBrokerServerInstance first, SemaphoreSlim slots, CancellationToken stop)
     {
         var instance = first;
         while (true)
@@ -206,7 +202,7 @@ public sealed class AgentBrokerHost : IAsyncDisposable
                 continue;
             }
 
-            var connection = new AgentBrokerConnection(instance, _registry, _authority, _options, _limiter,
+            var connection = new AgentBrokerConnection(instance.Stream, _registry, _authority, _options, _limiter,
                 _admission, _tools!, _sessionScopes);
             var registered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             _connections[connection] = ServeAsync(connection, slots, registered.Task, stop);
@@ -234,7 +230,7 @@ public sealed class AgentBrokerHost : IAsyncDisposable
         }
     }
 
-    private async Task<NamedPipeServerStream?> NextInstanceAsync(SemaphoreSlim slots, bool acquireSlot, CancellationToken stop)
+    private async Task<IAgentBrokerServerInstance?> NextInstanceAsync(SemaphoreSlim slots, bool acquireSlot, CancellationToken stop)
     {
         if (acquireSlot)
         {
@@ -262,32 +258,8 @@ public sealed class AgentBrokerHost : IAsyncDisposable
         }
     }
 
-    private NamedPipeServerStream CreateInstance(bool firstInstance)
-    {
-        var options = PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly;
-        // The first instance must create the pipe: if another process already owns this name, fail instead of
-        // sharing the endpoint with it.
-        if (firstInstance && OperatingSystem.IsWindows()) options |= PipeOptions.FirstPipeInstance;
-        return new NamedPipeServerStream(Endpoint.PipeName, PipeDirection.InOut,
-            _options.MaximumConnections, PipeTransmissionMode.Byte, options);
-    }
-
-    private void RemoveStaleUnixSocket()
-    {
-        if (OperatingSystem.IsWindows() || !File.Exists(Endpoint.PipeName)) return;
-        // A live broker answers; only a socket left by a crashed IDE is removed from the private directory.
-        using var probe = new NamedPipeClientStream(".", Endpoint.PipeName, PipeDirection.InOut,
-            PipeOptions.CurrentUserOnly);
-        try
-        {
-            probe.Connect(200);
-            throw new InvalidOperationException("O endpoint local do broker já está em uso.");
-        }
-        catch (Exception exception) when (exception is TimeoutException or IOException)
-        {
-            File.Delete(Endpoint.PipeName);
-        }
-    }
+    private IAgentBrokerServerInstance CreateInstance(bool firstInstance) =>
+        _transport.CreateServerInstance(Endpoint, _options.MaximumConnections, firstInstance);
 
     private static AgentBrokerToolDescriptor[] BuildDescriptors(IAgentToolRegistry registry) =>
         registry.GetChannelDescriptors()

@@ -400,7 +400,7 @@ internal sealed partial class ClaudeCodeAgentSession : IAgentSession
         private readonly CancellationTokenSource _user = new();
         private readonly CancellationTokenSource _work;
         private readonly Lock _processGate = new();
-        private ClaudeCodeProcess? _process;
+        private IClaudeCodeProcess? _process;
 
         public TurnContext(AgentTurnId turnId, TimeSpan maxDuration)
         {
@@ -431,7 +431,7 @@ internal sealed partial class ClaudeCodeAgentSession : IAgentSession
         public CancellationToken WorkToken => _work.Token;
 
         /// <summary>Associa o processo; se o turno já foi cancelado, a árvore é encerrada imediatamente.</summary>
-        public void Attach(ClaudeCodeProcess process)
+        public void Attach(IClaudeCodeProcess process)
         {
             lock (_processGate)
             {
@@ -446,7 +446,7 @@ internal sealed partial class ClaudeCodeAgentSession : IAgentSession
 
         public void KillProcessTree()
         {
-            ClaudeCodeProcess? process;
+            IClaudeCodeProcess? process;
             lock (_processGate)
             {
                 process = _process;

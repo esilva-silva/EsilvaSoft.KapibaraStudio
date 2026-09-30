@@ -1,4 +1,5 @@
 using System.Globalization;
+using EsilvaSoft.KapibaraStudio.Application.Agents;
 using System.Text.Json;
 using EsilvaSoft.KapibaraStudio.Core.Agents;
 
@@ -49,7 +50,7 @@ internal sealed record ClaudeCodeResultInfo(
 internal sealed class ClaudeCodeStreamTranslator(
     string expectedSessionId, ClaudeCodeVersion minimumVersion, string requestedModel, ClaudeCodeTurnSetup setup
 #if DEBUG
-    , string? debugLogDirectory = null
+    , IClaudeCodeSystem? system = null, string? debugLogDirectory = null
 #endif
     )
 {
@@ -238,7 +239,7 @@ internal sealed class ClaudeCodeStreamTranslator(
             var servers = root.TryGetProperty("mcp_servers", out var value) && value.ValueKind == JsonValueKind.Array ? value : default;
             var serverCount = servers.ValueKind == JsonValueKind.Array ? servers.GetArrayLength() : -1;
             var serverStatus = serverCount > 0 && servers[0].ValueKind == JsonValueKind.Object ? String(servers[0], "status") : null;
-            ClaudeCodeDebugLog.InitMismatch(debugLogDirectory, reasons, missingTools, unexpectedTools, names.Count,
+            ClaudeCodeDebugLog.InitMismatch(system!, debugLogDirectory, reasons, missingTools, unexpectedTools, names.Count,
                 _expectsMcpServer, serverCount, serverStatus, permissionMode, apiKeySource, model, versionText);
         }
 #endif

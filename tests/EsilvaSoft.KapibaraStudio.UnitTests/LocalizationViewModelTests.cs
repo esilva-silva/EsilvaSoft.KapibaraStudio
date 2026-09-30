@@ -175,18 +175,6 @@ public sealed class LocalizationViewModelTests
     }
 
     [Test]
-    public async Task LocalModelCatalogValidationUsesTheSelectedLanguage()
-    {
-        var localization = new LocalizationViewModel { Language = "zh-CN" };
-        var catalog = new LocalModelCatalog(Path.Combine(Path.GetTempPath(), "slop-i18n-missing-" + Guid.NewGuid().ToString("N")));
-        catalog.SetLocalization(localization.Resolve);
-
-        var validation = await catalog.ValidateAsync(Path.Combine(Path.GetTempPath(), "slop-model-missing-" + Guid.NewGuid().ToString("N")));
-
-        Assert.That(validation.Status.Message, Does.StartWith("模型未安装。"));
-    }
-
-    [Test]
     public void ConsoleHistoryAndResultPresentationUseTheSelectedLanguage()
     {
         var previousLanguage = LocalizationViewModel.Current.Language;

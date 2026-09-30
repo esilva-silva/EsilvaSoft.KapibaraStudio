@@ -245,7 +245,7 @@ public sealed class LanguageCaseCorpusTests
         {
             var root = FindSchemaFile(@case.SourcePath, reference);
             var builder = new SchemaBuilder();
-            using var document = JsonDocument.Parse(File.ReadAllText(root));
+            using var document = JsonDocument.Parse(EmbeddedTestData.ReadText(root));
             foreach (var field in document.RootElement.GetProperty("fields").EnumerateArray())
             {
                 var segments = field.TryGetProperty("segments", out var declaredSegments)
@@ -269,14 +269,16 @@ public sealed class LanguageCaseCorpusTests
 
     private static string FindSchemaFile(string casePath, string reference)
     {
-        var directory = new DirectoryInfo(Path.GetDirectoryName(casePath)!);
-        while (directory is not null)
+        var normalized = casePath.Replace('\\', '/');
+        var directory = normalized[..normalized.LastIndexOf('/')];
+        while (directory.Length > 0)
         {
-            var candidate = Path.Combine(directory.FullName, reference);
-            if (File.Exists(candidate)) return candidate;
-            directory = directory.Parent;
+            var candidate = directory + "/" + reference.Replace('\\', '/');
+            if (EmbeddedTestData.Contains(candidate)) return candidate;
+            var separator = directory.LastIndexOf('/');
+            directory = separator < 0 ? string.Empty : directory[..separator];
         }
-        throw new FileNotFoundException($"Schema do corpus não encontrado: {reference}", reference);
+        throw new InvalidDataException($"Schema do corpus não encontrado: {reference}");
     }
 
     private static IEnumerable<string> FieldTypes(JsonElement types) => types.ValueKind switch

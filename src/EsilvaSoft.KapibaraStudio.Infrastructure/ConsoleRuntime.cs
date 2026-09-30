@@ -13,13 +13,14 @@ namespace EsilvaSoft.KapibaraStudio.Infrastructure;
 
 public sealed class ConsoleRuntime(IConnectionProfileRepository profiles, IEnvironmentVaultRepository environments,
     IConnectionSecretStore secrets, IConsoleDatabaseSessionFactory sessions, IConsoleHistoryRepository history,
-    IAuditRepository audit, IMetadataInvalidationBus? metadata = null, ISecretStore? credentialStore = null) : IConsoleRuntime
+    IAuditRepository audit, IMetadataInvalidationBus? metadata = null, ISecretStore? credentialStore = null,
+    IHostEnvironmentSnapshot? hostEnvironment = null, IHostPlatformSnapshot? hostPlatform = null) : IConsoleRuntime
 {
     private Func<string, string>? _localize;
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
     private static readonly HashSet<string> ReadMethods = ["find", "findOne", "aggregate", "countDocuments", "estimatedDocumentCount", "distinct", "stats", "databaseStats"];
     private static readonly HashSet<string> WriteMethods = ["insertOne", "insertMany", "updateOne", "updateMany", "replaceOne", "deleteOne", "deleteMany", "drop", "dropDatabase", "createIndex", "dropIndex", "createCollection"];
-    private static readonly string Bootstrap = ReadBootstrap();
+    private const string Bootstrap = ConsoleBootstrap.Source;
     public void SetLocalization(Func<string, string> localize)
     {
         _localize = localize ?? throw new ArgumentNullException(nameof(localize));
@@ -40,7 +41,8 @@ public sealed class ConsoleRuntime(IConnectionProfileRepository profiles, IEnvir
         if (request.Script.Length > 1_000_000 || string.IsNullOrWhiteSpace(request.Database)) throw new ArgumentException(L("consoleDatabaseAndScriptLimit", "Informe banco e script de até 1 MB."));
         if (request.DocumentLimit is < 1 or > 1000 || request.TimeoutMs is < 1 or > 300000) throw new ArgumentException(L("consoleDocumentLimit", "Limite: 1–1000 documentos; timeout: 1–300000 ms."));
         // Capture the environment and process values before the first await; additional profiles use this same snapshot.
-        var environment = new OperationEnvironment(environments, null, request.Primary.Id);
+        var environment = new OperationEnvironment(environments, null, request.Primary.Id, hostEnvironment: hostEnvironment,
+            hostPlatform: hostPlatform);
         var values = environment.ScriptValues.ToDictionary(p => p.Key, p => p.Value, StringComparer.Ordinal);
         var started = Stopwatch.GetTimestamp();
         var occurredAt = DateTimeOffset.UtcNow;
@@ -206,9 +208,4 @@ public sealed class ConsoleRuntime(IConnectionProfileRepository profiles, IEnvir
         _ => []
     };
 
-    private static string ReadBootstrap()
-    {
-        using var stream = typeof(ConsoleRuntime).Assembly.GetManifestResourceStream("EsilvaSoft.KapibaraStudio.Infrastructure.ConsoleBootstrap.js")!;
-        using var reader = new StreamReader(stream); return reader.ReadToEnd();
-    }
 }

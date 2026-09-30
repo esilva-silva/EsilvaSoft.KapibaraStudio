@@ -2,54 +2,23 @@ using EsilvaSoft.KapibaraStudio.Application;
 using EsilvaSoft.KapibaraStudio.Application.Agents;
 using EsilvaSoft.KapibaraStudio.Core;
 using EsilvaSoft.KapibaraStudio.Infrastructure;
+using EsilvaSoft.KapibaraStudio.SystemAdapters;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace EsilvaSoft.KapibaraStudio.UnitTests;
 
-[TestFixture]
+[TestFixture, Category("Unit")]
 public sealed class ServiceCollectionExtensionsAgentSecretsTests
 {
-    [Test]
-    public void AgentAuthorizationServicesShareTheWorkspaceOwnerAndRemainSingletons()
-    {
-        var directory = Directory.CreateTempSubdirectory("kapibarastudio-agent-policy-di-");
-        try
-        {
-            var services = new ServiceCollection();
-            services.AddKapibaraStudioInfrastructure(Path.Combine(directory.FullName, "workspace.db"));
-
-            using var provider = services.BuildServiceProvider();
-            var owner = provider.GetRequiredService<LiteDbConnectionProfileRepository>();
-            var policyProvider = provider.GetRequiredService<IAgentAuthorizationPolicyProvider>();
-            var policyRepository = provider.GetRequiredService<IAgentAuthorizationPolicyRepository>();
-            var evaluator = provider.GetRequiredService<IAgentPermissionEvaluator>();
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(policyProvider, Is.InstanceOf<NativeChatTurnPolicyProvider>());
-                Assert.That(policyRepository, Is.SameAs(owner));
-                Assert.That(provider.GetRequiredService<IAgentAuthorizationPolicyProvider>(), Is.SameAs(policyProvider));
-                Assert.That(provider.GetRequiredService<IAgentAuthorizationPolicyRepository>(), Is.SameAs(policyRepository));
-                Assert.That(evaluator, Is.InstanceOf<AgentPermissionEvaluator>());
-                Assert.That(provider.GetRequiredService<IAgentPermissionEvaluator>(), Is.SameAs(evaluator));
-                // Always composed; the default stage (ADR-056) releases metadata tools only, never documents or writes.
-                Assert.That(provider.GetRequiredService<IAgentToolRegistry>().GetDescriptors()
-                    .Select(descriptor => AgentToolExposure.StageOf(descriptor.Name)),
-                    Is.All.EqualTo(AgentToolExposureStage.Metadata));
-            });
-        }
-        finally
-        {
-            directory.Delete(recursive: true);
-        }
-    }
-
-    [Test]
-    public void RealCompositionResolvesOneNativeStoreWithoutProbingItAtStartup()
+    [TestCase(true, false, typeof(WindowsCredentialSecretStore))]
+    [TestCase(false, true, typeof(LinuxSecretServiceSecretStore))]
+    [TestCase(false, false, typeof(UnavailableSecretStore))]
+    public void CompositionResolvesOnePlatformStoreWithoutProbingItAtStartup(bool isWindows, bool isLinux, Type expectedStore)
     {
         var services = new ServiceCollection();
-        services.AddKapibaraStudioInfrastructure(Path.Combine(Path.GetTempPath(), $"kapibarastudio-secrets-{Guid.NewGuid():N}.db"));
+        services.AddSingleton<IHostPlatformSnapshot>(new FakeHostPlatformSnapshot(isWindows, isLinux));
+        services.AddKapibaraStudioInfrastructure(SyntheticPaths.Combine($"kapibarastudio-secrets-{Guid.NewGuid():N}.db"));
 
         using var provider = services.BuildServiceProvider();
         var store = provider.GetRequiredService<ISecretStore>();
@@ -59,16 +28,14 @@ public sealed class ServiceCollectionExtensionsAgentSecretsTests
         {
             Assert.That(store, Is.SameAs(provider.GetRequiredService<ISecretStore>()));
             Assert.That(credentialProvider, Is.SameAs(provider.GetRequiredService<IAgentCredentialProvider>()));
-            Assert.That(store, OperatingSystem.IsWindows() ? Is.InstanceOf<WindowsCredentialSecretStore>() :
-                OperatingSystem.IsLinux() ? Is.InstanceOf<LinuxSecretServiceSecretStore>() :
-                Is.InstanceOf<UnavailableSecretStore>());
+            Assert.That(store, Is.TypeOf(expectedStore));
         });
     }
 
     [Test]
     public async Task UnsupportedPlatformRemainsAvailableToTheContainerWithTypedFailures()
     {
-        var store = ServiceCollectionExtensions.CreateAgentSecretStore(isWindows: false, isLinux: false);
+        var store = AgentSecretStoreFactory.Create(new FakeHostPlatformSnapshot(IsWindows: false, IsLinux: false));
         var reference = new SecretReference(Guid.NewGuid());
 
         var availability = await store.GetAvailabilityAsync();
@@ -90,7 +57,7 @@ public sealed class ServiceCollectionExtensionsAgentSecretsTests
     {
         var store = new RecordingUnavailableStore();
         var services = new ServiceCollection();
-        services.AddKapibaraStudioInfrastructure(Path.Combine(Path.GetTempPath(), $"kapibarastudio-secrets-{Guid.NewGuid():N}.db"));
+        services.AddKapibaraStudioInfrastructure(SyntheticPaths.Combine($"kapibarastudio-secrets-{Guid.NewGuid():N}.db"));
         services.Replace(ServiceDescriptor.Singleton<ISecretStore>(store));
         using var provider = services.BuildServiceProvider();
         var resolver = provider.GetRequiredService<IAgentCredentialProvider>();
@@ -134,4 +101,6 @@ public sealed class ServiceCollectionExtensionsAgentSecretsTests
         public Task<SecretStoreOperationResult> DeleteAsync(SecretReference reference, CancellationToken cancellationToken = default) =>
             throw new AssertionException("A resolução não deve excluir segredos.");
     }
+
+    private sealed record FakeHostPlatformSnapshot(bool IsWindows, bool IsLinux) : IHostPlatformSnapshot;
 }

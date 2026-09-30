@@ -1,6 +1,14 @@
 # Arquitetura proposta
 
+**Refatoração de adapters do SO (30/09/2026):** `Infrastructure.System` concentra serviços de texto/arquivos, console STDIO MCP, LiteDB, catálogo e diretórios de modelos, atualização, segredos Windows/Linux, broker/IPC, credenciais MCP, launchers, diagnóstico e processos Claude/Codex/mongosh/Copilot. O runtime ONNX especializado está em `Infrastructure.LocalAi.OnnxAdapter`; medição de memória usa porta de Application. Consumidores usam interfaces; testes unitários usam doubles e integração mantém adapters reais. Restore locked, build e suítes Windows passaram após os ajustes de fixtures sintéticas e injeção do pool Mongo (UnitTests 3318/20; IntegrationTests 860/14). Builds cruzados `linux-x64` de Desktop e McpServer passaram. Execução nativa/testes em Linux seguem pendentes porque este host não tem distribuição WSL; confira evidências em [adapters do SO](architecture/system-adapters.md).
+
+O incremento Copilot move wrapper SDK, stores SessionFs/SQLite, configuração nativa e comandos de conta para `Infrastructure.System`. Portas específicas do SDK permanecem internas a essa fronteira; DTOs GitHub não entram em `Application`/`Core`. O provider recebe recursos e comandos por interfaces; a composição Desktop permite substituí-los e mantém um proprietário dos recursos. Testes de regras e da ponte automatizada Desktop usam cliente/sessão/store em memória; testes de SDK/PowerShell reais e homologação manual Desktop estão na integração. Políticas de turnos nativos usam repositório/autoridade simulados nos testes. Outras dependências transitivas, incluindo caminhos de ferramentas de sessão, ainda exigem migração.
+
 ## Organização
+
+Claude Code recebe `IClaudeCodeSystem` obrigatório e endpoints de processo por interface. Descoberta/terminal oficial/probes/arquivos/logs ficam em System; autenticação é delegada exclusivamente à CLI. Mongosh recebe `IMongoshScriptProcessRunner` e snapshot de ambiente, com recursos nativos no projeto separado. `IHostEnvironmentSnapshot` é injetado nos consumidores Mongo/console/script: cada operação copia as variáveis capturadas, sem fallback nativo quando a porta está ausente. Driver/DNS/broker de produção ainda exigem extração.
+
+Anexos e propostas recebem `IAgentBoundedFileReader`; o adapter local mantém aquisição limitada de bytes em Infrastructure.System. Decodificação/redação e regras de consentimento permanecem em Application. Registry/chat são compostos com as portas de leitura e `IAgentWorkspacePathProbe`; ausência nega alvos em disco. `AgentWorkspacePaths` conserva normalização/containment/exclusões e recebe fatos de existência/links pelo probe local. O store Desktop também recebe o reader para validar a base de arquivos fechados; nunca grava. O picker recebe `IAgentWorkspaceFileCatalog`, cuja enumeração limitada fica no adapter System. A abertura de editor consulta existência pela porta de caminhos; testes de privacidade usam arquivos simulados.
 
 Aplicação desktop modular, MVVM, operações assíncronas e injeção de dependências. Não há necessidade inicial de servidor web, microserviços ou broker. `BsonDocument` será o modelo de documentos MongoDB; a biblioteca `MongoDB.Bson` pode fazer parte dos contratos especializados sem carregar o cliente de rede no domínio.
 
@@ -31,7 +39,9 @@ src/
   EsilvaSoft.KapibaraStudio.LocalAi.Core/         # contratos e políticas puras de IA local
   EsilvaSoft.KapibaraStudio.Application/          # casos de uso e orquestração
   EsilvaSoft.KapibaraStudio.Infrastructure/       # LiteDB, MongoDB.Driver, console Jint, mongosh, update
-  EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi/ # ONNX Runtime GenAI, adaptadores e fonte remota de modelos
+  EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi/ # composição de adaptadores e fonte remota de modelos
+  EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi.OnnxAdapter/ # SDK ONNX Runtime GenAI e implementação do runtime
+  EsilvaSoft.KapibaraStudio.Infrastructure.System/ # arquivos, processos, console, LiteDB e adapters do SO
   EsilvaSoft.KapibaraStudio.Atlas/                # planejado no backlog sem versão
   EsilvaSoft.KapibaraStudio.Desktop/              # Avalonia MVVM e composition root
 tests/
@@ -59,11 +69,15 @@ flowchart TD
   APP --> ACORE
   APP --> AICORE
   INFRA[Infrastructure<br/>MongoDB.Driver, LiteDB, Jint] --> APP
-  INFRAAI[Infrastructure.LocalAi<br/>ONNX Runtime GenAI] --> APP
-  INFRAAI --> AICORE
+  INFRAAI[Infrastructure.LocalAi<br/>composição IA local] --> APP
+  ONNX[Infrastructure.LocalAi.OnnxAdapter<br/>ONNX Runtime GenAI] --> APP
+  ONNX --> AICORE
+  SYSTEM[Infrastructure.System<br/>adapters do SO] --> APP
   DESK[Desktop<br/>Avalonia, composition root] --> APP
   DESK --> INFRA
   DESK --> INFRAAI
+  DESK --> ONNX
+  DESK --> SYSTEM
 ```
 
 As setas apontam para a dependência. O grafo não tem ciclo: `Core` não referencia nenhuma camada superior, `Application` não referencia `Infrastructure` nem `Desktop`, e as duas `Infrastructure` não se referenciam.
@@ -74,8 +88,10 @@ As setas apontam para a dependência. O grafo não tem ciclo: `Core` não refere
 | `Autocomplete.Core` | Completion determinístico: lexer/parser tolerante a erros, contexto, ranking, snippets, contratos de cache de schema, syntax highlighting, política de privacidade do contexto | MongoDB.Driver, LiteDB, Avalonia, ONNX Runtime, acesso a arquivo ou rede |
 | `LocalAi.Core` | Contratos e políticas puras de IA local: serviço de modelo, catálogo, runtime, tokenizer, construtor de prompt, estados, riscos e exceções | Regras de MongoDB, persistência, UI e qualquer runtime de inferência |
 | `Application` | Casos de uso, validações, serviços de linguagem e orquestração de IA (implementações concretas), barra de operações, caminhos do workspace | Referência a `Infrastructure`, `Infrastructure.LocalAi` ou `Desktop` |
-| `Infrastructure` | Adaptadores MongoDB.Driver, proprietário único LiteDB, console Jint, runner mongosh, atualização por GitHub Releases | ONNX Runtime e qualquer tipo de Avalonia |
-| `Infrastructure.LocalAi` | Adaptadores ONNX Runtime GenAI, adaptadores por arquitetura de modelo, catálogo/metadados locais, download Hugging Face, seleção de provider | MongoDB.Driver, LiteDB e qualquer tipo de Avalonia |
+| `Infrastructure` | Adaptadores MongoDB.Driver, console Jint, runner mongosh, consulta a releases e composição/DI do owner LiteDB em System | ONNX Runtime e qualquer tipo de Avalonia |
+| `Infrastructure.LocalAi` | Composição IA local, catálogo/metadados, adaptadores por arquitetura de modelo, download Hugging Face, seleção de provider | MongoDB.Driver, LiteDB e qualquer tipo de Avalonia |
+| `Infrastructure.LocalAi.OnnxAdapter` | SDK ONNX Runtime GenAI, execução do runtime e leitura nativa de modelo | MongoDB.Driver, LiteDB e qualquer tipo de Avalonia |
+| `Infrastructure.System` | Implementações de filesystem, processos, console, segurança nativa e armazenamento local atrás de portas | Regras de domínio, UI e providers de produto |
 | `Desktop` | Apresentação Avalonia MVVM e composition root (`AddKapibaraStudioInfrastructure` + `AddKapibaraStudioLocalAiInfrastructure`) | Uso direto de driver concreto de banco |
 
 O isolamento é verificado pelo compilador, não por convenção: o autocomplete determinístico não tem como alcançar metadados reais, persistência ou inferência, e o runtime de IA não tem como alcançar `MongoDB.Driver`. Consulte [ADR-040](10-decisoes-arquiteturais.md) para a decisão completa e os desvios aceitos.

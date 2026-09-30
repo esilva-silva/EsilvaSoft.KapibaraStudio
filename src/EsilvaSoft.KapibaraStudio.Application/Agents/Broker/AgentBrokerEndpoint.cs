@@ -25,19 +25,20 @@ public sealed record AgentBrokerEndpoint
     public string? PrivateDirectory { get; }
 
     /// <exception cref="PlatformNotSupportedException">No private per-user location is available.</exception>
-    public static AgentBrokerEndpoint ForWorkspace(Guid workspaceId)
+    public static AgentBrokerEndpoint ForWorkspace(Guid workspaceId, AgentBrokerEndpointIdentity identity)
     {
+        ArgumentNullException.ThrowIfNull(identity);
         if (workspaceId == Guid.Empty) throw new ArgumentException("O workspace precisa de um identificador.", nameof(workspaceId));
         var suffix = $"v{AgentBrokerProtocol.MajorVersion}-{workspaceId:N}";
-        if (OperatingSystem.IsWindows())
+        if (identity.IsWindows)
         {
-            var sid = System.Security.Principal.WindowsIdentity.GetCurrent().User?.Value
+            var sid = identity.WindowsUserSid
                 ?? throw new PlatformNotSupportedException("Usuário do Windows sem SID.");
             return new($"EsilvaSoft.KapibaraStudio.AgentBroker.{UserKey(sid)}.{suffix}", null);
         }
 
-        var runtime = Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR");
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var runtime = identity.RuntimeDirectory;
+        var home = identity.HomeDirectory;
         var root = !string.IsNullOrWhiteSpace(runtime) && Path.IsPathFullyQualified(runtime)
             ? runtime
             : !string.IsNullOrWhiteSpace(home) && Path.IsPathFullyQualified(home)
@@ -47,34 +48,13 @@ public sealed record AgentBrokerEndpoint
         return new(Path.Combine(directory, $"agent-broker-{suffix}.sock"), directory);
     }
 
-    /// <summary>Host side: creates the Unix private directory as 0700 and verifies it. No-op on Windows.</summary>
-    /// <exception cref="UnauthorizedAccessException">The directory exists with a mode other than 0700.</exception>
-    public void EnsurePrivateDirectory()
-    {
-        if (PrivateDirectory is null || OperatingSystem.IsWindows()) return;
-        Directory.CreateDirectory(PrivateDirectory, PrivateMode);
-        if (!HasPrivateDirectory())
-            throw new UnauthorizedAccessException("O diretório do socket local não é privado (0700).");
-    }
-
-    /// <summary>Client side: the socket directory exists and is not accessible to group/others.</summary>
-    public bool HasPrivateDirectory()
-    {
-        if (PrivateDirectory is null || OperatingSystem.IsWindows()) return true;
-        try
-        {
-            var info = new DirectoryInfo(PrivateDirectory);
-            return info.Exists && info.LinkTarget is null && info.UnixFileMode == PrivateMode;
-        }
-        catch (IOException) { return false; }
-        catch (UnauthorizedAccessException) { return false; }
-    }
-
-    private const UnixFileMode PrivateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
-
     private static string UserKey(string userIdentity)
     {
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(userIdentity));
         return Convert.ToHexString(hash, 0, 8).ToLowerInvariant();
     }
 }
+
+/// <summary>Non-secret identity and paths supplied by the OS adapter, or by a controlled test double.</summary>
+public sealed record AgentBrokerEndpointIdentity(bool IsWindows, string? WindowsUserSid = null,
+    string? RuntimeDirectory = null, string? HomeDirectory = null);

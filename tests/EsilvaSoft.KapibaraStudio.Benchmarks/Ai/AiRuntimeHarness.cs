@@ -463,11 +463,14 @@ public sealed record AiRuntimeReport
 /// </remarks>
 /// <param name="sessionFactory">Abre a sessão de um alvo; o harness não constrói serviço nem runtime.</param>
 /// <param name="hardware">Sonda de aceleradores; a mesma da produção no caminho real, um fake no teste.</param>
-public sealed class AiRuntimeHarness(Func<AiRuntimeTarget, AiRuntimeSession> sessionFactory, IAiHardwareProbe hardware)
+/// <param name="environmentProvider">Captura o ambiente relatado; omitido, usa os metadados do runtime corrente.</param>
+public sealed class AiRuntimeHarness(Func<AiRuntimeTarget, AiRuntimeSession> sessionFactory, IAiHardwareProbe hardware,
+    Func<AiEvaluationEnvironment>? environmentProvider = null)
 {
     private readonly Func<AiRuntimeTarget, AiRuntimeSession> _sessionFactory =
         sessionFactory ?? throw new ArgumentNullException(nameof(sessionFactory));
     private readonly IAiHardwareProbe _hardware = hardware ?? throw new ArgumentNullException(nameof(hardware));
+    private readonly Func<AiEvaluationEnvironment> _environmentProvider = environmentProvider ?? AiEvaluationEnvironment.Current;
 
     /// <summary>Execuções descartadas por cenário antes de cronometrar; absorvem JIT, primeiro toque e warmup do provider.</summary>
     public int WarmupRepetitions { get; init; } = 1;
@@ -523,7 +526,7 @@ public sealed class AiRuntimeHarness(Func<AiRuntimeTarget, AiRuntimeSession> ses
             GeneratedAtUtc = DateTimeOffset.UtcNow,
             Repetitions = Math.Max(1, Repetitions),
             WarmupRepetitions = Math.Max(0, WarmupRepetitions),
-            Environment = AiEvaluationEnvironment.Current(),
+            Environment = _environmentProvider(),
             DetectedHardware = await DetectHardwareAsync(cancellationToken).ConfigureAwait(false),
             Scenarios = [.. scenarios.Select(scenario => scenario.Id)],
             Targets = reports

@@ -6,11 +6,33 @@ using EsilvaSoft.KapibaraStudio.Infrastructure.Agents.ClaudeCode;
 using EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Codex;
 using EsilvaSoft.KapibaraStudio.Infrastructure.Agents.OpenAi;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using EsilvaSoft.KapibaraStudio.SystemAdapters.Processes;
+using EsilvaSoft.KapibaraStudio.SystemAdapters;
+using EsilvaSoft.KapibaraStudio.SystemAdapters.Copilot;
+using EsilvaSoft.KapibaraStudio.SystemAdapters.ClaudeCode;
+using EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Copilot;
 
 namespace EsilvaSoft.KapibaraStudio.Infrastructure.Agents;
 
 public static class AgentProviderServiceCollectionExtensions
 {
+    /// <summary>Registers Copilot with replaceable account commands and per-provider runtime resources.</summary>
+    public static IServiceCollection AddKapibaraStudioCopilotSubscriptionAgentProvider(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        if (services.Any(static descriptor => descriptor.ServiceType == typeof(CopilotSubscriptionAgentProvider)))
+            throw new InvalidOperationException("O provider Copilot por assinatura já foi composto.");
+        services.TryAddSingleton<ICopilotAccountCommands, LocalCopilotAccountCommands>();
+        services.TryAddSingleton<ICopilotRuntimeResourcesFactory, LocalCopilotRuntimeResourcesFactory>();
+        services.AddSingleton(provider => new CopilotSubscriptionAgentProvider(
+            provider.GetRequiredService<IAgentToolRegistry>(),
+            provider.GetRequiredService<ICopilotRuntimeResourcesFactory>().Create(),
+            provider.GetRequiredService<ICopilotAccountCommands>()));
+        services.AddSingleton<IAgentProvider>(provider => provider.GetRequiredService<CopilotSubscriptionAgentProvider>());
+        return services;
+    }
+
     /// <summary>
     /// Registers the OpenAI API adapter as an <see cref="IAgentProvider"/>. Registration opens no connection and reads
     /// no secret: the provider only reports itself available, and only creates sessions, when an API Key exists in the
@@ -52,7 +74,8 @@ public static class AgentProviderServiceCollectionExtensions
     /// owns its HTTP handler and is disposed with the container.
     /// </summary>
     public static IServiceCollection AddKapibaraStudioClaudeAgentProvider(
-        this IServiceCollection services, ClaudeAgentProviderOptions? options = null)
+        this IServiceCollection services, ClaudeAgentProviderOptions? options = null,
+        Func<IServiceProvider, HttpMessageHandler?>? handlerFactory = null)
     {
         ArgumentNullException.ThrowIfNull(services);
         if (services.Any(static descriptor => descriptor.ServiceType == typeof(ClaudeAgentProvider)))
@@ -67,7 +90,8 @@ public static class AgentProviderServiceCollectionExtensions
         {
             EnsureToolResultWaitCovers(configured.Budget.ToolResultTimeout, RuntimeOptionsOf(provider), "Claude");
             return new ClaudeAgentProvider(
-                provider.GetRequiredService<IAgentCredentialProvider>(), configured, provider.GetService<IAgentToolRegistry>());
+                provider.GetRequiredService<IAgentCredentialProvider>(), configured, provider.GetService<IAgentToolRegistry>(),
+                handlerFactory?.Invoke(provider));
         });
         services.AddSingleton<IAgentProvider>(provider => provider.GetRequiredService<ClaudeAgentProvider>());
         return services;
@@ -95,7 +119,9 @@ public static class AgentProviderServiceCollectionExtensions
 
         var configured = options ?? new ClaudeCodeAgentProviderOptions();
         configured.Validate();
-        services.AddSingleton(provider => new ClaudeCodeAgentProvider(configured, mcpChannel?.Invoke(provider)));
+        services.TryAddSingleton<IClaudeCodeSystem, LocalClaudeCodeSystem>();
+        services.AddSingleton(provider => new ClaudeCodeAgentProvider(configured,
+            provider.GetRequiredService<IClaudeCodeSystem>(), mcpChannel?.Invoke(provider)));
         services.AddSingleton<IAgentProvider>(provider => provider.GetRequiredService<ClaudeCodeAgentProvider>());
         return services;
     }
@@ -111,7 +137,11 @@ public static class AgentProviderServiceCollectionExtensions
             throw new InvalidOperationException("O provider Codex por assinatura já foi composto.");
         }
 
+        services.TryAddSingleton<ICodexAppServerProcessLauncher, LocalCodexAppServerProcessLauncher>();
+        services.TryAddSingleton<IAgentWorkspaceDirectoryProbe, LocalAgentWorkspaceDirectoryProbe>();
         services.AddSingleton(provider => new CodexSubscriptionAgentProvider(options,
+            provider.GetRequiredService<ICodexAppServerProcessLauncher>(),
+            provider.GetRequiredService<IAgentWorkspaceDirectoryProbe>(),
             provider.GetService<IAgentToolRegistry>()));
         services.AddSingleton<IAgentProvider>(provider => provider.GetRequiredService<CodexSubscriptionAgentProvider>());
         return services;

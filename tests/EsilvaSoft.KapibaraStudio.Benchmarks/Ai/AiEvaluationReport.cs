@@ -154,7 +154,8 @@ public sealed record AiEvaluationReport
 
     /// <summary>Agrega medições sem um harness, para que a agregação seja testável com valores fabricados.</summary>
     public static AiEvaluationReport Aggregate(string contractId, string tokenCounter, int rootSeed, int repetitions,
-        int warmupRepetitions, AiEvaluationDistribution distribution, IReadOnlyList<AiCaseMeasurement> measurements)
+        int warmupRepetitions, AiEvaluationDistribution distribution, IReadOnlyList<AiCaseMeasurement> measurements,
+        AiEvaluationEnvironment? environment = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(contractId);
         ArgumentException.ThrowIfNullOrEmpty(tokenCounter);
@@ -171,7 +172,7 @@ public sealed record AiEvaluationReport
             RootSeed = rootSeed,
             Repetitions = repetitions,
             WarmupRepetitions = warmupRepetitions,
-            Environment = AiEvaluationEnvironment.Current(),
+            Environment = environment ?? AiEvaluationEnvironment.Current(),
             Distribution = distribution,
             PromptTokens = AiMetricSummary.Of(measurements.Select(measurement => measurement.PromptTokens)),
             FactTokens = AiMetricSummary.Of(measurements.Select(measurement => measurement.FactTokens)),

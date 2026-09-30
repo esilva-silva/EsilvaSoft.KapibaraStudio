@@ -49,20 +49,6 @@ public sealed class ApplicationLanguageTests
     }
 
     [Test]
-    public async Task SessionBoundaryNormalizesInvalidLanguageToEnglishFallback()
-    {
-        using var context = new WorkspaceTestContext();
-
-        await context.Repository.SaveSessionAsync(new WorkspaceSession
-        {
-            Preferences = new WorkspacePreferences { Language = "fr" }
-        });
-
-        Assert.That((await context.Repository.LoadSessionAsync()).Preferences.Language,
-            Is.EqualTo(ApplicationLanguages.FallbackCode));
-    }
-
-    [Test]
     public async Task WorkspacePersistsSelectedLanguageWithoutChangingDraftPolicy()
     {
         using var context = new WorkspaceTestContext();

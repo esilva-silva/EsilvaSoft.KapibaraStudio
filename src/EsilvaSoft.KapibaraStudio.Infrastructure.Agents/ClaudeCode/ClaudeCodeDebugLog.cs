@@ -1,5 +1,6 @@
 #if DEBUG
 using System.Text.Json;
+using EsilvaSoft.KapibaraStudio.Application.Agents;
 
 namespace EsilvaSoft.KapibaraStudio.Infrastructure.Agents.ClaudeCode;
 
@@ -9,18 +10,16 @@ namespace EsilvaSoft.KapibaraStudio.Infrastructure.Agents.ClaudeCode;
 /// </summary>
 internal static class ClaudeCodeDebugLog
 {
-    private const long MaximumFileBytes = 1024 * 1024;
     private const int MaximumToolNames = 32;
-    private static readonly Lock Gate = new();
 
     public static void InitMismatch(
-        string? directory, IReadOnlyCollection<string> reasons, IReadOnlyCollection<string> missingTools,
+        IClaudeCodeSystem system, string? directory, IReadOnlyCollection<string> reasons, IReadOnlyCollection<string> missingTools,
         IReadOnlyCollection<string> unexpectedTools, int observedToolCount, bool expectsMcp,
         int observedMcpServerCount, string? observedMcpStatus, string? permissionMode,
         string? apiKeySource, string? model, string? version)
     {
         if (directory is null) return;
-        Write(directory, new
+        Write(system, directory, new
         {
             timestampUtc = DateTimeOffset.UtcNow,
             eventType = "ClaudeCodeInitMismatch",
@@ -40,11 +39,11 @@ internal static class ClaudeCodeDebugLog
         });
     }
 
-    public static void TurnFailure(string? directory, string errorCode, string stage, bool resultReceived, int discardedLines,
+    public static void TurnFailure(IClaudeCodeSystem system, string? directory, string errorCode, string stage, bool resultReceived, int discardedLines,
         int? exitCode)
     {
         if (directory is null) return;
-        Write(directory, new
+        Write(system, directory, new
         {
             timestampUtc = DateTimeOffset.UtcNow,
             eventType = "ClaudeCodeTurnFailure",
@@ -78,27 +77,10 @@ internal static class ClaudeCodeDebugLog
                 : "<redacted>";
     }
 
-    private static void Write(string directory, object entry)
+    private static void Write(IClaudeCodeSystem system, string directory, object entry)
     {
-        try
-        {
-            var line = JsonSerializer.Serialize(entry) + Environment.NewLine;
-            lock (Gate)
-            {
-                Directory.CreateDirectory(directory);
-                var path = Path.Combine(directory, "claude-code-debug.jsonl");
-                if (File.Exists(path) && new FileInfo(path).Length + line.Length > MaximumFileBytes)
-                {
-                    File.Move(path, Path.Combine(directory, "claude-code-debug.1.jsonl"), overwrite: true);
-                }
-
-                File.AppendAllText(path, line);
-            }
-        }
-        catch (Exception)
-        {
-            // Diagnostics must never change the outcome of a turn or expose data through an exception.
-        }
+        try { system.AppendDebugLog(directory, JsonSerializer.Serialize(entry)); }
+        catch (Exception) { /* Diagnóstico nunca altera o resultado do turno. */ }
     }
 }
 #endif

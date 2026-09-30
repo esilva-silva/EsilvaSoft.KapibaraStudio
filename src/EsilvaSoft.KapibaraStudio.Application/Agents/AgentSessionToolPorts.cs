@@ -11,6 +11,9 @@ namespace EsilvaSoft.KapibaraStudio.Application.Agents;
 /// </summary>
 public sealed record AgentSessionToolPorts(IAgentMcpSessionScopes SessionScopes)
 {
+    /// <summary>Bounded file reads for proposals; absence refuses disk targets without native fallback.</summary>
+    public IAgentBoundedFileReader? FileReader { get; init; }
+    public IAgentWorkspacePathProbe? PathProbe { get; init; }
     /// <summary>Native chat scopes are keyed by the exact runtime session and turn, not by principal.</summary>
     public IAgentNativeChatTurnScopes? NativeChatTurnScopes { get; init; }
     /// <summary>Autocomplete schema cache; read with <see cref="MetadataAccess.Peek"/> only (never samples).</summary>

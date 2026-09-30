@@ -2,6 +2,16 @@
 
 ## Estratégia
 
+### Isolamento do sistema operacional — meta ativa em 30/09/2026
+
+Testes unitários devem consumir interfaces com mocks ou fakes controlados, sem iniciar processos/PowerShell, acessar console real, arquivos, diretórios, cofre, banco ou rede. Regras puras permanecem no projeto unitário; testes dos adapters reais pertencem à integração, com recursos sintéticos exclusivos e limpeza segura. `TestSupport` fornece doubles em memória e depende apenas de `Application`. Os adapters locais extraídos ficam em `Infrastructure.System`.
+
+A migração está incompleta: o nome `UnitTests` e a categoria histórica de uma fixture não garantem isolamento. O contexto compartilhado já não usa LiteDB; contextos privados, SDKs, renderização e processos ainda exigem revisão. Consulte o [plano e inventário](architecture/system-adapters.md) e a [ADR-060](10-decisoes-arquiteturais.md#adr-060--adapters-do-sistema-operacional-e-isolamento-dos-testes-30092026). O filtro de categoria só deve ser considerado gate de isolamento após a classificação completa.
+
+`CopilotProductToolManualTests` está em IntegrationTests com categorias `Integration`/`OfficialManual` e testes `Explicit`; exige conta oficial e seleção nominal consciente. A execução automática da integração não chama modelos oficiais. Seus diretórios são sintéticos exclusivos e o provider de teste captura a pasta da sessão para cleanup. Doubles compartilhados em TestSupport não iniciam SDK/armazenamento. Os testes de regras de `NativeChatTurnPolicyProvider` agora usam políticas/autoridade em memória; isso não homologa persistência ou emissão de identidade do adapter real.
+
+`AgentSessionToolsTestRig` usa diretórios, bytes e links em memória pelos contratos de reader/probe; seus 35 casos não criam arquivos nem verificam timestamps reais. Preservação da fonte é observada no estado simulado. A validação real de bytes/BOM/base modificada do store está na integração. Fixtures de regras injetam callback de publicação de eventos para evitar inicializar dispatcher Avalonia; testes Headless continuam usando a sessão de UI própria. Essa extração não classifica automaticamente os demais testes do projeto como isolados.
+
 Todos os testes .NET usarão **NUnit**, incluindo testes unitários, integração e UI. Pacotes propostos: `NUnit`, `NUnit3TestAdapter`, `Microsoft.NET.Test.Sdk` e `NUnit.Analyzers`, com versões fixadas em Directory.Packages.props. Usar inicialmente o caminho VSTest do `dotnet test`; migração para outro runner exige configuração e validação deliberadas. O nome NUnit3TestAdapter não implica uso obrigatório de NUnit 3. [Execução .NET com NUnit](https://docs.nunit.org/articles/nunit/getting-started/dotnet-core-and-dotnet-standard.html).
 
 Na primeira implementação, a suíte NUnit foi criada e já valida modelos, LiteDB e o parser de resultados do modo script. A matriz abaixo continua sendo o escopo de qualidade a repartir pelos gates v0.5.0–v1.0.0; resultados atualizados ficam no [acompanhamento](12-acompanhamento-da-implementacao.md).
@@ -17,6 +27,10 @@ dotnet test EsilvaSoft.KapibaraStudio.slnx -c Release --no-build --filter "TestC
 A fundação já contém lockfiles para `--locked-mode`. Testes de arquitetura terão categoria própria e execução obrigatória na CI. Logs TRX e cobertura serão artefatos locais/CI, saneados antes de publicação.
 
 ## Matriz unitária
+
+Testes Claude com subprocesso falso e respectivas fixtures JSONL foram separados em IntegrationTests/ClaudeCode. Testes MCP de named pipe/proxy/broker e composição com LiteDB estão em IntegrationTests/Mcp; os dois casos puros de admissão/opções permanecem na unidade. Os sete partials de Mongo real passaram à integração com execução explícita. ConsoleRuntimeTests usa repositório/sessões em memória; o bootstrap mantém uma única fonte textual C# sem leitura de recurso. A [auditoria semântica](architecture/unit-resource-audit.md) registra os grupos restantes, incluindo renderização e fixtures privadas LiteDB.
+
+O catálogo do picker e a existência de arquivos do editor são simulados por interfaces. Sete testes do picker cobrem busca, limites, recusas, snapshot, cancelamento e respostas antigas; três testes de privacidade usam arquivos em memória. `AgentArchitectureTests` conserva três verificações de metadados de assemblies. A leitura/enumeração do código-fonte foi separada em `AgentSourceArchitectureTests`, categoria `Integration`/`ArchitectureSource`; essas verificações ainda não constituem proteção semântica completa contra I/O transitivo.
 
 | Grupo | Requisitos | Casos críticos |
 | --- | --- | --- |

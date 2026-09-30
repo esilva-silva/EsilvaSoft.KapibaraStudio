@@ -30,7 +30,17 @@ public sealed class ClaudeAgentProvider : IAgentProvider, IDisposable
         IAgentCredentialProvider credentials,
         ClaudeAgentProviderOptions options,
         IAgentToolRegistry? toolRegistry = null)
-        : this(credentials, () => options, toolRegistry, null)
+        : this(credentials, options, toolRegistry, null)
+    {
+    }
+
+    /// <summary>Creates the provider with an optional externally owned HTTP handler.</summary>
+    public ClaudeAgentProvider(
+        IAgentCredentialProvider credentials,
+        ClaudeAgentProviderOptions options,
+        IAgentToolRegistry? toolRegistry,
+        HttpMessageHandler? handler)
+        : this(credentials, () => options, toolRegistry, handler)
     {
         ArgumentNullException.ThrowIfNull(options);
         options.Validate();

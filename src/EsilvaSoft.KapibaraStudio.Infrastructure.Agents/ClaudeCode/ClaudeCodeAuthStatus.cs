@@ -84,9 +84,8 @@ public sealed record ClaudeCodeAuthStatus(
     ];
 
     /// <summary>Primeira variável bloqueante presente (só o nome), ou nulo. Valor vazio conta como presente.</summary>
-    internal static string? FindBlockingEnvironmentVariable(Func<string, bool>? isSet)
+    internal static string? FindBlockingEnvironmentVariable(Func<string, bool> isSet)
     {
-        isSet ??= static name => IsPresent(Environment.GetEnvironmentVariable(name));
         return BlockingEnvironmentVariables.FirstOrDefault(isSet);
     }
 

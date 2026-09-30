@@ -1,3 +1,4 @@
+using EsilvaSoft.KapibaraStudio.SystemAdapters.Copilot;
 using EsilvaSoft.KapibaraStudio.Application.Agents;
 using EsilvaSoft.KapibaraStudio.Core.Agents;
 using GitHub.Copilot;
@@ -13,23 +14,23 @@ public sealed class CopilotSubscriptionAgentProvider : IAgentProvider, IAgentPro
     public const string Id = AgentProviderIds.GitHubCopilotSubscription;
 
     private readonly IAgentToolRegistry _toolRegistry;
-    private readonly Func<string?, CopilotClient> _clientFactory;
-    private readonly Func<bool> _isCliInstalled;
-    private readonly CopilotVolatileSessionFsStore _volatileSessionFs = new();
-    private readonly CopilotPersistentSessionFsStore _persistentSessionFs;
+    private readonly ICopilotRuntimeResources _resources;
+    private readonly ICopilotAccountCommands _commands;
+    private ICopilotSessionFsStore VolatileStore => _resources.VolatileStore;
+    private ICopilotSessionFsStore PersistentStore => _resources.PersistentStore;
     private readonly SemaphoreSlim _statusGate = new(1, 1);
     private AgentProviderStatus _status = AgentProviderStatus.NotReported;
+    private int _disposed;
 
     public CopilotSubscriptionAgentProvider(IAgentToolRegistry toolRegistry)
-        : this(toolRegistry, _ => new CopilotClient(CopilotRuntimeSettings.AccountClientOptions()),
-            CopilotAccountCommands.IsCliInstalled)
+        : this(toolRegistry, new LocalCopilotRuntimeResources(), new LocalCopilotAccountCommands())
     {
     }
 
     internal CopilotSubscriptionAgentProvider(
         IAgentToolRegistry toolRegistry,
         Func<string?, CopilotClient> clientFactory)
-        : this(toolRegistry, clientFactory, CopilotAccountCommands.IsCliInstalled)
+        : this(toolRegistry, clientFactory, new LocalCopilotAccountCommands().IsCliInstalled)
     {
     }
 
@@ -46,12 +47,23 @@ public sealed class CopilotSubscriptionAgentProvider : IAgentProvider, IAgentPro
         Func<string?, CopilotClient> clientFactory,
         Func<bool> isCliInstalled,
         string? persistentSessionRoot)
+        : this(toolRegistry, new LocalCopilotRuntimeResources(clientFactory ?? throw new ArgumentNullException(nameof(clientFactory)),
+            persistentSessionRoot), new InjectedAccountCommands(isCliInstalled)) { }
+
+    internal CopilotSubscriptionAgentProvider(IAgentToolRegistry toolRegistry, ICopilotRuntimeResources resources,
+        ICopilotAccountCommands commands)
     {
         _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
-        _clientFactory = clientFactory ?? throw new ArgumentNullException(nameof(clientFactory));
-        _isCliInstalled = isCliInstalled ?? throw new ArgumentNullException(nameof(isCliInstalled));
-        _persistentSessionFs = new CopilotPersistentSessionFsStore(
-            persistentSessionRoot ?? CopilotRuntimeSettings.PersistentSessionDirectory());
+        _resources = resources ?? throw new ArgumentNullException(nameof(resources));
+        _commands = commands ?? throw new ArgumentNullException(nameof(commands));
+    }
+
+    private sealed class InjectedAccountCommands(Func<bool> installed) : ICopilotAccountCommands
+    {
+        private readonly Func<bool> _installed = installed ?? throw new ArgumentNullException(nameof(installed));
+        public bool IsCliInstalled() => _installed();
+        public Task<CopilotAccountCommandState> RunVisibleAsync(string action, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("Inject account commands explicitly for an injected runtime.");
     }
 
     public string ProviderId => Id;
@@ -90,14 +102,14 @@ public sealed class CopilotSubscriptionAgentProvider : IAgentProvider, IAgentPro
         await _statusGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (!_isCliInstalled())
+            if (!_commands.IsCliInstalled())
             {
                 SetUnavailable(AgentProviderAuthState.NotConfigured,
                     "CopilotCliNotInstalled");
                 return new CopilotAccountStatus(CopilotAccountState.CliNotInstalled);
             }
 
-            await using var client = _clientFactory(null);
+            await using var client = _resources.CreateAccountClient();
             await client.StartAsync(cancellationToken).ConfigureAwait(false);
             var auth = await client.GetAuthStatusAsync(cancellationToken).ConfigureAwait(false);
             var accountState = ClassifyAuthentication(auth.IsAuthenticated, auth.AuthType).State;
@@ -118,8 +130,7 @@ public sealed class CopilotSubscriptionAgentProvider : IAgentProvider, IAgentPro
 
             // ListModelsAsync is an explicit account check, never an implicit catalog/startup operation. It returns
             // the models this signed-in account can select and does not send user text or workspace data.
-            var models = (await client.ListModelsAsync(cancellationToken).ConfigureAwait(false))
-                .Select(static model => model.Id)
+            var models = (await client.ListModelIdsAsync(cancellationToken).ConfigureAwait(false))
                 .Where(IsSafeModelId)
                 .Distinct(StringComparer.Ordinal)
                 .Order(StringComparer.Ordinal)
@@ -161,7 +172,7 @@ public sealed class CopilotSubscriptionAgentProvider : IAgentProvider, IAgentPro
 
     public async Task<CopilotAccountCommandResult> LoginAsync(CancellationToken cancellationToken = default)
     {
-        var state = await CopilotAccountCommands.RunVisibleAsync("login", cancellationToken).ConfigureAwait(false);
+        var state = await _commands.RunVisibleAsync("login", cancellationToken).ConfigureAwait(false);
         var account = state == CopilotAccountCommandState.Completed
             ? await CheckAccountAndModelsAsync(cancellationToken).ConfigureAwait(false) : null;
         return new CopilotAccountCommandResult(state, account);
@@ -176,7 +187,7 @@ public sealed class CopilotSubscriptionAgentProvider : IAgentProvider, IAgentPro
             throw new InvalidOperationException("O logout global do Copilot exige confirmação do usuário.");
         }
 
-        var state = await CopilotAccountCommands.RunVisibleAsync("logout", cancellationToken).ConfigureAwait(false);
+        var state = await _commands.RunVisibleAsync("logout", cancellationToken).ConfigureAwait(false);
         var account = state == CopilotAccountCommandState.Completed
             ? await CheckAccountAndModelsAsync(cancellationToken).ConfigureAwait(false) : null;
         return new CopilotAccountCommandResult(state, account);
@@ -201,13 +212,8 @@ public sealed class CopilotSubscriptionAgentProvider : IAgentProvider, IAgentPro
         if (options.PersistProviderSession && string.IsNullOrWhiteSpace(options.ReservedProviderSessionId))
             throw new InvalidOperationException("CopilotHistoryReservationRequired");
 
-        ICopilotSessionFsStore sessionFs = options.PersistProviderSession
-            ? (ICopilotSessionFsStore)_persistentSessionFs
-            : _volatileSessionFs;
-        var sessionFsConfig = options.PersistProviderSession
-            ? CopilotPersistentSessionFsStore.CreateConfiguration(CopilotRuntimeSettings.ResolveWorkingDirectory(options.WorkingDirectory))
-            : CopilotVolatileSessionFsStore.CreateConfiguration(CopilotRuntimeSettings.ResolveWorkingDirectory(options.WorkingDirectory));
-        var client = new CopilotClient(CopilotRuntimeSettings.SessionClientOptions(options.WorkingDirectory, sessionFsConfig));
+        var sessionFs = options.PersistProviderSession ? PersistentStore : VolatileStore;
+        var client = _resources.CreateSessionClient(options.WorkingDirectory, options.PersistProviderSession);
         return Task.FromResult<IAgentSession>(new CopilotSubscriptionAgentSession(_toolRegistry, options, client, sessionFs));
     }
 
@@ -215,25 +221,22 @@ public sealed class CopilotSubscriptionAgentProvider : IAgentProvider, IAgentPro
     {
         if (string.IsNullOrWhiteSpace(providerSessionId) || providerSessionId.Length > 128 || providerSessionId.Any(char.IsControl))
             throw new ArgumentException("Identificador de sessão Copilot inválido.", nameof(providerSessionId));
-        var isVolatile = _volatileSessionFs.ContainsSession(providerSessionId);
-        var sessionFsConfig = isVolatile
-            ? CopilotVolatileSessionFsStore.CreateConfiguration(Environment.CurrentDirectory)
-            : CopilotPersistentSessionFsStore.CreateConfiguration(Environment.CurrentDirectory);
-        await using var client = new CopilotClient(CopilotRuntimeSettings.SessionClientOptions(sessionFs: sessionFsConfig));
+        var isVolatile = VolatileStore.ContainsSession(providerSessionId);
+        await using var client = _resources.CreateCleanupClient(isVolatile);
         await client.StartAsync(cancellationToken).ConfigureAwait(false);
         // Deletion is local data hygiene; it must still work after logout and be idempotent if the LiteDB delete
         // failed after the runtime had already removed its session.
         if (isVolatile)
         {
-            if (await client.GetSessionMetadataAsync(providerSessionId, cancellationToken).ConfigureAwait(false) is not null)
+            if (await client.HasSessionAsync(providerSessionId, cancellationToken).ConfigureAwait(false))
                 await client.DeleteSessionAsync(providerSessionId, cancellationToken).ConfigureAwait(false);
-            await _volatileSessionFs.DeleteSessionAsync(providerSessionId, cancellationToken).ConfigureAwait(false);
+            await VolatileStore.DeleteSessionAsync(providerSessionId, cancellationToken).ConfigureAwait(false);
         }
         else
         {
-            await _persistentSessionFs.DeleteSessionAsync(providerSessionId, async token =>
+            await PersistentStore.DeleteSessionAsync(providerSessionId, async token =>
             {
-                if (await client.GetSessionMetadataAsync(providerSessionId, token).ConfigureAwait(false) is not null)
+                if (await client.HasSessionAsync(providerSessionId, token).ConfigureAwait(false))
                     await client.DeleteSessionAsync(providerSessionId, token).ConfigureAwait(false);
             }, cancellationToken).ConfigureAwait(false);
         }
@@ -254,8 +257,8 @@ public sealed class CopilotSubscriptionAgentProvider : IAgentProvider, IAgentPro
 
     public void Dispose()
     {
-        _volatileSessionFs.DisposeAsync().AsTask().GetAwaiter().GetResult();
-        _persistentSessionFs.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        _resources.Dispose();
         _statusGate.Dispose();
     }
 }

@@ -84,7 +84,7 @@ public sealed class ExperimentalContextGoldenTests
     [TestCaseSource(nameof(ContractIds))]
     public void GoldenFileHasNoByteOrderMark(string contractId)
     {
-        var bytes = File.ReadAllBytes(GoldenPath(contractId));
+        var bytes = EmbeddedTestData.ReadBytes(GoldenResourcePath(contractId));
         var bom = new UTF8Encoding(true).GetPreamble();
         Assert.That(bytes.Take(bom.Length).ToArray(), Is.Not.EqualTo(bom), "O golden não pode ter BOM.");
     }
@@ -124,7 +124,7 @@ public sealed class ExperimentalContextGoldenTests
         {
             if (!Cache.TryGetValue(contractId, out var parsed))
             {
-                parsed = Parse(File.ReadAllText(GoldenPath(contractId), new UTF8Encoding(false)));
+                parsed = Parse(EmbeddedTestData.ReadText(GoldenResourcePath(contractId)));
                 Cache[contractId] = parsed;
             }
 
@@ -132,13 +132,8 @@ public sealed class ExperimentalContextGoldenTests
         }
     }
 
-    internal static string GoldenPath(string contractId)
-    {
-        var root = new DirectoryInfo(TestContext.CurrentContext.TestDirectory);
-        while (root is not null && !File.Exists(Path.Combine(root.FullName, "EsilvaSoft.KapibaraStudio.slnx"))) root = root.Parent;
-        Assert.That(root, Is.Not.Null, "Raiz do repositório não encontrada.");
-        return Path.Combine(root!.FullName, "tests", "EsilvaSoft.KapibaraStudio.UnitTests", "AiContext", "Experimental", "Golden", contractId + ".golden");
-    }
+    private static string GoldenResourcePath(string contractId)
+        => "AiContext/Experimental/Golden/" + contractId + ".golden";
 
     /// <summary>
     /// Escapa para uma única linha lógica: a quebra de linha real vira o marcador <c>\n</c> (o arquivo é
@@ -205,31 +200,4 @@ public sealed class ExperimentalContextGoldenTests
         id = context = sha = prefix = suffix = dictionary = null;
     }
 
-    /// <summary>
-    /// Captura os quatro goldens a partir da implementação atual. Explícito e com inspeção manual obrigatória do
-    /// diff: regerar para fazer <see cref="ArtifactsMatchTheFrozenFormat"/> passar apaga exatamente a regressão que
-    /// este arquivo existe para mostrar.
-    /// </summary>
-    [Test, Explicit("Captura os goldens experimentais; exige inspeção manual do diff antes do commit."), Category("GoldenCapture")]
-    public void CaptureGolden()
-    {
-        foreach (var contract in ExperimentalContextContracts.All)
-        {
-            var builder = new StringBuilder("# Golden do formato experimental ")
-                .Append(contract.ContractId)
-                .Append(" (lote A34b). Formato inalcançável em produção; não regenerar para esconder regressão.\n");
-            foreach (var @case in ExperimentalContextCorpus.Cases)
-            {
-                var request = contract.Build(@case.Resolve(), @case.Settings);
-                builder.Append("== ").Append(@case.Id).Append(" ==\n")
-                    .Append("context=").Append(Escape(request.Context)).Append('\n')
-                    .Append("sha=").Append(Sha256(request.Context)).Append('\n')
-                    .Append("prefix=").Append(Escape(request.Prefix)).Append('\n')
-                    .Append("suffix=").Append(Escape(request.Suffix)).Append('\n')
-                    .Append("dictionary=").Append(Escape(string.Join("|", request.Dictionary))).Append('\n');
-            }
-
-            File.WriteAllText(GoldenPath(contract.ContractId), builder.ToString(), new UTF8Encoding(false));
-        }
-    }
 }

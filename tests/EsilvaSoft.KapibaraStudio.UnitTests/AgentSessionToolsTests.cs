@@ -15,7 +15,7 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests;
 /// connections, get_cached_schema without touching MongoDB, get_workspace_context, propose_file_edit (never writes to
 /// disk) and the permission-prompt tool.
 /// </summary>
-[TestFixture]
+[TestFixture, Category("Unit")]
 public sealed class AgentSessionToolsTests
 {
     private static readonly string[] MetadataStageTools =
@@ -323,8 +323,8 @@ public sealed class AgentSessionToolsTests
         var secondTurn = Guid.NewGuid();
         var firstFolder = Path.Combine(rig.WorkspaceFolder, "first");
         var secondFolder = Path.Combine(rig.WorkspaceFolder, "second");
-        Directory.CreateDirectory(firstFolder);
-        Directory.CreateDirectory(secondFolder);
+        rig.Files.AddDirectory(firstFolder);
+        rig.Files.AddDirectory(secondFolder);
         var plan = AgentModePolicy.Plan(AgentOperationMode.Agent, rig.Permissions,
             new AgentPlatformFacts(true, true));
         rig.NativeChatScopes.Register(new AgentNativeChatTurnScope(firstSession, firstTurn, "claude-code", plan,
@@ -550,12 +550,12 @@ public sealed class AgentSessionToolsTests
     }
 
     [Test]
-    public async Task ProposeFileEditRegistersAProposalWithHunksAndNeverWritesToDisk()
+    public async Task ProposeFileEditRegistersHunksWithoutMutatingSource()
     {
         using var rig = new AgentSessionToolsTestRig();
         const string original = "linha 1\nlinha 2\nlinha 3\nlinha 4\n";
         var file = rig.WriteFile("dados/clientes.json", original);
-        var before = File.GetLastWriteTimeUtc(file);
+        var before = rig.Files.Revision;
 
         var result = await rig.CallAsync("propose_file_edit", new
         {
@@ -568,14 +568,14 @@ public sealed class AgentSessionToolsTests
         using var receipt = JsonDocument.Parse(result.StructuredContentJson!);
         Assert.Multiple(() =>
         {
-            Assert.That(File.ReadAllText(file), Is.EqualTo(original), "Nada gravado em disco.");
-            Assert.That(File.GetLastWriteTimeUtc(file), Is.EqualTo(before));
+            Assert.That(rig.Files.GetText(file), Is.EqualTo(original), "A proposta não altera a fonte.");
+            Assert.That(rig.Files.Revision, Is.EqualTo(before));
             Assert.That(receipt.RootElement.GetProperty("status").GetString(), Is.EqualTo("registered"));
             Assert.That(receipt.RootElement.GetProperty("proposalId").GetGuid(), Is.EqualTo(proposal.Id));
             Assert.That(receipt.RootElement.GetProperty("added").GetInt32(), Is.EqualTo(2));
             Assert.That(receipt.RootElement.GetProperty("removed").GetInt32(), Is.EqualTo(1));
             Assert.That(proposal.ConversationId, Is.EqualTo(rig.ConversationId));
-            Assert.That(proposal.TargetPath, Is.EqualTo(Path.GetFullPath(file)));
+            Assert.That(proposal.TargetPath, Is.EqualTo(Path.Combine(rig.WorkspaceFolder, "dados", "clientes.json")));
             Assert.That(proposal.ProposedText, Is.EqualTo("linha 1\nlinha dois\nlinha 2b\nlinha 3\nlinha 4\n"));
             Assert.That(proposal.BaseTextSha256, Is.EqualTo(Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(original)))));
             Assert.That(proposal.Hunks, Has.Count.EqualTo(1));
@@ -606,18 +606,19 @@ public sealed class AgentSessionToolsTests
             Assert.That(proposal.TabId, Is.EqualTo("tab-7"));
             Assert.That(proposal.OriginalText, Is.EqualTo("db.a.find()\r\ndb.b.find()\r\n"), "Base é o buffer, não o disco.");
             Assert.That(proposal.ProposedText, Is.EqualTo("db.a.find({})\r\ndb.b.find()\r\n"));
-            Assert.That(File.ReadAllText(file), Is.EqualTo("disco\r\n"));
+            Assert.That(rig.Files.GetText(file), Is.EqualTo("disco\r\n"));
         });
     }
 
     [Test]
     public async Task ProductRegistryRegistersProposalInProductionDesktopStoreWithoutApplyingIt()
     {
-        var store = new AgentEditProposalStore();
-        using var rig = new AgentSessionToolsTestRig(proposalSink: store);
+        var files = new MemoryAgentFiles();
+        var store = new AgentEditProposalStore(static action => action(), files);
+        using var rig = new AgentSessionToolsTestRig(proposalSink: store, files: files);
         const string original = "db.syntheticItems.find({}).limit(10);\n";
         var file = rig.WriteFile("consulta-sintetica.js", original);
-        var writeTime = File.GetLastWriteTimeUtc(file);
+        var writeTime = rig.Files.Revision;
 
         var result = await rig.CallAsync("propose_file_edit", new
         {
@@ -631,12 +632,12 @@ public sealed class AgentSessionToolsTests
         Assert.That(store.TryGet(proposalId, out var entry), Is.True);
         Assert.Multiple(() =>
         {
-            Assert.That(entry.Proposal.TargetPath, Is.EqualTo(Path.GetFullPath(file)));
+            Assert.That(entry.Proposal.TargetPath, Is.EqualTo(file));
             Assert.That(entry.Proposal.OriginalText, Is.EqualTo(original));
             Assert.That(entry.Proposal.ProposedText, Is.EqualTo("db.syntheticItems.find({}).limit(5);\n"));
             Assert.That(entry.Status, Is.EqualTo(AgentEditProposalStatus.Registered), "Registration must wait for explicit review.");
-            Assert.That(File.ReadAllText(file), Is.EqualTo(original), "The production proposal store never writes to disk.");
-            Assert.That(File.GetLastWriteTimeUtc(file), Is.EqualTo(writeTime));
+            Assert.That(rig.Files.GetText(file), Is.EqualTo(original), "The production proposal store never changes the source.");
+            Assert.That(rig.Files.Revision, Is.EqualTo(writeTime));
         });
     }
 
@@ -697,7 +698,7 @@ public sealed class AgentSessionToolsTests
         using var rig = new AgentSessionToolsTestRig();
         rig.WriteFile(".env", "TOKEN=1\n");
         rig.WriteFile("config/secrets/token.txt", "x\n");
-        File.WriteAllText(Path.Combine(Path.GetDirectoryName(rig.WorkspaceFolder)!, "fora.txt"), "x\n");
+        rig.Files.Set(Path.Combine(Path.GetDirectoryName(rig.WorkspaceFolder)!, "fora.txt"), Encoding.UTF8.GetBytes("x\n"));
 
         var result = await rig.CallAsync("propose_file_edit", new { path, new_content = "novo\n" });
 

@@ -1,15 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
-    <PackageReference Include="Microsoft.ML.OnnxRuntimeGenAI" Condition="'$(SlopOnnxBackend)' == 'Cpu'" />
-    <PackageReference Include="Microsoft.ML.OnnxRuntimeGenAI.WinML" Condition="'$(SlopOnnxBackend)' == 'WinML'" />
-    <PackageReference Include="Microsoft.ML.OnnxRuntime.Managed" Condition="'$(SlopOnnxBackend)' == 'WinML'" />
-    <PackageReference Include="Microsoft.ML.OnnxRuntimeGenAI.Cuda" Condition="'$(SlopOnnxBackend)' == 'Cuda'" />
-    <ProjectReference Include="../EsilvaSoft.KapibaraStudio.Application/EsilvaSoft.KapibaraStudio.Application.csproj" />
-    <ProjectReference Include="../EsilvaSoft.KapibaraStudio.LocalAi.Core/EsilvaSoft.KapibaraStudio.LocalAi.Core.csproj" />
+    <!-- Keep the established consumer project/namespace while isolating the native GenAI SDK in its adapter assembly. -->
+    <ProjectReference Include="../EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi.OnnxAdapter/EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi.OnnxAdapter.csproj" />
   </ItemGroup>
-  <Target Name="ValidateOnnxBackend" BeforeTargets="PrepareForBuild">
-    <Error Condition="'$(SlopOnnxBackend)' != 'Cpu' and '$(SlopOnnxBackend)' != 'WinML' and '$(SlopOnnxBackend)' != 'Cuda'" Text="SlopOnnxBackend deve ser Cpu, WinML ou Cuda." />
-    <Error Condition="'$(SlopOnnxBackend)' == 'WinML' and $(RuntimeIdentifier.StartsWith('linux'))" Text="WinML é exclusivo do Windows. Use Cpu ou Cuda para Linux." />
-  </Target>
 </Project>

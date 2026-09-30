@@ -2,7 +2,7 @@ using System.Text.Json;
 using EsilvaSoft.KapibaraStudio.Application.Agents;
 using EsilvaSoft.KapibaraStudio.Core;
 using EsilvaSoft.KapibaraStudio.Core.Agents;
-using static EsilvaSoft.KapibaraStudio.UnitTests.AgentWriteTestDoubles;
+using static EsilvaSoft.KapibaraStudio.Testing.AgentWriteTestDoubles;
 
 namespace EsilvaSoft.KapibaraStudio.UnitTests;
 
@@ -585,68 +585,6 @@ public sealed class AgentToolRegistryWriteTests
             Assert.That(drop.ExpectedStateHash, Is.EqualTo(StateHash));
             Assert.That(fixture.Prompt.Prompts[1].BeforeEjson, Does.Contain("\"name\":\"v_1\""));
         });
-    }
-
-    [Test]
-    public async Task RealLiteDbLedgerAcceptsEveryWriteSequenceAndKeepsOnlyTheUnrecordedOnePending()
-    {
-        var directory = Path.Combine(Path.GetTempPath(), "slop-agent-write-ledger-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(directory);
-        try
-        {
-            using var repository = new Infrastructure.LiteDbConnectionProfileRepository(
-                Path.Combine(directory, "workspace.db"));
-            IAgentAuditRepository ledger = repository;
-            var failTerminals = false;
-            var audit = new ForwardingAudit(ledger, () => failTerminals);
-            var fixture = new Fixture(AllWrites(), audit: audit);
-            var verdicts = new Queue<AgentApprovalOutcome?>(
-                [AgentApprovalOutcome.Granted, AgentApprovalOutcome.Denied, AgentApprovalOutcome.Granted, null,
-                 AgentApprovalOutcome.Granted]);
-            fixture.Prompt.Handler = (_, _) => Task.FromResult(verdicts.Dequeue());
-            var outcomes = new Queue<Func<CancellationToken, Task<AgentMongoWriteResult>>>(
-            [
-                static _ => Task.FromResult(new AgentMongoWriteResult(AgentMongoWriteStatus.Applied, 1, null, true)),
-                static _ => throw new IOException("reset after send"),
-                static _ => Task.FromResult(new AgentMongoWriteResult(AgentMongoWriteStatus.Applied, 1, null, true))
-            ]);
-            fixture.Source.OnWrite = token => outcomes.Dequeue()(token);
-
-            var applied = await fixture.InvokeAsync("insert_one", Insert("{\"v\":1}"));
-            var rejected = await fixture.InvokeAsync("insert_one", Insert("{\"v\":2}"));
-            var uncertain = await fixture.InvokeAsync("update_one", Update("1", "{\"$set\":{\"v\":2}}"));
-            var unavailable = await fixture.InvokeAsync("delete_one", Delete("1"));
-            var invalid = await fixture.InvokeAsync("insert_one", "{\"approved\":true}");
-            var pendingBefore = await ledger.GetPendingAsync();
-            failTerminals = true;
-            var auditLost = await fixture.InvokeAsync("insert_one", Insert("{\"v\":3}"));
-            var recent = await ledger.GetRecentAsync(100);
-            var pending = await ledger.GetPendingAsync();
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(applied.Succeeded, Is.True, applied.ErrorCode);
-                Assert.That(rejected.ErrorCode, Is.EqualTo("ApprovalRejected"));
-                Assert.That(uncertain.ErrorCode, Is.EqualTo("OutcomeUnknown"));
-                Assert.That(unavailable.ErrorCode, Is.EqualTo("ApprovalUnavailable"));
-                Assert.That(invalid.ErrorCode, Is.EqualTo("InvalidArguments"));
-                Assert.That(pendingBefore, Is.Empty, "cada intenção de escrita recebeu seu desfecho no ledger real");
-                Assert.That(auditLost.ErrorCode, Is.EqualTo("AppliedAuditPending"));
-                Assert.That(pending, Has.Count.EqualTo(1));
-                Assert.That(pending[0].ToolName, Is.EqualTo("insert_one"));
-                Assert.That(recent.Where(item => item.Outcome != AgentAuditOutcome.Intent).Select(item => item.Outcome),
-                    Is.EquivalentTo(new[]
-                    {
-                        AgentAuditOutcome.Succeeded, AgentAuditOutcome.Denied, AgentAuditOutcome.Uncertain,
-                        AgentAuditOutcome.Denied, AgentAuditOutcome.Denied
-                    }));
-                Assert.That(fixture.Source.Writes, Is.EqualTo(3));
-            });
-        }
-        finally
-        {
-            Directory.Delete(directory, recursive: true);
-        }
     }
 
     private sealed class ForwardingAudit(IAgentAuditRepository inner, Func<bool> failTerminals) : IAgentAuditRepository

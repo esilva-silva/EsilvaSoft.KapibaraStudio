@@ -56,12 +56,7 @@ public partial class AutocompleteSettingsWindow : Window
 
     private async void OpenModelsDirectory(object? sender, RoutedEventArgs e)
     {
-        if (DataContext is not AutocompleteSettingsViewModel model || model.EnsureModelsDirectory() is not { } directory) return;
-        try
-        {
-            if (!await Launcher.LaunchDirectoryInfoAsync(new DirectoryInfo(directory))) model.OperationStatus = LocalizationViewModel.Current.Format("createDirectoryFailed", directory, "");
-        }
-        catch (Exception ex) { model.OperationStatus = LocalizationViewModel.Current.Format("createDirectoryFailed", directory, ex.Message); }
+        if (DataContext is AutocompleteSettingsViewModel model) await model.OpenModelsDirectoryAsync();
     }
 
     private void CloseDialog(object? sender, RoutedEventArgs e) => Close();

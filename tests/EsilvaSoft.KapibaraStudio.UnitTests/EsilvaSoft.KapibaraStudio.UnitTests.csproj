@@ -3,6 +3,8 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../EsilvaSoft.KapibaraStudio.TestSupport/Desktop/AgentCliAccountTestDoubles.cs" Link="TestDoubles/AgentCliAccountTestDoubles.cs" />
+    <ProjectReference Include="../EsilvaSoft.KapibaraStudio.TestSupport/EsilvaSoft.KapibaraStudio.TestSupport.csproj" />
     <ProjectReference Include="../../src/EsilvaSoft.KapibaraStudio.Desktop/EsilvaSoft.KapibaraStudio.Desktop.csproj" />
     <ProjectReference Include="../../src/EsilvaSoft.KapibaraStudio.Core/EsilvaSoft.KapibaraStudio.Core.csproj" />
     <ProjectReference Include="../../src/EsilvaSoft.KapibaraStudio.Autocomplete.Core/EsilvaSoft.KapibaraStudio.Autocomplete.Core.csproj" />
@@ -23,6 +25,8 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" VersionOverride="10.0.10" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Language\Cases\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="Ai\Golden\*.golden;AiContext\Experimental\Golden\*.golden;Language\Syntax\Golden\*.golden;Language\Cases\**\*.case;Language\Cases\**\*.json">
+      <LogicalName>test-data/%(Identity)</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 </Project>

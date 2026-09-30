@@ -3,7 +3,6 @@ using System.Text.Json;
 using EsilvaSoft.KapibaraStudio.Application;
 using EsilvaSoft.KapibaraStudio.Core;
 using EsilvaSoft.KapibaraStudio.Infrastructure;
-using MongoDB.Driver;
 
 namespace EsilvaSoft.KapibaraStudio.UnitTests;
 
@@ -30,28 +29,6 @@ public sealed class MvpPolishTests
         Assert.That(OperationErrorMessages.Describe(new TimeoutException()), Does.StartWith("Tempo limite excedido"));
         Assert.That(OperationErrorMessages.Describe(new JsonException()), Does.StartWith("JSON inválido"));
         Assert.That(OperationErrorMessages.Describe(new IOException(), export: true), Does.StartWith("Erro de exportação"));
-    }
-
-    [Test]
-    public async Task FailedOrCanceledExportRemovesPartialAndPreservesExistingDestination()
-    {
-        var directory = Path.Combine(TestContext.CurrentContext.WorkDirectory, "mvp-export-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(directory);
-        var path = Path.Combine(directory, "result.json");
-        var export = new LocalResultPageExportService();
-        try
-        {
-            await File.WriteAllTextAsync(path, "original");
-            Assert.ThrowsAsync<IOException>(async () => await export.ExportAsync(path, ["{}"], false));
-            Assert.That(await File.ReadAllTextAsync(path), Is.EqualTo("original"));
-            Assert.CatchAsync<JsonException>(async () => await export.ExportAsync(Path.Combine(directory, "bad.json"), ["{}", "{"], false));
-            using var cancellation = new CancellationTokenSource();
-            Assert.CatchAsync<OperationCanceledException>(async () => await export.ExportAsync(Path.Combine(directory, "cancel.json"), ["{}", "{}"], false,
-                (_, _) => cancellation.Cancel(), cancellation.Token));
-            Assert.That(Directory.GetFiles(directory), Has.Length.EqualTo(1));
-            Assert.That(Path.GetFileName(Directory.GetFiles(directory)[0]), Is.EqualTo("result.json"));
-        }
-        finally { Directory.Delete(directory, true); }
     }
 
     [Test]
@@ -147,14 +124,4 @@ public sealed class MvpPolishTests
         Assert.That(parsed.RootElement.GetProperty("n").GetInt64(), Is.EqualTo(long.MaxValue));
     }
 
-    [Test]
-    public void MongoClientsAreReusedOnlyForEquivalentSettings()
-    {
-        using var pool = new MongoClientPool();
-        var first = pool.Get(MongoClientSettings.FromConnectionString("mongodb://localhost:27017/?appName=mvp-test"));
-        var again = pool.Get(MongoClientSettings.FromConnectionString("mongodb://localhost:27017/?appName=mvp-test"));
-        var changed = pool.Get(MongoClientSettings.FromConnectionString("mongodb://localhost:27017/?appName=mvp-other"));
-        Assert.That(again, Is.SameAs(first));
-        Assert.That(changed, Is.Not.SameAs(first));
-    }
 }

@@ -98,7 +98,7 @@ public sealed partial class AgentChatViewModel
         SelectedProvider?.Presentation.SupportsToolCalling == true;
 
     private AgentPlatformFacts CapturePlatformFacts(string? folder) => new(
-        AgentWorkspacePaths.TryGetWorkspaceRoot(folder, out _),
+        AgentWorkspacePaths.TryGetWorkspaceRoot(folder, out _, _services.PathProbe),
         ProductToolsAvailable,
         SelectedProvider?.Presentation.SupportsNativeTools == true);
 

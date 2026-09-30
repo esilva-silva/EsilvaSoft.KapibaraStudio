@@ -26,7 +26,7 @@ public sealed partial class AgentChatViewModel
     public bool CanAttachExternal => AreChipsEnabled && CurrentPermissions is { IsWellFormed: true, DataSending.ExternalAttachments: true };
 
     /// <summary>Picker of workspace files (filtered by the exclusions of the permissions).</summary>
-    public AgentWorkspaceFilePickerViewModel WorkspaceFilePicker { get; } = new();
+    public AgentWorkspaceFilePickerViewModel WorkspaceFilePicker { get; }
 
     /// <summary>
     /// Called by the host when the active tab or its own destination changed (never on explorer selection): automatic
@@ -161,7 +161,7 @@ public sealed partial class AgentChatViewModel
         var chip = new AgentContextChipViewModel(AgentAttachmentKind.WorkspaceFile, Path.GetFileName(path), null, path, isAutomatic: false);
         if (!AgentWorkspacePaths.TryResolveInside(folder, path,
                 permissions?.Workspace.EffectiveExclusions ?? AgentWorkspacePermissions.DefaultExclusions,
-                out _, out var relative, out var error))
+                out _, out var relative, out var error, _services.PathProbe))
         {
             chip.Error = error switch
             {
@@ -212,7 +212,7 @@ public sealed partial class AgentChatViewModel
 
         var permissions = CurrentPermissions!;
         var chip = new AgentContextChipViewModel(AgentAttachmentKind.ExternalFile, Path.GetFileName(path), null, path, isAutomatic: false);
-        var check = AgentWorkspacePaths.CheckFile(path, SessionFolderCandidate(), permissions.Workspace.EffectiveExclusions);
+        var check = AgentWorkspacePaths.CheckFile(path, SessionFolderCandidate(), permissions.Workspace.EffectiveExclusions, _services.PathProbe);
         if (check == AgentWorkspacePathError.Excluded)
         {
             chip.Error = AgentAttachmentError.Excluded;
@@ -249,6 +249,13 @@ public sealed partial class AgentChatViewModel
 /// </summary>
 public sealed partial class AgentWorkspaceFilePickerViewModel : ObservableObject
 {
+    private readonly IAgentWorkspacePathProbe? _pathProbe;
+    private readonly IAgentWorkspaceFileCatalog? _catalog;
+    public AgentWorkspaceFilePickerViewModel(IAgentWorkspacePathProbe? pathProbe = null, IAgentWorkspaceFileCatalog? catalog = null)
+    {
+        _pathProbe = pathProbe;
+        _catalog = catalog;
+    }
     public const int MaximumListed = 1000;
     private const int MaximumVisited = 20000;
     private static LocalizationViewModel Text => LocalizationViewModel.Current;
@@ -272,7 +279,9 @@ public sealed partial class AgentWorkspaceFilePickerViewModel : ObservableObject
     public async Task LoadAsync(string? folder, IReadOnlyList<string> exclusions, bool permitted, CancellationToken cancellationToken)
     {
         var generation = ++_generation;
+        _all = [];
         Files.Clear();
+        IsLoading = false;
         Search = "";
         if (!permitted)
         {
@@ -280,13 +289,14 @@ public sealed partial class AgentWorkspaceFilePickerViewModel : ObservableObject
             return;
         }
 
-        if (!AgentWorkspacePaths.TryGetWorkspaceRoot(folder, out var root))
+        if (!AgentWorkspacePaths.TryGetWorkspaceRoot(folder, out var root, _pathProbe))
         {
             Status = Text.Resolve("agentPickerNoWorkspace");
             return;
         }
 
-        if (!exclusions.All(AgentWorkspaceExclusions.IsValidPattern))
+        var capturedExclusions = exclusions.ToArray();
+        if (!capturedExclusions.All(AgentWorkspaceExclusions.IsValidPattern))
         {
             Status = Text.Resolve("agentPickerInvalidExclusion");
             return;
@@ -296,7 +306,11 @@ public sealed partial class AgentWorkspaceFilePickerViewModel : ObservableObject
         Status = Text.Resolve("agentPickerLoading");
         try
         {
-            var (files, truncated) = await Task.Run(() => Enumerate(root, exclusions, cancellationToken), cancellationToken);
+            if (_catalog is null) throw new InvalidOperationException("Workspace file catalog unavailable.");
+            var listing = await _catalog.ListAsync(root, capturedExclusions, MaximumListed, MaximumVisited, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            var files = listing.Files.Select(static file => new AgentWorkspaceFileChoice(file.FullPath, file.RelativePath)).ToArray();
+            var truncated = listing.Truncated;
             if (generation != _generation)
             {
                 return;
@@ -304,11 +318,12 @@ public sealed partial class AgentWorkspaceFilePickerViewModel : ObservableObject
 
             _all = files;
             ApplyFilter();
-            Status = files.Count == 0 ? Text.Resolve("agentPickerEmpty")
+            Status = files.Length == 0 ? Text.Resolve("agentPickerEmpty")
                 : truncated ? Text.Format("agentPickerTruncated", MaximumListed) : "";
         }
         catch (OperationCanceledException)
         {
+            if (generation == _generation) Status = "";
         }
         catch (Exception)
         {
@@ -336,35 +351,6 @@ public sealed partial class AgentWorkspaceFilePickerViewModel : ObservableObject
         }
     }
 
-    private static (IReadOnlyList<AgentWorkspaceFileChoice> Files, bool Truncated) Enumerate(
-        string root, IReadOnlyList<string> exclusions, CancellationToken cancellationToken)
-    {
-        var options = new EnumerationOptions
-        {
-            RecurseSubdirectories = true,
-            IgnoreInaccessible = true,
-            AttributesToSkip = FileAttributes.ReparsePoint | FileAttributes.System | FileAttributes.Device,
-            ReturnSpecialDirectories = false,
-        };
-        var result = new List<AgentWorkspaceFileChoice>();
-        var visited = 0;
-        foreach (var path in Directory.EnumerateFiles(root, "*", options))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (++visited > MaximumVisited || result.Count >= MaximumListed)
-            {
-                return (result, true);
-            }
-
-            if (AgentWorkspacePaths.TryResolveInside(root, path, exclusions, out var full, out var relative, out _))
-            {
-                result.Add(new AgentWorkspaceFileChoice(full, relative));
-            }
-        }
-
-        result.Sort(static (left, right) => string.Compare(left.RelativePath, right.RelativePath, StringComparison.OrdinalIgnoreCase));
-        return (result, false);
-    }
 }
 
 /// <summary>One file offered by the workspace picker (relative path shown; full path used to resolve).</summary>

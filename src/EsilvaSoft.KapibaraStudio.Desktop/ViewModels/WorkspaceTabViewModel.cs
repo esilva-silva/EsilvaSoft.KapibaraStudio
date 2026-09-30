@@ -266,11 +266,14 @@ public sealed partial class WorkspaceTabViewModel : ObservableObject, IDisposabl
 
     public async Task SaveAsync(string path, bool overwriteExternalChanges = false)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        if (!Path.IsPathFullyQualified(path)) throw new ArgumentException("O arquivo precisa ter caminho absoluto.", nameof(path));
         path = Path.GetFullPath(path);
         var text = Text;
         var encoding = FileEncoding;
         var hasBom = FileHasBom;
-        var samePath = !string.IsNullOrEmpty(FilePath) && string.Equals(path, Path.GetFullPath(FilePath), OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+        var samePath = !string.IsNullOrEmpty(FilePath) && Path.IsPathFullyQualified(FilePath) &&
+            string.Equals(path, Path.GetFullPath(FilePath), OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
         // A restored legacy draft has no revision: ask before replacing its file.
         var expected = overwriteExternalChanges ? null : samePath ? FileRevision ?? TextFileRevision.Missing : TextFileRevision.Missing;
         var persistInput = PersistInput; var input = InputJson; var historyEnabled = ScriptHistoryEnabled;

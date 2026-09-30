@@ -10,7 +10,7 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests.Language.Syntax;
 [TestFixture]
 public sealed class HighlightingGoldenTests
 {
-    private static readonly Lazy<IReadOnlyDictionary<string, string>> Golden = new(() => Parse(File.ReadAllText(GoldenPath(), Encoding.UTF8)));
+    private static readonly Lazy<IReadOnlyDictionary<string, string>> Golden = new(() => Parse(EmbeddedTestData.ReadText("Language/Syntax/Golden/syntax-highlighting.v1.golden")));
 
     public static IEnumerable<string> CaseIds() => HighlightingGoldenCorpus.Cases.Select(c => c.Id);
 
@@ -24,17 +24,6 @@ public sealed class HighlightingGoldenTests
 
     [Test]
     public void GoldenCoversExactlyTheCorpus() => Assert.That(Golden.Value.Keys, Is.EquivalentTo(CaseIds()));
-
-    [Test, Explicit("Captura o golden; usado uma vez antes da extração do MongoLexer. Requer SLOP_HIGHLIGHTING_GOLDEN_OUT."), Category("GoldenCapture")]
-    public void CaptureGolden()
-    {
-        var path = Environment.GetEnvironmentVariable("SLOP_HIGHLIGHTING_GOLDEN_OUT");
-        if (string.IsNullOrWhiteSpace(path)) Assert.Ignore("Defina SLOP_HIGHLIGHTING_GOLDEN_OUT.");
-        var service = new SyntaxHighlightingService();
-        var builder = new StringBuilder("# Golden de highlighting capturado antes da extração do MongoLexer (b082d4a). Não regenerar para esconder regressão.\n");
-        foreach (var @case in HighlightingGoldenCorpus.Cases) builder.Append(HighlightingGoldenCorpus.Render(service, @case));
-        File.WriteAllText(path, builder.ToString(), new UTF8Encoding(false));
-    }
 
     private static Dictionary<string, string> Parse(string text)
     {
@@ -53,11 +42,4 @@ public sealed class HighlightingGoldenTests
         return blocks;
     }
 
-    private static string GoldenPath()
-    {
-        var root = new DirectoryInfo(TestContext.CurrentContext.TestDirectory);
-        while (root is not null && !File.Exists(Path.Combine(root.FullName, "EsilvaSoft.KapibaraStudio.slnx"))) root = root.Parent;
-        Assert.That(root, Is.Not.Null, "Raiz do repositório não encontrada.");
-        return Path.Combine(root!.FullName, "tests", "EsilvaSoft.KapibaraStudio.UnitTests", "Language", "Syntax", "Golden", "syntax-highlighting.v1.golden");
-    }
 }

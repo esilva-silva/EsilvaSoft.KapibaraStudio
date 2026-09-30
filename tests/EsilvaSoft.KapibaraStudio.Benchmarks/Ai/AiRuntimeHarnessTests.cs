@@ -1,9 +1,11 @@
+using EsilvaSoft.KapibaraStudio.Infrastructure;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using EsilvaSoft.KapibaraStudio.Application;
 using EsilvaSoft.KapibaraStudio.Core;
 using EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi;
 using EsilvaSoft.KapibaraStudio.LocalAi.Core;
+using EsilvaSoft.KapibaraStudio.SystemAdapters;
 using NUnit.Framework;
 
 namespace EsilvaSoft.KapibaraStudio.Benchmarks.Ai;
@@ -14,8 +16,9 @@ namespace EsilvaSoft.KapibaraStudio.Benchmarks.Ai;
 /// <remarks>
 /// <para>
 /// Rodam na suíte regular porque nenhum deles mede latência de verdade — todos usam medições fabricadas ou um runtime
-/// falso com tempos programados. A execução contra pesos ONNX reais é <see cref="AiRuntimeRealModelRunner"/>, que é
-/// <see cref="ExplicitAttribute"/> pelo mesmo motivo do relatório da Fase 3.
+/// falso com tempos programados. A execução contra pesos ONNX reais fica em
+/// <c>EsilvaSoft.KapibaraStudio.IntegrationTests.AiRuntimeRealModelRunner</c>, marcada <see cref="ExplicitAttribute"/>
+/// pelo mesmo motivo do relatório da Fase 3.
 /// </para>
 /// <para>
 /// <b>Fake não prova real.</b> Todo alvo montado aqui sai marcado como
@@ -30,6 +33,12 @@ public sealed class AiRuntimeHarnessTests
     private static readonly AiHardwareDevice Npu = new(AiAccelerationMode.Npu, "qnn", "NPU ausente", false) { Reason = "Sem driver." };
     private static readonly string[] ExpectedTargets = ["pacote-a · Cpu", "pacote-a · Gpu", "pacote-b · Cpu", "pacote-b · Gpu"];
     private static readonly string[] CpuOnlyTarget = ["pacote · Cpu"];
+    private static readonly AiEvaluationEnvironment TestEnvironment = new()
+    {
+        OperatingSystem = "Test OS", Architecture = "x64", LogicalProcessors = 8,
+        Runtime = ".NET test", ServerGarbageCollection = false, DebuggerAttached = false,
+        Configuration = "Test"
+    };
 
     [Test]
     public void AggregationReproducesTheMeanDeviationMedianAndPercentileOfKnownValues()
@@ -73,8 +82,7 @@ public sealed class AiRuntimeHarnessTests
             Assert.That(report.Scenarios[0].Total.Percentile95, Is.EqualTo(95.5).Within(1e-9));
             Assert.That(report.Evidence, Is.EqualTo(AiRuntimeEvidence.DeterministicFake));
         });
-    }
-
+}
     [Test]
     public void FailedCasesAreCountedByOutcomeAndNeverEnterTheLatencyStatistics()
     {
@@ -116,7 +124,7 @@ public sealed class AiRuntimeHarnessTests
             GeneratedAtUtc = new DateTimeOffset(2026, 9, 19, 12, 0, 0, TimeSpan.Zero),
             Repetitions = 5,
             WarmupRepetitions = 1,
-            Environment = AiEvaluationEnvironment.Current(),
+            Environment = TestEnvironment,
             DetectedHardware = [Cpu, Npu],
             Scenarios = ["curto-g32"],
             Targets =
@@ -192,7 +200,7 @@ public sealed class AiRuntimeHarnessTests
         var runtime = new ScriptedRuntime { FirstToken = TimeSpan.FromMilliseconds(40), PerToken = TimeSpan.FromMilliseconds(5) };
         var harness = new AiRuntimeHarness(
             target => new AiRuntimeSession(new LocalAiModelService(new PathCatalogFake(), () => runtime), _ => new WhitespaceTokenizerFake()),
-            new HardwareProbeFake([Cpu]))
+            new HardwareProbeFake([Cpu]), () => TestEnvironment)
         {
             Repetitions = 3,
             WarmupRepetitions = 1,
@@ -206,6 +214,7 @@ public sealed class AiRuntimeHarnessTests
         var target = report.Targets[0];
         Assert.Multiple(() =>
         {
+            Assert.That(report.Environment, Is.EqualTo(TestEnvironment));
             Assert.That(report.Scenarios, Has.Count.EqualTo(6), "Três contextos cruzados com duas reservas de geração.");
             Assert.That(target.Cases, Is.EqualTo(scenarios.Count * 3));
             Assert.That(target.GeneratedCases, Is.EqualTo(target.Cases), "Nenhum cenário padrão pode estourar o orçamento de 2048 tokens.");
@@ -229,7 +238,7 @@ public sealed class AiRuntimeHarnessTests
     {
         var harness = new AiRuntimeHarness(
             _ => new AiRuntimeSession(new LocalAiModelService(new BrokenCatalogFake(), () => new ScriptedRuntime()), _ => new WhitespaceTokenizerFake()),
-            new HardwareProbeFake([Cpu])) { Repetitions = 1, WarmupRepetitions = 0, Evidence = AiRuntimeEvidence.DeterministicFake };
+            new HardwareProbeFake([Cpu]), () => TestEnvironment) { Repetitions = 1, WarmupRepetitions = 0, Evidence = AiRuntimeEvidence.DeterministicFake };
 
         var report = await harness.RunAsync([new("pacote", "C:/pacote", AiAccelerationMode.Cpu)],
             [new("curto", "db.", 3)], TestContext.CurrentContext.CancellationToken);
@@ -326,111 +335,5 @@ public sealed class AiRuntimeHarnessTests
             [.. (text ?? "").Split(' ', '\n', '\r', '\t').Where(part => part.Length > 0).Select(part => part.Length)];
 
         public string Decode(IEnumerable<int> tokens) => string.Join(' ', tokens ?? []);
-    }
-}
-
-/// <summary>
-/// Ferramenta manual: roda o <see cref="AiRuntimeHarness"/> contra os pacotes ONNX reais instalados na máquina e
-/// escreve o relatório JSON e Markdown (critério de aceite 8 da Fase 4).
-/// </summary>
-/// <remarks>
-/// <para>
-/// <see cref="ExplicitAttribute"/> e fora da suíte regular: carrega pesos de verdade, mede latência e por isso só
-/// produz número com significado em máquina ociosa. O instrumento em si é coberto por
-/// <see cref="AiRuntimeHarnessTests"/>.
-/// </para>
-/// <para>
-/// Os pacotes saem de <c>SLOP_MODELS_DIR</c> ou do diretório padrão do catálogo; cada subpasta válida vira um alvo,
-/// cruzada com os aceleradores que o <see cref="OnnxHardwareProbe"/> relatar nesta compilação. Executar com
-/// <c>dotnet test tests/EsilvaSoft.KapibaraStudio.Benchmarks -c Release --filter "FullyQualifiedName~AiRuntimeRealModelRunner"</c>.
-/// </para>
-/// </remarks>
-[TestFixture, Explicit("Carrega pesos ONNX reais e mede latência; escreve relatório.")]
-public sealed class AiRuntimeRealModelRunner
-{
-    [Test]
-    public async Task ProfileEveryInstalledPackageOnEveryAvailableAccelerator()
-    {
-        var cancellationToken = TestContext.CurrentContext.CancellationToken;
-        var catalog = new LocalModelCatalog();
-        var directory = Environment.GetEnvironmentVariable("SLOP_MODELS_DIR") is { Length: > 0 } custom ? custom : catalog.DefaultDirectory;
-        var discovered = await catalog.DiscoverAsync(directory, cancellationToken);
-        var packages = discovered.Where(validation => validation.Model is not null)
-            .Select(validation => (Id: validation.Model!.Name, validation.Model!.Path))
-            .ToArray();
-        Assert.That(packages, Is.Not.Empty, "Nenhum pacote válido em " + directory);
-
-        var probe = new OnnxHardwareProbe();
-        var factory = new RealSessionFactory(catalog, probe);
-        var harness = new AiRuntimeHarness(factory.Open, probe)
-        {
-            Repetitions = Repetitions,
-            WarmupRepetitions = 1,
-            Evidence = AiRuntimeEvidence.RealModel
-        };
-        var devices = await harness.DetectHardwareAsync(cancellationToken);
-        var targets = AiRuntimeHarness.SelectTargets(packages, devices);
-
-        var report = await harness.RunAsync(targets, AiRuntimeScenario.CreateDefault(), cancellationToken);
-        var files = await AiRuntimeReportWriter.WriteAsync(report, AiRuntimeReportWriter.DefaultDirectory(), cancellationToken);
-
-        await TestContext.Out.WriteLineAsync(AiRuntimeReportWriter.ToMarkdown(report));
-        foreach (var file in files) await TestContext.Out.WriteLineAsync("Relatório: " + file);
-        Assert.That(report.Targets.Any(target => target.GeneratedCases > 0), Is.True, "Nenhum alvo gerou texto; o relatório não tem evidência real.");
-    }
-
-    /// <summary>Repetições cronometradas por cenário; sobrescrever com <c>SLOP_HARNESS_REPETITIONS</c>.</summary>
-    private static int Repetitions =>
-        int.TryParse(Environment.GetEnvironmentVariable("SLOP_HARNESS_REPETITIONS"), out var value) && value > 0 ? value : 5;
-
-    /// <summary>
-    /// Abre a sessão real de um alvo: o mesmo <see cref="LocalAiModelService"/> sobre o mesmo
-    /// <see cref="OnnxLocalModelRuntime"/> da produção, com o tokenizador e o construtor de prompt do adaptador do
-    /// pacote — o caminho medido é o caminho que o usuário executa.
-    /// </summary>
-    private sealed class RealSessionFactory(ILocalModelCatalog catalog, IAiHardwareProbe probe)
-    {
-        public AiRuntimeSession Open(AiRuntimeTarget target)
-        {
-            ArgumentNullException.ThrowIfNull(target);
-            var tools = new AdapterTools(target.PackagePath);
-            return new(new LocalAiModelService(catalog, () => new OnnxLocalModelRuntime(hardware: probe), probe),
-                _ => tools.Tokenizer, tools.Builder, tools);
-        }
-    }
-
-    /// <summary>
-    /// Tokenizador e construtor de prompt do pacote. Como o tokenizador do GenAI só existe preso a um
-    /// <c>Model</c>, esta classe abre uma sessão sem provider (CPU) apenas para obtê-lo — exatamente o que a
-    /// <c>AdapterTokenizerFactory</c> da produção faz, e pelo mesmo motivo: o orçamento da Fase 3 e o prompt
-    /// tokenizado precisam vir do vocabulário do pacote, não de outro.
-    /// </summary>
-    private sealed class AdapterTools : IDisposable
-    {
-        private readonly Microsoft.ML.OnnxRuntimeGenAI.Model _session;
-
-        public AdapterTools(string path)
-        {
-            var validation = new LocalModelCatalog().ValidateAsync(path).GetAwaiter().GetResult();
-            var model = validation.Model ?? throw new InvalidOperationException(validation.Status.Message);
-            var adapter = ModelAdapters.For(model);
-            using (var config = new Microsoft.ML.OnnxRuntimeGenAI.Config(path))
-            {
-                config.ClearProviders();
-                _session = new(config);
-            }
-            Tokenizer = adapter.CreateTokenizer(_session, path);
-            Builder = adapter.CreatePromptBuilder();
-        }
-
-        public ITokenizer Tokenizer { get; }
-
-        public ICompletionPromptBuilder Builder { get; }
-
-        public void Dispose()
-        {
-            (Tokenizer as IDisposable)?.Dispose();
-            _session.Dispose();
-        }
     }
 }

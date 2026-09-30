@@ -143,7 +143,7 @@ public sealed partial class AgentToolRegistry
         var exclusions = permissions.Workspace?.Exclusions ?? [];
         var workspace = string.Empty;
         var hasWorkspace = permissions.Workspace?.UseFilesFolder == true &&
-            AgentWorkspacePaths.TryGetWorkspaceRoot(snapshot.WorkspaceFolder, out workspace);
+            AgentWorkspacePaths.TryGetWorkspaceRoot(snapshot.WorkspaceFolder, out workspace, _sessionTools?.PathProbe);
 
         WorkspaceActiveFile? active = null;
         if (permissions.DataSending?.ActiveFile == true && (snapshot.ActiveFilePath is not null || snapshot.ActiveFileName is not null))
@@ -154,7 +154,7 @@ public sealed partial class AgentToolRegistry
             if (snapshot.ActiveFilePath is { } activePath)
             {
                 if (hasWorkspace &&
-                    AgentWorkspacePaths.TryResolveInside(workspace, activePath, exclusions, out _, out var resolved, out _))
+                    AgentWorkspacePaths.TryResolveInside(workspace, activePath, exclusions, out _, out var resolved, out _, _sessionTools?.PathProbe))
                 {
                     inside = true;
                     relative = resolved;
@@ -162,7 +162,7 @@ public sealed partial class AgentToolRegistry
                 else
                 {
                     // Exclusions apply by the real path, inside the workspace or not (e.g. an open ".env" elsewhere).
-                    var check = AgentWorkspacePaths.CheckFile(activePath, hasWorkspace ? workspace : null, exclusions);
+                    var check = AgentWorkspacePaths.CheckFile(activePath, hasWorkspace ? workspace : null, exclusions, _sessionTools?.PathProbe);
                     excluded = check is AgentWorkspacePathError.Excluded or AgentWorkspacePathError.InvalidExclusion;
                     inside = hasWorkspace && AgentWorkspacePaths.IsStrictlyInside(activePath, workspace);
                 }

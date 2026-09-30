@@ -125,7 +125,7 @@ internal sealed partial class ClaudeCodeAgentSession
             if (error is not null)
             {
 #if DEBUG
-                ClaudeCodeDebugLog.TurnFailure(_options.DebugLogDirectory, error, stage, resultReceived, discarded, processExitCode);
+                ClaudeCodeDebugLog.TurnFailure(_provider.System, _options.DebugLogDirectory, error, stage, resultReceived, discarded, processExitCode);
 #endif
                 await EmitErrorAsync(writer, turn, error).ConfigureAwait(false);
             }
@@ -148,7 +148,7 @@ internal sealed partial class ClaudeCodeAgentSession
 
     private ClaudeCodeStreamTranslator NewTranslator(TurnContext turn, ClaudeCodeTurnSetup setup) =>
 #if DEBUG
-        new(turn.CliSessionId, _options.MinimumVersion, _profile.Model, setup, _options.DebugLogDirectory);
+        new(turn.CliSessionId, _options.MinimumVersion, _profile.Model, setup, _provider.System, _options.DebugLogDirectory);
 #else
         new(turn.CliSessionId, _options.MinimumVersion, _profile.Model, setup);
 #endif
@@ -370,10 +370,10 @@ internal sealed partial class ClaudeCodeAgentSession
         ClaudeCodeStreamTranslator translator, string messageLine, ChannelWriter<AgentProviderEvent> writer)
     {
         var arguments = ClaudeCodeCommandLine.TurnArguments(turnProfile, _options.MaxTurns, turn.CliSessionId, turn.Resume, setup, systemPrompt);
-        ClaudeCodeProcess process;
+        IClaudeCodeProcess process;
         try
         {
-            process = ClaudeCodeProcess.Start(turnProfile.ExecutablePath, arguments, turnProfile.WorkingDirectory, _options.MaxStderrBytes);
+            process = _provider.System.Start(turnProfile.ExecutablePath, arguments, turnProfile.WorkingDirectory, _options.MaxStderrBytes);
         }
         catch (Exception exception) when (exception is InvalidOperationException or Win32Exception or IOException or UnauthorizedAccessException)
         {
@@ -462,7 +462,7 @@ internal sealed partial class ClaudeCodeAgentSession
     }
 
     /// <summary>Depois do result: fecha o stdin e espera o término; se a CLI não sair, encerra a árvore.</summary>
-    private async Task FinishProcessAsync(ClaudeCodeProcess process)
+    private async Task FinishProcessAsync(IClaudeCodeProcess process)
     {
         try
         {
@@ -479,7 +479,7 @@ internal sealed partial class ClaudeCodeAgentSession
     }
 
     // O stderr só é consultado por um marcador fixo; seu conteúdo nunca vai para eventos, logs ou exceções.
-    private static bool StderrSaysSessionMissing(ClaudeCodeProcess process) =>
+    private static bool StderrSaysSessionMissing(IClaudeCodeProcess process) =>
         process.StderrSnapshot.Contains(NoConversationMarker, StringComparison.Ordinal);
 
     private static async Task PublishAsync(ChannelWriter<AgentProviderEvent> writer, TurnContext turn, List<AgentProviderEvent> events)

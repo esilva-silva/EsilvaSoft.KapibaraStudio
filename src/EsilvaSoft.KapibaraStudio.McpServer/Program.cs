@@ -1,4 +1,5 @@
 using EsilvaSoft.KapibaraStudio.Application.Agents.Broker;
+using EsilvaSoft.KapibaraStudio.SystemAdapters;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
@@ -14,9 +15,13 @@ public static class Program
     /// <summary>Largest accepted JSON-RPC line on stdin (64 KiB of arguments plus envelope and escaping).</summary>
     internal const int MaximumInputLineBytes = 256 * 1024;
 
-    public static async Task<int> Main(string[] args)
+    public static Task<int> Main(string[] args) => RunAsync(args, McpProxySystemAdapters.Create());
+
+    internal static async Task<int> RunAsync(string[] args, McpProxySystemAdapterSet adapters)
     {
-        var stderr = Console.Error;
+        ArgumentNullException.ThrowIfNull(adapters);
+        var console = adapters.Console;
+        var stderr = console.StandardError;
         var options = McpProxyOptions.TryParse(args ?? []);
         if (options is null)
         {
@@ -25,14 +30,16 @@ public static class Program
         }
 
         // Grab the raw stdout for the protocol and neutralize Console.Out so no library can add noise to it.
-        var stdout = Console.OpenStandardOutput();
-        Console.SetOut(TextWriter.Null);
-        await using var stdin = new BoundedLineReadStream(Console.OpenStandardInput(), MaximumInputLineBytes);
+        var session = AgentMcpConsoleSession.Open(console);
+        var stdout = session.Output;
+        await using var stdin = new BoundedLineReadStream(session.Input, MaximumInputLineBytes);
 
+        var localTransport = adapters.Transport;
+        var credentials = adapters.Credentials;
         AgentBrokerEndpoint endpoint;
         try
         {
-            endpoint = AgentBrokerEndpoint.ForWorkspace(options.WorkspaceId);
+            endpoint = localTransport.GetEndpoint(options.WorkspaceId);
         }
         catch (PlatformNotSupportedException)
         {
@@ -40,10 +47,8 @@ public static class Program
             return 3;
         }
 
-        IClientTransportCredentialStore credentials = OperatingSystem.IsWindows()
-            ? new WindowsClientTransportCredentialStore()
-            : new UnavailableClientTransportCredentialStore();
-        await using var broker = new AgentBrokerClient(endpoint, options.ChannelId, options.ProofReference, credentials);
+        await using var broker = new AgentBrokerClient(endpoint, options.ChannelId, options.ProofReference, credentials,
+            transport: localTransport);
         var adapter = new McpToolAdapter(broker);
         var serverOptions = new McpServerOptions
         {

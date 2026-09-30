@@ -15,7 +15,7 @@ public sealed class AgentContextProviderRedactionTests
     private const string Canary = "Canary7Secret";
 
     private static readonly AgentContextProvider Provider =
-        new(new McpBrokerFixture.FixedProfiles(ConnectionProfile.Create("p", "mongodb://localhost:27017")));
+        new(new McpFixedProfiles(ConnectionProfile.Create("p", "mongodb://localhost:27017")));
 
     [TestCase(@"{""uri"":""mongodb:\/\/svc:" + Canary + @"@db.internal:27017\/shop""}", TestName = "JsonEscapedUri")]
     [TestCase("mongodb%3A%2F%2Fsvc%3A" + Canary + "%40db.internal", TestName = "UrlEncodedUri")]

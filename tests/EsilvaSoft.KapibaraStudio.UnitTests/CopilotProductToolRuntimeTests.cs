@@ -1,4 +1,4 @@
-using System.Text.Json;
+using EsilvaSoft.KapibaraStudio.SystemAdapters.Copilot;
 using Avalonia.Headless;
 using EsilvaSoft.KapibaraStudio.Application;
 using EsilvaSoft.KapibaraStudio.Application.Agents;
@@ -7,13 +7,13 @@ using EsilvaSoft.KapibaraStudio.Core.Agents;
 using EsilvaSoft.KapibaraStudio.Desktop.Agents;
 using EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Copilot;
 using EsilvaSoft.KapibaraStudio.Desktop.ViewModels;
-using GitHub.Copilot;
 using NUnit.Framework;
 
 namespace EsilvaSoft.KapibaraStudio.UnitTests;
 
 /// <summary>Checks that Copilot tool requests still pass through AgentRuntime's trusted binding and registry.</summary>
 [TestFixture]
+[Category("Unit")]
 public sealed class CopilotProductToolRuntimeTests
 {
     private const string ToolName = "get_workspace_context";
@@ -73,13 +73,12 @@ public sealed class CopilotProductToolRuntimeTests
 
             var principal = new AgentPrincipal(Guid.NewGuid(), AgentPrincipalOrigin.Internal, 1);
             var binding = new SessionToolBinding(principal, deny: false);
-            await using var sessionStore = new CopilotVolatileSessionFsStore();
-            var logPath = Path.Combine(Path.GetTempPath(), $"KapibaraCopilotSynthetic-{Guid.NewGuid():N}.jsonl");
-            var provider = new SessionProvider(registry, logPath, sessionStore, editProposalToolRequest: true);
+            await using var sessionStore = new MemoryProductToolStorage(persistent: false);
+            var provider = new SessionProvider(registry, sessionStore, editProposalToolRequest: true);
             await using var runtime = new AgentRuntime([provider], toolRegistry: registry, toolBindings: binding,
                 principalAuthority: authority, nativeChatTurnScopes: nativeScopes);
             string? providerSessionId = null;
-            var sessionId = await runtime.StartSessionAsync(new AgentSessionOptions(provider.ProviderId, "fake-model", Path.GetTempPath())
+            var sessionId = await runtime.StartSessionAsync(new AgentSessionOptions(provider.ProviderId, "fake-model")
             {
                 PersistProviderSession = false,
                 ProviderSessionObserver = update =>
@@ -130,7 +129,6 @@ public sealed class CopilotProductToolRuntimeTests
                 await runtime.CloseSessionAsync(sessionId, CancellationToken.None);
                 if (providerSessionId is { } nativeId)
                     await runtime.DeleteProviderSessionAsync(provider.ProviderId, nativeId, CancellationToken.None);
-                if (File.Exists(logPath)) File.Delete(logPath);
             }
             return true;
         }, CancellationToken.None);
@@ -145,92 +143,60 @@ public sealed class CopilotProductToolRuntimeTests
         bool denyBinding, string expectedResultType, int expectedInvocations, string? registryErrorCode,
         string expectedStatus)
     {
-        var logPath = Path.Combine(Path.GetTempPath(), $"KapibaraCopilotTool-{Guid.NewGuid():N}.jsonl");
-        var sessionRoot = Path.Combine(Path.GetTempPath(), $"KapibaraCopilotSessions-{Guid.NewGuid():N}");
-        try
+        await using var sessionStore = new MemoryProductToolStorage(persistent: true);
+        var registry = new SessionToolRegistry(registryErrorCode);
+        var principal = new AgentPrincipal(Guid.NewGuid(), AgentPrincipalOrigin.Internal, 1);
+        var binding = new SessionToolBinding(principal, denyBinding);
+        var authority = new SessionPrincipalAuthority();
+        var provider = new SessionProvider(registry, sessionStore);
+        await using var runtime = new AgentRuntime([provider], toolRegistry: registry,
+            toolBindings: binding, principalAuthority: authority);
+        var sessionId = await runtime.StartSessionAsync(new AgentSessionOptions(provider.ProviderId, "fake-model")
         {
-            await using var sessionStore = new CopilotPersistentSessionFsStore(sessionRoot);
-            var registry = new SessionToolRegistry(registryErrorCode);
-            var principal = new AgentPrincipal(Guid.NewGuid(), AgentPrincipalOrigin.Internal, 1);
-            var binding = new SessionToolBinding(principal, denyBinding);
-            var authority = new SessionPrincipalAuthority();
-            var provider = new SessionProvider(registry, logPath, sessionStore);
-            await using var runtime = new AgentRuntime([provider], toolRegistry: registry,
-                toolBindings: binding, principalAuthority: authority);
-            var sessionId = await runtime.StartSessionAsync(new AgentSessionOptions(provider.ProviderId, "fake-model")
-            {
-                ReservedProviderSessionId = Guid.NewGuid().ToString("D"),
-                PersistProviderSession = true,
-            }, CancellationToken.None);
-            var request = new AgentTurnRequest(AgentTurnId.New(), "Leia o contexto autorizado", "tab-test", 1)
-            {
-                Plan = new AgentTurnPlan(AgentOperationMode.Agent, [], [], [], [ToolName],
-                    AgentProposalHandling.Disabled, false, AgentConfirmationCategories.WorkspaceContextRead),
-            };
-
-            var events = new List<AgentEvent>();
-            await foreach (var item in runtime.RunTurnAsync(sessionId, request, CancellationToken.None)) events.Add(item);
-
-            Assert.That(File.Exists(logPath), Is.True,
-                string.Join(" | ", events.Select(item => $"{item.Kind}:{item.ErrorCode}:{item.Text}")));
-            var lines = File.ReadAllLines(logPath);
-            var responseLine = lines.Single(line =>
-            {
-                using var document = JsonDocument.Parse(line);
-                return document.RootElement.GetProperty("method").GetString() == "session.tools.handlePendingToolCall";
-            });
-            using var response = JsonDocument.Parse(responseLine);
-            var result = response.RootElement.GetProperty("params").GetProperty("result");
-            Assert.Multiple(() =>
-            {
-                Assert.That(events.Any(item => item.Kind == AgentEventKind.ToolRequested && item.ToolName == ToolName), Is.True);
-                Assert.That(events.Any(item => item.Kind == AgentEventKind.TaskCompleted), Is.True);
-                Assert.That(events.Single(item => item.Kind is AgentEventKind.ToolCompleted or AgentEventKind.ToolFailed)
-                    .ToolStatus?.ToString(), Is.EqualTo(expectedStatus));
-                Assert.That(registry.Invocations, Is.EqualTo(expectedInvocations));
-                Assert.That(binding.Resolutions, Is.GreaterThanOrEqualTo(1));
-                Assert.That(result.GetProperty("resultType").GetString(), Is.EqualTo(expectedResultType));
-                if (!denyBinding && registryErrorCode is null)
-                {
-                    Assert.That(result.GetProperty("textResultForLlm").GetString(), Is.EqualTo(ToolPayload));
-                    Assert.That(registry.LastDestination, Is.EqualTo(AgentOutputDestination.ProviderExternal(provider.ProviderId)));
-                    Assert.That(registry.LastPrincipal, Is.EqualTo(principal));
-                }
-            });
-        }
-        finally
+            ReservedProviderSessionId = Guid.NewGuid().ToString("D"),
+            PersistProviderSession = true,
+        }, CancellationToken.None);
+        var request = new AgentTurnRequest(AgentTurnId.New(), "Leia o contexto autorizado", "tab-test", 1)
         {
-            if (File.Exists(logPath)) File.Delete(logPath);
-            if (Directory.Exists(sessionRoot)) Directory.Delete(sessionRoot, recursive: true);
-        }
+            Plan = new AgentTurnPlan(AgentOperationMode.Agent, [], [], [], [ToolName],
+                AgentProposalHandling.Disabled, false, AgentConfirmationCategories.WorkspaceContextRead),
+        };
+
+        var events = new List<AgentEvent>();
+        await foreach (var item in runtime.RunTurnAsync(sessionId, request, CancellationToken.None)) events.Add(item);
+
+        var responses = provider.Client.Sessions.Single().Responses;
+        Assert.That(responses, Has.Count.EqualTo(1));
+        var result = responses.Single().Result;
+        Assert.Multiple(() =>
+        {
+            Assert.That(events.Any(item => item.Kind == AgentEventKind.ToolRequested && item.ToolName == ToolName), Is.True);
+            Assert.That(events.Any(item => item.Kind == AgentEventKind.TaskCompleted), Is.True);
+            Assert.That(events.Single(item => item.Kind is AgentEventKind.ToolCompleted or AgentEventKind.ToolFailed)
+                .ToolStatus?.ToString(), Is.EqualTo(expectedStatus));
+            Assert.That(registry.Invocations, Is.EqualTo(expectedInvocations));
+            Assert.That(binding.Resolutions, Is.GreaterThanOrEqualTo(1));
+            Assert.That(result.ResultType, Is.EqualTo(expectedResultType));
+            if (!denyBinding && registryErrorCode is null)
+            {
+                Assert.That(result.TextResultForLlm, Is.EqualTo(ToolPayload));
+                Assert.That(registry.LastDestination, Is.EqualTo(AgentOutputDestination.ProviderExternal(provider.ProviderId)));
+                Assert.That(registry.LastPrincipal, Is.EqualTo(principal));
+            }
+        });
     }
 
-    private sealed class SessionProvider(IAgentToolRegistry registry, string logPath,
+    private sealed class SessionProvider(IAgentToolRegistry registry,
         ICopilotSessionFsStore sessionStore, bool editProposalToolRequest = false) : IAgentProvider
     {
+        public ProductToolMemoryClient Client { get; } = new(editProposalToolRequest);
         public string ProviderId => CopilotSubscriptionAgentProvider.Id;
-
         public Task<IAgentSession> CreateSessionAsync(AgentSessionOptions options, CancellationToken cancellationToken)
         {
-            var script = FindRuntimeScript();
-            var powershell = FindPowerShellExecutable();
-            var commonArguments = OperatingSystem.IsWindows()
-                ? new[] { "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", script }
-                : new[] { "-NoLogo", "-NoProfile", "-NonInteractive", "-File", script };
-            var client = new CopilotClient(new CopilotClientOptions
-            {
-                Connection = RuntimeConnection.ForStdio(powershell,
-                    [.. commonArguments, "-MissingSession",
-                        editProposalToolRequest ? "-EditProposalToolRequest" : "-ProductToolRequest",
-                        "-ContractLogPath", logPath]),
-                UseLoggedInUser = false,
-                Mode = CopilotClientMode.CopilotCli,
-                BaseDirectory = Path.Combine(Path.GetTempPath(), "KapibaraStudioCopilotFakeTests"),
-            });
-            return Task.FromResult<IAgentSession>(new CopilotSubscriptionAgentSession(registry, options, client, sessionStore));
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult<IAgentSession>(new CopilotSubscriptionAgentSession(registry, options, Client, sessionStore));
         }
     }
-
     private sealed class EmptyProfiles : IConnectionProfileRepository
     {
         public Task<IReadOnlyList<ConnectionProfile>> GetAllAsync(CancellationToken cancellationToken = default) =>
@@ -325,19 +291,4 @@ public sealed class CopilotProductToolRuntimeTests
             throw new NotSupportedException();
     }
 
-    private static string FindRuntimeScript()
-    {
-        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
-        {
-            var candidate = Path.Combine(directory.FullName, "tests",
-                "EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Tests", "Copilot", "FakeCopilotRuntime.ps1");
-            if (File.Exists(candidate)) return candidate;
-        }
-        throw new FileNotFoundException("Fake Copilot runtime was not found.");
-    }
-
-    private static string FindPowerShellExecutable() => OperatingSystem.IsWindows()
-        ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
-            "WindowsPowerShell", "v1.0", "powershell.exe")
-        : "pwsh";
 }

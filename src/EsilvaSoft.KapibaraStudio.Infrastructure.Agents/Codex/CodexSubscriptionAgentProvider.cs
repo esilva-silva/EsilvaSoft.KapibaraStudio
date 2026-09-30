@@ -16,18 +16,25 @@ public sealed class CodexSubscriptionAgentProvider : IAgentProvider, IAsyncDispo
     public const string DisplayName = "Codex — assinatura ChatGPT";
     private readonly CodexSubscriptionAgentProviderOptions _options;
     private readonly IAgentToolRegistry? _tools;
+    private readonly IAgentWorkspaceDirectoryProbe _directories;
     private readonly Func<CancellationToken, Task<ICodexAppServerConnection>> _connect;
     private readonly SemaphoreSlim _accountGate = new(1, 1);
     private int _disposed;
 
-    public CodexSubscriptionAgentProvider(CodexSubscriptionAgentProviderOptions options, IAgentToolRegistry? tools = null)
-        : this(options, tools, token => StartAsync(options, token)) { }
+    public CodexSubscriptionAgentProvider(CodexSubscriptionAgentProviderOptions options,
+        ICodexAppServerProcessLauncher processLauncher, IAgentWorkspaceDirectoryProbe directories,
+        IAgentToolRegistry? tools = null)
+        : this(options, tools, token => StartAsync(options, processLauncher, token), directories)
+    {
+        ArgumentNullException.ThrowIfNull(processLauncher);
+    }
 
     internal CodexSubscriptionAgentProvider(CodexSubscriptionAgentProviderOptions options, IAgentToolRegistry? tools,
-        Func<CancellationToken, Task<ICodexAppServerConnection>> connect)
+        Func<CancellationToken, Task<ICodexAppServerConnection>> connect, IAgentWorkspaceDirectoryProbe directories)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _tools = tools;
+        _directories = directories ?? throw new ArgumentNullException(nameof(directories));
         _connect = connect ?? throw new ArgumentNullException(nameof(connect));
     }
 
@@ -139,7 +146,7 @@ public sealed class CodexSubscriptionAgentProvider : IAgentProvider, IAsyncDispo
             var model = string.IsNullOrWhiteSpace(options.ModelId) ? (models.Count > 0 ? models[0] : null) : options.ModelId;
             if (model is null || !models.Contains(model, StringComparer.Ordinal))
                 throw new InvalidOperationException("O modelo Codex selecionado não está disponível para a conta ChatGPT.");
-            var session = new CodexSubscriptionAgentSession(connection, _tools, model, options);
+            var session = new CodexSubscriptionAgentSession(connection, _tools, model, options, _directories);
             connection = null!;
             return session;
         }
@@ -187,26 +194,13 @@ public sealed class CodexSubscriptionAgentProvider : IAgentProvider, IAsyncDispo
         return models;
     }
 
-    private static Task<ICodexAppServerConnection> StartAsync(CodexSubscriptionAgentProviderOptions options, CancellationToken token)
+    private static Task<ICodexAppServerConnection> StartAsync(CodexSubscriptionAgentProviderOptions options,
+        ICodexAppServerProcessLauncher processLauncher, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
-        var exe = options.ExecutablePath ?? FindExecutable();
-        if (!Path.IsPathFullyQualified(exe) || !File.Exists(exe)) throw new FileNotFoundException("Codex CLI is unavailable.");
-        var work = Path.GetFullPath(options.WorkingDirectory ?? Environment.CurrentDirectory);
-        var home = Path.GetFullPath(options.CodexHome);
         return Task.FromResult<ICodexAppServerConnection>(new CodexAppServerConnection(
-            CodexAppServerJsonRpcTransport.Start(exe, work, home)));
-    }
-
-    private static string FindExecutable()
-    {
-        var name = OperatingSystem.IsWindows() ? "codex.exe" : "codex";
-        foreach (var directory in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
-        {
-            var candidate = Path.Combine(directory, name);
-            if (File.Exists(candidate)) return Path.GetFullPath(candidate);
-        }
-        throw new FileNotFoundException("Codex CLI is unavailable.");
+            CodexAppServerJsonRpcTransport.Start(processLauncher, options.ExecutablePath,
+                options.WorkingDirectory, options.CodexHome)));
     }
 }
 
@@ -233,7 +227,7 @@ internal sealed class CodexAppServerConnection(CodexAppServerJsonRpcTransport tr
 }
 
 internal sealed class CodexSubscriptionAgentSession(ICodexAppServerConnection connection, IAgentToolRegistry? registry,
-    string model, AgentSessionOptions options) : IAgentSession
+    string model, AgentSessionOptions options, IAgentWorkspaceDirectoryProbe directories) : IAgentSession
 {
     private readonly Lock _gate = new();
     private readonly Dictionary<AgentToolCallId, (JsonElement RequestId, string CallId)> _pendingTools = [];
@@ -265,12 +259,11 @@ internal sealed class CodexSubscriptionAgentSession(ICodexAppServerConnection co
             var dynamicTools = BuildTools(request.Plan);
             var catalogFingerprint = FingerprintToolCatalog(dynamicTools);
             var workspace = request.WorkspaceContext?.WorkspaceFolder;
-            if (string.IsNullOrWhiteSpace(workspace) || !Directory.Exists(workspace))
+            if (string.IsNullOrWhiteSpace(workspace) || !Path.IsPathFullyQualified(workspace) || !directories.Exists(workspace))
             {
                 yield return new(AgentEventKind.AgentError, "CodexWorkspaceRequired");
                 yield break;
             }
-            workspace = Path.GetFullPath(workspace);
             var catalogChangedInSession = _threadId is not null &&
                 !string.Equals(_toolCatalogFingerprint, catalogFingerprint, StringComparison.Ordinal);
             if (catalogChangedInSession)

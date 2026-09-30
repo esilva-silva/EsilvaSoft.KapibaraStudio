@@ -182,6 +182,14 @@ public sealed class ConnectionProfileTests
     }
 
     [Test]
+    public void DefaultEnvironmentResolverFailsClosedForUnavailableVariable()
+    {
+        var profile = ConnectionProfile.Create("Produção", "mongodb://admin:${KAPIBARA_UNIT_TEST_UNSET_7D4F1B}@db.example:27017");
+
+        Assert.That(() => profile.ResolveConnectionString(), Throws.TypeOf<InvalidOperationException>());
+    }
+
+    [Test]
     public void ReadOnlyProfileRejectsWrites()
     {
         var profile = ConnectionProfile.Create("Produção", "mongodb://localhost:27017", isReadOnly: true);

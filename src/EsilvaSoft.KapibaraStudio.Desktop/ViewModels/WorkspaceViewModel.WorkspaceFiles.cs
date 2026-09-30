@@ -39,6 +39,8 @@ public sealed partial class WorkspaceViewModel
     }
     public async Task SetWorkspaceFolderAsync(string path)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        if (!Path.IsPathFullyQualified(path)) throw new ArgumentException("A pasta do workspace precisa ter caminho absoluto.", nameof(path));
         var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
         if (WorkspaceFileService is null) throw new InvalidOperationException("Serviço de arquivos indisponível.");
         CancelWorkspaceEnumeration(); WorkspaceRootPath = root; WorkspaceFiles.Clear(); SelectedWorkspaceFile = null; SelectedSidebar = "Files";
@@ -86,6 +88,8 @@ public sealed partial class WorkspaceViewModel
     }
     public async Task<WorkspaceTabViewModel> OpenTextFileAsync(string path)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        if (!Path.IsPathFullyQualified(path)) throw new ArgumentException("O arquivo precisa ter caminho absoluto.", nameof(path));
         var fullPath = Path.GetFullPath(path);
         await _openTextFile.WaitAsync();
         try
@@ -107,7 +111,7 @@ public sealed partial class WorkspaceViewModel
     }
     public bool IsInsideWorkspace(string path)
     {
-        if (WorkspaceRootPath is null) return false;
+        if (WorkspaceRootPath is null || !Path.IsPathFullyQualified(path)) return false;
         var root = Path.TrimEndingDirectorySeparator(WorkspaceRootPath);
         var full = Path.GetFullPath(path);
         var prefix = Path.EndsInDirectorySeparator(root) ? root : root + Path.DirectorySeparatorChar;

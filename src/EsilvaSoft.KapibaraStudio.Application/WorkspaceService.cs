@@ -4,7 +4,7 @@ using EsilvaSoft.KapibaraStudio.Core;
 
 namespace EsilvaSoft.KapibaraStudio.Application;
 
-public sealed class WorkspaceService(IConnectionProfileRepository profiles, IQueryHistoryRepository queryHistory, IScriptHistoryRepository scriptHistory, ISavedQueryRepository savedQueries, IAuditRepository audit, IMongoWorkspaceService mongo, IScriptExecutionService scripts, IScriptFileService scriptFiles, IConnectionSecretStore secrets, IEnvironmentVaultRepository? environments = null, IExplorerMetadataService? explorer = null, IConsoleRuntime? console = null, IConsoleHistoryRepository? consoleHistory = null, IApplicationOperationService? operations = null, ICodeFormatter? formatter = null, IResultPageExportService? resultExports = null, ICodeValidator? validator = null, IMetadataInvalidationBus? metadataInvalidation = null, SchemaLearningService? schemaLearning = null, LearnedSchemaCatalogSource? learnedSchemaCatalog = null, ILearnedSchemaRepository? learnedSchemaRepository = null, ITextFileService? textFiles = null)
+public sealed class WorkspaceService(IConnectionProfileRepository profiles, IQueryHistoryRepository queryHistory, IScriptHistoryRepository scriptHistory, ISavedQueryRepository savedQueries, IAuditRepository audit, IMongoWorkspaceService mongo, IScriptExecutionService scripts, IScriptFileService scriptFiles, IConnectionSecretStore secrets, IEnvironmentVaultRepository? environments = null, IExplorerMetadataService? explorer = null, IConsoleRuntime? console = null, IConsoleHistoryRepository? consoleHistory = null, IApplicationOperationService? operations = null, ICodeFormatter? formatter = null, IResultPageExportService? resultExports = null, ICodeValidator? validator = null, IMetadataInvalidationBus? metadataInvalidation = null, SchemaLearningService? schemaLearning = null, LearnedSchemaCatalogSource? learnedSchemaCatalog = null, ILearnedSchemaRepository? learnedSchemaRepository = null, ITextFileService? textFiles = null, ITextExportFileService? textExports = null)
 {
     /// <summary>Optional desktop localizer for operation descriptions; null keeps the application-layer default text.</summary>
     public Func<string, string>? OperationLocalizer { get; set; }
@@ -24,6 +24,9 @@ public sealed class WorkspaceService(IConnectionProfileRepository profiles, IQue
         (validator ?? throw new InvalidOperationException("Validador indisponível.")).ValidateAsync(text, aggregation, token);
     public Task ExportResultPageAsync(string path, IReadOnlyList<string> documents, bool csv, Action<int, int> progress, CancellationToken cancellationToken) =>
         (resultExports ?? throw new InvalidOperationException("Exportador indisponível.")).ExportAsync(path, documents, csv, progress, cancellationToken);
+
+    public Task WriteNewTextExportAsync(string path, string content, CancellationToken cancellationToken = default) =>
+        (textExports ?? throw new InvalidOperationException("Exportador de texto indisponível.")).WriteNewAsync(path, content, cancellationToken);
 
     public Task<string> FormatCodeAsync(string text, CancellationToken cancellationToken = default) =>
         (formatter ?? throw new InvalidOperationException("Formatador indisponível.")).FormatAsync(text, cancellationToken);

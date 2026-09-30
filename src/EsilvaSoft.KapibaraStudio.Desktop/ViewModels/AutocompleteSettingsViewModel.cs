@@ -9,7 +9,8 @@ namespace EsilvaSoft.KapibaraStudio.Desktop.ViewModels;
 
 public sealed partial class AutocompleteSettingsViewModel(IAutocompleteService service, ILocalModelCatalog? catalog,
     Func<AutocompleteSettings, Task> save, ILocalAiModelService? models = null, IRemoteModelSource? remote = null,
-    IApplicationOperationService? operations = null) : ObservableObject
+    IApplicationOperationService? operations = null, IModelDirectoryService? directories = null,
+    ILocalDirectoryLauncher? directoryLauncher = null) : ObservableObject
 {
     private static string T(string key) => LocalizationViewModel.Current.Resolve(key);
     private static string F(string key, params object?[] args) => LocalizationViewModel.Current.Format(key, args);
@@ -282,10 +283,12 @@ public sealed partial class AutocompleteSettingsViewModel(IAutocompleteService s
     public async Task SelectExternalModelAsync(string path)
     {
         string full;
+        if (!Path.IsPathFullyQualified(path)) { OperationStatus = T("invalidModelPath"); return; }
         try { full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path)); }
         catch (Exception) { OperationStatus = T("invalidModelPath"); return; }
         var directory = EffectiveModelDirectory;
-        if (directory.Length > 0 && string.Equals(Path.GetDirectoryName(full), Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory)), PathComparison))
+        if (directory.Length > 0 && Path.IsPathFullyQualified(directory) &&
+            string.Equals(Path.GetDirectoryName(full), Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory)), PathComparison))
         {
             var name = Path.GetFileName(full);
             SelectedModelOption = Models.FirstOrDefault(option => !option.IsExternal && string.Equals(option.Reference, name, PathComparison)) ?? Add(new(name, false));
@@ -339,7 +342,7 @@ public sealed partial class AutocompleteSettingsViewModel(IAutocompleteService s
             var invalid = found.Where(candidate => candidate.Model is null).ToArray();
             ModelDiagnostics = invalid.Length == 0 ? string.Empty
                 : F("ignoredFolders", string.Join("; ", invalid.Select(candidate => $"{FolderOf(candidate.Path)} — {LocalAiStatusFormatter.ValidityLabel(candidate.Validity, LocalizationViewModel.Current.Resolve)}")));
-            OperationStatus = found.Count == 0 && !Directory.Exists(directory) ? F("modelsDirectoryMissing", directory)
+            OperationStatus = found.Count == 0 && directories?.Exists(directory) != true ? F("modelsDirectoryMissing", directory)
                 : F("modelsFound", found.Count - invalid.Length) + (invalid.Length > 0 ? F("ignoredFoldersCount", invalid.Length) : ".");
         }
         catch (OperationCanceledException) { }

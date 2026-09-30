@@ -67,6 +67,7 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(host);
         _services = services;
+        WorkspaceFilePicker = new AgentWorkspaceFilePickerViewModel(services.PathProbe, services.FileCatalog);
         _host = host;
         _initialPreferences = preferences;
         Modes = AgentModeOption.All();

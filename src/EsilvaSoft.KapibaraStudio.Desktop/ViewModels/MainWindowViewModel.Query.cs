@@ -148,13 +148,12 @@ public sealed partial class MainWindowViewModel
             {
                 throw new ArgumentException(T("newJsonFileRequired"), nameof(QueryExportPath));
             }
+            if (!Path.IsPathFullyQualified(QueryExportPath))
+                throw new ArgumentException(T("newJsonFileRequired"), nameof(QueryExportPath));
 
             var destination = Path.GetFullPath(QueryExportPath);
-            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
             var content = QueryResultExportSerializer.Serialize(_lastQueryDocuments);
-            await using var stream = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, useAsync: true);
-            await using var writer = new StreamWriter(stream);
-            await writer.WriteAsync(content);
+            await _workspace.WriteNewTextExportAsync(destination, content);
             StatusMessage = F("exportedExtendedJson", _lastQueryDocuments.Count);
         }
         catch (Exception exception) when (exception is ArgumentException or IOException or UnauthorizedAccessException)

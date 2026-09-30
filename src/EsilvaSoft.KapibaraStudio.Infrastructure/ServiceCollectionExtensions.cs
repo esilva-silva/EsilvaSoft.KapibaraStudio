@@ -1,9 +1,12 @@
+using EsilvaSoft.KapibaraStudio.SystemAdapters;
 using EsilvaSoft.KapibaraStudio.Application;
 using EsilvaSoft.KapibaraStudio.Application.Agents;
+using EsilvaSoft.KapibaraStudio.Application.Agents.Broker;
 using EsilvaSoft.KapibaraStudio.Application.SchemaLearning;
 using EsilvaSoft.KapibaraStudio.Autocomplete.Core;
 using EsilvaSoft.KapibaraStudio.LocalAi.Core;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace EsilvaSoft.KapibaraStudio.Infrastructure;
 
@@ -17,11 +20,28 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddKapibaraStudioInfrastructure(this IServiceCollection services, string workspaceDatabasePath,
         AgentPlatformOptions? agentPlatform = null)
     {
+        services.TryAddSingleton<ILocalWorkspacePaths>(_ => new LocalWorkspacePaths(workspaceDatabasePath));
         services.AddSingleton<IApplicationOperationService, ApplicationOperationService>();
         services.AddSingleton<ICodeFormatter, MongoCodeFormatter>();
         services.AddSingleton<ICodeValidator, MongoCodeValidator>();
         services.AddSingleton<IResultPageExportService, LocalResultPageExportService>();
+        services.AddSingleton<ITextExportFileService, LocalTextExportFileService>();
+        services.TryAddSingleton<IMongoDatabaseExportFileAccess, LocalMongoDatabaseExportFileAccess>();
+        services.TryAddSingleton<IModelDirectoryService, LocalModelDirectoryService>();
+        services.TryAddSingleton<ILocalDirectoryLauncher, LocalDirectoryLauncher>();
+        services.TryAddSingleton<IAgentBoundedFileReader, LocalAgentBoundedFileReader>();
+        services.TryAddSingleton<IAgentWorkspacePathProbe, LocalAgentWorkspacePathProbe>();
+        services.TryAddSingleton<IAgentWorkspaceFileCatalog, LocalAgentWorkspaceFileCatalog>();
+        services.TryAddSingleton<IHostEnvironmentSnapshot, LocalHostEnvironmentSnapshot>();
+        services.TryAddSingleton<IHostPlatformSnapshot, LocalHostPlatformSnapshot>();
+        services.TryAddSingleton<IAgentMcpServerExecutableLocator, LocalAgentMcpServerExecutableLocator>();
+        services.TryAddSingleton<IProcessMemorySnapshot, LocalProcessMemorySnapshot>();
+        services.TryAddSingleton<IAgentBrokerLocalTransport, BrokerLocalTransport>();
+        services.TryAddSingleton<ILocalModelFileAccess, LocalModelFileAccess>();
+        services.TryAddSingleton<IRemoteModelStorage, RemoteModelStorage>();
+        services.TryAddSingleton<IMongoshScriptProcessRunner, LocalMongoshScriptProcessRunner>();
         services.AddSingleton<MongoClientPool>();
+        services.TryAddSingleton<IMongoClientPool>(provider => provider.GetRequiredService<MongoClientPool>());
         services.AddSingleton<IAutocompleteDiagnostics, AutocompleteDiagnostics>();
         services.AddSingleton<AiAutocompleteProvider>(provider => new(provider.GetRequiredService<ILocalAiModelService>()));
         services.AddSingleton<IAutocompleteService, AutocompleteService>();
@@ -65,7 +85,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IConsoleDatabaseSessionFactory, ConsoleDatabaseSessionFactory>();
         services.AddSingleton<IConsoleRuntime, ConsoleRuntime>();
         services.AddSingleton<IConnectionSecretStore, SessionConnectionSecretStore>();
-        services.AddSingleton<ISecretStore>(_ => CreateAgentSecretStore(OperatingSystem.IsWindows(), OperatingSystem.IsLinux()));
+        services.AddSingleton<ISecretStore>(provider => AgentSecretStoreFactory.Create(provider.GetRequiredService<IHostPlatformSnapshot>()));
         services.AddSingleton<IAgentCredentialProvider, AgentCredentialProvider>();
         services.AddSingleton<IMongoWorkspaceService, MongoWorkspaceService>();
         // Autocomplete knowledge: invalidations from IDE operations, driver metadata and the in-memory catalog.
@@ -101,7 +121,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IScriptFileService, LocalScriptFileService>();
         services.AddSingleton<ITextFileService>(services => (ITextFileService)services.GetRequiredService<IScriptFileService>());
         services.AddSingleton<IWorkspaceFileService, LocalWorkspaceFileService>();
-        services.AddSingleton<IAppUpdateService>(_ => new GitHubAppUpdateService(AppUpdateOptions.FromProcess()));
+        services.TryAddSingleton<IAppUpdateStorage, LocalAppUpdateStorage>();
+        services.AddSingleton<IAppUpdateService>(provider => new GitHubAppUpdateService(AppUpdateOptions.FromProcess(
+            provider.GetRequiredService<ILocalWorkspacePaths>()),
+            provider.GetRequiredService<IAppUpdateStorage>()));
         AddAgentPlatform(services, agentPlatform ?? new AgentPlatformOptions());
         return services;
     }
@@ -172,6 +195,8 @@ public static class ServiceCollectionExtensions
             var sessionTools = new AgentSessionToolPorts(provider.GetRequiredService<IAgentMcpSessionScopes>())
             {
                 NativeChatTurnScopes = provider.GetRequiredService<IAgentNativeChatTurnScopes>(),
+                FileReader = provider.GetRequiredService<IAgentBoundedFileReader>(),
+                PathProbe = provider.GetRequiredService<IAgentWorkspacePathProbe>(),
                 MetadataCache = provider.GetService<IMetadataCache>(),
                 LearnedSchemas = provider.GetService<ILearnedSchemaRepository>(),
                 WorkspaceContext = provider.GetService<IAgentWorkspaceContextSource>(),
@@ -207,7 +232,11 @@ public static class ServiceCollectionExtensions
             provider.GetRequiredService<IAgentAuthorizationPolicyRepository>(),
             provider.GetRequiredService<IConnectionProfileRepository>(),
             provider.GetRequiredService<AgentMcpSessionRegistry>(), options.ToolExposureStage,
-            externalBroker: provider.GetService<AgentBrokerHost>()));
+            hostPlatform: provider.GetRequiredService<IHostPlatformSnapshot>(),
+            executablePathProbe: provider.GetRequiredService<IAgentWorkspacePathProbe>(),
+            externalBroker: provider.GetService<AgentBrokerHost>(),
+            brokerTransport: provider.GetRequiredService<IAgentBrokerLocalTransport>(),
+            executableLocator: provider.GetRequiredService<IAgentMcpServerExecutableLocator>()));
         services.AddSingleton<IAgentMcpChannelProvisioner>(provider => provider.GetRequiredService<AgentMcpChannelProvisioner>());
         // Recognizes only approvals frozen by the coordinator (identity check, never a grant); everything else keeps
         // the fail-closed answer.
@@ -259,12 +288,9 @@ public static class ServiceCollectionExtensions
         // host); those channels stay separate from the external opt-in and see only their turn plan.
         services.AddSingleton<AgentBrokerHost>(provider => new AgentBrokerHost(
             provider.GetRequiredService<IAgentToolRegistry>(), provider.GetRequiredService<IAgentPrincipalAuthority>(),
-            options, sessionScopes: provider.GetRequiredService<IAgentMcpSessionScopes>()));
+            options, sessionScopes: provider.GetRequiredService<IAgentMcpSessionScopes>(),
+            transport: provider.GetRequiredService<IAgentBrokerLocalTransport>()));
         return services;
     }
 
-    internal static ISecretStore CreateAgentSecretStore(bool isWindows, bool isLinux) =>
-        isWindows ? new WindowsCredentialSecretStore() :
-        isLinux ? new LinuxSecretServiceSecretStore() :
-        new UnavailableSecretStore();
 }

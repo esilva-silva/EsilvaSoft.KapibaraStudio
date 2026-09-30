@@ -32,18 +32,20 @@ public sealed class LanguageCaseFixture
 
     public static IReadOnlyList<LanguageCaseFixture> LoadAll()
     {
-        var root = Path.Combine(AppContext.BaseDirectory, "Language", "Cases");
-        if (!Directory.Exists(root)) throw new DirectoryNotFoundException($"Corpus de fixtures não copiado para a saída: {root}");
-        return Directory.GetFiles(root, "*.case", SearchOption.AllDirectories)
+        var cases = EmbeddedTestData.Paths
+            .Where(path => path.StartsWith("Language/Cases/", StringComparison.Ordinal) && path.EndsWith(".case", StringComparison.Ordinal))
             .Order(StringComparer.Ordinal)
-            .Select(Parse)
+            .Select(path => Parse(path, EmbeddedTestData.ReadText(path)))
             .ToArray();
+        if (cases.Length == 0) throw new InvalidDataException("Corpus de fixtures não embutido no assembly de testes.");
+        return cases;
     }
 
-    public static LanguageCaseFixture Parse(string path)
+    public static LanguageCaseFixture Parse(string path, string content)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        var lines = File.ReadAllText(path).Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n').ToList();
+        ArgumentNullException.ThrowIfNull(content);
+        var lines = content.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n').ToList();
         // A physical final newline terminates the last line; it is not a blank line in the logical fixture format.
         if (lines.Count > 0 && lines[^1].Length == 0) lines.RemoveAt(lines.Count - 1);
         var headers = new Dictionary<string, List<string>>(StringComparer.Ordinal);

@@ -3,13 +3,15 @@ using MongoDB.Driver;
 namespace EsilvaSoft.KapibaraStudio.Infrastructure;
 
 /// <summary>Application-lifetime clients, keyed by effective settings. Never evicts a client used by an active operation.</summary>
-public sealed class MongoClientPool : IDisposable
+public sealed class MongoClientPool : IMongoClientPool, IDisposable
 {
     internal static MongoClientPool Shared { get; } = new();
     private readonly object _gate = new();
     private readonly Dictionary<MongoClientSettings, MongoClient> _clients = [];
     private bool _disposed;
     public const int MaximumClients = 64;
+
+    IMongoClient IMongoClientPool.GetClient(MongoClientSettings settings) => Get(settings);
 
     public MongoClient Get(MongoClientSettings settings)
     {

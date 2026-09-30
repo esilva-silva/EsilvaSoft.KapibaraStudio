@@ -21,7 +21,7 @@ public sealed class SchemaLearningWorkspaceRetentionTests
             _ => throw new NotSupportedException(name)
         };
         var workspace = new WorkspaceService(context.Repository, context.Repository, context.Repository, context.Repository,
-            context.Repository, mongo, context.Scripts, new LocalScriptFileService(), new SessionConnectionSecretStore(),
+            context.Repository, mongo, context.Scripts, new MemoryTextFiles(), new SessionConnectionSecretStore(),
             learnedSchemaRepository: learned);
         var profile = ConnectionProfile.Create("Dev", "mongodb://host");
 

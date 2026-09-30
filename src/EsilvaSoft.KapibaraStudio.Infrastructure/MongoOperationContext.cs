@@ -15,9 +15,9 @@ internal sealed class MongoOperationContext
 {
     private readonly ConnectionProfile _profile;
     private readonly OperationEnvironment _environment;
-    private readonly MongoClientPool _clients;
+    private readonly IMongoClientPool _clients;
 
-    private MongoOperationContext(ConnectionProfile profile, OperationEnvironment environment, MongoClientPool clients)
+    private MongoOperationContext(ConnectionProfile profile, OperationEnvironment environment, IMongoClientPool clients)
     {
         _profile = profile;
         _environment = environment;
@@ -28,20 +28,21 @@ internal sealed class MongoOperationContext
         ConnectionProfile profile,
         IConnectionSecretStore secrets,
         IEnvironmentVaultRepository? environments,
-        MongoClientPool clients,
+        IMongoClientPool clients,
         CancellationToken cancellationToken,
-        ISecretStore? credentialStore = null)
+        ISecretStore? credentialStore = null, IHostEnvironmentSnapshot? hostEnvironment = null,
+        IHostPlatformSnapshot? hostPlatform = null)
     {
-        var environment = new OperationEnvironment(environments, secrets, profile.Id, credentialStore);
+        var environment = new OperationEnvironment(environments, secrets, profile.Id, credentialStore, hostEnvironment, hostPlatform);
         await Task.CompletedTask.ConfigureAwait(ConfigureAwaitOptions.ForceYielding);
         await environment.PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
         return new MongoOperationContext(profile, environment, clients);
     }
 
-    public MongoClient CreateClient()
+    public IMongoClient CreateClient()
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(_profile.ConnectionString);
-        return _clients.Get(MongoClientSettings.FromConnectionString(_environment.ResolvedConnection));
+        return _clients.GetClient(MongoClientSettings.FromConnectionString(_environment.ResolvedConnection));
     }
 
     public IMongoCollection<BsonDocument> GetCollection(string database, string collection)

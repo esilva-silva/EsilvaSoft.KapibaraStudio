@@ -11,7 +11,7 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests;
 /// credential or model call. Covers explicit states, the global sign-out confirmation, the mode chip, the read notice
 /// and that no account data other than allowlisted tokens is ever shown.
 /// </summary>
-[TestFixture, NonParallelizable]
+[TestFixture, NonParallelizable, Category("Unit")]
 public sealed class AgentCliAccountViewModelTests
 {
     private static readonly string[] RuntimeCodes = ["CancelledAfterSend", "ObservedToolUnconfirmed", "NativeToolFailed"];
@@ -311,7 +311,7 @@ public sealed class AgentCliAccountViewModelTests
                 Assert.That(chat.SendCommand.CanExecute(null), Is.False, "Bloqueado: sem fallback e sem envio.");
             });
 
-            accounts.WorkspaceDirectory = Path.Combine(Path.GetTempPath(), "workspace-sintetico");
+            accounts.WorkspaceDirectory = SyntheticPaths.Combine("workspace-sintetico");
             chat.RefreshReadScope();
             Assert.That(chat.ReadScopeText, Does.Contain("workspace-sintetico").And.Contain("enviado à Anthropic pelo Claude Code"));
 
@@ -333,8 +333,8 @@ public sealed class AgentCliAccountViewModelTests
         {
             var runtime = new ChannelAgentRuntime { SessionGate = new TaskCompletionSource() };
             var catalog = new MutableAgentCatalog(MutableAgentCatalog.Subscription());
-            var folderA = Path.Combine(Path.GetTempPath(), "workspace-a");
-            var folderB = Path.Combine(Path.GetTempPath(), "workspace-b");
+            var folderA = SyntheticPaths.Combine("workspace-a");
+            var folderB = SyntheticPaths.Combine("workspace-b");
             var tab = new AgentChatTabFixture { WorkspaceFolder = folderA };
             await using var chat = new AgentChatViewModel(
                 new AgentChatServices(runtime, catalog, new FakeAgentContextProvider(), CliAccounts: new FakeCliAccountManager())
@@ -412,7 +412,7 @@ public sealed class AgentCliAccountViewModelTests
     {
         await RunOnUiAsync(async () =>
         {
-            var folder = Path.Combine(Path.GetTempPath(), "perfil-com-ssh");
+            var folder = SyntheticPaths.Combine("perfil-com-ssh");
             var accounts = new FakeCliAccountManager
             {
                 ScopeFor = candidate => new AgentCliReadScope(candidate, FakeCliAccountManager.DedicatedFolder, false,

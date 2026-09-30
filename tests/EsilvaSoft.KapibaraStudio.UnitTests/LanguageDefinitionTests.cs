@@ -64,9 +64,7 @@ public sealed class LanguageDefinitionTests
         engine.Execute("var __profiles = [{\"id\":\"p\",\"name\":\"A\"}];");
         engine.SetValue("__primary", "p"); engine.SetValue("__database", "db"); engine.SetValue("__captureName", "__capture"); engine.SetValue("__maxDocuments", 10);
         var before = Keys(engine, "Object.getOwnPropertyNames(globalThis)").ToHashSet(StringComparer.Ordinal);
-        using (var stream = typeof(ConsoleRuntime).Assembly.GetManifestResourceStream("EsilvaSoft.KapibaraStudio.Infrastructure.ConsoleBootstrap.js")!)
-        using (var reader = new StreamReader(stream))
-            engine.Execute(reader.ReadToEnd());
+        engine.Execute(ConsoleBootstrap.Source);
         var added = Keys(engine, "Object.getOwnPropertyNames(globalThis)").Where(name => !before.Contains(name) && name != "__capture").ToArray();
         var console = LanguageDefinition.Default.Symbols.Where(symbol => symbol.Dialects.HasFlag(EditorDialects.Console)).ToArray();
         string[] Names(SymbolKind kind) => console.Where(symbol => symbol.Kind == kind).Select(symbol => symbol.Name).ToArray();

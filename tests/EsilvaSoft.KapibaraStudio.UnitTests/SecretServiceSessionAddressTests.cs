@@ -14,7 +14,7 @@ public sealed class SecretServiceSessionAddressTests
     [TestCase("unix:path=/run/user/1000/bus;tcp:host=example.invalid,port=1234")]
     public void MissingOrNonLocalAddressFailsBeforeNativeDiscoveryOrConnection(string? address)
     {
-        var exception = Assert.Throws<SecretServiceException>(() => new SecretServiceDbusWire(() => address, CancellationToken.None));
+        var exception = Assert.Throws<SecretServiceException>(() => SecretServiceSessionAddress.Resolve(() => address, CancellationToken.None));
         Assert.That(exception!.Code, Is.EqualTo(SecretStoreFailureCode.Unavailable));
     }
 
@@ -26,7 +26,7 @@ public sealed class SecretServiceSessionAddressTests
     [TestCase("unix:guid=ABCDEF1234567890ABCDEF1234567890,path=/run/user/1000/bus")]
     public void LocalSessionAddressIsUsedWithoutDiscovery(string address)
     {
-        Assert.That(SecretServiceDbusWire.ResolveSessionAddress(() => address, CancellationToken.None), Is.EqualTo(address));
+        Assert.That(SecretServiceSessionAddress.Resolve(() => address, CancellationToken.None), Is.EqualTo(address));
     }
 
     [TestCase("unix:")]
@@ -55,7 +55,7 @@ public sealed class SecretServiceSessionAddressTests
     [TestCase("unix:path=/tmp/bus,,guid=0123456789abcdef0123456789abcdef")]
     public void InvalidUnixGrammarIsUnavailableBeforeConnection(string address)
     {
-        var exception = Assert.Throws<SecretServiceException>(() => new SecretServiceDbusWire(() => address, CancellationToken.None));
+        var exception = Assert.Throws<SecretServiceException>(() => SecretServiceSessionAddress.Resolve(() => address, CancellationToken.None));
         Assert.That(exception!.Code, Is.EqualTo(SecretStoreFailureCode.Unavailable));
     }
 
@@ -63,23 +63,23 @@ public sealed class SecretServiceSessionAddressTests
     public void TooManyAlternativesAreRejectedButTheLimitIsAccepted()
     {
         var maximum = string.Join(';', Enumerable.Repeat("unix:path=/run/user/1000/bus", SecretServiceSessionAddress.MaximumAlternatives));
-        Assert.That(SecretServiceDbusWire.ResolveSessionAddress(() => maximum, CancellationToken.None), Is.EqualTo(maximum));
-        Assert.Throws<SecretServiceException>(() => SecretServiceDbusWire.ResolveSessionAddress(() => maximum + ";unix:path=/tmp/bus", CancellationToken.None));
+        Assert.That(SecretServiceSessionAddress.Resolve(() => maximum, CancellationToken.None), Is.EqualTo(maximum));
+        Assert.Throws<SecretServiceException>(() => SecretServiceSessionAddress.Resolve(() => maximum + ";unix:path=/tmp/bus", CancellationToken.None));
     }
 
     [Test]
     public void OversizedAddressIsRejectedBeforeParsing()
     {
         var address = "unix:path=/" + new string('x', SecretServiceSessionAddress.MaximumAddressCharacters);
-        Assert.Throws<SecretServiceException>(() => SecretServiceDbusWire.ResolveSessionAddress(() => address, CancellationToken.None));
+        Assert.Throws<SecretServiceException>(() => SecretServiceSessionAddress.Resolve(() => address, CancellationToken.None));
     }
 
     [Test]
     public void SocketNameBoundUsesDecodedBytes()
     {
         var maximum = "unix:abstract=" + string.Concat(Enumerable.Repeat("%61", SecretServiceSessionAddress.MaximumSocketNameBytes));
-        Assert.That(SecretServiceDbusWire.ResolveSessionAddress(() => maximum, CancellationToken.None), Is.EqualTo(maximum));
-        Assert.Throws<SecretServiceException>(() => SecretServiceDbusWire.ResolveSessionAddress(() => maximum + "%61", CancellationToken.None));
+        Assert.That(SecretServiceSessionAddress.Resolve(() => maximum, CancellationToken.None), Is.EqualTo(maximum));
+        Assert.Throws<SecretServiceException>(() => SecretServiceSessionAddress.Resolve(() => maximum + "%61", CancellationToken.None));
     }
 
     [Test]
@@ -87,7 +87,7 @@ public sealed class SecretServiceSessionAddressTests
     {
         using var cts = new CancellationTokenSource();
         cts.Cancel();
-        var exception = Assert.Throws<OperationCanceledException>(() => new SecretServiceDbusWire(
+        var exception = Assert.Throws<OperationCanceledException>(() => SecretServiceSessionAddress.Resolve(
             () => throw new AssertionException("A resolução não deveria executar."), cts.Token));
         Assert.That(exception!.CancellationToken, Is.EqualTo(cts.Token));
     }
@@ -96,7 +96,7 @@ public sealed class SecretServiceSessionAddressTests
     public void CancellationDuringResolutionPreventsConnectionConstruction()
     {
         using var cts = new CancellationTokenSource();
-        var exception = Assert.Throws<OperationCanceledException>(() => new SecretServiceDbusWire(() =>
+        var exception = Assert.Throws<OperationCanceledException>(() => SecretServiceSessionAddress.Resolve(() =>
         {
             cts.Cancel();
             return "unix:path=/run/user/1000/bus";

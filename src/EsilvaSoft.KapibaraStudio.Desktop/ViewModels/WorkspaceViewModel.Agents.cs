@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using EsilvaSoft.KapibaraStudio.Application.Agents;
 using EsilvaSoft.KapibaraStudio.Core;
 using EsilvaSoft.KapibaraStudio.Core.Agents;
 using EsilvaSoft.KapibaraStudio.Desktop.Agents;
@@ -13,6 +14,7 @@ namespace EsilvaSoft.KapibaraStudio.Desktop.ViewModels;
 public sealed partial class WorkspaceViewModel : IAgentChatHost
 {
     private readonly AgentChatServicesFactory? _agentChatServices;
+    private readonly IAgentWorkspacePathProbe? _agentPaths;
     private readonly IDisposable? _agentWorkspaceContextAttachment;
     private readonly IDisposable? _agentProposalTextAttachment;
     private AgentChatViewModel? _agentChat;
@@ -105,7 +107,7 @@ public sealed partial class WorkspaceViewModel : IAgentChatHost
     public async Task<IAgentBufferEditor?> OpenEditorAsync(string? targetPath, string? tabId)
     {
         if (tabId is { Length: 0 } || targetPath is null && string.IsNullOrWhiteSpace(tabId)) return null;
-        if (targetPath is not null && (string.IsNullOrWhiteSpace(targetPath) || !File.Exists(targetPath))) return null;
+        if (targetPath is not null && (string.IsNullOrWhiteSpace(targetPath) || _agentPaths?.FileExists(targetPath) != true)) return null;
         var pathComparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
         var tab = targetPath is null
             ? Tabs.FirstOrDefault(candidate => string.Equals(candidate.Id.ToString("N"), tabId, StringComparison.OrdinalIgnoreCase))

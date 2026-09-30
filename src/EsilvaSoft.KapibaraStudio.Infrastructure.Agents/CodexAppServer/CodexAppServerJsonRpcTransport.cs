@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
+using EsilvaSoft.KapibaraStudio.Application.Agents;
 
 namespace EsilvaSoft.KapibaraStudio.Infrastructure.Agents.CodexAppServer;
 
@@ -21,7 +22,7 @@ internal sealed class CodexAppServerRpcException(int code) : Exception("Codex Ap
 internal sealed class CodexAppServerJsonRpcTransport : IAsyncDisposable
 {
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
-    private readonly CodexAppServerProcess _process;
+    private readonly IAgentStdioProcess _process;
     private readonly CodexAppServerTransportOptions _options;
     private readonly Channel<CodexAppServerInboundMessage> _messages;
     private readonly ConcurrentDictionary<long, TaskCompletionSource<JsonElement>> _pending = new();
@@ -32,7 +33,7 @@ internal sealed class CodexAppServerJsonRpcTransport : IAsyncDisposable
     private long _nextId;
     private int _disposed;
 
-    private CodexAppServerJsonRpcTransport(CodexAppServerProcess process, CodexAppServerTransportOptions options)
+    private CodexAppServerJsonRpcTransport(IAgentStdioProcess process, CodexAppServerTransportOptions options)
     {
         _process = process;
         _options = options;
@@ -49,21 +50,34 @@ internal sealed class CodexAppServerJsonRpcTransport : IAsyncDisposable
 
     public int ProcessId => _process.Id;
 
-    public static CodexAppServerJsonRpcTransport Start(string executable, string workingDirectory, string codexHome,
-        CodexAppServerTransportOptions? options = null, IReadOnlyList<string>? arguments = null)
+    /// <summary>Attaches the protocol to an owned endpoint without acquiring OS resources.</summary>
+    internal static CodexAppServerJsonRpcTransport Attach(IAgentStdioProcess process,
+        CodexAppServerTransportOptions? options = null)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(executable);
-        ArgumentException.ThrowIfNullOrWhiteSpace(workingDirectory);
-        ArgumentException.ThrowIfNullOrWhiteSpace(codexHome);
+        ArgumentNullException.ThrowIfNull(process);
         options ??= new CodexAppServerTransportOptions();
+        ValidateOptions(options);
+        return new CodexAppServerJsonRpcTransport(process, options);
+    }
+
+    private static void ValidateOptions(CodexAppServerTransportOptions options)
+    {
         if (options.MaxFrameBytes < 256 || options.MaxStdoutBytes < options.MaxFrameBytes ||
             options.MaxStderrBytes < 1 || options.MaxQueuedMessages < 1 ||
             options.DefaultRequestTimeout <= TimeSpan.Zero)
-        {
             throw new ArgumentOutOfRangeException(nameof(options));
-        }
+    }
 
-        var process = CodexAppServerProcess.Start(executable,
+    public static CodexAppServerJsonRpcTransport Start(ICodexAppServerProcessLauncher launcher,
+        string? executable, string? workingDirectory, string codexHome,
+        CodexAppServerTransportOptions? options = null, IReadOnlyList<string>? arguments = null)
+    {
+        ArgumentNullException.ThrowIfNull(launcher);
+        ArgumentException.ThrowIfNullOrWhiteSpace(codexHome);
+        options ??= new CodexAppServerTransportOptions();
+        ValidateOptions(options);
+
+        var process = launcher.Start(executable,
             arguments ??
             [
                 "--disable", "shell_tool",
@@ -303,6 +317,12 @@ internal sealed class CodexAppServerJsonRpcTransport : IAsyncDisposable
             !responseId.TryGetInt64(out var numericId))
         {
             throw new InvalidDataException("Codex App Server sent an invalid RPC response id.");
+        }
+
+        if (!root.TryGetProperty("error", out _) && !root.TryGetProperty("result", out _))
+        {
+            // Validate before removing the waiter so Fail can still complete every pending request.
+            throw new InvalidDataException("Codex App Server response lacks result or error.");
         }
 
         if (!_pending.TryRemove(numericId, out var pending))

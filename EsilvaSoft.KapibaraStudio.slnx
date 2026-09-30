@@ -13,11 +13,15 @@
     <Project Path="src/EsilvaSoft.KapibaraStudio.Application/EsilvaSoft.KapibaraStudio.Application.csproj" />
   </Folder>
   <Folder Name="/src/Infrastructure/">
+    <Project Path="src/EsilvaSoft.KapibaraStudio.Infrastructure.System/EsilvaSoft.KapibaraStudio.Infrastructure.System.csproj" />
     <Project Path="src/EsilvaSoft.KapibaraStudio.Infrastructure/EsilvaSoft.KapibaraStudio.Infrastructure.csproj" />
     <Project Path="src/EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi/EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi.csproj" />
+    <Project Path="src/EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi.OnnxAdapter/EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi.OnnxAdapter.csproj" />
     <Project Path="src/EsilvaSoft.KapibaraStudio.Infrastructure.Agents/EsilvaSoft.KapibaraStudio.Infrastructure.Agents.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/EsilvaSoft.KapibaraStudio.TestSupport/EsilvaSoft.KapibaraStudio.TestSupport.csproj" />
+    <Project Path="tests/EsilvaSoft.KapibaraStudio.IntegrationTests/EsilvaSoft.KapibaraStudio.IntegrationTests.csproj" />
     <Project Path="tests/EsilvaSoft.KapibaraStudio.UnitTests/EsilvaSoft.KapibaraStudio.UnitTests.csproj" />
     <Project Path="tests/EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Tests/EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Tests.csproj" />
     <Project Path="tests/EsilvaSoft.KapibaraStudio.Benchmarks/EsilvaSoft.KapibaraStudio.Benchmarks.csproj" />

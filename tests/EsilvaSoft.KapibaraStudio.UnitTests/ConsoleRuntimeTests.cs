@@ -5,25 +5,23 @@ using EsilvaSoft.KapibaraStudio.Desktop.ViewModels;
 
 namespace EsilvaSoft.KapibaraStudio.UnitTests;
 
-[TestFixture]
+[TestFixture, Category("Unit")]
 public sealed class ConsoleRuntimeTests : IDisposable
 {
-    private string _path = null!;
-    private LiteDbConnectionProfileRepository _repository = null!;
+    private MemoryWorkspaceRepository _repository = null!;
     private ConnectionProfile _primary = null!;
     private FakeSession _session = null!;
     private ConsoleRuntime _runtime = null!;
     private static readonly bool[] ProjectionFlags = [false, true, true, false, true, false, false];
     [SetUp] public async Task SetUp()
     {
-        _path = Path.Combine(TestContext.CurrentContext.WorkDirectory, $"console-{Guid.NewGuid():N}.db");
-        _repository = new(_path); _primary = ConnectionProfile.Create("Development", "mongodb://localhost", "CakeShop");
+        _repository = new(); _primary = ConnectionProfile.Create("Development", "mongodb://localhost", "CakeShop");
         await _repository.SaveAsync(_primary);
         await _repository.SaveAsync(ConnectionProfile.Create("Production Cluster", "mongodb://localhost", isReadOnly: true));
         _session = new();
         _runtime = new(_repository, _repository, new SessionConnectionSecretStore(), _session, _repository, _repository);
     }
-    [TearDown] public void TearDown() { _repository.Dispose(); File.Delete(_path); }
+    [TearDown] public void TearDown() { _repository.Dispose(); }
     public void Dispose() { _repository?.Dispose(); _session?.Dispose(); }
     private Task<ConsoleExecutionResult> Run(string script, CancellationToken token = default) =>
         _runtime.ExecuteAsync(new(_primary, "CakeShop", script), (_, _) => Task.FromResult(true), token);
@@ -195,13 +193,90 @@ public sealed class ConsoleRuntimeTests : IDisposable
             Assert.That(element.Value, Is.EqualTo(expected), element.Name);
     }
 
+    [Test]
+    public async Task FailedSessionAcquisitionIsReportedAndNextExecutionCanRecover()
+    {
+        _session.CreateFailure = new InvalidOperationException("Sessão indisponível.");
+        var failed = await Run("db.Customers.find({})");
+        Assert.That(failed.Error, Is.EqualTo("Sessão indisponível."));
+        Assert.That(_session.Operations, Is.Empty);
+
+        _session.CreateFailure = null;
+        var recovered = await Run("db.Customers.find({})");
+        Assert.That(recovered.Error, Is.Null, recovered.Error);
+        Assert.That(recovered.Results, Has.Count.EqualTo(1));
+    }
+
+    [Test]
+    public async Task ConcurrentExecutionsHaveIndependentCancellationAndCapturedDestinations()
+    {
+        var factory = new IndependentSessions();
+        var runtime = new ConsoleRuntime(_repository, _repository, new SessionConnectionSecretStore(), factory, _repository, _repository);
+        using var firstCancellation = new CancellationTokenSource();
+        var first = runtime.ExecuteAsync(new(_primary, "First", "db.Customers.find({})", SaveHistory: false),
+            (_, _) => Task.FromResult(true), firstCancellation.Token);
+        await factory.FirstStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var second = runtime.ExecuteAsync(new(_primary, "Second", "db.Orders.find({})", SaveHistory: false),
+            (_, _) => Task.FromResult(true));
+        await factory.SecondStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        firstCancellation.Cancel();
+        var firstResult = await first;
+        factory.ReleaseSecond.SetResult();
+        var secondResult = await second;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(firstResult.IsCanceled, Is.True);
+            Assert.That(firstResult.Error, Does.Contain("não são revertidos"));
+            Assert.That(secondResult.Error, Is.Null, secondResult.Error);
+            Assert.That(secondResult.Results.Single().Database, Is.EqualTo("Second"));
+            Assert.That(secondResult.Results.Single().Collection, Is.EqualTo("Orders"));
+            Assert.That(factory.DisposedCount, Is.EqualTo(2));
+        });
+    }
+
+    private sealed class IndependentSessions : IConsoleDatabaseSessionFactory
+    {
+        private int _created;
+        private int _disposed;
+        public int DisposedCount => _disposed;
+        public TaskCompletionSource FirstStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource SecondStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource ReleaseSecond { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public IConsoleDatabaseSession Create(IReadOnlyList<ConnectionProfile> resolvedProfiles, int documentLimit, int timeoutMs) =>
+            new Session(this, Interlocked.Increment(ref _created));
+
+        private sealed class Session(IndependentSessions owner, int number) : IConsoleDatabaseSession
+        {
+            public async Task<string> ExecuteAsync(ConsoleOperation operation, CancellationToken cancellationToken)
+            {
+                if (number == 1)
+                {
+                    owner.FirstStarted.SetResult();
+                    await Task.Delay(Timeout.Infinite, cancellationToken);
+                }
+                else
+                {
+                    owner.SecondStarted.SetResult();
+                    await owner.ReleaseSecond.Task.WaitAsync(cancellationToken);
+                }
+                return """{"value":[{"name":"captured"}],"truncated":false}""";
+            }
+
+            public void Dispose() => Interlocked.Increment(ref owner._disposed);
+        }
+    }
+
     private sealed class FakeSession : IConsoleDatabaseSessionFactory, IConsoleDatabaseSession
     {
         public List<ConsoleOperation> Operations { get; } = [];
         public Action? Before { get; set; }
         public Func<CancellationToken, Task>? Wait { get; set; }
         public Func<ConsoleOperation, string>? Reply { get; set; }
-        public IConsoleDatabaseSession Create(IReadOnlyList<ConnectionProfile> resolvedProfiles, int documentLimit, int timeoutMs) => this;
+        public Exception? CreateFailure { get; set; }
+        public IConsoleDatabaseSession Create(IReadOnlyList<ConnectionProfile> resolvedProfiles, int documentLimit, int timeoutMs) =>
+            CreateFailure is { } exception ? throw exception : this;
         public async Task<string> ExecuteAsync(ConsoleOperation operation, CancellationToken cancellationToken)
         {
             Operations.Add(operation); Before?.Invoke();

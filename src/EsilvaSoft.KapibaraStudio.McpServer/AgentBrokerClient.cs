@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.IO.Pipes;
 using System.Security.Cryptography;
 using System.Text.Json;
 using EsilvaSoft.KapibaraStudio.Application.Agents.Broker;
@@ -23,6 +22,7 @@ internal sealed class AgentBrokerClient : IAsyncDisposable
     private readonly Guid _channelId;
     private readonly SecretReference _proofReference;
     private readonly IClientTransportCredentialStore _credentials;
+    private readonly IAgentBrokerLocalTransport _transport;
     private readonly int _clientMajor;
     private readonly SemaphoreSlim _connectLock = new(1, 1);
     private readonly SemaphoreSlim _writeLock = new(1, 1);
@@ -35,12 +35,13 @@ internal sealed class AgentBrokerClient : IAsyncDisposable
 
     public AgentBrokerClient(AgentBrokerEndpoint endpoint, Guid channelId, SecretReference proofReference,
         IClientTransportCredentialStore credentials, int clientMajor = AgentBrokerProtocol.MajorVersion,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null, IAgentBrokerLocalTransport? transport = null)
     {
         _endpoint = endpoint ?? throw new ArgumentNullException(nameof(endpoint));
         _channelId = channelId;
         _proofReference = proofReference ?? throw new ArgumentNullException(nameof(proofReference));
         _credentials = credentials ?? throw new ArgumentNullException(nameof(credentials));
+        _transport = transport ?? throw new ArgumentNullException(nameof(transport));
         _clientMajor = clientMajor;
         _time = timeProvider ?? TimeProvider.System;
     }
@@ -183,14 +184,12 @@ internal sealed class AgentBrokerClient : IAsyncDisposable
 
     private async Task<Connection> ConnectAsync(CancellationToken cancellationToken)
     {
-        if (!_endpoint.HasPrivateDirectory())
+        if (!_transport.HasPrivateDirectory(_endpoint))
             throw new AgentBrokerProtocolException(AgentBrokerProtocol.ErrorCodes.HostUnavailable);
         // CurrentUserOnly: the client verifies that the pipe/socket server runs as the same OS user before any byte.
-        var pipe = new NamedPipeClientStream(".", _endpoint.PipeName, PipeDirection.InOut,
-            PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+        var pipe = await _transport.ConnectAsync(_endpoint, ConnectTimeout, cancellationToken).ConfigureAwait(false);
         try
         {
-            await pipe.ConnectAsync(ConnectTimeout, cancellationToken).ConfigureAwait(false);
             using var handshake = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             handshake.CancelAfter(HandshakeTimeout);
             var nonce = NewNonce();

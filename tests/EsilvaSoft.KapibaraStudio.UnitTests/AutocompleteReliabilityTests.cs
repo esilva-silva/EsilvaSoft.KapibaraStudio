@@ -91,30 +91,6 @@ public sealed class AutocompleteReliabilityTests
         Assert.That(service.Settings, Is.EqualTo(settings));
     }
 
-    [TestCase("{")]
-    [TestCase("{\"Version\":1,\"Preferences\":{\"Autocomplete\":{\"Version\":99}}}")]
-    [TestCase("{\"Version\":1,\"Preferences\":{\"Autocomplete\":null}}")]
-    public void CorruptOrFuturePreferencesCannotBeOverwritten(string json)
-    {
-        using var context = new WorkspaceTestContext();
-        // Deliberately corrupt the synthetic fixture through its existing owner, never a second LiteDB connection.
-        var database = (LiteDB.LiteDatabase)typeof(LiteDbConnectionProfileRepository).GetField("_database", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(context.Repository)!;
-        database.GetCollection("workspaceSession").Upsert(new LiteDB.BsonDocument { ["_id"] = "current", ["json"] = json });
-        Assert.That(async () => await context.Repository.SaveSessionAsync(new()), Throws.Exception);
-        Assert.That(database.GetCollection("workspaceSession").FindById("current")["json"].AsString, Is.EqualTo(json));
-    }
-
-    [Test]
-    public async Task OlderPreferencesWithoutAutocompleteGetConservativeDefaults()
-    {
-        using var context = new WorkspaceTestContext();
-        var database = (LiteDB.LiteDatabase)typeof(LiteDbConnectionProfileRepository).GetField("_database", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(context.Repository)!;
-        database.GetCollection("workspaceSession").Upsert(new LiteDB.BsonDocument { ["_id"] = "current", ["json"] = "{\"Version\":1,\"Preferences\":{\"Theme\":\"Escuro\"}}" });
-        var session = await context.Repository.LoadSessionAsync();
-        Assert.That(session.Preferences.Theme, Is.EqualTo("Escuro"));
-        Assert.That(session.Preferences.Autocomplete, Is.EqualTo(new AutocompleteSettings()));
-    }
-
     [Test]
     public async Task ContextIsBoundedBeforeItReachesRuntime()
     {

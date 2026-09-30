@@ -2,26 +2,20 @@ using EsilvaSoft.KapibaraStudio.Core;
 
 namespace EsilvaSoft.KapibaraStudio.UnitTests;
 
-[TestFixture]
+[TestFixture, Category("Unit")]
 public sealed class ScriptHistoryEntryTests
 {
     [Test]
-    public void CreateNormalizesRelativeJavaScriptPath()
+    public void CreateRejectsRelativeJavaScriptPathWithoutConsultingCurrentDirectory()
     {
-        var entry = ScriptHistoryEntry.Create(Path.Combine("scripts", "consulta.js"), DateTimeOffset.UtcNow);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(Path.IsPathFullyQualified(entry.Path), Is.True);
-            Assert.That(entry.Path, Does.EndWith(Path.Combine("scripts", "consulta.js")));
-            Assert.That(entry.Validate(), Is.EqualTo(entry));
-        });
+        Assert.That(() => ScriptHistoryEntry.Create(Path.Combine("scripts", "consulta.js"), DateTimeOffset.UtcNow),
+            Throws.TypeOf<ArgumentException>());
     }
 
     [Test]
     public void ValidateRejectsPathWithoutJavaScriptExtension()
     {
-        var entry = new ScriptHistoryEntry(Guid.NewGuid(), Path.Combine(Path.GetTempPath(), "consulta.txt"), DateTimeOffset.UtcNow);
+        var entry = new ScriptHistoryEntry(Guid.NewGuid(), SyntheticPaths.Combine("consulta.txt"), DateTimeOffset.UtcNow);
 
         Assert.That(() => entry.Validate(), Throws.TypeOf<ArgumentException>());
     }
@@ -29,7 +23,7 @@ public sealed class ScriptHistoryEntryTests
     [Test]
     public void DisplayTextContainsPath()
     {
-        var entry = ScriptHistoryEntry.Create(Path.Combine(Path.GetTempPath(), "consulta.js"), DateTimeOffset.UtcNow);
+        var entry = ScriptHistoryEntry.Create(SyntheticPaths.Combine("consulta.js"), DateTimeOffset.UtcNow);
 
         Assert.That(entry.DisplayText, Does.Contain(entry.Path));
     }
@@ -37,7 +31,7 @@ public sealed class ScriptHistoryEntryTests
     [Test]
     public void CreateAcceptsOptionalJsonObjectInput()
     {
-        var entry = ScriptHistoryEntry.Create(Path.Combine(Path.GetTempPath(), "consulta.js"), DateTimeOffset.UtcNow, "{ \"tenant\": \"acme\" }");
+        var entry = ScriptHistoryEntry.Create(SyntheticPaths.Combine("consulta.js"), DateTimeOffset.UtcNow, "{ \"tenant\": \"acme\" }");
 
         Assert.That(entry.InputJson, Is.EqualTo("{ \"tenant\": \"acme\" }"));
     }
@@ -46,7 +40,7 @@ public sealed class ScriptHistoryEntryTests
     [TestCase("{")]
     public void ValidateRejectsInvalidOrNonObjectJsonInput(string input)
     {
-        var entry = new ScriptHistoryEntry(Guid.NewGuid(), Path.Combine(Path.GetTempPath(), "consulta.js"), DateTimeOffset.UtcNow, input);
+        var entry = new ScriptHistoryEntry(Guid.NewGuid(), SyntheticPaths.Combine("consulta.js"), DateTimeOffset.UtcNow, input);
 
         Assert.That(() => entry.Validate(), Throws.TypeOf<ArgumentException>());
     }

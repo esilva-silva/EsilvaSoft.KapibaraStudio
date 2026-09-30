@@ -15,21 +15,30 @@ namespace EsilvaSoft.KapibaraStudio.Infrastructure;
 public sealed class MongoWorkspaceService : IMongoWorkspaceService
 {
     private readonly IConnectionSecretStore _secrets;
-    private readonly MongoClientPool _clients;
+    private readonly IMongoClientPool _clients;
     private readonly IEnvironmentVaultRepository? _environments;
     private readonly ISecretStore? _credentialStore;
+    private readonly IHostEnvironmentSnapshot? _hostEnvironment;
+    private readonly IHostPlatformSnapshot? _hostPlatform;
+    private readonly IMongoDatabaseExportFileAccess _exportFiles;
 
-    public MongoWorkspaceService(IConnectionSecretStore? secrets = null, IEnvironmentVaultRepository? environments = null,
-        MongoClientPool? clients = null, ISecretStore? credentialStore = null)
+    public MongoWorkspaceService(IMongoDatabaseExportFileAccess exportFiles,
+        IConnectionSecretStore? secrets = null, IEnvironmentVaultRepository? environments = null,
+        IMongoClientPool? clients = null, ISecretStore? credentialStore = null, IHostEnvironmentSnapshot? hostEnvironment = null,
+        IHostPlatformSnapshot? hostPlatform = null)
     {
+        ArgumentNullException.ThrowIfNull(exportFiles);
         _secrets = secrets ?? new SessionConnectionSecretStore();
         _environments = environments;
         _clients = clients ?? MongoClientPool.Shared;
         _credentialStore = credentialStore;
+        _hostEnvironment = hostEnvironment;
+        _hostPlatform = hostPlatform;
+        _exportFiles = exportFiles;
     }
 
     private Task<MongoOperationContext> PrepareAsync(ConnectionProfile profile, CancellationToken cancellationToken) =>
-        MongoOperationContext.PrepareAsync(profile, _secrets, _environments, _clients, cancellationToken, _credentialStore);
+        MongoOperationContext.PrepareAsync(profile, _secrets, _environments, _clients, cancellationToken, _credentialStore, _hostEnvironment, _hostPlatform);
 
     public async Task<ConnectionTestResult> TestConnectionAsync(ConnectionProfile profile, CancellationToken cancellationToken = default)
     {
@@ -274,14 +283,14 @@ public sealed class MongoWorkspaceService : IMongoWorkspaceService
         var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
         request.Validate();
         var names = await GetCollectionNamesAsync(profile, request.Database, cancellationToken).ConfigureAwait(false);
-        return await MongoDatabaseExportImportService.ExportDatabaseAsync(context, request, names, cancellationToken).ConfigureAwait(false);
+        return await MongoDatabaseExportImportService.ExportDatabaseAsync(context, _exportFiles, request, names, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<DatabaseImportResult> ImportDatabaseAsync(ConnectionProfile profile, DatabaseImportRequest request, CancellationToken cancellationToken = default)
     {
         var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
         profile.EnsureWriteAllowed();
-        return await MongoDatabaseExportImportService.ImportDatabaseAsync(context, request, cancellationToken).ConfigureAwait(false);
+        return await MongoDatabaseExportImportService.ImportDatabaseAsync(context, _exportFiles, request, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<DocumentMutationResult> InsertAsync(ConnectionProfile profile, string database, string collection, string documentJson, CancellationToken cancellationToken = default)
@@ -366,6 +375,6 @@ public sealed class MongoWorkspaceService : IMongoWorkspaceService
         await MongoIndexManager.DropIndexAsync(context, request, cancellationToken).ConfigureAwait(false);
     }
 
-    internal static Task<IReadOnlyList<BsonDocument>> ReadExportDocumentsAsync(string sourceFile, CancellationToken cancellationToken) =>
-        MongoDatabaseExportImportService.ReadExportDocumentsAsync(sourceFile, cancellationToken);
+    internal static Task<IReadOnlyList<BsonDocument>> ReadExportDocumentsAsync(IMongoDatabaseExportFileAccess files, string sourceFile, CancellationToken cancellationToken) =>
+        MongoDatabaseExportImportService.ReadExportDocumentsAsync(files, sourceFile, cancellationToken);
 }

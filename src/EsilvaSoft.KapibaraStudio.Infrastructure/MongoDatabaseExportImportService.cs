@@ -14,10 +14,10 @@ internal static class MongoDatabaseExportImportService
 {
     private static readonly JsonSerializerOptions ManifestJsonOptions = new() { WriteIndented = true };
 
-    public static async Task<DatabaseExportResult> ExportDatabaseAsync(MongoOperationContext context, DatabaseExportRequest request, IReadOnlyList<string> collectionNames, CancellationToken cancellationToken)
+    public static async Task<DatabaseExportResult> ExportDatabaseAsync(MongoOperationContext context, IMongoDatabaseExportFileAccess files, DatabaseExportRequest request, IReadOnlyList<string> collectionNames, CancellationToken cancellationToken)
     {
         request.Validate();
-        var exportDirectory = CreateExportDirectory(request.Database);
+        var exportDirectory = CreateExportDirectory(files, request.Database);
         var database = context.CreateClient().GetDatabase(request.Database);
         var collections = new List<ExportCollection>(collectionNames.Count);
         long totalDocuments = 0;
@@ -34,7 +34,7 @@ internal static class MongoDatabaseExportImportService
             var count = 0;
             var collectionTruncated = false;
 
-            await using (var stream = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, useAsync: true))
+            await using (var stream = files.CreateNewFile(filePath))
             await using (var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)))
             using (var cursor = await collection.FindAsync(FilterDefinition<BsonDocument>.Empty, new FindOptions<BsonDocument> { Limit = request.DocumentsPerCollectionLimit + 1 }, cancellationToken).ConfigureAwait(false))
             {
@@ -73,41 +73,45 @@ internal static class MongoDatabaseExportImportService
 
         var manifest = new ExportManifest(1, request.Database, DateTimeOffset.UtcNow, request.DocumentsPerCollectionLimit, collections);
         var manifestPath = Path.Combine(exportDirectory, "manifest.json");
-        await File.WriteAllTextAsync(
+        await files.WriteAllTextAsync(
             manifestPath,
             JsonSerializer.Serialize(manifest, ManifestJsonOptions),
-            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
             cancellationToken).ConfigureAwait(false);
 
         return new DatabaseExportResult(exportDirectory, collections.Count, totalDocuments, isTruncated);
     }
 
-    public static async Task<DatabaseImportResult> ImportDatabaseAsync(MongoOperationContext context, DatabaseImportRequest request, CancellationToken cancellationToken)
+    public static async Task<DatabaseImportResult> ImportDatabaseAsync(MongoOperationContext context, IMongoDatabaseExportFileAccess files, DatabaseImportRequest request, CancellationToken cancellationToken)
     {
         request.Validate();
-        var sourceDirectory = Path.GetFullPath(request.SourceDirectory);
+        var sourceDirectory = files.NormalizePath(request.SourceDirectory);
 
-        if (!Directory.Exists(sourceDirectory))
+        if (!Path.IsPathFullyQualified(sourceDirectory))
+        {
+            throw new InvalidOperationException("O adapter de arquivos precisa retornar uma pasta de origem absoluta.");
+        }
+
+        if (!files.DirectoryExists(sourceDirectory))
         {
             throw new DirectoryNotFoundException($"A pasta de origem não existe: {sourceDirectory}");
         }
 
         var manifestPath = Path.Combine(sourceDirectory, "manifest.json");
 
-        if (!File.Exists(manifestPath))
+        if (!files.FileExists(manifestPath))
         {
             throw new FileNotFoundException("O manifesto da exportação não foi encontrado.", manifestPath);
         }
 
-        var manifest = await ReadExportManifestAsync(manifestPath, cancellationToken).ConfigureAwait(false);
+        var manifest = await ReadExportManifestAsync(files, manifestPath, cancellationToken).ConfigureAwait(false);
         var targetDatabase = context.CreateClient().GetDatabase(request.TargetDatabase);
         long totalDocuments = 0;
 
         foreach (var sourceCollection in manifest.Collections)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var sourceFile = GetSafeExportFilePath(sourceDirectory, sourceCollection.File);
-            var documents = await ReadExportDocumentsAsync(sourceFile, cancellationToken).ConfigureAwait(false);
+            var sourceFile = GetSafeExportFilePath(files, sourceDirectory, sourceCollection.File);
+            var documents = await ReadExportDocumentsAsync(files, sourceFile, cancellationToken).ConfigureAwait(false);
 
             if (documents.Count != sourceCollection.Documents)
             {
@@ -144,9 +148,9 @@ internal static class MongoDatabaseExportImportService
         return new ReplaceOneModel<BsonDocument>(new BsonDocument("_id", id), document) { IsUpsert = true };
     }
 
-    private static async Task<ExportManifest> ReadExportManifestAsync(string manifestPath, CancellationToken cancellationToken)
+    private static async Task<ExportManifest> ReadExportManifestAsync(IMongoDatabaseExportFileAccess files, string manifestPath, CancellationToken cancellationToken)
     {
-        var json = await File.ReadAllTextAsync(manifestPath, cancellationToken).ConfigureAwait(false);
+        var json = await files.ReadAllTextAsync(manifestPath, cancellationToken).ConfigureAwait(false);
         var manifest = JsonSerializer.Deserialize<ExportManifest>(json, ManifestJsonOptions)
             ?? throw new ArgumentException("O manifesto da exportação está vazio ou inválido.", nameof(manifestPath));
 
@@ -172,11 +176,11 @@ internal static class MongoDatabaseExportImportService
         return manifest;
     }
 
-    internal static async Task<IReadOnlyList<BsonDocument>> ReadExportDocumentsAsync(string sourceFile, CancellationToken cancellationToken)
+    internal static async Task<IReadOnlyList<BsonDocument>> ReadExportDocumentsAsync(IMongoDatabaseExportFileAccess files, string sourceFile, CancellationToken cancellationToken)
     {
         try
         {
-            var json = await File.ReadAllTextAsync(sourceFile, cancellationToken).ConfigureAwait(false);
+            var json = await files.ReadAllTextAsync(sourceFile, cancellationToken).ConfigureAwait(false);
             var array = BsonSerializer.Deserialize<BsonArray>(IdentifierRepresentationService.RewriteConstructors(json));
 
             if (array.Any(value => !value.IsBsonDocument))
@@ -192,7 +196,7 @@ internal static class MongoDatabaseExportImportService
         }
     }
 
-    private static string GetSafeExportFilePath(string sourceDirectory, string manifestFile)
+    private static string GetSafeExportFilePath(IMongoDatabaseExportFileAccess files, string sourceDirectory, string manifestFile)
     {
         var fileName = Path.GetFileName(manifestFile);
 
@@ -201,10 +205,10 @@ internal static class MongoDatabaseExportImportService
             throw new ArgumentException("O manifesto contém um caminho de arquivo de coleção inválido.", nameof(manifestFile));
         }
 
-        var path = Path.GetFullPath(Path.Combine(sourceDirectory, fileName));
-        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(sourceDirectory)) + Path.DirectorySeparatorChar;
+        var path = Path.GetFullPath(fileName, sourceDirectory);
+        var root = Path.TrimEndingDirectorySeparator(sourceDirectory) + Path.DirectorySeparatorChar;
 
-        if (!path.StartsWith(root, StringComparison.Ordinal) || !File.Exists(path))
+        if (!path.StartsWith(root, StringComparison.Ordinal) || !files.FileExists(path))
         {
             throw new FileNotFoundException("O arquivo de coleção declarado no manifesto não existe.", path);
         }
@@ -212,15 +216,11 @@ internal static class MongoDatabaseExportImportService
         return path;
     }
 
-    private static string CreateExportDirectory(string database)
+    private static string CreateExportDirectory(IMongoDatabaseExportFileAccess files, string database)
     {
-        var root = LocalWorkspacePaths.GetExportsDirectory();
-        Directory.CreateDirectory(root);
         var safeDatabase = string.Concat(database.Select(character => Path.GetInvalidFileNameChars().Contains(character) ? '_' : character));
         var name = $"{safeDatabase}-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}";
-        var path = Path.Combine(root, name);
-        Directory.CreateDirectory(path);
-        return path;
+        return files.CreateExportDirectory(name);
     }
 
     private sealed record ExportCollection(string Name, string File, int Documents, bool IsTruncated);

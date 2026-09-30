@@ -159,6 +159,10 @@ public sealed record AgentChatServices(
 {
     public static AgentChatServices Unavailable { get; } = new(null, null, null);
 
+    public IAgentBoundedFileReader? FileReader { get; init; }
+    public IAgentWorkspacePathProbe? PathProbe { get; init; }
+    public IAgentWorkspaceFileCatalog? FileCatalog { get; init; }
+
     /// <summary>Workspace-global conversations; null = nothing is persisted (visible notice).</summary>
     public IAgentConversationRepository? Conversations { get; init; }
 

@@ -89,12 +89,16 @@ public sealed class AgentEditProposalStore : IAgentEditProposalSink
     private readonly ConcurrentDictionary<Guid, AgentEditProposalEntry> _entries = new();
     private readonly object _mutationGate = new();
     private readonly Action<Action> _post;
+    private readonly IAgentBoundedFileReader? _fileReader;
     private volatile Func<string?, string?, string?>? _currentText;
 
-    public AgentEditProposalStore() : this(AgentUiDispatch.Post) { }
+    public AgentEditProposalStore(IAgentBoundedFileReader? fileReader = null) : this(AgentUiDispatch.Post, fileReader) { }
 
-    internal AgentEditProposalStore(Action<Action> post) =>
+    internal AgentEditProposalStore(Action<Action> post, IAgentBoundedFileReader? fileReader = null)
+    {
         _post = post ?? throw new ArgumentNullException(nameof(post));
+        _fileReader = fileReader;
+    }
 
     /// <summary>A proposal was registered (UI thread).</summary>
     public event EventHandler<AgentEditProposalEntry>? ProposalAdded;
@@ -263,13 +267,15 @@ public sealed class AgentEditProposalStore : IAgentEditProposalSink
                 return null;
             }
 
-            var info = new FileInfo(targetPath);
-            if (!info.Exists || info.Length > LineDiff.MaximumInputChars * 4L)
+            var result = _fileReader?.Read(targetPath, checked(LineDiff.MaximumInputChars * 4));
+            if (result?.State != AgentFileReadState.Read)
             {
                 return null;
             }
 
-            return File.ReadAllText(targetPath);
+            using var bytes = new MemoryStream(result.Bytes, writable: false);
+            using var reader = new StreamReader(bytes, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+            return reader.ReadToEnd();
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {

@@ -35,12 +35,12 @@ public enum AgentWorkspacePathError
 /// Single place for workspace path safety, shared by the attachment resolver and <c>propose_file_edit</c>: full-path
 /// normalization, strict containment (a workspace at a drive root included), alias segments (ADS, 8.3, trailing
 /// dot/space), link traversal and exclusion matching by the <b>real</b> path (never a tab title). Comparison is
-/// case-insensitive on Windows and macOS. Pure except for the link check, which inspects the file system.
+/// case-insensitive on Windows and macOS. Native directory/link facts come exclusively from the injected probe; missing probes refuse file access.
 /// </summary>
 public static class AgentWorkspacePaths
 {
     /// <summary>Normalized workspace root (no trailing separator except for a drive/file-system root).</summary>
-    public static bool TryGetWorkspaceRoot(string? folder, out string root)
+    public static bool TryGetWorkspaceRoot(string? folder, out string root, IAgentWorkspacePathProbe? probe = null)
     {
         root = string.Empty;
         // The root itself is the user's choice and may legitimately be an 8.3 form (e.g. a temp folder); only the
@@ -52,12 +52,12 @@ public static class AgentWorkspacePaths
 
         try
         {
-            if (!Directory.Exists(full))
+            if (probe?.DirectoryExists(full) != true)
             {
                 return false;
             }
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or System.Security.SecurityException)
         {
             return false;
         }
@@ -77,11 +77,11 @@ public static class AgentWorkspacePaths
         IReadOnlyList<string>? exclusions,
         out string fullPath,
         out string relativePath,
-        out AgentWorkspacePathError error)
+        out AgentWorkspacePathError error, IAgentWorkspacePathProbe? probe = null)
     {
         fullPath = string.Empty;
         relativePath = string.Empty;
-        if (!TryGetWorkspaceRoot(workspaceRoot, out var root))
+        if (!TryGetWorkspaceRoot(workspaceRoot, out var root, probe))
         {
             error = AgentWorkspacePathError.NoWorkspace;
             return false;
@@ -115,7 +115,7 @@ public static class AgentWorkspacePaths
             return false;
         }
 
-        if (TraversesLink(full, root))
+        if (HasLinkOrUnavailable(probe, full, root))
         {
             error = AgentWorkspacePathError.LinkTraversal;
             return false;
@@ -132,14 +132,14 @@ public static class AgentWorkspacePaths
     /// its root (so <c>.env</c> and <c>**/secrets/**</c> still match). Alias segments of the checked part are refused
     /// (for a file outside the workspace that is the whole path below its root).
     /// </summary>
-    public static AgentWorkspacePathError CheckFile(string? fullPath, string? workspaceRoot, IReadOnlyList<string>? exclusions)
+    public static AgentWorkspacePathError CheckFile(string? fullPath, string? workspaceRoot, IReadOnlyList<string>? exclusions, IAgentWorkspacePathProbe? probe = null)
     {
         if (string.IsNullOrWhiteSpace(fullPath) || !Path.IsPathFullyQualified(fullPath) || !TryGetFullPath(fullPath, out var full))
         {
             return AgentWorkspacePathError.InvalidPath;
         }
 
-        var isInsideWorkspace = TryGetWorkspaceRoot(workspaceRoot, out var root) && IsStrictlyInside(full, root);
+        var isInsideWorkspace = TryGetWorkspaceRoot(workspaceRoot, out var root, probe) && IsStrictlyInside(full, root);
         var relative = isInsideWorkspace
             ? Path.GetRelativePath(root, full)
             : full[(Path.GetPathRoot(full)?.Length ?? 0)..];
@@ -150,7 +150,7 @@ public static class AgentWorkspacePaths
 
         // Active editor files and external attachments pass through CheckFile too. Refuse link traversal here as
         // well as in TryResolveInside: otherwise a benign alias name could point at an excluded secret file.
-        if (isInsideWorkspace ? TraversesLink(full, root) : TraversesLinkFromVolumeRoot(full))
+        if (HasLinkOrUnavailable(probe, full, isInsideWorkspace ? root : null))
         {
             return AgentWorkspacePathError.LinkTraversal;
         }
@@ -202,7 +202,7 @@ public static class AgentWorkspacePaths
     internal static bool TryGetFullPath(string path, out string full)
     {
         full = string.Empty;
-        if (path.Any(char.IsControl) || path.Contains('\0', StringComparison.Ordinal))
+        if (!Path.IsPathFullyQualified(path) || path.Any(char.IsControl) || path.Contains('\0', StringComparison.Ordinal))
         {
             return false;
         }
@@ -219,6 +219,15 @@ public static class AgentWorkspacePaths
         }
     }
 
+    private static bool HasLinkOrUnavailable(IAgentWorkspacePathProbe? probe, string full, string? root)
+    {
+        try { return probe?.TraversesLink(full, root) != false; }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            return true;
+        }
+    }
+
     private static AgentWorkspacePathError CheckExclusions(string relativePath, IReadOnlyList<string>? exclusions)
     {
         var patterns = exclusions ?? Core.Agents.AgentWorkspacePermissions.DefaultExclusions;
@@ -232,51 +241,4 @@ public static class AgentWorkspacePaths
             : AgentWorkspacePathError.None;
     }
 
-    private static bool TraversesLink(string fullPath, string root)
-    {
-        try
-        {
-            for (var current = fullPath; IsStrictlyInside(current, root); current = Path.GetDirectoryName(current) ?? root)
-            {
-                FileSystemInfo info = File.Exists(current) ? new FileInfo(current) : new DirectoryInfo(current);
-                if (info.LinkTarget is not null)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or System.Security.SecurityException)
-        {
-            return true;
-        }
-    }
-
-    private static bool TraversesLinkFromVolumeRoot(string fullPath)
-    {
-        try
-        {
-            for (var current = fullPath; !string.IsNullOrEmpty(current); current = Path.GetDirectoryName(current)!)
-            {
-                FileSystemInfo info = File.Exists(current) ? new FileInfo(current) : new DirectoryInfo(current);
-                if (info.LinkTarget is not null)
-                {
-                    return true;
-                }
-
-                var parent = Path.GetDirectoryName(current);
-                if (string.IsNullOrEmpty(parent) || string.Equals(parent, current, Comparison))
-                {
-                    break;
-                }
-            }
-
-            return false;
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or System.Security.SecurityException)
-        {
-            return true;
-        }
-    }
 }

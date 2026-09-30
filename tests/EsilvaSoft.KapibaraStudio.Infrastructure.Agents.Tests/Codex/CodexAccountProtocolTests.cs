@@ -6,6 +6,7 @@ using NUnit.Framework;
 namespace EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Tests.Codex;
 
 [TestFixture]
+[Category("Unit")]
 public sealed class CodexAccountProtocolTests
 {
     private static readonly string[] LoginParameterNames = ["type", "useHostedLoginSuccessPage", "appBrand"];

@@ -72,7 +72,7 @@ public sealed class EditorContextV1GoldenTests
     [Test]
     public void GoldenFileHasNoByteOrderMark()
     {
-        var bytes = File.ReadAllBytes(GoldenPath());
+        var bytes = EmbeddedTestData.ReadBytes(GoldenResourcePath);
         var bom = new UTF8Encoding(true).GetPreamble();
         Assert.That(bytes.Take(bom.Length).ToArray(), Is.Not.EqualTo(bom), "O golden não pode ter BOM (UTF8Encoding(false) na leitura/escrita).");
     }
@@ -189,15 +189,9 @@ public sealed class EditorContextV1GoldenTests
     private sealed record ArtifactGolden(string Text, string Eol, string ShaLf, string ShaCrLf);
     private sealed record GoldenCase(string Prefix, string Suffix, string Dictionary, IReadOnlyDictionary<string, ArtifactGolden> Artifacts);
 
-    private static string ReadGoldenFile() => File.ReadAllText(GoldenPath(), new UTF8Encoding(false));
+    private const string GoldenResourcePath = "Ai/Golden/editor-context-v1.golden";
 
-    private static string GoldenPath()
-    {
-        var root = new DirectoryInfo(TestContext.CurrentContext.TestDirectory);
-        while (root is not null && !File.Exists(Path.Combine(root.FullName, "EsilvaSoft.KapibaraStudio.slnx"))) root = root.Parent;
-        Assert.That(root, Is.Not.Null, "Raiz do repositório não encontrada.");
-        return Path.Combine(root!.FullName, "tests", "EsilvaSoft.KapibaraStudio.UnitTests", "Ai", "Golden", "editor-context-v1.golden");
-    }
+    private static string ReadGoldenFile() => EmbeddedTestData.ReadText(GoldenResourcePath);
 
     private static Dictionary<string, GoldenCase> Parse(string content)
     {
@@ -245,50 +239,4 @@ public sealed class EditorContextV1GoldenTests
         return cases;
     }
 
-    /// <summary>
-    /// Captures the golden from the current implementation. Its output must be inspected by hand before committing.
-    /// Never rerun to make a failing
-    /// <c>ArtifactsMatchTheFrozenContract</c> pass without an explicit, reviewed justification for the behavior
-    /// change — see the discipline documented on <c>HighlightingGoldenTests.CaptureGolden</c>.
-    /// </summary>
-    [Test, Explicit("Captura o golden de editor-context-v1; requer inspeção manual do diff antes do commit."), Category("GoldenCapture")]
-    public void CaptureGolden()
-    {
-        var path = Environment.GetEnvironmentVariable("SLOP_EDITOR_CONTEXT_GOLDEN_OUT");
-        if (string.IsNullOrWhiteSpace(path)) Assert.Ignore("Defina SLOP_EDITOR_CONTEXT_GOLDEN_OUT.");
-        var builder = new StringBuilder(
-            "# Golden do contrato editor-context-v1 (AutocompleteContextBuilder.Build/ModelPrefix). Capturado no lote A31a. Não regenerar para esconder regressão.\n");
-        foreach (var @case in EditorContextV1Corpus.Cases)
-        {
-            var request = @case.Resolve();
-            builder.Append("== ").Append(@case.Id).Append(" ==\n");
-            var live = new (string Name, string Raw)[]
-            {
-                ("context", request.Context),
-                ("modelPrefix.false", AutocompleteContextBuilder.ModelPrefix(request, false)),
-                ("modelPrefix.true", AutocompleteContextBuilder.ModelPrefix(request, true)),
-            };
-            foreach (var (name, raw) in live)
-            {
-                var head = name == "context" ? raw : raw[..(raw.Length - request.Prefix.Length)];
-                var (text, eol) = Decompose(head);
-                var reconstructedLf = Recompose(text, eol, "\n");
-                var reconstructedCrLf = Recompose(text, eol, "\r\n");
-                builder.Append('[').Append(name).Append("]\n");
-                // Each segment of the escaped body (split on the '\n' placeholder) becomes its own physical file
-                // line; this is exactly the inverse of how EditorContextV1GoldenTests.Parse rejoins them, so a
-                // body that ends with a placeholder (Build's Context always does) round-trips without inventing or
-                // swallowing a trailing blank line.
-                foreach (var segment in text.Split('\n')) builder.Append(segment).Append('\n');
-                builder.Append("[/").Append(name).Append("]\n");
-                builder.Append(name).Append(".eol=").Append(eol).Append('\n');
-                builder.Append(name).Append(".sha.lf=").Append(Sha256(reconstructedLf)).Append('\n');
-                builder.Append(name).Append(".sha.crlf=").Append(Sha256(reconstructedCrLf)).Append('\n');
-            }
-            builder.Append("prefix=").Append(EscapeInline(request.Prefix)).Append('\n');
-            builder.Append("suffix=").Append(EscapeInline(request.Suffix)).Append('\n');
-            builder.Append("dictionary=").Append(EscapeInline(string.Join("", request.Dictionary))).Append('\n');
-        }
-        File.WriteAllText(path, builder.ToString(), new UTF8Encoding(false));
-    }
 }

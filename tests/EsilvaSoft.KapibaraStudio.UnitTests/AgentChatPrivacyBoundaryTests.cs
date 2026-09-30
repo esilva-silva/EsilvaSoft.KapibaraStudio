@@ -4,12 +4,14 @@ using EsilvaSoft.KapibaraStudio.Application.Agents.Editing;
 using EsilvaSoft.KapibaraStudio.Core.Agents;
 using EsilvaSoft.KapibaraStudio.Desktop.Agents;
 using EsilvaSoft.KapibaraStudio.Desktop.ViewModels;
+using EsilvaSoft.KapibaraStudio.Testing;
 
 namespace EsilvaSoft.KapibaraStudio.UnitTests;
 
-[TestFixture, NonParallelizable]
+[TestFixture, Category("Unit"), NonParallelizable]
 public sealed class AgentChatPrivacyBoundaryTests
 {
+    private static string MemoryFolder => SyntheticPaths.Combine("kapibara-memory", "privacy");
     private static Task<bool> RunOnUiAsync(Func<Task> body)
     {
         var session = HeadlessUnitTestSession.GetOrStartForAssembly(typeof(UiTestApp).Assembly);
@@ -65,7 +67,9 @@ public sealed class AgentChatPrivacyBoundaryTests
         await RunOnUiAsync(async () =>
         {
             var runtime = new ChannelAgentRuntime();
-            var folder = Path.GetTempPath();
+            var folder = MemoryFolder;
+            var files = new MemoryAgentFiles();
+            files.AddDirectory(folder);
             var host = new PromptHost(folder, null);
             var permissions = AgentProviderPermissions.Default("local") with
             {
@@ -75,6 +79,8 @@ public sealed class AgentChatPrivacyBoundaryTests
                 new AgentChatServices(runtime, new FakeAgentCatalog(FakeAgentCatalog.Local("local", "Local")), null)
                 {
                     Permissions = new FakeAgentPermissionsRepository(permissions),
+                    PathProbe = files,
+                    FileReader = files,
                 }, host);
             await chat.Initialization;
             chat.ComposerText = "Primeiro";
@@ -105,11 +111,14 @@ public sealed class AgentChatPrivacyBoundaryTests
     {
         await RunOnUiAsync(async () =>
         {
-            var file = Path.GetTempFileName();
-            try
+            var file = Path.Combine(MemoryFolder, "query.js");
+            var textFiles = new MemoryTextFiles();
+            await textFiles.SaveAsync(file, "");
+            var paths = new MemoryAgentFiles();
+            paths.Set(file, []);
             {
-                using var context = new WorkspaceTestContext();
-                using var workspace = new WorkspaceViewModel(context.Workspace, context.Repository);
+                using var context = new WorkspaceTestContext(textFiles: textFiles);
+                using var workspace = new WorkspaceViewModel(context.Workspace, context.Repository, agentPaths: paths);
                 await workspace.InitializeAsync();
                 var tab = await workspace.OpenTextFileAsync(file);
                 var editor = new StubEditor();
@@ -124,10 +133,6 @@ public sealed class AgentChatPrivacyBoundaryTests
                     Assert.That(workspace.ActiveTab, Is.SameAs(tab));
                 });
                 Assert.That(await workspace.OpenEditorAsync(file, tab.Id.ToString("N")), Is.SameAs(editor));
-            }
-            finally
-            {
-                File.Delete(file);
             }
         });
     }

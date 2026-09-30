@@ -34,6 +34,8 @@ public sealed class AgentMcpChannelProvisioner : IAgentMcpChannelProvisioner, IA
     private readonly AgentMcpSessionRegistry _sessions;
     private readonly AgentToolExposureStage _stage;
     private readonly AgentBrokerHost? _externalBroker;
+    private readonly IAgentBrokerLocalTransport _brokerTransport;
+    private readonly IAgentWorkspacePathProbe _executablePathProbe;
     private readonly string? _serverExecutable;
     private readonly bool _platformSupported;
     private readonly SemaphoreSlim _gate = new(1, 1);
@@ -45,14 +47,16 @@ public sealed class AgentMcpChannelProvisioner : IAgentMcpChannelProvisioner, IA
 
     /// <remarks>
     /// <c>externalBroker</c>: the opt-in external broker when composed, reused so there is one endpoint.
-    /// <c>serverExecutable</c>: absolute proxy path; defaults to <c>mcp/EsilvaSoft.KapibaraStudio.McpServer[.exe]</c> next to
-    /// the application. <c>platformSupported</c>: defaults to Windows, because the proxy reads its proof only from Windows
+    /// <c>serverExecutable</c>: optional absolute proxy path override; otherwise <c>executableLocator</c> resolves the
+    /// packaged proxy path. <c>platformSupported</c>: defaults to Windows, because the proxy reads its proof only from Windows
     /// Credential Manager today (Linux has no client transport credential store).
     /// </remarks>
     public AgentMcpChannelProvisioner(IAgentToolRegistry registry, IAgentPrincipalAuthority authority,
         IAgentAuthorizationPolicyRepository policies, IConnectionProfileRepository profiles,
-        AgentMcpSessionRegistry sessions, AgentToolExposureStage stage, AgentBrokerHost? externalBroker = null,
-        string? serverExecutable = null, bool? platformSupported = null)
+        AgentMcpSessionRegistry sessions, AgentToolExposureStage stage, IHostPlatformSnapshot hostPlatform,
+        IAgentWorkspacePathProbe executablePathProbe, AgentBrokerHost? externalBroker = null,
+        string? serverExecutable = null, bool? platformSupported = null, IAgentBrokerLocalTransport? brokerTransport = null,
+        IAgentMcpServerExecutableLocator? executableLocator = null)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _authority = authority ?? throw new ArgumentNullException(nameof(authority));
@@ -61,18 +65,18 @@ public sealed class AgentMcpChannelProvisioner : IAgentMcpChannelProvisioner, IA
         _sessions = sessions ?? throw new ArgumentNullException(nameof(sessions));
         _stage = stage;
         _externalBroker = externalBroker;
-        _serverExecutable = serverExecutable ?? DefaultServerExecutable();
-        _platformSupported = platformSupported ?? OperatingSystem.IsWindows();
+        _brokerTransport = brokerTransport ?? throw new ArgumentNullException(nameof(brokerTransport));
+        ArgumentNullException.ThrowIfNull(hostPlatform);
+        _executablePathProbe = executablePathProbe ?? throw new ArgumentNullException(nameof(executablePathProbe));
+        _serverExecutable = serverExecutable ?? executableLocator?.GetExecutablePath()
+            ?? throw new ArgumentNullException(nameof(executableLocator), "A system adapter must resolve the packaged MCP executable path.");
+        _platformSupported = platformSupported ?? hostPlatform.IsWindows;
     }
 
     public bool ProductToolsAvailable => _platformSupported && _stage != AgentToolExposureStage.None;
 
     /// <summary>Broker serving the session channels (null until the first session). Composition evidence for tests.</summary>
     internal AgentBrokerHost? Broker => _externalBroker ?? _ownedBroker;
-
-    public static string DefaultServerExecutable() =>
-        Path.Combine(AppContext.BaseDirectory, ServerExecutableFolder,
-            ServerExecutableName + (OperatingSystem.IsWindows() ? ".exe" : string.Empty));
 
     public async Task<AgentMcpChannelProvisioning> OpenSessionAsync(string providerId, Guid conversationId,
         CancellationToken cancellationToken = default)
@@ -82,7 +86,7 @@ public sealed class AgentMcpChannelProvisioner : IAgentMcpChannelProvisioner, IA
         if (!_platformSupported) return new(AgentMcpChannelStatus.UnavailableOnPlatform);
         if (_stage == AgentToolExposureStage.None) return new(AgentMcpChannelStatus.ToolsNotReleased);
         if (string.IsNullOrWhiteSpace(_serverExecutable) || !Path.IsPathFullyQualified(_serverExecutable) ||
-            !File.Exists(_serverExecutable))
+            !_executablePathProbe.FileExists(_serverExecutable))
             return new(AgentMcpChannelStatus.ServerExecutableMissing);
 
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -301,7 +305,7 @@ public sealed class AgentMcpChannelProvisioner : IAgentMcpChannelProvisioner, IA
     {
         var broker = _externalBroker ?? (_ownedBroker ??= new AgentBrokerHost(_registry, _authority,
             new AgentBrokerOptions { WorkspaceId = Guid.NewGuid(), Enabled = false, Stage = _stage },
-            sessionScopes: _sessions));
+            sessionScopes: _sessions, transport: _brokerTransport));
         if (broker.IsRunning) return broker;
         try
         {

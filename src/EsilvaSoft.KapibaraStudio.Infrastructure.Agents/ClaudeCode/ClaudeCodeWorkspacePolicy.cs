@@ -1,3 +1,4 @@
+using EsilvaSoft.KapibaraStudio.Application.Agents;
 namespace EsilvaSoft.KapibaraStudio.Infrastructure.Agents.ClaudeCode;
 
 /// <summary>Por que a pasta candidata não virou o cwd (a pasta dedicada vazia é usada no lugar).</summary>
@@ -90,17 +91,17 @@ internal static class ClaudeCodeWorkspacePolicy
     /// Mesma decisão de <see cref="Resolve"/>, sem criar a pasta dedicada nem lançar: usada pela UI para mostrar, antes
     /// de abrir a sessão, qual pasta a CLI poderá ler e por que uma candidata foi recusada.
     /// </summary>
-    public static ClaudeCodeWorkingDirectoryPreview Preview(ClaudeCodeAgentProviderOptions options, string homeDirectory, string? requested)
+    public static ClaudeCodeWorkingDirectoryPreview Preview(ClaudeCodeAgentProviderOptions options, string homeDirectory, string? requested, IClaudeCodeSystem system)
     {
         var home = Normalize(homeDirectory);
-        var areas = ProtectedAreas(options, home);
-        var evaluation = Evaluate(requested, home, areas);
+        var areas = ProtectedAreas(options, home, system);
+        var evaluation = Evaluate(requested, home, areas, system);
         if (evaluation.Rejection == ClaudeCodeWorkspaceRejection.None)
         {
             return new(evaluation.Directory!, ClaudeCodeWorkingDirectoryKind.Workspace, ClaudeCodeWorkspaceRejection.None);
         }
 
-        var dedicated = Normalize(options.ResolveDedicatedWorkingDirectory());
+        var dedicated = Normalize(options.ResolveDedicatedWorkingDirectory(system));
         var dedicatedUsable = Check(dedicated, home, areas).Rejection == ClaudeCodeWorkspaceRejection.None;
         return new(dedicated, ClaudeCodeWorkingDirectoryKind.Dedicated, evaluation.Rejection, evaluation.Area, evaluation.Relation,
             dedicatedUsable);
@@ -112,9 +113,9 @@ internal static class ClaudeCodeWorkspacePolicy
     /// (criação de sessão); consultas de estado usam <see cref="ProbeWorkingDirectory"/> e não criam nada.
     /// </summary>
     public static (string Directory, ClaudeCodeWorkingDirectoryKind Kind) Resolve(
-        ClaudeCodeAgentProviderOptions options, string homeDirectory, string? requested, bool createDedicated = true)
+        ClaudeCodeAgentProviderOptions options, string homeDirectory, string? requested, bool createDedicated, IClaudeCodeSystem system)
     {
-        var preview = Preview(options, homeDirectory, requested);
+        var preview = Preview(options, homeDirectory, requested, system);
         if (preview.Kind == ClaudeCodeWorkingDirectoryKind.Workspace)
         {
             return (preview.Directory, preview.Kind);
@@ -127,7 +128,7 @@ internal static class ClaudeCodeWorkspacePolicy
 
         if (createDedicated)
         {
-            Directory.CreateDirectory(preview.Directory);
+            system.CreateDirectory(preview.Directory);
         }
 
         return (preview.Directory, preview.Kind);
@@ -138,12 +139,12 @@ internal static class ClaudeCodeWorkspacePolicy
     /// a pasta temporária do usuário. Não cria diretórios nem lê a pasta de workspace. Com <c>--setting-sources user</c>
     /// o cwd não altera a autenticação observada (spike: fontes de projeto excluídas).
     /// </summary>
-    public static string ProbeWorkingDirectory(ClaudeCodeAgentProviderOptions options)
+    public static string ProbeWorkingDirectory(ClaudeCodeAgentProviderOptions options, IClaudeCodeSystem system)
     {
         try
         {
-            var dedicated = Normalize(options.ResolveDedicatedWorkingDirectory());
-            if (Directory.Exists(dedicated))
+            var dedicated = Normalize(options.ResolveDedicatedWorkingDirectory(system));
+            if (system.DirectoryExists(dedicated))
             {
                 return dedicated;
             }
@@ -152,23 +153,23 @@ internal static class ClaudeCodeWorkspacePolicy
         {
         }
 
-        return Normalize(Path.GetTempPath());
+        return Normalize(system.TemporaryDirectory);
     }
 
     /// <summary>Compatibilidade de testes: áreas na ordem dados, LiteDB, <c>.claude</c>, <c>.ssh</c>.</summary>
-    internal static string? TryAcceptWorkspace(string? requested, string home, IReadOnlyList<string> protectedPaths)
+    internal static string? TryAcceptWorkspace(string? requested, string home, IReadOnlyList<string> protectedPaths, IClaudeCodeSystem system)
     {
         ClaudeCodeProtectedArea[] order = [ClaudeCodeProtectedArea.AppData, ClaudeCodeProtectedArea.Database,
             ClaudeCodeProtectedArea.ClaudeConfig, ClaudeCodeProtectedArea.SshKeys];
         var areas = protectedPaths.Select((path, index) => (path, index < order.Length ? order[index] : ClaudeCodeProtectedArea.AppData)).ToArray();
-        var evaluation = Evaluate(requested, Normalize(home), areas);
+        var evaluation = Evaluate(requested, Normalize(home), areas, system);
         return evaluation.Rejection == ClaudeCodeWorkspaceRejection.None ? evaluation.Directory : null;
     }
 
-    private static (string Path, ClaudeCodeProtectedArea Area)[] ProtectedAreas(ClaudeCodeAgentProviderOptions options, string home) =>
+    private static (string Path, ClaudeCodeProtectedArea Area)[] ProtectedAreas(ClaudeCodeAgentProviderOptions options, string home, IClaudeCodeSystem system) =>
     [
-        (Normalize(options.ResolveAppDataDirectory()), ClaudeCodeProtectedArea.AppData),
-        (Normalize(options.ResolveDatabasePath()), ClaudeCodeProtectedArea.Database),
+        (Normalize(options.ResolveAppDataDirectory(system)), ClaudeCodeProtectedArea.AppData),
+        (Normalize(options.ResolveDatabasePath(system)), ClaudeCodeProtectedArea.Database),
         (Path.Combine(home, ".claude"), ClaudeCodeProtectedArea.ClaudeConfig),
         (Path.Combine(home, ".ssh"), ClaudeCodeProtectedArea.SshKeys),
     ];
@@ -177,7 +178,7 @@ internal static class ClaudeCodeWorkspacePolicy
         string? Directory, ClaudeCodeWorkspaceRejection Rejection, ClaudeCodeProtectedArea Area = ClaudeCodeProtectedArea.None,
         ClaudeCodeProtectedRelation Relation = ClaudeCodeProtectedRelation.None);
 
-    private static Evaluation Evaluate(string? requested, string home, IReadOnlyList<(string Path, ClaudeCodeProtectedArea Area)> areas)
+    private static Evaluation Evaluate(string? requested, string home, IReadOnlyList<(string Path, ClaudeCodeProtectedArea Area)> areas, IClaudeCodeSystem system)
     {
         if (requested is null || string.IsNullOrWhiteSpace(requested))
         {
@@ -199,16 +200,13 @@ internal static class ClaudeCodeWorkspacePolicy
                 return new(null, ClaudeCodeWorkspaceRejection.VolumeRoot);
             }
 
-            if (!Directory.Exists(full))
+            if (!system.DirectoryExists(full))
             {
                 return new(null, ClaudeCodeWorkspaceRejection.NotFound);
             }
 
             // Um link simbólico é avaliado pelo destino final: o apelido não contorna as áreas protegidas.
-            if (new DirectoryInfo(full).ResolveLinkTarget(returnFinalTarget: true) is { } target)
-            {
-                full = Normalize(target.FullName);
-            }
+            full = Normalize(system.ResolveDirectoryLink(full));
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {

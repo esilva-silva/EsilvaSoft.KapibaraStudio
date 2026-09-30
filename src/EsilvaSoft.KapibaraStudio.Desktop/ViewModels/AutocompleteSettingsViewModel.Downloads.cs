@@ -55,12 +55,31 @@ public sealed partial class AutocompleteSettingsViewModel
             OperationStatus = T("modelsDirectoryUndefined");
             return null;
         }
-        try { return Directory.CreateDirectory(directory).FullName; }
+        try { return directories?.EnsureExists(directory) ?? throw new NotSupportedException("Model directory service is unavailable."); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
             OperationStatus = F("createDirectoryFailed", directory, ex.Message);
             return null;
         }
+    }
+
+    /// <summary>Captures the effective directory, creates it through the directory port, then opens that exact target.</summary>
+    public async Task OpenModelsDirectoryAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (directoryLauncher is null)
+        {
+            OperationStatus = F("createDirectoryFailed", EffectiveModelDirectory, T("openFailed"));
+            return;
+        }
+        if (EnsureModelsDirectory() is not { } directory) return;
+        try
+        {
+            if (!await directoryLauncher.OpenAsync(directory, cancellationToken))
+                OperationStatus = F("createDirectoryFailed", directory, "");
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception ex) { OperationStatus = F("createDirectoryFailed", directory, ex.Message); }
     }
 
     internal static string FormatSize(long bytes) => bytes >= 1_000_000_000
@@ -152,10 +171,10 @@ public sealed partial class AutocompleteSettingsViewModel
             ?? options.FirstOrDefault(option => !option.IsInstalled && !option.HardwareMissing) ?? options.FirstOrDefault();
     }
 
-    private static bool IsInstalled(string directory, RemoteModelVariant variant)
+    private bool IsInstalled(string directory, RemoteModelVariant variant)
     {
         if (directory.Length == 0) return false;
-        try { return Directory.Exists(Path.Combine(directory, variant.FolderName)); }
+        try { return directories?.Exists(Path.Combine(directory, variant.FolderName)) == true; }
         catch (ArgumentException) { return false; }
     }
 }

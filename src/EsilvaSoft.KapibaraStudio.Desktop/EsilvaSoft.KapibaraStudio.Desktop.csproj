@@ -7,6 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="EsilvaSoft.KapibaraStudio.UnitTests" />
+    <InternalsVisibleTo Include="EsilvaSoft.KapibaraStudio.IntegrationTests" />
     <ProjectReference Include="../EsilvaSoft.KapibaraStudio.Application/EsilvaSoft.KapibaraStudio.Application.csproj" />
     <ProjectReference Include="../EsilvaSoft.KapibaraStudio.Infrastructure/EsilvaSoft.KapibaraStudio.Infrastructure.csproj" />
     <ProjectReference Include="../EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi/EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi.csproj" />

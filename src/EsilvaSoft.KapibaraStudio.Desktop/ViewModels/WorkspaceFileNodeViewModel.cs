@@ -8,6 +8,10 @@ public sealed partial class WorkspaceFileNodeViewModel : ObservableObject
 {
     public WorkspaceFileNodeViewModel(string path, string workspaceRoot, bool isDirectory = true, Func<WorkspaceFileNodeViewModel, Task>? expand = null, bool placeholder = false)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentException.ThrowIfNullOrWhiteSpace(workspaceRoot);
+        if (!Path.IsPathFullyQualified(path) || !Path.IsPathFullyQualified(workspaceRoot))
+            throw new ArgumentException("Os caminhos dos itens do workspace precisam ser absolutos.");
         FullPath = Path.GetFullPath(path);
         Name = Path.GetFileName(FullPath);
         if (string.IsNullOrEmpty(Name)) Name = FullPath;
@@ -37,7 +41,13 @@ public sealed partial class WorkspaceFileNodeViewModel : ObservableObject
     public ObservableCollection<WorkspaceFileNodeViewModel> Children { get; }
     public string Icon => IsDirectory ? "▾" : "·";
 
-    public void UpdatePath(string path) { FullPath = Path.GetFullPath(path); Name = Path.GetFileName(FullPath); }
+    public void UpdatePath(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        if (!Path.IsPathFullyQualified(path)) throw new ArgumentException("O arquivo precisa ter caminho absoluto.", nameof(path));
+        FullPath = Path.GetFullPath(path);
+        Name = Path.GetFileName(FullPath);
+    }
     public void ReplaceChildren(IEnumerable<WorkspaceFileNodeViewModel> children)
     {
         Children.Clear();

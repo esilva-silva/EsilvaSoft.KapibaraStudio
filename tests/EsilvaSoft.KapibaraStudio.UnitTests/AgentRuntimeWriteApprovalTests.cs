@@ -3,7 +3,7 @@ using EsilvaSoft.KapibaraStudio.Application.Agents;
 using EsilvaSoft.KapibaraStudio.Core;
 using EsilvaSoft.KapibaraStudio.Core.Agents;
 using NUnit.Framework;
-using static EsilvaSoft.KapibaraStudio.UnitTests.AgentRuntimeWriteRig;
+using static EsilvaSoft.KapibaraStudio.Testing.AgentRuntimeWriteRig;
 
 namespace EsilvaSoft.KapibaraStudio.UnitTests;
 

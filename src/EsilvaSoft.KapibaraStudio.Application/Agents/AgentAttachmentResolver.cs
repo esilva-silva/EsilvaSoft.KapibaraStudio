@@ -85,8 +85,8 @@ public static class AgentAttachmentResolver
         IReadOnlyList<AgentAttachmentRequest> requests,
         AgentWorkspaceContext context,
         AgentProviderPermissions permissions,
-        CancellationToken cancellationToken) =>
-        ResolveAsync(requests, context, permissions, null, cancellationToken);
+        CancellationToken cancellationToken, IAgentBoundedFileReader? fileReader = null, IAgentWorkspacePathProbe? pathProbe = null) =>
+        ResolveAsync(requests, context, permissions, null, cancellationToken, fileReader, pathProbe);
 
     /// <summary>
     /// Resolves the chips of one send. The UTF-8 size of <paramref name="userMessage"/> is reserved first from
@@ -99,7 +99,7 @@ public static class AgentAttachmentResolver
         AgentWorkspaceContext context,
         AgentProviderPermissions permissions,
         string? userMessage,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, IAgentBoundedFileReader? fileReader = null, IAgentWorkspacePathProbe? pathProbe = null)
     {
         ArgumentNullException.ThrowIfNull(requests);
         ArgumentNullException.ThrowIfNull(context);
@@ -119,7 +119,7 @@ public static class AgentAttachmentResolver
                 ? Fail(DisplayNameOf(request, context), AgentAttachmentError.InvalidPermissions)
                 : !permissions.HasExternalDestinationConsent
                     ? Fail(DisplayNameOf(request, context), AgentAttachmentError.ConsentMissing)
-                    : await ResolveOneAsync(request, context, permissions, exclusions, cancellationToken).ConfigureAwait(false);
+                    : await ResolveOneAsync(request, context, permissions, exclusions, cancellationToken, fileReader, pathProbe).ConfigureAwait(false);
 
             if (outcome.Attachment is { } attachment)
             {
@@ -151,7 +151,7 @@ public static class AgentAttachmentResolver
         AgentWorkspaceContext context,
         AgentProviderPermissions permissions,
         IReadOnlyList<string> exclusions,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, IAgentBoundedFileReader? fileReader = null, IAgentWorkspacePathProbe? pathProbe = null)
     {
         var sending = permissions.DataSending;
         var displayName = DisplayNameOf(request, context);
@@ -159,21 +159,21 @@ public static class AgentAttachmentResolver
         {
             AgentAttachmentKind.ActiveFile => Task.FromResult(!sending.ActiveFile
                 ? Fail(displayName, AgentAttachmentError.NotPermitted)
-                : ResolveActiveFile(context, exclusions)),
+                : ResolveActiveFile(context, exclusions, pathProbe)),
             AgentAttachmentKind.TabMetadata => Task.FromResult(!sending.TabMetadata
                 ? Fail(displayName, AgentAttachmentError.NotPermitted)
                 : ResolveTabMetadata(context)),
             AgentAttachmentKind.WorkspaceFile => !sending.WorkspaceFiles || !permissions.Workspace.UseFilesFolder
                 ? Task.FromResult(Fail(displayName, AgentAttachmentError.NotPermitted))
-                : ResolveWorkspaceFileAsync(request, context, exclusions, cancellationToken),
+                : ResolveWorkspaceFileAsync(request, context, exclusions, cancellationToken, fileReader, pathProbe),
             AgentAttachmentKind.ExternalFile => !sending.ExternalAttachments
                 ? Task.FromResult(Fail(displayName, AgentAttachmentError.NotPermitted))
-                : ResolveExternalFileAsync(request, context, exclusions, cancellationToken),
+                : ResolveExternalFileAsync(request, context, exclusions, cancellationToken, fileReader, pathProbe),
             _ => Task.FromResult(Fail(displayName, AgentAttachmentError.NotPermitted)),
         };
     }
 
-    private static Outcome ResolveActiveFile(AgentWorkspaceContext context, IReadOnlyList<string> exclusions)
+    private static Outcome ResolveActiveFile(AgentWorkspaceContext context, IReadOnlyList<string> exclusions, IAgentWorkspacePathProbe? pathProbe)
     {
         var displayName = ActiveDisplayName(context);
         if (context.BufferText is not { } buffer)
@@ -185,14 +185,14 @@ public static class AgentAttachmentResolver
         var pathOrName = displayName;
         if (!string.IsNullOrWhiteSpace(context.ActiveFilePath))
         {
-            var error = AgentWorkspacePaths.CheckFile(context.ActiveFilePath, context.WorkspaceFolder, exclusions);
+            var error = AgentWorkspacePaths.CheckFile(context.ActiveFilePath, context.WorkspaceFolder, exclusions, pathProbe);
             if (error != AgentWorkspacePathError.None)
             {
                 return Fail(displayName, Map(error));
             }
 
             AgentWorkspacePaths.TryGetFullPath(context.ActiveFilePath, out var full);
-            pathOrName = AgentWorkspacePaths.TryGetWorkspaceRoot(context.WorkspaceFolder, out var root) &&
+            pathOrName = AgentWorkspacePaths.TryGetWorkspaceRoot(context.WorkspaceFolder, out var root, pathProbe) &&
                          AgentWorkspacePaths.IsStrictlyInside(full, root)
                 ? AgentWorkspaceExclusions.NormalizeRelativePath(Path.GetRelativePath(root, full))
                 : Path.GetFileName(full);
@@ -253,16 +253,16 @@ public static class AgentAttachmentResolver
         AgentAttachmentRequest request,
         AgentWorkspaceContext context,
         IReadOnlyList<string> exclusions,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, IAgentBoundedFileReader? fileReader = null, IAgentWorkspacePathProbe? pathProbe = null)
     {
         var displayName = DisplayNameOf(request, context);
         if (!AgentWorkspacePaths.TryResolveInside(context.WorkspaceFolder, request.Path, exclusions,
-                out var full, out var relative, out var error))
+                out var full, out var relative, out var error, pathProbe))
         {
             return Fail(displayName, Map(error));
         }
 
-        return await ReadFileAsync(AgentAttachmentKind.WorkspaceFile, full, displayName, relative, cancellationToken)
+        return await ReadFileAsync(AgentAttachmentKind.WorkspaceFile, full, displayName, relative, fileReader, cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -270,10 +270,10 @@ public static class AgentAttachmentResolver
         AgentAttachmentRequest request,
         AgentWorkspaceContext context,
         IReadOnlyList<string> exclusions,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, IAgentBoundedFileReader? fileReader = null, IAgentWorkspacePathProbe? pathProbe = null)
     {
         var fileName = SafeFileName(request.Path);
-        var error = AgentWorkspacePaths.CheckFile(request.Path, context.WorkspaceFolder, exclusions);
+        var error = AgentWorkspacePaths.CheckFile(request.Path, context.WorkspaceFolder, exclusions, pathProbe);
         if (error != AgentWorkspacePathError.None)
         {
             return Fail(fileName, Map(error));
@@ -281,7 +281,7 @@ public static class AgentAttachmentResolver
 
         AgentWorkspacePaths.TryGetFullPath(request.Path!, out var full);
         // Only the file name is kept: the absolute path of an external file never leaves the machine or the history.
-        return await ReadFileAsync(AgentAttachmentKind.ExternalFile, full, fileName, Path.GetFileName(full), cancellationToken)
+        return await ReadFileAsync(AgentAttachmentKind.ExternalFile, full, fileName, Path.GetFileName(full), fileReader, cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -296,45 +296,16 @@ public static class AgentAttachmentResolver
     };
 
     private static async Task<Outcome> ReadFileAsync(
-        AgentAttachmentKind kind, string fullPath, string displayName, string pathOrName, CancellationToken cancellationToken)
+        AgentAttachmentKind kind, string fullPath, string displayName, string pathOrName, IAgentBoundedFileReader? fileReader, CancellationToken cancellationToken)
     {
         byte[] bytes;
         try
         {
-            var info = new FileInfo(fullPath);
-            if (!info.Exists)
-            {
-                return Fail(displayName, AgentAttachmentError.NotFound);
-            }
-
-            if (info.Length > MaximumFileBytes + 4)
-            {
-                return Fail(displayName, AgentAttachmentError.FileTooLarge);
-            }
-
-            await using var stream = new FileStream(fullPath, new FileStreamOptions
-            {
-                Mode = FileMode.Open,
-                Access = FileAccess.Read,
-                Share = FileShare.ReadWrite | FileShare.Delete,
-                Options = FileOptions.Asynchronous | FileOptions.SequentialScan,
-            });
-            // Bounded read: the file may grow after the length check.
-            var buffer = new byte[MaximumFileBytes + 5];
-            var read = 0;
-            int chunk;
-            while (read < buffer.Length &&
-                   (chunk = await stream.ReadAsync(buffer.AsMemory(read), cancellationToken).ConfigureAwait(false)) > 0)
-            {
-                read += chunk;
-            }
-
-            if (read > MaximumFileBytes + 4)
-            {
-                return Fail(displayName, AgentAttachmentError.FileTooLarge);
-            }
-
-            bytes = buffer[..read];
+            if (fileReader is null) return Fail(displayName, AgentAttachmentError.Unreadable);
+            var result = await fileReader.ReadAsync(fullPath, MaximumFileBytes + 4, cancellationToken).ConfigureAwait(false);
+            if (result.State == AgentFileReadState.NotFound) return Fail(displayName, AgentAttachmentError.NotFound);
+            if (result.State == AgentFileReadState.TooLarge) return Fail(displayName, AgentAttachmentError.FileTooLarge);
+            bytes = result.Bytes;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

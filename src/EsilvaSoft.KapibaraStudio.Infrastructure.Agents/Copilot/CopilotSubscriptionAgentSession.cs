@@ -1,3 +1,4 @@
+using EsilvaSoft.KapibaraStudio.SystemAdapters.Copilot;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Threading.Channels;
@@ -20,12 +21,12 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
 
     private readonly IAgentToolRegistry _registry;
     private readonly AgentSessionOptions _options;
-    private readonly CopilotClient _client;
+    private readonly ICopilotRuntimeClient _client;
     private readonly ICopilotSessionFsStore? _sessionFsStore;
-    private CopilotVolatileSessionFsStore? VolatileSessionFs => _sessionFsStore as CopilotVolatileSessionFsStore;
+    private ICopilotSessionFsStore? VolatileSessionFs => _sessionFsStore is { IsPersistent: false } ? _sessionFsStore : null;
     private readonly bool _ownsSessionFsStore;
     private readonly Lock _gate = new();
-    private CopilotSession? _sdkSession;
+    private ICopilotRuntimeSession? _sdkSession;
     private ActiveTurn? _active;
     private string? _providerSessionId;
     private bool _hasEstablishedReservedSession;
@@ -36,34 +37,38 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
     private (AgentTurnId TurnId, bool Sent)? _lastDelivery;
 
     public CopilotSubscriptionAgentSession(IAgentToolRegistry registry, AgentSessionOptions options)
-        : this(registry, options, CreateRuntimeParts(options))
+        : this(registry, options, LocalCopilotRuntimeResources.CreateStandaloneSession(options))
     {
     }
 
-    private CopilotSubscriptionAgentSession(IAgentToolRegistry registry, AgentSessionOptions options, RuntimeParts parts)
+    private CopilotSubscriptionAgentSession(IAgentToolRegistry registry, AgentSessionOptions options, LocalCopilotRuntimeResources.SessionParts parts)
         : this(registry, options, parts.Client, parts.SessionFsStore, ownsSessionFsStore: parts.SessionFsStore is not null)
     {
     }
 
     internal CopilotSubscriptionAgentSession(IAgentToolRegistry registry, AgentSessionOptions options, CopilotClient client)
-        : this(registry, options, client, (ICopilotSessionFsStore?)null, ownsSessionFsStore: false)
+        : this(registry, options, new SdkCopilotRuntimeClient(client), null, ownsSessionFsStore: false)
     {
     }
 
     internal CopilotSubscriptionAgentSession(IAgentToolRegistry registry, AgentSessionOptions options,
         CopilotClient client, CopilotVolatileSessionFsStore? sessionFs)
-        : this(registry, options, client, (ICopilotSessionFsStore?)sessionFs, ownsSessionFsStore: false)
+        : this(registry, options, new SdkCopilotRuntimeClient(client), sessionFs, ownsSessionFsStore: false)
     {
     }
 
     internal CopilotSubscriptionAgentSession(IAgentToolRegistry registry, AgentSessionOptions options,
         CopilotClient client, ICopilotSessionFsStore sessionFs)
-        : this(registry, options, client, (ICopilotSessionFsStore?)sessionFs, ownsSessionFsStore: false)
+        : this(registry, options, new SdkCopilotRuntimeClient(client), sessionFs, ownsSessionFsStore: false)
     {
     }
 
+    internal CopilotSubscriptionAgentSession(IAgentToolRegistry registry, AgentSessionOptions options,
+        ICopilotRuntimeClient client, ICopilotSessionFsStore? sessionFs = null)
+        : this(registry, options, client, sessionFs, ownsSessionFsStore: false) { }
+
     private CopilotSubscriptionAgentSession(IAgentToolRegistry registry, AgentSessionOptions options,
-        CopilotClient client, ICopilotSessionFsStore? sessionFs, bool ownsSessionFsStore)
+        ICopilotRuntimeClient client, ICopilotSessionFsStore? sessionFs, bool ownsSessionFsStore)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _options = options ?? throw new ArgumentNullException(nameof(options));
@@ -72,7 +77,7 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
         _ownsSessionFsStore = ownsSessionFsStore;
         if (!options.PersistProviderSession && VolatileSessionFs is null)
             throw new ArgumentException("CopilotOptOutRequiresVolatileSessionFs", nameof(sessionFs));
-        if (options.PersistProviderSession && sessionFs is not null and not CopilotPersistentSessionFsStore)
+        if (options.PersistProviderSession && sessionFs is { IsPersistent: false })
             throw new ArgumentException("CopilotHistoryRequiresPersistentSessionFs", nameof(sessionFs));
 
         if (!options.PersistProviderSession)
@@ -252,10 +257,9 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
                 // metadata distinguishes a missing session from one that can be resumed. Ambiguous resume errors
                 // fail closed rather than creating an untracked second native session.
                 var needsResume = _hasEstablishedReservedSession || _options.ResumeProviderSessionId is not null;
-                var metadata = needsResume
-                    ? await _client.GetSessionMetadataAsync(reservedId, cancellationToken).ConfigureAwait(false)
-                    : null;
-                if (metadata is not null)
+                var sessionExists = needsResume &&
+                    await _client.HasSessionAsync(reservedId, cancellationToken).ConfigureAwait(false);
+                if (sessionExists)
                 {
                     var config = new ResumeSessionConfig { ContinuePendingWork = false };
                     Configure(config, request, _options.ModelId, declared, available, allowed);
@@ -327,10 +331,8 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
             var session = _sdkSession;
             // SessionConfig has no built-in-agent allowlist, but the pinned SDK exposes this mutable option.
             // Apply an empty allowlist and require acknowledgement before any prompt can reach the runtime.
-            var builtInAgentsRestricted = await session.Rpc.Options.UpdateAsync(
-                    includedBuiltinAgents: [],
-                    cancellationToken: cancellationToken).ConfigureAwait(false);
-            if (!builtInAgentsRestricted.Success)
+            var builtInAgentsRestricted = await session.RestrictBuiltInAgentsAsync(cancellationToken).ConfigureAwait(false);
+            if (!builtInAgentsRestricted)
             {
                 throw new InvalidOperationException("CopilotBuiltInAgentsUnavailable");
             }
@@ -343,7 +345,7 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
             }
             catch (Exception) { /* Observador de UI não controla o provider. */ }
 
-            using var subscription = session.On<SessionEvent>(evt => OnEventSafely(turn, evt, allowed));
+            using var subscription = session.Subscribe(evt => OnEventSafely(turn, evt, allowed));
             turn.Session = session;
             var prompt = BuildPrompt(request);
             // The RPC may take effect before SendAsync returns (including when its wait is cancelled).
@@ -395,7 +397,7 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
 
     }
 
-    private async Task<CopilotSession> CreateSessionAsync(AgentTurnRequest request,
+    private async Task<ICopilotRuntimeSession> CreateSessionAsync(AgentTurnRequest request,
         ICollection<AIFunctionDeclaration> tools, ToolSet available, HashSet<string> allowed,
         CancellationToken cancellationToken)
     {
@@ -404,12 +406,12 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
         return await _client.CreateSessionAsync(config, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<CopilotSession> CreateVolatileSessionAsync(AgentTurnRequest request,
+    private async Task<ICopilotRuntimeSession> CreateVolatileSessionAsync(AgentTurnRequest request,
         ICollection<AIFunctionDeclaration> tools, ToolSet available, HashSet<string> allowed,
         CancellationToken cancellationToken)
     {
         var sessionId = Guid.NewGuid().ToString("D");
-        VolatileSessionFs!.CreateProvider(sessionId);
+        VolatileSessionFs!.ReserveSession(sessionId);
         var config = new SessionConfig { SessionId = sessionId };
         Configure(config, request, _options.ModelId, tools, available, allowed);
         var session = await _client.CreateSessionAsync(config, cancellationToken).ConfigureAwait(false);
@@ -553,7 +555,7 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
             ResultType = success ? "success" : result.Status == AgentToolResultStatus.Denied ? "denied" : "failure",
             Error = error,
         };
-        await session.Rpc.Tools.HandlePendingToolCallAsync(requestId, response, null, cancellationToken).ConfigureAwait(false);
+        await session.SubmitToolResultAsync(requestId, response, cancellationToken).ConfigureAwait(false);
     }
 
     public Task SubmitApprovalAsync(AgentApprovalDecision decision, CancellationToken cancellationToken) =>
@@ -589,27 +591,6 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
             await _sessionFsStore.DisposeAsync().ConfigureAwait(false);
     }
 
-    private static RuntimeParts CreateRuntimeParts(AgentSessionOptions options)
-    {
-        ArgumentNullException.ThrowIfNull(options);
-        if (options.PersistProviderSession)
-        {
-            var persistentStore = new CopilotPersistentSessionFsStore(CopilotRuntimeSettings.PersistentSessionDirectory());
-            var persistentConfiguration = CopilotPersistentSessionFsStore.CreateConfiguration(
-                CopilotRuntimeSettings.ResolveWorkingDirectory(options.WorkingDirectory));
-            return new RuntimeParts(new CopilotClient(
-                CopilotRuntimeSettings.SessionClientOptions(options.WorkingDirectory, persistentConfiguration)), persistentStore);
-        }
-
-        var store = new CopilotVolatileSessionFsStore();
-        var configuration = CopilotVolatileSessionFsStore.CreateConfiguration(
-            CopilotRuntimeSettings.ResolveWorkingDirectory(options.WorkingDirectory));
-        return new RuntimeParts(new CopilotClient(
-            CopilotRuntimeSettings.SessionClientOptions(options.WorkingDirectory, configuration)), store);
-    }
-
-    private sealed record RuntimeParts(CopilotClient Client, ICopilotSessionFsStore? SessionFsStore);
-
     private sealed class ActiveTurn : IDisposable
     {
         private readonly CancellationTokenSource _cancel;
@@ -628,7 +609,7 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
             new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
         public TaskCompletionSource Done { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public Dictionary<AgentToolCallId, string> Pending { get; } = [];
-        public CopilotSession? Session { get; set; }
+        public ICopilotRuntimeSession? Session { get; set; }
         public bool Sent { get; set; }
         public bool Cancelled { get; private set; }
         public void Cancel()

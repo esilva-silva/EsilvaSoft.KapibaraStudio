@@ -52,6 +52,11 @@ public sealed record ScriptHistoryEntry(Guid Id, string Path, DateTimeOffset Las
     public static ScriptHistoryEntry Create(string path, DateTimeOffset? lastAccessedAt = null, string? inputJson = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        return new ScriptHistoryEntry(Guid.NewGuid(), System.IO.Path.GetFullPath(path), lastAccessedAt ?? DateTimeOffset.UtcNow, inputJson).Validate();
+        if (!System.IO.Path.IsPathFullyQualified(path))
+        {
+            throw new ArgumentException("O histórico precisa receber um caminho absoluto para arquivo .js.", nameof(path));
+        }
+
+        return new ScriptHistoryEntry(Guid.NewGuid(), path, lastAccessedAt ?? DateTimeOffset.UtcNow, inputJson).Validate();
     }
 }

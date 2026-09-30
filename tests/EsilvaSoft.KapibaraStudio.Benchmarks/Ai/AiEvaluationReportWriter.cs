@@ -139,8 +139,14 @@ public static class AiEvaluationReportWriter
     public static string DefaultDirectory()
     {
         for (var current = new DirectoryInfo(AppContext.BaseDirectory); current is not null; current = current.Parent)
+        {
             if (current.GetFiles("EsilvaSoft.KapibaraStudio.Benchmarks.csproj").Length > 0)
                 return Path.Combine(current.FullName, "Ai", "output");
+            var benchmarkProject = Path.Combine(current.FullName, "tests", "EsilvaSoft.KapibaraStudio.Benchmarks",
+                "EsilvaSoft.KapibaraStudio.Benchmarks.csproj");
+            if (File.Exists(benchmarkProject))
+                return Path.Combine(current.FullName, "tests", "EsilvaSoft.KapibaraStudio.Benchmarks", "Ai", "output");
+        }
         return Path.Combine(AppContext.BaseDirectory, "Ai", "output");
     }
 

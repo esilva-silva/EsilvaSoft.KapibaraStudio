@@ -2,11 +2,10 @@ using EsilvaSoft.KapibaraStudio.Application;
 using EsilvaSoft.KapibaraStudio.Application.Agents;
 using EsilvaSoft.KapibaraStudio.Core;
 using EsilvaSoft.KapibaraStudio.Core.Agents;
-using EsilvaSoft.KapibaraStudio.Infrastructure;
 
 namespace EsilvaSoft.KapibaraStudio.UnitTests;
 
-[TestFixture]
+[TestFixture, Category("Unit")]
 public sealed class NativeChatTurnPolicyProviderTests
 {
     private const string ProviderId = AgentProviderIds.GitHubCopilotSubscription;
@@ -14,10 +13,9 @@ public sealed class NativeChatTurnPolicyProviderTests
     [Test]
     public async Task ActiveGrantIsLimitedToExactTurnSelectedConnectionGenerationAndDestination()
     {
-        using var workspace = new ConnectionCredentialRecoveryTests.Workspace();
-        using var owner = new LiteDbConnectionProfileRepository(workspace.Path, new InMemoryProfileSecretStore());
+        var owner = new MemoryAuthority();
         var principalId = await owner.GetInternalPrincipalIdAsync();
-        var repository = (IAgentAuthorizationPolicyRepository)owner;
+        var repository = owner.Policies;
         await repository.SaveAsync(principalId, [], 0);
         var first = Profile("First");
         var second = Profile("Second");
@@ -32,7 +30,7 @@ public sealed class NativeChatTurnPolicyProviderTests
         var plan = Plan(permissions);
         Assert.That(turns.Register(new AgentNativeChatTurnScope(session, turn, ProviderId, plan, permissions, null)), Is.True);
         var policy = new NativeChatTurnPolicyProvider(repository, owner, turns,
-            new Mcp.McpBrokerFixture.FixedProfiles(first, second));
+            new Mcp.McpFixedProfiles(first, second));
 
         var loaded = await policy.LoadAsync(principalId, default);
         Assert.That(loaded, Is.Not.Null);
@@ -79,10 +77,9 @@ public sealed class NativeChatTurnPolicyProviderTests
     [Test]
     public async Task DocumentGrantsRequireOptInAndAreLimitedToPlannedToolsAndSelectedProfiles()
     {
-        using var workspace = new ConnectionCredentialRecoveryTests.Workspace();
-        using var owner = new LiteDbConnectionProfileRepository(workspace.Path, new InMemoryProfileSecretStore());
+        var owner = new MemoryAuthority();
         var principalId = await owner.GetInternalPrincipalIdAsync();
-        var repository = (IAgentAuthorizationPolicyRepository)owner;
+        var repository = owner.Policies;
         await repository.SaveAsync(principalId, [], 0);
         var first = Profile("First");
         var second = Profile("Second");
@@ -109,7 +106,7 @@ public sealed class NativeChatTurnPolicyProviderTests
             .Contain(AgentToolRegistry.MongoExplainToolName));
         Assert.That(turns.Register(new AgentNativeChatTurnScope(session, turn, ProviderId, plan, permissions, null)), Is.True);
         var policy = new NativeChatTurnPolicyProvider(repository, owner, turns,
-            new Mcp.McpBrokerFixture.FixedProfiles(first, second));
+            new Mcp.McpFixedProfiles(first, second));
 
         var loaded = await policy.LoadAsync(principalId, default);
         Assert.That(loaded, Is.Not.Null);
@@ -129,10 +126,9 @@ public sealed class NativeChatTurnPolicyProviderTests
     [Test]
     public async Task DocumentGrantsStayDeniedWhenMongoDocumentConsentIsOffEvenIfPlanIsWidened()
     {
-        using var workspace = new ConnectionCredentialRecoveryTests.Workspace();
-        using var owner = new LiteDbConnectionProfileRepository(workspace.Path, new InMemoryProfileSecretStore());
+        var owner = new MemoryAuthority();
         var principalId = await owner.GetInternalPrincipalIdAsync();
-        var repository = (IAgentAuthorizationPolicyRepository)owner;
+        var repository = owner.Policies;
         await repository.SaveAsync(principalId, [], 0);
         var profile = Profile("Only");
         var turns = new AgentNativeChatTurnScopeRegistry();
@@ -146,7 +142,7 @@ public sealed class NativeChatTurnPolicyProviderTests
         var plan = Plan(permissions) with { ProductTools = [AgentToolRegistry.MongoFindToolName] };
         turns.Register(new AgentNativeChatTurnScope(session, turn, ProviderId, plan, permissions, null));
         var policy = new NativeChatTurnPolicyProvider(repository, owner, turns,
-            new Mcp.McpBrokerFixture.FixedProfiles(profile));
+            new Mcp.McpFixedProfiles(profile));
 
         var loaded = await policy.LoadAsync(principalId, default);
         Assert.That(loaded!.Grants, Is.Empty);
@@ -155,10 +151,9 @@ public sealed class NativeChatTurnPolicyProviderTests
     [Test]
     public async Task CopilotGrantsRequireMatchingProviderPlanAndPermissionSnapshots()
     {
-        using var workspace = new ConnectionCredentialRecoveryTests.Workspace();
-        using var owner = new LiteDbConnectionProfileRepository(workspace.Path, new InMemoryProfileSecretStore());
+        var owner = new MemoryAuthority();
         var principalId = await owner.GetInternalPrincipalIdAsync();
-        var repository = (IAgentAuthorizationPolicyRepository)owner;
+        var repository = owner.Policies;
         await repository.SaveAsync(principalId, [], 0);
         var profile = Profile("Only");
         var turns = new AgentNativeChatTurnScopeRegistry();
@@ -188,7 +183,7 @@ public sealed class NativeChatTurnPolicyProviderTests
         Register(ProviderId, disabledPermissions, copilotPlan);
 
         var policy = new NativeChatTurnPolicyProvider(repository, owner, turns,
-            new Mcp.McpBrokerFixture.FixedProfiles(profile));
+            new Mcp.McpFixedProfiles(profile));
         var loaded = await policy.LoadAsync(principalId, default);
 
         Assert.That(loaded, Is.Not.Null);
@@ -205,10 +200,9 @@ public sealed class NativeChatTurnPolicyProviderTests
     [Test]
     public async Task RemovingOneTurnKeepsConcurrentTurnAndThenRevokesAll()
     {
-        using var workspace = new ConnectionCredentialRecoveryTests.Workspace();
-        using var owner = new LiteDbConnectionProfileRepository(workspace.Path, new InMemoryProfileSecretStore());
+        var owner = new MemoryAuthority();
         var principalId = await owner.GetInternalPrincipalIdAsync();
-        var repository = (IAgentAuthorizationPolicyRepository)owner;
+        var repository = owner.Policies;
         await repository.SaveAsync(principalId, [], 0);
         var profile = Profile("Only");
         var turns = new AgentNativeChatTurnScopeRegistry();
@@ -221,7 +215,7 @@ public sealed class NativeChatTurnPolicyProviderTests
         turns.Register(new AgentNativeChatTurnScope(sessionA, turnA, ProviderId, plan, permissions, null));
         turns.Register(new AgentNativeChatTurnScope(sessionB, turnB, ProviderId, plan, permissions, null));
         var policy = new NativeChatTurnPolicyProvider(repository, owner, turns,
-            new Mcp.McpBrokerFixture.FixedProfiles(profile));
+            new Mcp.McpFixedProfiles(profile));
 
         var both = await policy.LoadAsync(principalId, default);
         Assert.That(both!.Grants, Has.Count.EqualTo(2));
@@ -244,17 +238,16 @@ public sealed class NativeChatTurnPolicyProviderTests
     [Test]
     public async Task MissingInvalidOrNonemptyAnchorCannotBecomeEffectivePolicy()
     {
-        using var workspace = new ConnectionCredentialRecoveryTests.Workspace();
-        using var owner = new LiteDbConnectionProfileRepository(workspace.Path, new InMemoryProfileSecretStore());
+        var owner = new MemoryAuthority();
         var principalId = await owner.GetInternalPrincipalIdAsync();
         var profile = Profile("Only");
         var turns = new AgentNativeChatTurnScopeRegistry();
         var permissions = Permissions();
         turns.Register(new AgentNativeChatTurnScope(Guid.NewGuid(), Guid.NewGuid(), ProviderId,
             Plan(permissions), permissions, null));
-        var profiles = new Mcp.McpBrokerFixture.FixedProfiles(profile);
+        var profiles = new Mcp.McpFixedProfiles(profile);
         var provider = new Provider();
-        var repository = (IAgentAuthorizationPolicyRepository)owner;
+        var repository = owner.Policies;
         var policy = new NativeChatTurnPolicyProvider(repository, owner, turns, profiles);
 
         Assert.That(await policy.LoadAsync(principalId, default), Is.Null, "Missing anchor denies all turns.");
@@ -277,10 +270,9 @@ public sealed class NativeChatTurnPolicyProviderTests
     [Test]
     public async Task BindingInitializesOnlyMissingEmptyPolicyAndPreservesExistingPolicy()
     {
-        using var workspace = new ConnectionCredentialRecoveryTests.Workspace();
-        using var owner = new LiteDbConnectionProfileRepository(workspace.Path, new InMemoryProfileSecretStore());
+        var owner = new MemoryAuthority();
         var principalId = await owner.GetInternalPrincipalIdAsync();
-        var repository = (IAgentAuthorizationPolicyRepository)owner;
+        var repository = owner.Policies;
         var binding = new InternalAgentToolBindingProvider(owner, [new Provider()], repository);
         var session = AgentSessionId.New();
         var turn = AgentTurnId.New();
@@ -317,8 +309,7 @@ public sealed class NativeChatTurnPolicyProviderTests
     [Test]
     public async Task BindingDoesNotReplaceAnUnreadablePolicy()
     {
-        using var workspace = new ConnectionCredentialRecoveryTests.Workspace();
-        using var owner = new LiteDbConnectionProfileRepository(workspace.Path, new InMemoryProfileSecretStore());
+        var owner = new MemoryAuthority();
         var principalId = await owner.GetInternalPrincipalIdAsync();
         var invalid = AgentAuthorizationPolicySnapshot.Load(principalId, 999, 1, []);
         var repository = new StubPolicyRepository(invalid);
@@ -332,6 +323,39 @@ public sealed class NativeChatTurnPolicyProviderTests
             Assert.That(resolved, Is.Null);
             Assert.That(repository.SaveCalls, Is.Zero, "Unreadable policy must not be replaced with an empty anchor.");
         });
+    }
+
+    [TestCase(true)]
+    [TestCase(false)]
+    public async Task BindingDeniesWhenAnchorStorageFailsWithoutCreatingPolicy(bool failLoad)
+    {
+        var owner = new MemoryAuthority();
+        var failure = new IOException("Synthetic policy storage failure.");
+        if (failLoad) owner.Policies.LoadFailure = failure;
+        else owner.Policies.SaveFailure = failure;
+        var binding = new InternalAgentToolBindingProvider(owner, [new Provider()], owner.Policies);
+
+        var resolved = await binding.ResolveAsync(AgentSessionId.New(), AgentTurnId.New(), ProviderId,
+            AgentToolRegistry.ListConnectionsToolName, default);
+
+        Assert.That(resolved, Is.Null, "Storage failure cannot issue an authorized binding.");
+        owner.Policies.LoadFailure = null;
+        owner.Policies.SaveFailure = null;
+        Assert.That(await owner.Policies.LoadAsync(await owner.GetInternalPrincipalIdAsync(), default), Is.Null,
+            "A failed anchor operation must leave policy absent.");
+    }
+
+    [Test]
+    public void BindingPreservesCallerCancellation()
+    {
+        var owner = new MemoryAuthority();
+        var binding = new InternalAgentToolBindingProvider(owner, [new Provider()], owner.Policies);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        Assert.ThrowsAsync<OperationCanceledException>(async () => await binding.ResolveAsync(
+            AgentSessionId.New(), AgentTurnId.New(), ProviderId, AgentToolRegistry.ListConnectionsToolName,
+            cancellation.Token));
     }
 
     private static ConnectionProfile Profile(string name) =>
@@ -350,6 +374,38 @@ public sealed class NativeChatTurnPolicyProviderTests
     {
         public string ProviderId => NativeChatTurnPolicyProviderTests.ProviderId;
         public Task<IAgentSession> CreateSessionAsync(AgentSessionOptions options, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+    }
+
+    /// <summary>Issues only the fixture principal from its simulated anchor; no external enrollment or credentials.</summary>
+    private sealed class MemoryAuthority : IAgentPrincipalAuthority
+    {
+        private readonly Guid _principalId = Guid.NewGuid();
+        public MemoryAgentPolicyRepository Policies { get; } = new();
+
+        public Task<Guid> GetInternalPrincipalIdAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(_principalId);
+        }
+
+        public async Task<AgentPrincipalIssueResult> IssueInternalAsync(CancellationToken cancellationToken = default)
+        {
+            var snapshot = await Policies.LoadAsync(_principalId, cancellationToken);
+            return snapshot is { IsValid: true }
+                ? AgentPrincipalIssueResult.Issued(new AgentPrincipal(_principalId, AgentPrincipalOrigin.Internal, snapshot.Revision))
+                : AgentPrincipalIssueResult.Denied(snapshot is null ? AgentPrincipalIssueStatus.PolicyMissing : AgentPrincipalIssueStatus.Corrupt);
+        }
+
+        public Task<bool> IsCurrentAsync(AgentPrincipal principal, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+        public Task<AgentChannelEnrollmentResult> EnrollExternalChannelAsync(CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+        public Task<AgentPrincipalIssueResult> AuthenticateExternalAsync(Guid channelId, string proof, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+        public Task<AgentChannelRevocationStatus> RevokeExternalChannelAsync(Guid channelId, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+        public Task<int> RecoverPendingChannelsAsync(CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
     }
 

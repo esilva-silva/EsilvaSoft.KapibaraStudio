@@ -10,8 +10,15 @@ using NUnit.Framework;
 namespace EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Tests.Codex;
 
 [TestFixture]
+[Category("Unit")]
 internal sealed class CodexSubscriptionAgentProviderTests
 {
+    private static string Workspace => OperatingSystem.IsWindows() ? @"C:\unit-workspace" : "/unit-workspace";
+    private sealed class FakeDirectoryProbe : IAgentWorkspaceDirectoryProbe
+    {
+        public bool Exists(string path) => path == Workspace;
+    }
+
     private static readonly string[] ExpectedModels = ["gpt-6-sol"];
     [Test]
     public async Task StatusUsesOnlyChatGptAccountAndListsAvailableModels()
@@ -41,7 +48,7 @@ internal sealed class CodexSubscriptionAgentProviderTests
             {
                 Plan = EmptyPlan(),
                 SystemPrompt = "Regras do sistema da conversa",
-                WorkspaceContext = new AgentWorkspaceContext(DateTimeOffset.UtcNow, Environment.CurrentDirectory),
+                WorkspaceContext = new AgentWorkspaceContext(DateTimeOffset.UtcNow, Workspace),
                 Attachments = [attachment],
             };
 
@@ -58,7 +65,7 @@ internal sealed class CodexSubscriptionAgentProviderTests
                 var access = turnStart.GetProperty("sandboxPolicy").GetProperty("access");
                 Assert.That(access.GetProperty("type").GetString(), Is.EqualTo("restricted"));
                 Assert.That(access.GetProperty("includePlatformDefaults").GetBoolean(), Is.False);
-                Assert.That(access.GetProperty("readableRoots")[0].GetString(), Is.EqualTo(Path.GetFullPath(Environment.CurrentDirectory)));
+                Assert.That(access.GetProperty("readableRoots")[0].GetString(), Is.EqualTo(Workspace));
                 Assert.That(turnStart.TryGetProperty("cwd", out _), Is.True);
                 Assert.That(turnStart.GetProperty("sandboxPolicy").GetProperty("networkAccess").GetBoolean(), Is.False);
                 var turnInput = connection.Requests.Single(item => item.Method == "turn/start").Parameters
@@ -79,7 +86,7 @@ internal sealed class CodexSubscriptionAgentProviderTests
         var request = new AgentTurnRequest(AgentTurnId.New(), "Leia os arquivos", "tab-1", 1)
         {
             Plan = EmptyPlan(),
-            WorkspaceContext = new AgentWorkspaceContext(DateTimeOffset.UtcNow, Environment.CurrentDirectory),
+            WorkspaceContext = new AgentWorkspaceContext(DateTimeOffset.UtcNow, Workspace),
         };
 
         var events = new List<AgentProviderEvent>();
@@ -124,11 +131,11 @@ internal sealed class CodexSubscriptionAgentProviderTests
                          new AgentSessionOptions(CodexSubscriptionAgentProvider.Id)
                          {
                              ResumeProviderSessionId = handle,
-                             WorkingDirectory = Path.GetPathRoot(Environment.CurrentDirectory),
+                             WorkingDirectory = Path.GetPathRoot(Workspace),
                              ProviderSessionObserver = updates.Add,
                          }, CancellationToken.None))
         {
-            var capturedWorkspace = Path.GetFullPath(Environment.CurrentDirectory);
+            var capturedWorkspace = Workspace;
             await DrainAsync(resumed, Request(EmptyPlan(), "second", capturedWorkspace));
             var resume = secondConnection.Requests.Single(item => item.Method == "thread/resume").Parameters;
             var turn = secondConnection.Requests.Single(item => item.Method == "turn/start").Parameters;
@@ -159,7 +166,7 @@ internal sealed class CodexSubscriptionAgentProviderTests
         var handle = updates.Single(item => item.Change == AgentProviderSessionChange.Established).ProviderSessionId;
         var changedConnection = new FakeConnection("chatgpt");
         var changedProvider = new CodexSubscriptionAgentProvider(new CodexSubscriptionAgentProviderOptions("unused-codex-home"),
-            new ReadOnlyToolRegistry(), _ => Task.FromResult<ICodexAppServerConnection>(changedConnection));
+            new ReadOnlyToolRegistry(), _ => Task.FromResult<ICodexAppServerConnection>(changedConnection), new FakeDirectoryProbe());
         await using (var changed = await changedProvider.CreateSessionAsync(
                          new AgentSessionOptions(CodexSubscriptionAgentProvider.Id)
                          {
@@ -189,7 +196,7 @@ internal sealed class CodexSubscriptionAgentProviderTests
     {
         var connection = new FakeConnection("chatgpt");
         var provider = new CodexSubscriptionAgentProvider(new CodexSubscriptionAgentProviderOptions("unused-codex-home"),
-            new ReadOnlyToolRegistry(), _ => Task.FromResult<ICodexAppServerConnection>(connection));
+            new ReadOnlyToolRegistry(), _ => Task.FromResult<ICodexAppServerConnection>(connection), new FakeDirectoryProbe());
         var updates = new List<AgentProviderSessionUpdate>();
         await using var session = await provider.CreateSessionAsync(new AgentSessionOptions(CodexSubscriptionAgentProvider.Id)
         {
@@ -210,10 +217,25 @@ internal sealed class CodexSubscriptionAgentProviderTests
         });
     }
 
+    [Test]
+    public async Task MissingWorkspaceIsReportedWithoutStartingAThreadAndCanRecoverNextTurn()
+    {
+        var connection = new FakeConnection("chatgpt");
+        var provider = CreateProvider(connect: _ => Task.FromResult<ICodexAppServerConnection>(connection));
+        await using var session = await provider.CreateSessionAsync(new AgentSessionOptions(CodexSubscriptionAgentProvider.Id), CancellationToken.None);
+        var events = new List<AgentProviderEvent>();
+        await foreach (var item in session.RunTurnAsync(Request(EmptyPlan(), "missing", Workspace + "-missing"), CancellationToken.None))
+            events.Add(item);
+        Assert.That(events.Any(item => item.Kind == AgentEventKind.AgentError && item.Text == "CodexWorkspaceRequired"), Is.True);
+        Assert.That(connection.Requests.Any(item => item.Method is "thread/start" or "turn/start"), Is.False);
+        await DrainAsync(session, Request(EmptyPlan(), "retry"));
+        Assert.That(connection.Requests.Count(item => item.Method == "turn/start"), Is.EqualTo(1));
+    }
+
     private static CodexSubscriptionAgentProvider CreateProvider(
         Func<CancellationToken, Task<ICodexAppServerConnection>>? connect = null) =>
         new(new CodexSubscriptionAgentProviderOptions("unused-codex-home"), tools: null,
-            connect ?? (_ => Task.FromResult<ICodexAppServerConnection>(new FakeConnection("chatgpt"))));
+            connect ?? (_ => Task.FromResult<ICodexAppServerConnection>(new FakeConnection("chatgpt"))), new FakeDirectoryProbe());
 
     private static AgentTurnPlan EmptyPlan() => new(AgentOperationMode.Agent, [], [], [], [],
         AgentProposalHandling.Disabled, false, AgentConfirmationCategories.None);
@@ -224,7 +246,7 @@ internal sealed class CodexSubscriptionAgentProviderTests
         Plan = plan,
         Permissions = permissions,
         SystemPrompt = "system " + text,
-        WorkspaceContext = new AgentWorkspaceContext(DateTimeOffset.UtcNow, workspace ?? Environment.CurrentDirectory),
+        WorkspaceContext = new AgentWorkspaceContext(DateTimeOffset.UtcNow, workspace ?? Workspace),
     };
 
     private static AgentTurnPlan ReadPlan(string name) => new(AgentOperationMode.Agent, [], [], [], [name],

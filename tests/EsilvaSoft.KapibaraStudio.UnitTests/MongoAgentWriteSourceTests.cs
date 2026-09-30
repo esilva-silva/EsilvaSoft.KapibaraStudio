@@ -2,14 +2,37 @@ using EsilvaSoft.KapibaraStudio.Application.Agents;
 using EsilvaSoft.KapibaraStudio.Core;
 using EsilvaSoft.KapibaraStudio.Infrastructure;
 using MongoDB.Bson;
+using MongoDB.Driver;
 
 namespace EsilvaSoft.KapibaraStudio.UnitTests;
 
-// Offline rules of the agent write source: everything here is decided before any connection is opened. The profile
-// points to a closed local port, so a request that were sent would come back NotSent/OutcomeUnknown instead of the
-// asserted pre-send status. Behaviour against a server is covered by ConsoleMongoIntegrationTests.AgentWrites.
+// Offline rules of the agent write source: everything here is decided before a client is requested. The pool
+// fails on every request and records it, including exceptions caught by the source. Server behaviour is covered
+// by ConsoleMongoIntegrationTests.AgentWrites.
+[TestFixture]
+[Category("Unit")]
 public sealed class MongoAgentWriteSourceTests
 {
+    private RefusingMongoClientPool _clients = null!;
+
+    [SetUp]
+    public void SetUp() => _clients = new RefusingMongoClientPool();
+
+    [TearDown]
+    public void NoMongoClientWasRequested() => Assert.That(_clients.Requests, Is.Zero,
+        "Uma recusa anterior ao envio não pode solicitar um cliente MongoDB.");
+
+    private sealed class RefusingMongoClientPool : IMongoClientPool
+    {
+        public int Requests { get; private set; }
+
+        public IMongoClient GetClient(MongoClientSettings settings)
+        {
+            Requests++;
+            throw new AssertionException("Cliente MongoDB solicitado por teste de recusa anterior ao envio.");
+        }
+    }
+
     private const string Id = "{\"$numberLong\":\"7\"}";
     private static readonly Guid Generation = Guid.NewGuid();
     private static readonly ConnectionProfile Profile =
@@ -21,8 +44,8 @@ public sealed class MongoAgentWriteSourceTests
 
     private static AgentMongoWriteApproval Approval() => new(Guid.NewGuid(), new string('a', 64));
 
-    private static MongoAgentWriteSource CreateSource() =>
-        new(new SessionConnectionSecretStore(), null, new MongoClientPool());
+    private MongoAgentWriteSource CreateSource() =>
+        new(new SessionConnectionSecretStore(), null, _clients);
 
     private static (string Ejson, string Hash) Preimage(BsonDocument document)
     {
@@ -158,7 +181,7 @@ public sealed class MongoAgentWriteSourceTests
     [TestCase("tag_1", AgentMongoWriteStatus.PreconditionUnavailable)]
     public async Task DropIndexNeverSendsTheDrop(string name, AgentMongoWriteStatus expected)
     {
-        // A closed port would turn any send attempt into NotSent; PreconditionUnavailable proves nothing was tried.
+        // The refusing pool also checks that this precondition failure never requests a client.
         var result = await CreateSource().DropIndexAsync(Profile, new("db", "c", name, new string('b', 64), 1000)
         {
             SourceGenerationId = Generation, Approval = Approval()

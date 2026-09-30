@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
@@ -15,7 +14,9 @@ using EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Codex;
 using EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Copilot;
 using EsilvaSoft.KapibaraStudio.Infrastructure.Agents.OpenAi;
 using EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi;
+using EsilvaSoft.KapibaraStudio.SystemAdapters;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace EsilvaSoft.KapibaraStudio.Desktop;
 
@@ -39,11 +40,13 @@ public partial class App : Avalonia.Application
             return;
         }
         var services = new ServiceCollection();
-        services.AddKapibaraStudioInfrastructure(LocalWorkspacePaths.GetDatabasePath());
+        var workspacePaths = new LocalWorkspacePathResolver();
+        services.AddSingleton<ILocalWorkspacePaths>(workspacePaths);
+        services.AddKapibaraStudioInfrastructure(workspacePaths.GetDatabasePath());
         services.AddKapibaraStudioLocalAiInfrastructure();
         // The chat captures the Files panel folder on the UI thread (read notice and session start) and passes it in
         // AgentSessionOptions.WorkingDirectory; nothing in the agent platform reads UI state by itself.
-        AddDesktopAgentServices(services, DebugLogDirectoryForDesktop());
+        AddDesktopAgentServices(services, workspacePaths, DebugLogDirectoryForDesktop(new LocalDiagnosticLogDirectoryResolver()));
         services.AddSingleton<WorkspaceService>();
         services.AddSingleton<WorkspaceViewModel>();
         _serviceProvider = services.BuildServiceProvider();
@@ -67,9 +70,11 @@ public partial class App : Avalonia.Application
     /// awaits: without a stored API Key, network or reachable service each provider only reports itself unavailable
     /// with a safe code through the same runtime/catalog (AC-15).
     /// </summary>
-    public static void AddDesktopAgentServices(IServiceCollection services, string? debugLogDirectory = null)
+    public static void AddDesktopAgentServices(IServiceCollection services, ILocalWorkspacePaths workspacePaths, string? debugLogDirectory = null)
     {
         ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(workspacePaths);
+        services.TryAddSingleton<IExternalUriLauncher, LocalExternalUriLauncher>();
         services.AddKapibaraStudioOpenAiAgentProvider();
         services.AddKapibaraStudioClaudeAgentProvider(new ClaudeAgentProviderOptions { ApiKeyReference = ClaudeApiKeySlot });
         // "Claude (assinatura)": the user's own Claude Code binary (ADR-053), a separate provider from the API mode above.
@@ -86,10 +91,9 @@ public partial class App : Avalonia.Application
             },
             static provider => provider.GetService<IAgentMcpChannelProvisioner>());
         services.AddKapibaraStudioCodexSubscriptionAgentProvider(new CodexSubscriptionAgentProviderOptions(
-            Path.Combine(Path.GetDirectoryName(LocalWorkspacePaths.GetDatabasePath())!, "codex-subscription")));
+            Path.Combine(Path.GetDirectoryName(workspacePaths.GetDatabasePath())!, "codex-subscription")));
         // Copilot shares the official CLI account and its explicitly refreshed eligible-model catalog.
-        services.AddSingleton<CopilotSubscriptionAgentProvider>();
-        services.AddSingleton<IAgentProvider>(provider => provider.GetRequiredService<CopilotSubscriptionAgentProvider>());
+        services.AddKapibaraStudioCopilotSubscriptionAgentProvider();
         // Production, provider-neutral view for the chat UI (AC-04/AC-09): built only from the shared
         // AgentProviderCatalog/capabilities, with no branch by provider brand.
         // The family map is display data only (mode chip "Claude · assinatura" / "Claude · API"); nothing branches on it.
@@ -107,7 +111,7 @@ public partial class App : Avalonia.Application
         // Account actions of the CLI-delegated mode (P7-CL5-02): only states, version, tier and names cross this port.
         services.AddSingleton<IAgentCliAccountManager>(provider => new ClaudeCodeCliAccountManager(
             provider.GetRequiredService<ClaudeCodeAgentProvider>(), provider.GetRequiredService<CodexSubscriptionAgentProvider>(),
-            provider.GetRequiredService<CopilotSubscriptionAgentProvider>()));
+            provider.GetRequiredService<CopilotSubscriptionAgentProvider>(), provider.GetRequiredService<IExternalUriLauncher>()));
         // The only write path for provider keys: the same vault slots the adapters resolve. The slot map is the
         // composition root's data; the store itself never branches on a provider brand.
         services.AddSingleton<IAgentApiKeyStore>(provider => new DesktopAgentApiKeyStore(
@@ -138,24 +142,20 @@ public partial class App : Avalonia.Application
             Conversations = provider.GetRequiredService<IAgentConversationRepository>(),
             Permissions = provider.GetRequiredService<IAgentProviderPermissionsRepository>(),
             McpChannels = provider.GetRequiredService<IAgentMcpChannelProvisioner>(),
+            FileReader = provider.GetRequiredService<IAgentBoundedFileReader>(),
+            PathProbe = provider.GetRequiredService<IAgentWorkspacePathProbe>(),
+            FileCatalog = provider.GetRequiredService<IAgentWorkspaceFileCatalog>(),
             Proposals = provider.GetRequiredService<AgentEditProposalStore>(),
             Confirmations = provider.GetRequiredService<DesktopAgentToolConfirmationPrompt>(),
             Availability = provider.GetRequiredService<AgentProviderAvailabilityService>(),
         }));
     }
 
-    private static string? DebugLogDirectoryForDesktop()
+    internal static string? DebugLogDirectoryForDesktop(IDiagnosticLogDirectoryResolver resolver)
     {
 #if DEBUG
-        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "EsilvaSoft.KapibaraStudio.slnx")))
-            {
-                return Path.Combine(directory.FullName, "logs");
-            }
-        }
-
-        return Path.Combine(AppContext.BaseDirectory, "logs");
+        ArgumentNullException.ThrowIfNull(resolver);
+        return resolver.Resolve();
 #else
         return null;
 #endif
@@ -261,22 +261,27 @@ public partial class App : Avalonia.Application
         catch (Exception) { return new AgentCliAccountStatus(AgentCliInstallState.CheckFailed, null, AgentCliAuthState.Unreadable); }
     }
 
-    private static async Task<AgentCliCommandResult> SignInCodexAsync(CodexSubscriptionAgentProvider provider, CancellationToken token)
+    private static Task<AgentCliCommandResult> SignInCodexAsync(CodexSubscriptionAgentProvider provider,
+        IExternalUriLauncher browser, CancellationToken token) =>
+        SignInCodexWithBrowserAsync(provider.LoginAsync, cancellationToken => CheckCodexAsync(provider, cancellationToken), browser, token);
+
+    internal static async Task<AgentCliCommandResult> SignInCodexWithBrowserAsync(
+        Func<Func<Uri, CancellationToken, Task>, CancellationToken, Task<bool>> login,
+        Func<CancellationToken, Task<AgentCliAccountStatus>> check,
+        IExternalUriLauncher browser, CancellationToken token)
     {
+        ArgumentNullException.ThrowIfNull(login);
+        ArgumentNullException.ThrowIfNull(check);
+        ArgumentNullException.ThrowIfNull(browser);
+        token.ThrowIfCancellationRequested();
         try
         {
-            var completed = await provider.LoginAsync(static (uri, _) =>
-            {
-                var process = Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
-                if (process is null) throw new InvalidOperationException("Não foi possível abrir o navegador.");
-                process.Dispose();
-                return Task.CompletedTask;
-            }, token).ConfigureAwait(false);
+            var completed = await login(browser.OpenAsync, token).ConfigureAwait(false);
             return new AgentCliCommandResult(completed ? AgentCliCommandOutcome.Completed : AgentCliCommandOutcome.StartFailed,
-                await CheckCodexAsync(provider, token).ConfigureAwait(false));
+                await check(token).ConfigureAwait(false));
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
-        catch (Exception) { return new AgentCliCommandResult(AgentCliCommandOutcome.StartFailed, await CheckCodexAsync(provider, token).ConfigureAwait(false)); }
+        catch (Exception) { return new AgentCliCommandResult(AgentCliCommandOutcome.StartFailed, await check(token).ConfigureAwait(false)); }
     }
 
     private static async Task<AgentCliCommandResult> SignOutCodexAsync(CodexSubscriptionAgentProvider provider, CancellationToken token)
@@ -298,7 +303,7 @@ public partial class App : Avalonia.Application
     /// never reads credentials, e-mail or organization, and nothing here calls the model.
     /// </summary>
     public sealed class ClaudeCodeCliAccountManager(ClaudeCodeAgentProvider provider, CodexSubscriptionAgentProvider? codex = null,
-        CopilotSubscriptionAgentProvider? copilot = null) : IAgentCliAccountManager
+        CopilotSubscriptionAgentProvider? copilot = null, IExternalUriLauncher? browser = null) : IAgentCliAccountManager
     {
         private static readonly AgentCliProviderProfile Profile = new(
             CliName: "Claude Code",
@@ -408,7 +413,7 @@ public partial class App : Avalonia.Application
         public Task<AgentCliCommandResult> SignInAsync(string providerId, CancellationToken cancellationToken)
         {
             if (IsCopilot(providerId)) return App.SignInCopilotAsync(EnsureCopilot(), cancellationToken);
-            if (IsCodex(providerId)) return App.SignInCodexAsync(EnsureCodex(), cancellationToken);
+            if (IsCodex(providerId)) return App.SignInCodexAsync(EnsureCodex(), EnsureBrowser(), cancellationToken);
             EnsureClaude(providerId);
             return SignInClaudeCodeAsync(_provider, cancellationToken);
         }
@@ -440,6 +445,7 @@ public partial class App : Avalonia.Application
 
         private CodexSubscriptionAgentProvider EnsureCodex() => _codex ?? throw new InvalidOperationException("Provider Codex não composto.");
         private CopilotSubscriptionAgentProvider EnsureCopilot() => _copilot ?? throw new InvalidOperationException("Provider Copilot não composto.");
+        private IExternalUriLauncher EnsureBrowser() => browser ?? throw new InvalidOperationException("Abertura do navegador não composta.");
         private static void EnsureClaude(string providerId)
         {
             if (!IsClaude(providerId))

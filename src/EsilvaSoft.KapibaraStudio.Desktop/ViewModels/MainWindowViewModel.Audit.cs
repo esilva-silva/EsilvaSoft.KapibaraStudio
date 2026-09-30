@@ -52,28 +52,16 @@ public sealed partial class MainWindowViewModel
         {
             var entries = await _workspace.GetRecentAuditAsync(500);
             var json = AuditJsonSerializer.Serialize(entries);
-            var directory = Path.GetDirectoryName(Path.GetFullPath(AuditExportPath));
-            if (!string.IsNullOrWhiteSpace(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
-            await using var stream = new FileStream(
-                AuditExportPath,
-                FileMode.CreateNew,
-                FileAccess.Write,
-                FileShare.None,
-                bufferSize: 4096,
-                useAsync: true);
-            await using var writer = new StreamWriter(stream);
-            await writer.WriteAsync(json);
+            await _workspace.WriteNewTextExportAsync(AuditExportPath, json);
             StatusMessage = F("auditExported", AuditExportPath);
+        }
+        catch (TextExportFileAlreadyExistsException)
+        {
+            SetError(T("auditAlreadyExists"));
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
         {
-            SetError(File.Exists(AuditExportPath)
-                ? T("auditAlreadyExists")
-                : F("auditExportFailed", exception.Message));
+            SetError(F("auditExportFailed", exception.Message));
         }
     }
 }

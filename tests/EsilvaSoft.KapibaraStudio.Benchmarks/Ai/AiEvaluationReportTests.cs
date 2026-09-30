@@ -12,6 +12,12 @@ public sealed class AiEvaluationReportTests
 {
     private static readonly string[] ExpectedFailures = ["d"];
     private static readonly string[] ExpectedDimensions = ["shape", "schemaSize", "lookup", "learnedSchema"];
+    private static readonly AiEvaluationEnvironment TestEnvironment = new()
+    {
+        OperatingSystem = "Test OS", Architecture = "x64", LogicalProcessors = 8,
+        Runtime = ".NET test", ServerGarbageCollection = false, DebuggerAttached = false,
+        Configuration = "Test"
+    };
 
     private static AiCaseMeasurement Measurement(string id, int promptTokens, bool deterministic = true,
         AiEvaluationShape shape = AiEvaluationShape.Filter, bool hasLookup = false) => new()
@@ -35,7 +41,7 @@ public sealed class AiEvaluationReportTests
     private static AiEvaluationReport Report(params AiCaseMeasurement[] measurements) =>
         AiEvaluationReport.Aggregate("editor-context-v1", "FakeCounter", 42, 3, 1,
             AiEvaluationDistribution.Of(AiEvaluationDataset.Create(AiEvaluationDataset.SmokeSeed, measurements.Length).Cases),
-            measurements);
+            measurements, TestEnvironment);
 
     [Test]
     public void SummaryComputesMeanDeviationAndPercentiles()
@@ -92,8 +98,7 @@ public sealed class AiEvaluationReportTests
             Assert.That(report.BudgetOverflowRate, Is.EqualTo(0.5).Within(1e-9));
             Assert.That(report.NonDeterministicCases, Is.EqualTo(1));
             Assert.That(report.NonDeterministicCaseIds, Is.EqualTo(ExpectedFailures));
-            Assert.That(report.Environment.LogicalProcessors, Is.GreaterThan(0));
-            Assert.That(report.Environment.Runtime, Is.Not.Empty);
+            Assert.That(report.Environment, Is.EqualTo(TestEnvironment));
         });
     }
 
@@ -101,7 +106,7 @@ public sealed class AiEvaluationReportTests
     public void AggregationOfNothingIsAllZero()
     {
         var report = AiEvaluationReport.Aggregate("editor-context-v1", "FakeCounter", 0, 2, 0,
-            AiEvaluationDistribution.Of([]), []);
+            AiEvaluationDistribution.Of([]), [], TestEnvironment);
 
         Assert.Multiple(() =>
         {
@@ -175,36 +180,4 @@ public sealed class AiEvaluationReportTests
         });
     }
 
-    [Test]
-    public async Task WriterProducesBothFilesInTheGivenDirectory()
-    {
-        var directory = Path.Combine(Path.GetTempPath(), "slop-ai-report-" + Guid.NewGuid().ToString("N"));
-        try
-        {
-            var files = await AiEvaluationReportWriter.WriteAsync(Report(Measurement("a", 100)), directory, TestContext.CurrentContext.CancellationToken);
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(files, Has.Count.EqualTo(2));
-                Assert.That(files[0], Does.EndWith(AiEvaluationReportWriter.FileBaseName + ".json"));
-                Assert.That(files[1], Does.EndWith(AiEvaluationReportWriter.FileBaseName + ".md"));
-                Assert.That(File.Exists(files[0]), Is.True);
-                Assert.That(File.Exists(files[1]), Is.True);
-            });
-            using var document = JsonDocument.Parse(await File.ReadAllTextAsync(files[0], TestContext.CurrentContext.CancellationToken));
-            Assert.That(document.RootElement.GetProperty("tokenCounter").GetString(), Is.EqualTo("FakeCounter"));
-        }
-        finally
-        {
-            if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
-        }
-    }
-
-    [Test]
-    public void DefaultOutputDirectoryEndsInsideTheBenchmarksProject()
-    {
-        var directory = AiEvaluationReportWriter.DefaultDirectory();
-
-        Assert.That(directory, Does.EndWith(Path.Combine("Ai", "output")));
-    }
 }

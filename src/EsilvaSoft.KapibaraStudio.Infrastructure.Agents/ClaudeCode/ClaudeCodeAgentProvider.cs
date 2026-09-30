@@ -20,30 +20,31 @@ public sealed class ClaudeCodeAgentProvider : IAgentProvider
     public const string DisplayName = "Claude (assinatura)";
 
     private readonly Func<ClaudeCodeAgentProviderOptions> _options;
-    private readonly Func<ClaudeCodeExecutableLocator> _locator;
+    internal IClaudeCodeSystem System { get; }
     private readonly IAgentMcpChannelProvisioner? _mcpChannel;
     private readonly Lock _gate = new();
     private InstallationCacheEntry? _installation;
 
     /// <param name="options">Configuração validada na construção.</param>
+    /// <param name="system">Adapter explícito de recursos locais; testes usam implementação em memória.</param>
     /// <param name="mcpChannel">
     /// Canal MCP por sessão (composição do Desktop). Nulo: nenhuma tool do produto; um plano que as exija falha com
     /// <see cref="ClaudeCodeErrorCodes.ProductToolsUnavailable"/>.
     /// </param>
-    public ClaudeCodeAgentProvider(ClaudeCodeAgentProviderOptions options, IAgentMcpChannelProvisioner? mcpChannel = null)
-        : this(() => options, ClaudeCodeExecutableLocator.ForCurrentProcess, mcpChannel)
+    public ClaudeCodeAgentProvider(ClaudeCodeAgentProviderOptions options, IClaudeCodeSystem system, IAgentMcpChannelProvisioner? mcpChannel = null)
+        : this(() => options, system, mcpChannel)
     {
         ArgumentNullException.ThrowIfNull(options);
         options.Validate();
     }
 
     internal ClaudeCodeAgentProvider(
-        Func<ClaudeCodeAgentProviderOptions> options, Func<ClaudeCodeExecutableLocator> locator, IAgentMcpChannelProvisioner? mcpChannel = null)
+        Func<ClaudeCodeAgentProviderOptions> options, IClaudeCodeSystem resources, IAgentMcpChannelProvisioner? mcpChannel = null)
     {
         ArgumentNullException.ThrowIfNull(options);
-        ArgumentNullException.ThrowIfNull(locator);
+        ArgumentNullException.ThrowIfNull(resources);
         _options = options;
-        _locator = locator;
+        System = resources;
         _mcpChannel = mcpChannel;
     }
 
@@ -146,8 +147,8 @@ public sealed class ClaudeCodeAgentProvider : IAgentProvider
     {
         try
         {
-            return ClaudeCodeWorkspacePolicy.Preview(SnapshotOptions(), Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                candidateWorkspace);
+            return ClaudeCodeWorkspacePolicy.Preview(SnapshotOptions(), System.HomeDirectory,
+                candidateWorkspace, System);
         }
         catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or NotSupportedException)
         {
@@ -237,12 +238,12 @@ public sealed class ClaudeCodeAgentProvider : IAgentProvider
     internal async Task<string?> CheckTurnPreconditionsAsync(ClaudeCodeLaunchProfile profile, CancellationToken cancellationToken)
     {
         var options = SnapshotOptions();
-        if (ClaudeCodeAuthStatus.FindBlockingEnvironmentVariable(options.IsEnvironmentVariableSet) is not null)
+        if (ClaudeCodeAuthStatus.FindBlockingEnvironmentVariable(options.IsEnvironmentVariableSet ?? System.IsEnvironmentVariableSet) is not null)
         {
             return ClaudeCodeErrorCodes.BlockedEnvironment;
         }
 
-        if (ClaudeCodeExecutableLocator.Validate(profile.ExecutablePath) is null)
+        if (System.ValidateExecutable(profile.ExecutablePath) is null)
         {
             return ClaudeCodeErrorCodes.ExecutableUnavailable;
         }
@@ -271,7 +272,7 @@ public sealed class ClaudeCodeAgentProvider : IAgentProvider
             return new(modelReason);
         }
 
-        if (ClaudeCodeAuthStatus.FindBlockingEnvironmentVariable(options.IsEnvironmentVariableSet) is not null)
+        if (ClaudeCodeAuthStatus.FindBlockingEnvironmentVariable(options.IsEnvironmentVariableSet ?? System.IsEnvironmentVariableSet) is not null)
         {
             return new(ClaudeCodeUnavailableReason.BlockedEnvironment);
         }
@@ -311,18 +312,20 @@ public sealed class ClaudeCodeAgentProvider : IAgentProvider
 
     private async Task<ClaudeCodeInstallation> DetectAsync(ClaudeCodeAgentProviderOptions options, CancellationToken cancellationToken)
     {
-        var (path, state) = _locator().Locate(options.ExecutablePath);
+        var candidate = System.Locate(options.ExecutablePath);
+        var path = candidate.Path;
+        var state = candidate.Unsupported ? ClaudeCodeInstallationState.UnsupportedExecutable : ClaudeCodeInstallationState.NotFound;
         if (path is null)
         {
             return new ClaudeCodeInstallation(state);
         }
 
-        FileInfo file;
+        ClaudeCodeExecutableFingerprint file;
         try
         {
-            file = new FileInfo(path);
+            file = System.GetExecutableFingerprint(path);
         }
-        catch (Exception exception) when (exception is ArgumentException or NotSupportedException)
+        catch (Exception exception) when (exception is ArgumentException or NotSupportedException or IOException or UnauthorizedAccessException)
         {
             return new ClaudeCodeInstallation(ClaudeCodeInstallationState.NotFound);
         }
@@ -337,12 +340,12 @@ public sealed class ClaudeCodeAgentProvider : IAgentProvider
         }
 
         // Consulta de estado: nenhuma pasta é criada (H3).
-        var workingDirectory = ClaudeCodeWorkspacePolicy.ProbeWorkingDirectory(options);
+        var workingDirectory = ClaudeCodeWorkspacePolicy.ProbeWorkingDirectory(options, System);
 
         ClaudeCodeProbeResult probe;
         try
         {
-            probe = await ClaudeCodeProbe.RunAsync(path, ClaudeCodeCommandLine.VersionArguments, workingDirectory, options.ProbeTimeout,
+            probe = await System.ProbeAsync(path, ClaudeCodeCommandLine.VersionArguments, workingDirectory, options.ProbeTimeout,
                 1024, options.MaxStderrBytes, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception exception) when (exception is InvalidOperationException or Win32Exception or IOException or UnauthorizedAccessException)
@@ -376,10 +379,10 @@ public sealed class ClaudeCodeAgentProvider : IAgentProvider
         return installation;
     }
 
-    private static async Task<ClaudeCodeAuthStatus> QueryAuthStatusAsync(
+    private async Task<ClaudeCodeAuthStatus> QueryAuthStatusAsync(
         ClaudeCodeAgentProviderOptions options, ClaudeCodeLaunchProfile profile, CancellationToken cancellationToken)
     {
-        if (ClaudeCodeAuthStatus.FindBlockingEnvironmentVariable(options.IsEnvironmentVariableSet) is { } variable)
+        if (ClaudeCodeAuthStatus.FindBlockingEnvironmentVariable(options.IsEnvironmentVariableSet ?? System.IsEnvironmentVariableSet) is { } variable)
         {
             return new ClaudeCodeAuthStatus(ClaudeCodeAuthKind.BlockedEnvironment, EnvironmentVariableName: variable);
         }
@@ -387,7 +390,7 @@ public sealed class ClaudeCodeAgentProvider : IAgentProvider
         ClaudeCodeProbeResult probe;
         try
         {
-            probe = await ClaudeCodeProbe.RunAsync(profile.ExecutablePath, ClaudeCodeCommandLine.AuthStatusArguments(profile),
+            probe = await System.ProbeAsync(profile.ExecutablePath, ClaudeCodeCommandLine.AuthStatusArguments(profile),
                 profile.WorkingDirectory, options.ProbeTimeout, options.MaxProbeOutputBytes, options.MaxStderrBytes, cancellationToken)
                 .ConfigureAwait(false);
         }
@@ -414,7 +417,7 @@ public sealed class ClaudeCodeAgentProvider : IAgentProvider
             return new ClaudeCodeAccountCommandResult(ClaudeCodeAccountCommandState.StartFailed, null);
         }
 
-        var state = await ClaudeCodeAccountCommands.RunVisibleAsync(installation.ExecutablePath!, arguments, profile.WorkingDirectory,
+        var state = await System.RunVisibleAccountCommandAsync(installation.ExecutablePath!, arguments, profile.WorkingDirectory,
             options.AccountCommandTimeout, cancellationToken).ConfigureAwait(false);
         var status = await QueryAuthStatusAsync(options, profile, cancellationToken).ConfigureAwait(false);
         return new ClaudeCodeAccountCommandResult(state, status);
@@ -424,15 +427,15 @@ public sealed class ClaudeCodeAgentProvider : IAgentProvider
     /// Perfil de sessão a partir da pasta de workspace já capturada. Falhas de caminho/permissão viram nulo (o chamador
     /// publica <see cref="ClaudeCodeUnavailableReason.InvalidConfiguration"/>), nunca exceção crua.
     /// </summary>
-    private static ClaudeCodeLaunchProfile? TryCreateProfile(
+    private ClaudeCodeLaunchProfile? TryCreateProfile(
         ClaudeCodeAgentProviderOptions options, ClaudeCodeInstallation installation, string model, string? requestedWorkspace,
         bool createDedicated)
     {
         try
         {
-            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            var (directory, kind) = ClaudeCodeWorkspacePolicy.Resolve(options, home, requestedWorkspace, createDedicated);
-            var deny = ClaudeCodeCommandLine.BuildDenyRules(options.ResolveAppDataDirectory(), options.ResolveDatabasePath(), home);
+            var home = System.HomeDirectory;
+            var (directory, kind) = ClaudeCodeWorkspacePolicy.Resolve(options, home, requestedWorkspace, createDedicated, System);
+            var deny = ClaudeCodeCommandLine.BuildDenyRules(options.ResolveAppDataDirectory(System), options.ResolveDatabasePath(System), home);
             return new ClaudeCodeLaunchProfile(installation.ExecutablePath!, installation.Version!.Value, directory, kind,
                 ClaudeCodeCommandLine.BuildSettingsJson(kind, deny), model)
             {
@@ -450,12 +453,12 @@ public sealed class ClaudeCodeAgentProvider : IAgentProvider
     /// Perfil de consulta de estado (auth status, login/logout): mesmas flags globais de um turno, cwd de
     /// <see cref="ClaudeCodeWorkspacePolicy.ProbeWorkingDirectory"/>; não lê a pasta de workspace nem cria diretórios.
     /// </summary>
-    private static ClaudeCodeLaunchProfile? TryCreateStatusProfile(
+    private ClaudeCodeLaunchProfile? TryCreateStatusProfile(
         ClaudeCodeAgentProviderOptions options, ClaudeCodeInstallation installation, string? model = null)
     {
         var profile = TryCreateProfile(options, installation, model ?? options.DefaultModel ?? options.AllowedModelIds[0], null,
             createDedicated: false);
-        return profile is null ? null : profile with { WorkingDirectory = ClaudeCodeWorkspacePolicy.ProbeWorkingDirectory(options) };
+        return profile is null ? null : profile with { WorkingDirectory = ClaudeCodeWorkspacePolicy.ProbeWorkingDirectory(options, System) };
     }
 
     private ClaudeCodeAgentProviderOptions SnapshotOptions()

@@ -16,7 +16,7 @@ namespace EsilvaSoft.KapibaraStudio.Infrastructure;
 public sealed partial class MongoAgentWriteSource(
     IConnectionSecretStore secrets,
     IEnvironmentVaultRepository? environments,
-    MongoClientPool clients) : IAgentMongoWriteSource
+    IMongoClientPool clients) : IAgentMongoWriteSource
 {
     internal const int MaximumMaxTimeMs = 30_000;
     private const string WriteComment = "kapibarastudio:agent-write";

@@ -1,3 +1,5 @@
+using EsilvaSoft.KapibaraStudio.SystemAdapters.Copilot;
+using EsilvaSoft.KapibaraStudio.Application;
 using EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Copilot;
 using GitHub.Copilot;
 using NUnit.Framework;
@@ -5,24 +7,9 @@ using NUnit.Framework;
 namespace EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Tests.Copilot;
 
 [TestFixture]
+[Category("Unit")]
 public sealed class CopilotAccountBoundaryTests
 {
-    [Test]
-    public void AccountDiscoveryAndProductSessionsUseOfficialCliIdentityWithExplicitSessionStorage()
-    {
-        var account = CopilotRuntimeSettings.AccountClientOptions();
-        var persistentSession = CopilotRuntimeSettings.SessionClientOptions();
-
-        Assert.That(account.Mode, Is.EqualTo(CopilotClientMode.CopilotCli));
-        Assert.That(account.UseLoggedInUser, Is.True);
-        Assert.That(account.BaseDirectory, Is.EqualTo(persistentSession.BaseDirectory));
-        Assert.That(account.BaseDirectory, Does.Contain(".copilot"));
-        Assert.That(persistentSession.Mode, Is.EqualTo(CopilotClientMode.CopilotCli));
-        Assert.That(persistentSession.UseLoggedInUser, Is.True);
-        Assert.That(persistentSession.BaseDirectory, Does.Contain(".copilot"));
-        Assert.That(persistentSession.SessionFs, Is.Null);
-    }
-
     [TestCase(false, null, CopilotAccountState.NotLoggedIn)]
     [TestCase(true, "user", CopilotAccountState.Subscription)]
     [TestCase(true, "env", CopilotAccountState.OtherAuthentication)]
@@ -39,8 +26,9 @@ public sealed class CopilotAccountBoundaryTests
         Assert.That(status.State, Is.EqualTo(expected));
     }
 
-    [Test]
-    public void ChildEnvironmentDropsCredentialAndProviderOverrideVariables()
+    [TestCase(true)]
+    [TestCase(false)]
+    public void ChildEnvironmentDropsCredentialAndProviderOverrideVariables(bool isWindows)
     {
         var source = new Dictionary<string, string?>
         {
@@ -54,10 +42,10 @@ public sealed class CopilotAccountBoundaryTests
             ["OPENAI_API_KEY"] = "must-not-pass",
         };
 
-        var child = CopilotRuntimeSettings.BuildChildEnvironment(source);
+        var child = CopilotRuntimeSettings.BuildChildEnvironment(source, new TestPlatform(isWindows));
 
         Assert.That(child.GetValueOrDefault("PATH"), Is.EqualTo("safe-path"));
-        Assert.That(child.GetValueOrDefault("HOME"), Is.EqualTo(OperatingSystem.IsWindows() ? null : "safe-home"));
+        Assert.That(child.GetValueOrDefault("HOME"), Is.EqualTo(isWindows ? null : "safe-home"));
         Assert.That(child.Keys, Does.Not.Contain("GITHUB_TOKEN"));
         Assert.That(child.Keys, Does.Not.Contain("GH_TOKEN"));
         Assert.That(child.Keys, Does.Not.Contain("COPILOT_CLI_PATH"));
@@ -66,24 +54,21 @@ public sealed class CopilotAccountBoundaryTests
         Assert.That(child.Keys, Does.Not.Contain("OPENAI_API_KEY"));
     }
 
-    [Test]
-    public void CliDetectionUsesOnlyAbsoluteExecutableCandidates()
+    [TestCase(true, "safe-path")]
+    [TestCase(false, null)]
+    public void ChildEnvironmentHonorsTargetPlatformVariableNameCase(bool isWindows, string? expectedPath)
     {
-        var root = Path.Combine(Path.GetTempPath(), "KapibaraStudio.CopilotCliTest", Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(root);
-        var executable = Path.Combine(root, OperatingSystem.IsWindows() ? "copilot.exe" : "copilot");
-        try
-        {
-            Assert.That(CopilotAccountCommands.FindCliExecutable(root), Is.Null);
-            Assert.That(CopilotAccountCommands.FindCliExecutable("relative-path"), Is.Null);
-            File.WriteAllText(executable, "test placeholder");
+        var source = new Dictionary<string, string?> { ["path"] = "safe-path", ["gh_token"] = "must-not-pass" };
 
-            Assert.That(CopilotAccountCommands.FindCliExecutable(root), Is.EqualTo(executable));
-        }
-        finally
-        {
-            Directory.Delete(root, recursive: true);
-        }
+        var child = CopilotRuntimeSettings.BuildChildEnvironment(source, new TestPlatform(isWindows));
+
+        Assert.That(child.GetValueOrDefault("PATH"), Is.EqualTo(expectedPath));
+        Assert.That(child.Keys, Does.Not.Contain("gh_token"));
+    }
+
+    private sealed record TestPlatform(bool IsWindows) : IHostPlatformSnapshot
+    {
+        public bool IsLinux => !IsWindows;
     }
 
     [Test]

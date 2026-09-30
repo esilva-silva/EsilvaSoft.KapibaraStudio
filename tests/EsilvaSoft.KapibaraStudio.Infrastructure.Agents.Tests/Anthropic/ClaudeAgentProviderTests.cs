@@ -176,18 +176,22 @@ public sealed class ClaudeAgentProviderTests
     public void InvalidConfigurationIsRejected()
     {
         var credentials = new FakeCredentialProvider();
+        using var invalidModelHandler = new FakeClaudeHandler();
+        using var insecureBaseUrlHandler = new FakeClaudeHandler();
+        using var emptyModelsHandler = new FakeClaudeHandler();
+        using var invalidBudgetHandler = new FakeClaudeHandler();
         Assert.Multiple(() =>
         {
-            Assert.That(() => new ClaudeAgentProvider(credentials, ClaudeFixture.Options() with { DefaultModel = "claude-x" }),
+            Assert.That(() => new ClaudeAgentProvider(credentials, ClaudeFixture.Options() with { DefaultModel = "claude-x" }, null, invalidModelHandler),
                 Throws.ArgumentException);
-            Assert.That(() => new ClaudeAgentProvider(credentials, ClaudeFixture.Options() with { BaseUrl = new Uri("http://api.example.com") }),
+            Assert.That(() => new ClaudeAgentProvider(credentials, ClaudeFixture.Options() with { BaseUrl = new Uri("http://api.example.com") }, null, insecureBaseUrlHandler),
                 Throws.ArgumentException, "Somente HTTPS fora de loopback.");
-            Assert.That(() => new ClaudeAgentProvider(credentials, ClaudeFixture.Options() with { AllowedModelIds = [] }),
+            Assert.That(() => new ClaudeAgentProvider(credentials, ClaudeFixture.Options() with { AllowedModelIds = [] }, null, emptyModelsHandler),
                 Throws.ArgumentException);
             Assert.That(() => new ClaudeAgentProvider(credentials, ClaudeFixture.Options() with
             {
                 Budget = ClaudeAgentBudget.Default with { MaxOutputTokensPerRequest = 0 },
-            }), Throws.InstanceOf<ArgumentOutOfRangeException>());
+            }, null, invalidBudgetHandler), Throws.InstanceOf<ArgumentOutOfRangeException>());
         });
     }
 
@@ -343,10 +347,11 @@ public sealed class ClaudeAgentProviderTests
     public void RegistrationReadsNoSecretAndExposesTheProviderOnce()
     {
         var credentials = new FakeCredentialProvider();
+        using var handler = new FakeClaudeHandler();
         var services = new ServiceCollection();
         services.AddSingleton<IAgentCredentialProvider>(credentials);
         // Default budget: the fixture's short tool-result wait would not cover the runtime's worst-case tool call.
-        services.AddKapibaraStudioClaudeAgentProvider(ClaudeFixture.Options(ClaudeAgentBudget.Default));
+        services.AddKapibaraStudioClaudeAgentProvider(ClaudeFixture.Options(ClaudeAgentBudget.Default), _ => handler);
 
         using var container = services.BuildServiceProvider();
         var providers = container.GetServices<IAgentProvider>().ToArray();

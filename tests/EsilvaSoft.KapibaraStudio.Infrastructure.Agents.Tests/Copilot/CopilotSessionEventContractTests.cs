@@ -8,6 +8,7 @@ using NUnit.Framework;
 namespace EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Tests.Copilot;
 
 [TestFixture]
+[Category("Unit")]
 public sealed class CopilotSessionEventContractTests
 {
     private static readonly Type SessionType = typeof(CopilotSubscriptionAgentProvider).Assembly

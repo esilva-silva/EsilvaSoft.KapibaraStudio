@@ -244,31 +244,10 @@ public sealed class LocalAiModelServiceTests
         Assert.That(service.Status.State, Is.EqualTo(LocalModelState.Failed));
     }
 
-    [Test, Explicit("Consulta o ONNX Runtime nativo desta máquina."), Category("LocalModelIntegration")]
-    public void RealHardwareProbeAlwaysReportsCpu()
-    {
-        var devices = OnnxHardwareProbe.Detect();
-        foreach (var device in devices) TestContext.WriteLine(LocalAiStatusFormatter.DeviceLine(device) + (device.Reason is null ? "" : " · " + device.Reason));
-        Assert.That(devices.Single(device => device.Kind == AiAccelerationMode.Cpu).IsAvailable, Is.True);
-    }
-
     [TestCase(AiAccelerationMode.Cpu)]
     [TestCase(AiAccelerationMode.Gpu)]
     [TestCase(AiAccelerationMode.Auto)]
     [Explicit("Defina SLOP_QWEN_MODEL para uma pasta de modelo ONNX GenAI externa."), Category("LocalModelIntegration")]
-    public async Task RealModelTestRunsOnTheRequestedHardware(AiAccelerationMode hardware)
-    {
-        var path = Environment.GetEnvironmentVariable("SLOP_QWEN_MODEL");
-        Assert.That(path, Is.Not.Null.And.Not.Empty);
-        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path!));
-        var probe = new OnnxHardwareProbe();
-        await using var service = new LocalAiModelService(new LocalModelCatalog(Path.GetDirectoryName(root)), () => new OnnxLocalModelRuntime(hardware: probe), probe);
-        var report = await service.TestModelAsync(new() { SelectedModel = Path.GetFileName(root), Acceleration = hardware });
-        TestContext.WriteLine(LocalAiStatusFormatter.FormatReport(report));
-        Assert.That(report.Succeeded, Is.True, report.Message);
-        if (hardware != AiAccelerationMode.Auto) Assert.That(report.Backend, Is.EqualTo(hardware));
-    }
-
     [Test]
     public async Task AnAutomaticRequestNeverLoadsUnloadsOrSwapsTheModelOfAnotherKey()
     {
@@ -331,31 +310,6 @@ public sealed class LocalAiModelServiceTests
         Assert.That(gated.UnavailableReason, Is.EqualTo(LocalModelUnavailableReason.NoModelConfigured),
             "Sob gate a ausência de seleção continua sendo ausência de seleção, não \"o modelo não está carregado\".");
         Assert.That(runtime.Initializations, Is.Zero);
-    }
-
-    /// <summary>
-    /// DEC-A31C-CONTEXTCONTRACT: um contrato declarado e desconhecido invalida o pacote na validação estrutural.
-    /// Aqui a invalidade também tem de barrar geração e carga — não só a listagem — e sem tocar em peso algum.
-    /// </summary>
-    [Test]
-    public async Task AnUnknownContextContractRefusesGenerationAndLoadAndNotOnlyTheListing()
-    {
-        using var models = new LocalModelFolderFixture.TemporaryDirectory();
-        LocalModelFolderFixture.CreateQwenModel(models.Path, "Unknown-Contract", """{"contextContract":"repository-files-v3"}""");
-        var runtime = new CompletionRuntimeFake();
-        await using var service = new LocalAiModelService(new LocalModelCatalog(models.Path), () => runtime);
-        var settings = new AutocompleteSettings { ModelDirectory = models.Path, SelectedModel = "Unknown-Contract" }.Validate();
-
-        var generation = Assert.ThrowsAsync<LocalModelUnavailableException>(() => service.GenerateAsync(
-            LocalModelRole.Autocomplete, settings, Request, AiRequestPriority.Interactive))!;
-        var load = Assert.ThrowsAsync<LocalModelUnavailableException>(() => service.LoadModelAsync(LocalModelRole.Autocomplete, settings))!;
-
-        Assert.That(generation.UnavailableReason, Is.EqualTo(LocalModelUnavailableReason.ModelInvalid));
-        Assert.That(generation.Message, Does.Contain("repository-files-v3").And.Contain("contrato de contexto"));
-        Assert.That(load.UnavailableReason, Is.EqualTo(LocalModelUnavailableReason.ModelInvalid),
-            "A janela de recusa aberta pela primeira reprovação não pode esconder a causa durável atrás de um cooldown.");
-        Assert.That(load.RetryAfter, Is.Not.Null, "A janela existe e é exibível, mas o motivo continua sendo o pacote.");
-        Assert.That(runtime.Initializations, Is.Zero, "Nenhum peso é carregado para descobrir que o contrato não serve.");
     }
 
     [Test]

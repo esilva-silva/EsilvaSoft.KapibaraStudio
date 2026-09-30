@@ -13,6 +13,7 @@
   <ItemGroup>
     <ProjectReference Include="../EsilvaSoft.KapibaraStudio.Core/EsilvaSoft.KapibaraStudio.Core.csproj" />
     <ProjectReference Include="../EsilvaSoft.KapibaraStudio.Application/EsilvaSoft.KapibaraStudio.Application.csproj" />
+    <ProjectReference Include="../EsilvaSoft.KapibaraStudio.Infrastructure.System/EsilvaSoft.KapibaraStudio.Infrastructure.System.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="ModelContextProtocol.Core" />

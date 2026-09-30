@@ -249,15 +249,6 @@ public sealed class LearnedSchemaCatalogSourceTests
         new(LearnedSchemaHydrationState.Available, snapshot, null);
 }
 
-/// <summary>Delegate-backed <see cref="ILearnedSchemaOptOut"/> for tests, avoiding a one-off mock per case.</summary>
-internal sealed class FuncOptOut(Func<Guid, bool> allowed) : ILearnedSchemaOptOut
-{
-    public bool IsServingAllowed(Guid profileId) => allowed(profileId);
-    public IReadOnlyCollection<Guid> ExcludedProfiles => [];
-    public void ApplyPreferences(WorkspacePreferences preferences) => throw new NotSupportedException();
-    public void SetServingExcluded(Guid profileId, bool excluded) => throw new NotSupportedException();
-}
-
 /// <summary>
 /// In-memory <see cref="ILearnedSchemaRepository"/> for <see cref="LearnedSchemaCatalogSourceTests"/>: exercises
 /// only the L15 read path (<see cref="ReadAvailabilityAsync"/>), with per-key call counting for the LRU and

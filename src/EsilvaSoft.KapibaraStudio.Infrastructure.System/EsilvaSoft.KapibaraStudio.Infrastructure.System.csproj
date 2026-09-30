@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>EsilvaSoft.KapibaraStudio.SystemAdapters</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="EsilvaSoft.KapibaraStudio.Infrastructure" />
+    <ProjectReference Include="../EsilvaSoft.KapibaraStudio.Application/EsilvaSoft.KapibaraStudio.Application.csproj" />
+    <ProjectReference Include="../EsilvaSoft.KapibaraStudio.LocalAi.Core/EsilvaSoft.KapibaraStudio.LocalAi.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="EsilvaSoft.KapibaraStudio.Infrastructure.Agents" />
+    <InternalsVisibleTo Include="EsilvaSoft.KapibaraStudio.IntegrationTests" />
+    <InternalsVisibleTo Include="EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Tests" />
+    <InternalsVisibleTo Include="EsilvaSoft.KapibaraStudio.UnitTests" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Infrastructure.Agents owns the bundled CLI payload; this library only implements SDK/resource ports. -->
+    <PackageReference Include="LiteDB" />
+    <PackageReference Include="GitHub.Copilot.SDK" ExcludeAssets="build;buildTransitive" />
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+    <PackageReference Include="Tmds.DBus.Protocol" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" VersionOverride="10.0.10" />
+  </ItemGroup>
+</Project>

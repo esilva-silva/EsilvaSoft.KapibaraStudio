@@ -1,6 +1,7 @@
 ﻿using EsilvaSoft.KapibaraStudio.LocalAi.Core;
 using CommunityToolkit.Mvvm.ComponentModel;
 using EsilvaSoft.KapibaraStudio.Application;
+using EsilvaSoft.KapibaraStudio.Application.Agents;
 using EsilvaSoft.KapibaraStudio.Application.SchemaLearning;
 using EsilvaSoft.KapibaraStudio.Autocomplete.Core;
 using EsilvaSoft.KapibaraStudio.Autocomplete.Core.Completion;
@@ -86,12 +87,15 @@ public sealed partial class WorkspaceViewModel : ObservableObject, IDisposable
         ILearnedSchemaOptOut? learnedSchemaOptOut = null, IAiCompletionProvider? aiCompletion = null, IWorkspaceFileService? workspaceFiles = null,
         Agents.AgentChatServicesFactory? agentChat = null, IConnectionProfileCredentialStatusProvider? credentialStatus = null,
         Agents.DesktopAgentWorkspaceContextSource? agentWorkspaceContext = null,
-        Agents.AgentEditProposalStore? agentEditProposals = null)
+        Agents.AgentEditProposalStore? agentEditProposals = null,
+        IAgentWorkspacePathProbe? agentPaths = null, IModelDirectoryService? modelDirectories = null,
+        ILocalDirectoryLauncher? directoryLauncher = null)
     {
         _workspace = workspace;
         // P7-L06-HOST: both optional. The chat factory is only invoked when the agent panel is opened; the credential
         // status is read once in the background after startup, through the operation coordinator.
         _agentChatServices = agentChat;
+        _agentPaths = agentPaths;
         _agentWorkspaceContextAttachment = agentWorkspaceContext?.Attach(CaptureWorkspace);
         _agentProposalTextAttachment = agentEditProposals?.AttachTextResolver(ResolveAgentProposalText);
         _credentialStatus = credentialStatus;
@@ -127,7 +131,7 @@ public sealed partial class WorkspaceViewModel : ObservableObject, IDisposable
             try { await SaveSessionAsync(); }
             catch { _autocompleteSettings = previous; throw; }
             await AutocompleteService.ConfigureAsync(settings);
-        }, localModels, remoteModels, workspace.Operations);
+        }, localModels, remoteModels, workspace.Operations, modelDirectories, directoryLauncher);
         Roots.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasNoConnections));
         UuidPreferences = new(LocalizationViewModel.Current.Resolve("uuidBsonTitle"), allowInherit: false, () => UuidRepresentation, value => SetUuidRepresentationAsync(value ?? UuidRepresentation.Standard));
         IdentifierPreferences = new(() => UuidRepresentation, SetIdentifierModeAsync);
@@ -263,7 +267,7 @@ public sealed partial class WorkspaceViewModel : ObservableObject, IDisposable
                     AgentPanel = _agentPanelPreferences },
                 Tabs = Tabs.Select(t => t.Snapshot()).ToArray()
             };
-            await _sessions.SaveSessionAsync(session);
+            await _sessions.SaveSessionAsync(WorkspaceSessionPersistencePolicy.Prepare(session));
             SessionStatus = RecoverDrafts ? LocalizationViewModel.Current.Resolve("draftsUpdated") : LocalizationViewModel.Current.Resolve("draftRecoveryDisabled");
         }
         catch (Exception ex) { SessionStatus = LocalizationViewModel.Current.Format("draftNotSaved", ex.Message); throw; }

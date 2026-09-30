@@ -8,16 +8,14 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests;
 
 /// <summary>
 /// Composition-root adapter of the subscription mode (P7-CL5-02) and the per-provider catalog refresh. The provider is
-/// configured with an executable that does not exist, so no process (real or fake CLI) is ever started here.
+/// supplied an in-memory resource adapter; no process or filesystem access occurs in these tests.
 /// </summary>
 [TestFixture]
+[Category("Unit")]
 public sealed class AgentCliAccountCompositionTests
 {
-    private static string MissingExecutable => Path.Combine(Path.GetTempPath(), "slop-sem-claude-" + Guid.NewGuid().ToString("N"),
-        OperatingSystem.IsWindows() ? "claude.exe" : "claude");
-
     private static App.ClaudeCodeCliAccountManager Manager() =>
-        new(new ClaudeCodeAgentProvider(new ClaudeCodeAgentProviderOptions { ExecutablePath = MissingExecutable }));
+        new(new ClaudeCodeAgentProvider(new ClaudeCodeAgentProviderOptions(), new MissingClaudeCodeSystem()));
 
     [Test]
     public async Task MissingExecutableIsReportedWithoutStartingAnyProcess()
@@ -55,9 +53,9 @@ public sealed class AgentCliAccountCompositionTests
     public void ReadScopeIsTheProvidersOwnWorkingDirectoryDecision()
     {
         var manager = Manager();
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var accepted = Directory.CreateTempSubdirectory("slop-workspace-").FullName;
-        try
+        var system = new MissingClaudeCodeSystem();
+        var home = system.HomeDirectory;
+        var accepted = system.AcceptedWorkspace;
         {
             var none = manager.DescribeReadScope(ClaudeCodeAgentProvider.Id, null);
             var ok = manager.DescribeReadScope(ClaudeCodeAgentProvider.Id, accepted);
@@ -77,10 +75,6 @@ public sealed class AgentCliAccountCompositionTests
                 Assert.That(root.Rejection, Is.EqualTo(AgentCliReadScopeRejection.VolumeRoot));
                 Assert.That(manager.DescribeReadScope("claude", accepted), Is.SameAs(AgentCliReadScope.None));
             });
-        }
-        finally
-        {
-            Directory.Delete(accepted);
         }
     }
 
