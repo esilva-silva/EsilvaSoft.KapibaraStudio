@@ -22,7 +22,6 @@ public sealed class CopilotProductToolRuntimeTests
     [Test]
     public async Task FakeCopilotRuntimeRegistersActiveBufferProposalInProductionDesktopStore()
     {
-        Assert.That(OperatingSystem.IsWindows(), Is.True, "The fake stdio adapter uses PowerShell on Windows.");
         var headless = HeadlessUnitTestSession.GetOrStartForAssembly(typeof(UiTestApp).Assembly);
         await headless.Dispatch(async () =>
         {
@@ -214,14 +213,15 @@ public sealed class CopilotProductToolRuntimeTests
         public Task<IAgentSession> CreateSessionAsync(AgentSessionOptions options, CancellationToken cancellationToken)
         {
             var script = FindRuntimeScript();
-            var powershell = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
-                "WindowsPowerShell", "v1.0", "powershell.exe");
-            Assert.That(File.Exists(powershell), Is.True);
+            var powershell = FindPowerShellExecutable();
+            var commonArguments = OperatingSystem.IsWindows()
+                ? new[] { "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", script }
+                : new[] { "-NoLogo", "-NoProfile", "-NonInteractive", "-File", script };
             var client = new CopilotClient(new CopilotClientOptions
             {
                 Connection = RuntimeConnection.ForStdio(powershell,
-                    ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", script,
-                        "-MissingSession", editProposalToolRequest ? "-EditProposalToolRequest" : "-ProductToolRequest",
+                    [.. commonArguments, "-MissingSession",
+                        editProposalToolRequest ? "-EditProposalToolRequest" : "-ProductToolRequest",
                         "-ContractLogPath", logPath]),
                 UseLoggedInUser = false,
                 Mode = CopilotClientMode.CopilotCli,
@@ -335,4 +335,9 @@ public sealed class CopilotProductToolRuntimeTests
         }
         throw new FileNotFoundException("Fake Copilot runtime was not found.");
     }
+
+    private static string FindPowerShellExecutable() => OperatingSystem.IsWindows()
+        ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
+            "WindowsPowerShell", "v1.0", "powershell.exe")
+        : "pwsh";
 }

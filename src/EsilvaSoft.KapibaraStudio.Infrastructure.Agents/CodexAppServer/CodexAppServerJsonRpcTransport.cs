@@ -190,6 +190,12 @@ internal sealed class CodexAppServerJsonRpcTransport : IAsyncDisposable
             Fail(failure);
             throw failure;
         }
+        catch (OperationCanceledException) when (_stop.IsCancellationRequested)
+        {
+            // A concurrent stdout protocol failure cancels stdin while the request is being written. Surface the
+            // recorded transport failure instead of leaking the incidental cancellation to the caller.
+            throw Volatile.Read(ref _failure) ?? new InvalidOperationException("Codex App Server stopped unexpectedly.");
+        }
         finally
         {
             _writeGate.Release();

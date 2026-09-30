@@ -247,7 +247,8 @@ public sealed class AgentChatHostTests
             await chat.Initialization;
             chat.ComposerText = "trabalho da aba A";
             var send = chat.SendCommand.ExecuteAsync(null);
-            await AgentChatWait.UntilAsync(() => provider.Sessions.Count == 1 && chat.IsBusy);
+            await AgentChatWait.UntilAsync(() => provider.Sessions.Count == 1 && chat.IsBusy &&
+                provider.Sessions.TryPeek(out var pendingSession) && pendingSession.Requests.Count == 1);
             var session = provider.Sessions.Single();
             Assert.That(session.Requests.Single().TabId, Is.EqualTo(tabA.Id.ToString("N")));
 

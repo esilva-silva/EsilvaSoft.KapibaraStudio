@@ -517,18 +517,18 @@ public sealed class CopilotFakeStdioRuntimeTests
         bool nativeToolRequest = false, bool productToolRequest = false, bool noIdle = false,
         int delayIdleMs = 0)
     {
-        if (!OperatingSystem.IsWindows()) Assert.Ignore("O fake stdio desta fixture usa Windows PowerShell.");
         var runtimeScript = FindRuntimeScript();
-        var powershell = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
-            "WindowsPowerShell", "v1.0", "powershell.exe");
-        Assert.That(File.Exists(powershell), Is.True, "Windows PowerShell is required for the fake child runtime.");
+        var powershell = FindPowerShellExecutable();
+        var commonArguments = OperatingSystem.IsWindows()
+            ? new[] { "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", runtimeScript }
+            : new[] { "-NoLogo", "-NoProfile", "-NonInteractive", "-File", runtimeScript };
         string[] arguments = authenticated
             ? sessionExists
-                ? ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", runtimeScript]
-                : ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", runtimeScript, "-MissingSession"]
+                ? commonArguments
+                : [.. commonArguments, "-MissingSession"]
             : sessionExists
-                ? ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", runtimeScript, "-NoLogin"]
-                : ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", runtimeScript, "-NoLogin", "-MissingSession"];
+                ? [.. commonArguments, "-NoLogin"]
+                : [.. commonArguments, "-NoLogin", "-MissingSession"];
         if (resumeFails) arguments = [.. arguments, "-ResumeFail"];
         if (nativeToolRequest) arguments = [.. arguments, "-NativeToolRequest"];
         if (productToolRequest) arguments = [.. arguments, "-ProductToolRequest"];
@@ -548,6 +548,11 @@ public sealed class CopilotFakeStdioRuntimeTests
 
     private static string CreateContractLogPath() => Path.Combine(Path.GetTempPath(),
         $"KapibaraStudioCopilotContract-{Guid.NewGuid():N}.jsonl");
+
+    private static string FindPowerShellExecutable() => OperatingSystem.IsWindows()
+        ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
+            "WindowsPowerShell", "v1.0", "powershell.exe")
+        : "pwsh";
 
     private static void AssertOnlyAllowedToolWasDeclared(string logPath, string toolName,
         params string[] expectedDescriptionTerms)
