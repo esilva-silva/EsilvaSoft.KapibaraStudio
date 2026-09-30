@@ -7,6 +7,7 @@ $sessionExists = -not ($args -contains '-MissingSession')
 $resumeFails = $args -contains '-ResumeFail'
 $nativeToolRequest = $args -contains '-NativeToolRequest'
 $productToolRequest = $args -contains '-ProductToolRequest'
+$editProposalToolRequest = $args -contains '-EditProposalToolRequest'
 $noIdle = $args -contains '-NoIdle'
 $delayIdleMs = 0
 for ($index = 0; $index -lt $args.Length - 1; $index++) {
@@ -83,6 +84,10 @@ while ($null -ne ($request = Read-Frame)) {
             @{ messageId = 'fake-message-1' }
             if ($productToolRequest) {
                 Write-Frame @{ jsonrpc = '2.0'; method = 'session.event'; params = @{ sessionId = $sessionId; event = @{ type = 'external_tool.requested'; data = @{ requestId = 'rpc-product-1'; sessionId = $sessionId; toolCallId = 'tool-product-1'; toolName = 'get_workspace_context'; arguments = @{ scope = 'active' } } } } }
+                break
+            }
+            if ($editProposalToolRequest) {
+                Write-Frame @{ jsonrpc = '2.0'; method = 'session.event'; params = @{ sessionId = $sessionId; event = @{ type = 'external_tool.requested'; data = @{ requestId = 'rpc-edit-proposal-1'; sessionId = $sessionId; toolCallId = 'tool-edit-proposal-1'; toolName = 'propose_file_edit'; arguments = @{ target = 'active_buffer'; edits = @(@{ old_text = '.limit(10)'; new_text = '.limit(5)' }) } } } } }
                 break
             }
             if ($nativeToolRequest) {

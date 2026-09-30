@@ -16,6 +16,69 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests;
 public sealed class AgentEditProposalBatchAnchorTests
 {
     [Test]
+    public async Task PendingCopilotProposalBecomesStaleWhenActiveBufferChangesBeforeApply()
+    {
+        var session = HeadlessUnitTestSession.GetOrStartForAssembly(typeof(UiTestApp).Assembly);
+        await session.Dispatch<bool>(async () =>
+        {
+            var file = Path.Combine(TestContext.CurrentContext.WorkDirectory, "agent-conflicted-active-buffer.js");
+            const string original = "db.items.find({}).limit(10);\n";
+            const string proposed = "db.items.find({}).limit(5);\n";
+            const string userEdit = "db.items.find({}).limit(20);\n";
+            await File.WriteAllTextAsync(file, original);
+            try
+            {
+                using var context = new WorkspaceTestContext();
+                using var workspace = new WorkspaceViewModel(context.Workspace, context.Repository);
+                await workspace.InitializeAsync();
+                var tab = await workspace.OpenTextFileAsync(file);
+                var view = new WorkspaceTabView { DataContext = tab };
+                var window = new Window { Content = view, Width = 900, Height = 640 };
+                window.Show();
+                window.UpdateLayout();
+                Dispatcher.UIThread.RunJobs();
+
+                var buffer = tab.EditorBufferProvider?.Invoke();
+                Assert.That(buffer, Is.Not.Null);
+                Assert.That(LineDiff.TryCompute(original, proposed, out var hunks), Is.True);
+                var proposal = new AgentEditProposal(Guid.NewGuid(), Guid.NewGuid(), file, tab.Id.ToString("N"),
+                    AgentEditProposalStore.Sha256(original), original, proposed, hunks, DateTimeOffset.UtcNow);
+                var store = new AgentEditProposalStore();
+                using var resolver = store.AttachTextResolver((_, tabId) => tabId == tab.Id.ToString("N") ? buffer!.Text : null);
+                Assert.That(store.Submit(proposal).Status, Is.EqualTo(AgentEditProposalSubmissionStatus.Registered));
+                Assert.That(store.TryGet(proposal.Id, out var registered), Is.True);
+                Assert.That(registered.HunkStates, Is.EqualTo([AgentEditHunkState.Pending]));
+
+                view.FindControl<MongoTextEditor>("CodeEditor")!.Document.Text = userEdit;
+                var current = tab.Text;
+                var mutation = store.Mutate(proposal.Id, entry =>
+                {
+                    var outcome = AgentEditProposalApplier.ApplyPending(buffer!, entry);
+                    return (outcome, outcome.Succeeded ? outcome.States : null);
+                });
+                Dispatcher.UIThread.RunJobs();
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(mutation, Is.Not.Null);
+                    Assert.That(mutation!.Result.Succeeded, Is.True, "A stale hunk is a reviewed conflict, not a forced write.");
+                    Assert.That(mutation.Result.Changed, Is.Zero);
+                    Assert.That(mutation.Result.Stale, Is.EqualTo(1));
+                    Assert.That(mutation.Entry.HunkStates, Is.EqualTo([AgentEditHunkState.Stale]));
+                    Assert.That(tab.Text, Is.EqualTo(current), "The user's new query text must remain intact.");
+                    Assert.That(File.ReadAllText(file), Is.EqualTo(original), "Proposal review never saves the buffer to disk.");
+                });
+                window.Close();
+                return true;
+            }
+            finally
+            {
+                if (File.Exists(file)) File.Delete(file);
+            }
+        }, CancellationToken.None);
+    }
+
+    [Test]
     public async Task RecreatedEditorCanRevertByContentAndInternalEditsRemainStale()
     {
         var session = HeadlessUnitTestSession.GetOrStartForAssembly(typeof(UiTestApp).Assembly);

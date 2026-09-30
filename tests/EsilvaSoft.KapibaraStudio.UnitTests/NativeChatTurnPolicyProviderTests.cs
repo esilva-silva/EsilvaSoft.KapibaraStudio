@@ -77,6 +77,132 @@ public sealed class NativeChatTurnPolicyProviderTests
     }
 
     [Test]
+    public async Task DocumentGrantsRequireOptInAndAreLimitedToPlannedToolsAndSelectedProfiles()
+    {
+        using var workspace = new ConnectionCredentialRecoveryTests.Workspace();
+        using var owner = new LiteDbConnectionProfileRepository(workspace.Path, new InMemoryProfileSecretStore());
+        var principalId = await owner.GetInternalPrincipalIdAsync();
+        var repository = (IAgentAuthorizationPolicyRepository)owner;
+        await repository.SaveAsync(principalId, [], 0);
+        var first = Profile("First");
+        var second = Profile("Second");
+        var turns = new AgentNativeChatTurnScopeRegistry();
+        var session = Guid.NewGuid();
+        var turn = Guid.NewGuid();
+        var permissions = Permissions() with
+        {
+            EnabledReadTools = [AgentToolRegistry.MongoFindToolName, AgentToolRegistry.MongoCountToolName,
+                AgentToolRegistry.SampleDocumentsToolName, AgentToolRegistry.MongoFindOneToolName,
+                AgentToolRegistry.GetDocumentToolName, AgentToolRegistry.MongoDistinctToolName,
+                AgentToolRegistry.MongoExplainToolName],
+            ConnectionScope = AgentConnectionScope.Selected,
+            SelectedConnectionIds = [first.Id],
+            DataSending = new AgentDataSendingPermissions { MongoDocuments = true }
+        };
+        var plan = Plan(permissions);
+        Assert.That(plan.ProductTools, Does.Contain(AgentToolRegistry.MongoFindToolName).And
+            .Contain(AgentToolRegistry.MongoCountToolName).And
+            .Contain(AgentToolRegistry.SampleDocumentsToolName).And
+            .Contain(AgentToolRegistry.MongoFindOneToolName).And
+            .Contain(AgentToolRegistry.GetDocumentToolName).And
+            .Contain(AgentToolRegistry.MongoDistinctToolName).And
+            .Contain(AgentToolRegistry.MongoExplainToolName));
+        Assert.That(turns.Register(new AgentNativeChatTurnScope(session, turn, ProviderId, plan, permissions, null)), Is.True);
+        var policy = new NativeChatTurnPolicyProvider(repository, owner, turns,
+            new Mcp.McpBrokerFixture.FixedProfiles(first, second));
+
+        var loaded = await policy.LoadAsync(principalId, default);
+        Assert.That(loaded, Is.Not.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(loaded!.Grants.Select(item => item.Permission), Does.Contain(AgentPermission.ReadDocuments));
+            Assert.That(loaded.Grants.Select(item => item.Permission), Does.Contain(AgentPermission.ExecuteReadQueries));
+            Assert.That(loaded.Grants.Select(item => item.Permission), Does.Contain(AgentPermission.ReadDiagnostics));
+            Assert.That(loaded.Grants, Has.Count.EqualTo(3));
+            Assert.That(loaded.Grants.All(item => item.Scope.ConnectionId == first.Id), Is.True);
+            Assert.That(loaded.Grants.All(item => item.OutputDataScope == AgentOutputDataScope.DocumentValues), Is.True);
+            Assert.That(loaded.Grants.All(item => item.InvocationScope.Covers(
+                new AgentInvocationContext(ProviderId, null, session, turn))), Is.True);
+        });
+    }
+
+    [Test]
+    public async Task DocumentGrantsStayDeniedWhenMongoDocumentConsentIsOffEvenIfPlanIsWidened()
+    {
+        using var workspace = new ConnectionCredentialRecoveryTests.Workspace();
+        using var owner = new LiteDbConnectionProfileRepository(workspace.Path, new InMemoryProfileSecretStore());
+        var principalId = await owner.GetInternalPrincipalIdAsync();
+        var repository = (IAgentAuthorizationPolicyRepository)owner;
+        await repository.SaveAsync(principalId, [], 0);
+        var profile = Profile("Only");
+        var turns = new AgentNativeChatTurnScopeRegistry();
+        var session = Guid.NewGuid();
+        var turn = Guid.NewGuid();
+        var permissions = Permissions() with
+        {
+            EnabledReadTools = [AgentToolRegistry.MongoFindToolName],
+            DataSending = new AgentDataSendingPermissions { MongoDocuments = false }
+        };
+        var plan = Plan(permissions) with { ProductTools = [AgentToolRegistry.MongoFindToolName] };
+        turns.Register(new AgentNativeChatTurnScope(session, turn, ProviderId, plan, permissions, null));
+        var policy = new NativeChatTurnPolicyProvider(repository, owner, turns,
+            new Mcp.McpBrokerFixture.FixedProfiles(profile));
+
+        var loaded = await policy.LoadAsync(principalId, default);
+        Assert.That(loaded!.Grants, Is.Empty);
+    }
+
+    [Test]
+    public async Task CopilotGrantsRequireMatchingProviderPlanAndPermissionSnapshots()
+    {
+        using var workspace = new ConnectionCredentialRecoveryTests.Workspace();
+        using var owner = new LiteDbConnectionProfileRepository(workspace.Path, new InMemoryProfileSecretStore());
+        var principalId = await owner.GetInternalPrincipalIdAsync();
+        var repository = (IAgentAuthorizationPolicyRepository)owner;
+        await repository.SaveAsync(principalId, [], 0);
+        var profile = Profile("Only");
+        var turns = new AgentNativeChatTurnScopeRegistry();
+        var copilotPermissions = Permissions();
+        var copilotPlan = Plan(copilotPermissions);
+
+        // A supported external provider other than Copilot must not acquire Copilot's transient overlay.
+        Register("claude-code", AgentProviderPermissions.Default("claude-code") with
+        {
+            ExternalDestinationConsentAt = DateTimeOffset.UtcNow,
+            EnabledReadTools = [AgentToolRegistry.ListConnectionsToolName]
+        }, Plan(AgentProviderPermissions.Default("claude-code") with
+        {
+            ExternalDestinationConsentAt = DateTimeOffset.UtcNow,
+            EnabledReadTools = [AgentToolRegistry.ListConnectionsToolName]
+        }));
+
+        // Copilot turn identity cannot be paired with another provider's durable permission snapshot.
+        var foreignPermissions = copilotPermissions with { ProviderId = "other-provider" };
+        Register(ProviderId, foreignPermissions, Plan(foreignPermissions));
+
+        // Even valid consent cannot restore capabilities removed from the captured plan.
+        Register(ProviderId, copilotPermissions, copilotPlan with { ProductTools = [] });
+
+        // A plan that advertises a tool cannot restore it after the captured permission list removes it.
+        var disabledPermissions = copilotPermissions with { EnabledReadTools = [] };
+        Register(ProviderId, disabledPermissions, copilotPlan);
+
+        var policy = new NativeChatTurnPolicyProvider(repository, owner, turns,
+            new Mcp.McpBrokerFixture.FixedProfiles(profile));
+        var loaded = await policy.LoadAsync(principalId, default);
+
+        Assert.That(loaded, Is.Not.Null);
+        Assert.That(loaded!.Grants, Is.Empty,
+            "A Copilot grant must require the Copilot provider, its matching permission snapshot, and a tool in both the captured plan and permissions.");
+
+        void Register(string providerId, AgentProviderPermissions permissions, AgentTurnPlan plan)
+        {
+            Assert.That(turns.Register(new AgentNativeChatTurnScope(Guid.NewGuid(), Guid.NewGuid(),
+                providerId, plan, permissions, null)), Is.True);
+        }
+    }
+
+    [Test]
     public async Task RemovingOneTurnKeepsConcurrentTurnAndThenRevokesAll()
     {
         using var workspace = new ConnectionCredentialRecoveryTests.Workspace();

@@ -116,18 +116,35 @@ public sealed class CopilotFakeStdioRuntimeTests
     [Test]
     public async Task ProviderDeletesNativeSessionThroughOfficialSdkRuntime()
     {
-        using var provider = new CopilotSubscriptionAgentProvider(new NoToolsRegistry(), _ => CreateFakeClient(authenticated: false), static () => false);
+        var sessionRoot = Path.Combine(Path.GetTempPath(), $"KapibaraCopilotDelete-{Guid.NewGuid():N}");
+        try
+        {
+            using var provider = new CopilotSubscriptionAgentProvider(new NoToolsRegistry(),
+                _ => CreateFakeClient(authenticated: false), static () => false, sessionRoot);
 
-        await provider.DeleteProviderSessionAsync("fake-copilot-session", CancellationToken.None);
+            await provider.DeleteProviderSessionAsync("fake-copilot-session", CancellationToken.None);
+        }
+        finally
+        {
+            if (Directory.Exists(sessionRoot)) Directory.Delete(sessionRoot, recursive: true);
+        }
     }
 
     [Test]
     public async Task NativeSessionDeletionIsIdempotentWhenSessionIsAlreadyAbsent()
     {
-        using var provider = new CopilotSubscriptionAgentProvider(new NoToolsRegistry(),
-            _ => CreateFakeClient(sessionExists: false), static () => true);
+        var sessionRoot = Path.Combine(Path.GetTempPath(), $"KapibaraCopilotDelete-{Guid.NewGuid():N}");
+        try
+        {
+            using var provider = new CopilotSubscriptionAgentProvider(new NoToolsRegistry(),
+                _ => CreateFakeClient(sessionExists: false), static () => true, sessionRoot);
 
-        await provider.DeleteProviderSessionAsync("already-deleted-session", CancellationToken.None);
+            await provider.DeleteProviderSessionAsync("already-deleted-session", CancellationToken.None);
+        }
+        finally
+        {
+            if (Directory.Exists(sessionRoot)) Directory.Delete(sessionRoot, recursive: true);
+        }
     }
 
     [Test]
@@ -221,7 +238,7 @@ public sealed class CopilotFakeStdioRuntimeTests
         Assert.Multiple(() =>
         {
             Assert.That(events.Any(item => item.Kind == AgentEventKind.ToolRequested), Is.False);
-            Assert.That(events.Any(item => item.Kind == AgentEventKind.AgentError && item.Text == "CopilotInvalidPlan"), Is.True);
+            Assert.That(events.Any(item => item.Kind == AgentEventKind.AgentError && item.Text == "CopilotToolNotPlanned"), Is.True);
             Assert.That(events.Any(item => item.ToolName == "bash"), Is.False);
         });
     }
@@ -229,7 +246,7 @@ public sealed class CopilotFakeStdioRuntimeTests
     [Test]
     public async Task SessionDeclaresOnlyProductToolsIncludedInTheTurnPlan()
     {
-        const string toolName = "get_workspace_context";
+        const string toolName = "propose_file_edit";
         var contractLogPath = CreateContractLogPath();
         var request = CreateRequest();
         request = request with
@@ -244,7 +261,49 @@ public sealed class CopilotFakeStdioRuntimeTests
         await foreach (var item in session.RunTurnAsync(request, CancellationToken.None)) events.Add(item);
 
         Assert.That(events.Any(item => item.Kind == AgentEventKind.MessageDelta), Is.True);
-        AssertOnlyAllowedToolWasDeclared(contractLogPath, toolName);
+        AssertOnlyAllowedToolWasDeclared(contractLogPath, toolName,
+            "target=active_buffer", "sem path", "buffer redigido", "EditNotApplicable");
+    }
+
+    [Test]
+    public async Task MongoFindDeclarationExplainsLiteralJsonAndReadBounds()
+    {
+        const string toolName = "mongo_find";
+        var contractLogPath = CreateContractLogPath();
+        var request = CreateRequest();
+        request = request with { Plan = request.Plan! with { ProductTools = [toolName] } };
+        await using var session = new CopilotSubscriptionAgentSession(new OneToolRegistry(toolName),
+            new AgentSessionOptions(CopilotSubscriptionAgentProvider.Id, "fake-model"),
+            CreateFakeClient(contractLogPath: contractLogPath));
+
+        var events = new List<AgentProviderEvent>();
+        await foreach (var item in session.RunTurnAsync(request, CancellationToken.None)) events.Add(item);
+
+        Assert.That(events.Any(item => item.Kind == AgentEventKind.MessageDelta), Is.True);
+        AssertOnlyAllowedToolWasDeclared(contractLogPath, toolName,
+            "consulta MongoDB find somente leitura", "Extended JSON literal", "100 documentos", "consentimento MongoDB");
+    }
+
+    [TestCase("mongo_count", "Conta documentos", "Extended JSON literal", "consentimento MongoDB")]
+    [TestCase("sample_documents", "amostra de até 20 documentos", "consentimento MongoDB")]
+    [TestCase("mongo_find_one", "findOne somente leitura", "no máximo um documento")]
+    [TestCase("get_document", "um único documento por _id", "consentimento MongoDB")]
+    [TestCase("mongo_distinct", "valores distintos limitados", "Esses valores podem conter dados")]
+    [TestCase("mongo_explain", "queryPlanner", "não executa a consulta", "grants de diagnóstico/leitura")]
+    public async Task DerivedReadDeclarationsExplainTheirBoundsAndConsent(string toolName, params string[] terms)
+    {
+        var contractLogPath = CreateContractLogPath();
+        var request = CreateRequest();
+        request = request with { Plan = request.Plan! with { ProductTools = [toolName] } };
+        await using var session = new CopilotSubscriptionAgentSession(new OneToolRegistry(toolName),
+            new AgentSessionOptions(CopilotSubscriptionAgentProvider.Id, "fake-model"),
+            CreateFakeClient(contractLogPath: contractLogPath));
+
+        var events = new List<AgentProviderEvent>();
+        await foreach (var item in session.RunTurnAsync(request, CancellationToken.None)) events.Add(item);
+
+        Assert.That(events.Any(item => item.Kind == AgentEventKind.MessageDelta), Is.True);
+        AssertOnlyAllowedToolWasDeclared(contractLogPath, toolName, terms);
     }
 
     [Test]
@@ -490,7 +549,8 @@ public sealed class CopilotFakeStdioRuntimeTests
     private static string CreateContractLogPath() => Path.Combine(Path.GetTempPath(),
         $"KapibaraStudioCopilotContract-{Guid.NewGuid():N}.jsonl");
 
-    private static void AssertOnlyAllowedToolWasDeclared(string logPath, string toolName)
+    private static void AssertOnlyAllowedToolWasDeclared(string logPath, string toolName,
+        params string[] expectedDescriptionTerms)
     {
         try
         {
@@ -508,6 +568,9 @@ public sealed class CopilotFakeStdioRuntimeTests
             {
                 Assert.That(tools.GetArrayLength(), Is.EqualTo(1));
                 Assert.That(tools.GetRawText(), Does.Contain(toolName));
+                var description = tools.EnumerateArray().Single().GetProperty("description").GetString();
+                foreach (var term in expectedDescriptionTerms)
+                    Assert.That(description, Does.Contain(term));
                 Assert.That(availableTools.GetRawText(), Does.Contain(toolName));
                 Assert.That(tools.GetRawText(), Does.Not.Contain("bash"));
                 Assert.That(availableTools.GetRawText(), Does.Not.Contain("bash"));
@@ -632,8 +695,12 @@ public sealed class CopilotFakeStdioRuntimeTests
         public IReadOnlyList<AgentToolDescriptor> GetDescriptors() => [_descriptor];
         public AgentToolDescriptor? FindDescriptor(string? name) => string.Equals(name, toolName, StringComparison.Ordinal)
             ? _descriptor : null;
+        public AgentToolDescriptor? FindInProcessDescriptor(string providerId, string? name) =>
+            providerId == AgentProviderIds.GitHubCopilotSubscription ? FindDescriptor(name) : null;
         public string? GetInputSchemaJson(string? name) => FindDescriptor(name) is null
             ? null : "{\"type\":\"object\",\"properties\":{}}";
+        public string? GetInProcessInputSchemaJson(string providerId, string? name) =>
+            FindInProcessDescriptor(providerId, name) is null ? null : "{\"type\":\"object\",\"properties\":{}}";
         public string? GetOutputSchemaJson(string? name) => FindDescriptor(name) is null
             ? null : "{\"type\":\"object\",\"properties\":{}}";
         public Task<AgentToolInvocationResult> InvokeAsync(AgentPrincipal? principal,

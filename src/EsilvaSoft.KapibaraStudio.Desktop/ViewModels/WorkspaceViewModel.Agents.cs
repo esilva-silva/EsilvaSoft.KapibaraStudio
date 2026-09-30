@@ -77,7 +77,7 @@ public sealed partial class WorkspaceViewModel : IAgentChatHost
         var context = new AgentWorkspaceContext(DateTimeOffset.UtcNow,
             WorkspaceRootPath,
             path,
-            path is null ? (tab is null ? null : "Aba sem título") : Path.GetFileName(path),
+            path is null ? tab?.Title.TrimEnd(' ', '•') : Path.GetFileName(path),
             tab?.Id.ToString("N"),
             tab?.EditorRevision,
             tab?.Text,

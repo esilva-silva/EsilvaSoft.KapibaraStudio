@@ -18,20 +18,24 @@ public sealed partial class ConsoleMongoIntegrationTests
         var root = new DirectoryInfo(AppContext.BaseDirectory);
         while (root is not null && !File.Exists(Path.Combine(root.FullName, "EsilvaSoft.KapibaraStudio.slnx"))) root = root.Parent;
         var binaries = Path.Combine(root!.FullName, ".cache", "console-mongo", "server");
+        var configuredUri = Environment.GetEnvironmentVariable("SLOP_CONSOLE_MONGODB_URI");
         var executable = Environment.GetEnvironmentVariable("SLOP_CONSOLE_MONGOD") ?? (Directory.Exists(binaries) ? Directory.EnumerateFiles(binaries, "mongod.exe", SearchOption.AllDirectories).FirstOrDefault() : null);
-        if (executable is null) Assert.Ignore("Fixture MongoDB portátil ausente.");
+        if (configuredUri is null && executable is null) Assert.Ignore("Fixture MongoDB portátil ausente; defina SLOP_CONSOLE_MONGOD ou SLOP_CONSOLE_MONGODB_URI.");
         var directory = Path.Combine(TestContext.CurrentContext.WorkDirectory, "agent-tools-real-" + Guid.NewGuid().ToString("N"));
+        var databaseName = "agentdb_" + Guid.NewGuid().ToString("N");
+        var server = default(Server);
         var completed = false;
         try
         {
-            using var server = await StartServer(executable!, directory);
+            if (configuredUri is null) server = await StartServer(executable!, directory);
+            var serverUri = configuredUri ?? server!.Uri;
             using var repository = new LiteDbConnectionProfileRepository(Path.Combine(directory, "workspace.db"));
             using var pool = new MongoClientPool();
             var first = Guid.Parse("00112233-4455-6677-8899-aabbccddeeff");
             var second = Guid.Parse("ffeeddcc-bbaa-9988-7766-554433221100");
-            using (var client = new MongoClient(server.Uri))
+            using (var client = new MongoClient(serverUri))
             {
-                var database = client.GetDatabase("agentdb");
+                var database = client.GetDatabase(databaseName);
                 await database.GetCollection<BsonDocument>("items").InsertManyAsync(
                 [
                     new BsonDocument { ["_id"] = new BsonBinaryData(first, GuidRepresentation.Standard),
@@ -51,10 +55,10 @@ public sealed partial class ConsoleMongoIntegrationTests
             IAgentAuthorizationPolicyRepository policies = repository;
             IAgentAuditRepository ledger = repository;
             var principalId = await authority.GetInternalPrincipalIdAsync();
-            var profile = ConnectionProfile.Create("Agente real", server.Uri) with { SourceGenerationId = Guid.NewGuid() };
+            var profile = ConnectionProfile.Create("Agente real", serverUri) with { SourceGenerationId = Guid.NewGuid() };
             var sessionId = Guid.NewGuid();
             var local = AgentOutputDestination.Local();
-            var items = AgentNamespaceScope.ForCollection(profile.Id, "agentdb", "items");
+            var items = AgentNamespaceScope.ForCollection(profile.Id, databaseName, "items");
             AgentPermissionGrant Grant(AgentPermission permission, AgentOutputDataScope scope) =>
                 new(principalId, AgentInvocationScope.ForSession(sessionId), profile.SourceGenerationId!.Value,
                     permission, items, local, scope);
@@ -78,12 +82,12 @@ public sealed partial class ConsoleMongoIntegrationTests
                 principalAuthority: authority);
             string Arguments(string collection, string filter) => JsonSerializer.Serialize(new
             {
-                connectionId = profile.Id, database = "agentdb", collection, filterEjson = filter
+                connectionId = profile.Id, database = databaseName, collection, filterEjson = filter
             });
 
             var collections = await registry.InvokeAsync(principal, context, local, AgentOutputDataScope.Metadata,
                 AgentToolRegistry.ListCollectionsToolName,
-                JsonSerializer.Serialize(new { connectionId = profile.Id, database = "agentdb" }));
+                JsonSerializer.Serialize(new { connectionId = profile.Id, database = databaseName }));
             var byInt64 = await registry.InvokeAsync(principal, context, local, AgentOutputDataScope.DocumentValues,
                 AgentToolRegistry.MongoFindToolName,
                 Arguments("items", "{\"big\":{\"$numberLong\":\"9007199254740993\"}}"));
@@ -122,15 +126,28 @@ public sealed partial class ConsoleMongoIntegrationTests
                 Assert.That(source.Calls, Is.EqualTo(dispatched), "Nada negado chega ao servidor.");
                 Assert.That(recent.Count(item => item.Outcome == AgentAuditOutcome.Succeeded), Is.EqualTo(4));
                 Assert.That(recent.Count(item => item.Outcome == AgentAuditOutcome.Intent), Is.EqualTo(6));
-                Assert.That(persisted, Does.Not.Contain("canary-secret").And.Not.Contain(server.Uri)
+                Assert.That(persisted, Does.Not.Contain("canary-secret").And.Not.Contain(serverUri)
                     .And.Not.Contain("9007199254740993").And.Not.Contain("sleep("));
             });
             Assert.That(await ledger.GetPendingAsync(), Is.Empty);
-            TestContext.Out.WriteLine($"MongoDB {server.Version}: tools de leitura via registry com codec literal, " +
+            TestContext.Out.WriteLine($"MongoDB {(server?.Version ?? "fixture externa")}: tools de leitura via registry com codec literal, " +
                 "principal emitido pelo canal interno, política e ledger LiteDB reais.");
             completed = true;
         }
-        finally { CleanupDatabaseDirectory(directory, completed); }
+        finally
+        {
+            if (configuredUri is not null)
+            {
+                try
+                {
+                    using var cleanupClient = new MongoClient(configuredUri);
+                    await cleanupClient.DropDatabaseAsync(databaseName);
+                }
+                catch when (!completed) { }
+            }
+            server?.Dispose();
+            CleanupDatabaseDirectory(directory, completed);
+        }
     }
 
     private static BsonDocument Document(AgentToolInvocationResult result)

@@ -146,7 +146,7 @@ public sealed partial class AgentToolRegistry
             isActive ? snapshot.TabId : null,
             Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(original))),
             original, proposed, hunks, DateTimeOffset.UtcNow)
-        { TargetName = snapshot.ActiveFileName ?? (activeBuffer ? "Aba sem título" : Path.GetFileName(fullPath)) };
+        { TargetName = isActive ? snapshot.ActiveFileName ?? "Aba sem título" : Path.GetFileName(fullPath!) };
         // Release gate BEFORE the proposal leaves the registry: the channel and the plan must still be current.
         if (await RevalidateSessionReleaseAsync(principal!, context!, destination!, outputScope,
                 ProposeFileEditToolName, cancellationToken)

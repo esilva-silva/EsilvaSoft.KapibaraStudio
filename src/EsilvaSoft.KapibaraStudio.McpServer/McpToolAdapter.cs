@@ -23,7 +23,7 @@ internal sealed class McpToolAdapter(AgentBrokerClient broker)
         ["get_indexes"] = "Lista os índices de uma coleção: nome, campos e direção, unique/sparse/hidden, TTL e campos do filtro parcial (sem valores).",
         ["get_cached_schema"] = "Campos e tipos já conhecidos pelo Kapibara Studio para uma coleção (cache do autocomplete ou schema aprendido). Não consulta o banco; sem cache, responde available=false com o motivo.",
         ["get_workspace_context"] = "Pasta do workspace, arquivo ativo (nome e caminho relativo) e a conexão › banco › coleção da aba ativa. Sem conteúdo de arquivo nem URI.",
-        ["propose_file_edit"] = "Propõe uma edição num arquivo do workspace para revisão do usuário no editor (diff por trecho). Nunca grava em disco. Use edits[{old_text,new_text}] com old_text único no arquivo, ou new_content para o texto completo.",
+        ["propose_file_edit"] = "Registra uma proposta de edição para revisão no editor, sem gravar em disco. Para a consulta ou aba aberta, use target=active_buffer sem path e baseie old_text no conteúdo autorizado e enviado como anexo; o trecho deve corresponder exatamente ao buffer redigido. Para arquivo do workspace, use path. Não alegue falta de editor ao receber EditNotApplicable: esse código indica texto ausente, ambíguo ou alteração insegura.",
         [AgentBrokerProtocol.ApproveToolName] = "Uso interno da CLI (permission prompt): pede ao usuário, no Kapibara Studio, para aprovar uma única chamada de tool."
     };
 

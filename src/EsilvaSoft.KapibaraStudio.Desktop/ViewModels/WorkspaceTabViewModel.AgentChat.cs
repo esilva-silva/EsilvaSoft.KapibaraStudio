@@ -41,7 +41,7 @@ public sealed partial class WorkspaceTabViewModel
         var database = string.IsNullOrWhiteSpace(Database) ? null : Database;
         var collection = IsConsole || database is null || string.IsNullOrWhiteSpace(Collection) ? null : Collection;
         return new AgentWorkspaceContext(DateTimeOffset.UtcNow, ActiveFilePath: FilePath,
-            ActiveFileName: string.IsNullOrWhiteSpace(FilePath) ? "Aba sem título" : Path.GetFileName(FilePath),
+            ActiveFileName: string.IsNullOrWhiteSpace(FilePath) ? Title.TrimEnd(' ', '•') : Path.GetFileName(FilePath),
             TabId: Id.ToString("N"), DocumentVersion: EditorRevision, BufferText: Text,
             ConnectionId: Profile?.Id.ToString("D"), ConnectionName: Profile?.Name,
             DatabaseName: database, CollectionName: collection);

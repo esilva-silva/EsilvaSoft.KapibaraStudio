@@ -177,6 +177,8 @@ public sealed class AgentChatHostTests
             {
                 Assert.That(vm.CaptureWorkspace().DatabaseName, Is.EqualTo("loja"));
                 Assert.That(vm.CaptureWorkspace().ConnectionName, Is.EqualTo("Desenvolvimento · Loja"));
+                Assert.That(vm.CaptureWorkspace().BufferText, Is.EqualTo(tabA.Text),
+                    "The chat snapshot includes the active query editor buffer, including unsaved text.");
             });
 
             Assert.That(mongoCalls.Count, Is.EqualTo(queriesBefore), "Opening the panel issues no MongoDB call.");
@@ -200,6 +202,9 @@ public sealed class AgentChatHostTests
 
             vm.NewTabCommand.Execute(null);
             var tabB = vm.ActiveTab!;
+            tabB.Text = "db.audit.find({ reviewed: false }).limit(12);";
+            Assert.That(vm.CaptureWorkspace().BufferText, Is.EqualTo(tabB.Text),
+                "Switching tabs changes the captured buffer to the newly active query editor.");
             var chatB = vm.ActiveAgentChat!;
             Assert.Multiple(() =>
             {

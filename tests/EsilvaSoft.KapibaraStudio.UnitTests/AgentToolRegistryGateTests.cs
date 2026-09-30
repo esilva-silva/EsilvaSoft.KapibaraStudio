@@ -1,8 +1,10 @@
 using System.Text.Json;
 using EsilvaSoft.KapibaraStudio.Application;
 using EsilvaSoft.KapibaraStudio.Application.Agents;
+using EsilvaSoft.KapibaraStudio.Application.Agents.Broker;
 using EsilvaSoft.KapibaraStudio.Autocomplete.Core;
 using EsilvaSoft.KapibaraStudio.Core;
+using EsilvaSoft.KapibaraStudio.Core.Agents;
 using EsilvaSoft.KapibaraStudio.Infrastructure;
 
 namespace EsilvaSoft.KapibaraStudio.UnitTests;
@@ -221,6 +223,248 @@ public sealed class AgentToolRegistryGateTests
             Assert.That(audit.Events.Select(item => item.ExternalIdentifier),
                 Is.EqualTo(ChatThenMcpIdentifiers));
         });
+    }
+
+    [Test]
+    public async Task CopilotDocumentReadUsesItsSeparateExposureAndRequiresBothTurnOptIns()
+    {
+        var profile = Connection();
+        var profiles = new CountingProfiles(profile);
+        var policies = new MapPolicyProvider();
+        var audit = new MemoryAudit();
+        var find = new CountingFind { Documents = [DocumentEjson] };
+        var turns = new AgentNativeChatTurnScopeRegistry();
+        var destination = AgentOutputDestination.ProviderExternal(AgentProviderIds.GitHubCopilotSubscription);
+        var permissions = AgentProviderPermissions.Default(AgentProviderIds.GitHubCopilotSubscription) with
+        {
+            ExternalDestinationConsentAt = DateTimeOffset.UtcNow,
+            EnabledReadTools = [AgentToolRegistry.MongoFindToolName],
+            ConnectionScope = AgentConnectionScope.Selected,
+            SelectedConnectionIds = [profile.Id],
+            DataSending = new AgentDataSendingPermissions { MongoDocuments = true }
+        };
+        var plan = AgentModePolicy.Plan(AgentOperationMode.Agent, permissions,
+            new AgentPlatformFacts(false, true, false));
+        Assert.That(plan.ProductTools, Does.Contain(AgentToolRegistry.MongoFindToolName));
+        Assert.That(turns.Register(new AgentNativeChatTurnScope(SessionId, TurnId,
+            AgentProviderIds.GitHubCopilotSubscription, plan, permissions, null)), Is.True);
+        policies.Set(InternalPrincipalId, 5, [.. new[] { AgentPermission.ExecuteReadQueries, AgentPermission.ReadDocuments }
+            .Select(permission => new AgentPermissionGrant(InternalPrincipalId,
+                AgentInvocationScope.ForTurn(SessionId, TurnId), profile.SourceGenerationId!.Value, permission,
+                AgentNamespaceScope.ForCollection(profile.Id, "app", "items"), destination,
+                AgentOutputDataScope.DocumentValues))]);
+        var registry = new AgentToolRegistry(profiles, policies, new AgentPermissionEvaluator(policies), audit,
+            metadata: new NoMetadata(), schemaSamplingConsent: new DenySchemaConsent(), find: find,
+            count: new CountingCount(), distinct: new CountingDistinct(), indexes: new NoIndexes(), explain: new NoExplain(), exposure: AgentToolExposure.None,
+            principalAuthority: new TestAgentPrincipalAuthority(),
+            sessionTools: new AgentSessionToolPorts(new AgentMcpSessionRegistry())
+            {
+                NativeChatTurnScopes = turns
+            }, copilotExposure: AgentToolExposure.Through(AgentToolExposureStage.DerivedReads));
+
+        var copilotDocumentTools = AgentProductToolNames.ReadTools.Where(AgentProductToolNames.IsCopilotDocumentRead).ToArray();
+        Assert.That(copilotDocumentTools.All(name => registry.FindInProcessDescriptor(
+            AgentProviderIds.GitHubCopilotSubscription, name) is not null), Is.True,
+            "A etapa Copilot DerivedReads anuncia cada leitura opt-in com handler disponível.");
+        Assert.That(registry.FindInProcessDescriptor(AgentProviderIds.GitHubCopilotSubscription,
+            AgentToolRegistry.GetCollectionSchemaToolName), Is.Null,
+            "A amostragem ao vivo não deve ser declarada ao Copilot sem UI de consentimento local dedicada.");
+        Assert.That(copilotDocumentTools.All(name => registry.FindDescriptor(name) is null), Is.True,
+            "A exposição Copilot DerivedReads não altera o registry MCP/externo.");
+
+        var result = await registry.InvokeAsync(Internal(5),
+            new AgentInvocationContext(AgentProviderIds.GitHubCopilotSubscription, null, SessionId, TurnId),
+            destination, AgentOutputDataScope.DocumentValues, AgentToolRegistry.MongoFindToolName,
+            FindArguments(profile, "{}"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Succeeded, Is.True, result.ErrorCode);
+            Assert.That(find.Calls, Is.EqualTo(1));
+            Assert.That(audit.Events.Last().Outcome, Is.EqualTo(AgentAuditOutcome.Succeeded));
+            Assert.That(registry.FindDescriptor(AgentToolRegistry.MongoFindToolName), Is.Null,
+                "O limite de Copilot não altera o catálogo geral/externo.");
+        });
+    }
+
+    [Test]
+    public async Task CopilotPlannedDocumentReadRequiresOneCallHumanApprovalAndAuditsItBeforeDispatch()
+    {
+        var rig = CopilotReadRig(AgentConfirmationCategories.MongoDocumentRead,
+            new RecordingConfirmation(AgentToolConfirmationDecision.ApprovedOnce));
+        var result = await rig.Registry.InvokeAsync(Internal(5), rig.Context, rig.Destination,
+            AgentOutputDataScope.DocumentValues, AgentToolRegistry.MongoFindToolName, FindArguments(rig.Profile, "{}"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Succeeded, Is.True, result.ErrorCode);
+            Assert.That(rig.Find.Calls, Is.EqualTo(1));
+            Assert.That(rig.Confirmation!.Requests.Single().Category, Is.EqualTo(AgentConfirmationCategories.MongoDocumentRead));
+            Assert.That(rig.Audit.Events.Select(item => item.Outcome), Is.EqualTo(new[]
+                { AgentAuditOutcome.Intent, AgentAuditOutcome.Succeeded, AgentAuditOutcome.Intent, AgentAuditOutcome.Succeeded }));
+            Assert.That(rig.Audit.Events[1].ApprovalState, Is.EqualTo(AgentAuditApprovalState.ApprovedOnce));
+            Assert.That(rig.Audit.Events[1].ToolName, Is.EqualTo(AgentToolRegistry.MongoFindToolName));
+        });
+    }
+
+    [TestCase(AgentToolConfirmationDecision.Rejected)]
+    [TestCase(AgentToolConfirmationDecision.ApprovedThisSession)]
+    public async Task CopilotReadDenialOrSessionDecisionNeverDispatches(AgentToolConfirmationDecision decision)
+    {
+        var rig = CopilotReadRig(AgentConfirmationCategories.MongoDocumentRead, new RecordingConfirmation(decision));
+        var result = await rig.Registry.InvokeAsync(Internal(5), rig.Context, rig.Destination,
+            AgentOutputDataScope.DocumentValues, AgentToolRegistry.MongoFindToolName, FindArguments(rig.Profile, "{}"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Succeeded, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo("ConfirmationRejected"),
+                "A declined prompt or unsupported session-wide choice is a confirmation outcome, not a missing permission.");
+            Assert.That(rig.Find.Calls, Is.Zero);
+            Assert.That(rig.Confirmation!.Requests, Has.Count.EqualTo(1));
+            Assert.That(rig.Audit.Events.Select(item => item.Outcome), Is.EqualTo(new[]
+                { AgentAuditOutcome.Intent, AgentAuditOutcome.Denied }));
+        });
+    }
+
+    [Test]
+    public async Task CopilotConfirmationFailsClosedWithoutPromptAndDoesNotDispatch()
+    {
+        var rig = CopilotReadRig(AgentConfirmationCategories.MongoDocumentRead, null);
+        var result = await rig.Registry.InvokeAsync(Internal(5), rig.Context, rig.Destination,
+            AgentOutputDataScope.DocumentValues, AgentToolRegistry.MongoFindToolName, FindArguments(rig.Profile, "{}"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Succeeded, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo("ConfirmationUnavailable"));
+            Assert.That(rig.Find.Calls, Is.Zero);
+            Assert.That(rig.Audit.Events.Select(item => item.Outcome), Is.EqualTo(new[]
+                { AgentAuditOutcome.Intent, AgentAuditOutcome.Denied }));
+        });
+    }
+
+    [Test]
+    public async Task CopilotConfirmationTimeoutHasItsOwnOutcomeAndDoesNotDispatch()
+    {
+        var rig = CopilotReadRig(AgentConfirmationCategories.MongoDocumentRead, new DelayedConfirmation(),
+            approvalTimeout: TimeSpan.FromMilliseconds(20));
+        var result = await rig.Registry.InvokeAsync(Internal(5), rig.Context, rig.Destination,
+            AgentOutputDataScope.DocumentValues, AgentToolRegistry.MongoFindToolName, FindArguments(rig.Profile, "{}"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.ErrorCode, Is.EqualTo("ConfirmationExpired"));
+            Assert.That(rig.Find.Calls, Is.Zero);
+            Assert.That(rig.Audit.Events.Last().DecisionReason, Is.EqualTo(AgentAuditDecisionReason.ApprovalExpired));
+        });
+    }
+
+    [Test]
+    public async Task CopilotConfirmationFailsClosedWhenAuditCannotRecordIntent()
+    {
+        var prompt = new RecordingConfirmation(AgentToolConfirmationDecision.ApprovedOnce);
+        var rig = CopilotReadRig(AgentConfirmationCategories.MongoDocumentRead, prompt, new UnavailableAudit());
+        var result = await rig.Registry.InvokeAsync(Internal(5), rig.Context, rig.Destination,
+            AgentOutputDataScope.DocumentValues, AgentToolRegistry.MongoFindToolName, FindArguments(rig.Profile, "{}"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Succeeded, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo("ConfirmationUnavailable"));
+            Assert.That(rig.Find.Calls, Is.Zero);
+            Assert.That(prompt.Requests, Is.Empty, "The human is not prompted when the durable intent cannot be recorded.");
+        });
+    }
+
+    [Test]
+    public async Task CopilotReadOutsideConfirmationPlanDoesNotPromptAndUnplannedToolIsUnknown()
+    {
+        var rig = CopilotReadRig(AgentConfirmationCategories.None, new RecordingConfirmation(AgentToolConfirmationDecision.Rejected));
+        var allowedWithoutPrompt = await rig.Registry.InvokeAsync(Internal(5), rig.Context, rig.Destination,
+            AgentOutputDataScope.DocumentValues, AgentToolRegistry.MongoFindToolName, FindArguments(rig.Profile, "{}"));
+        var unplanned = await rig.Registry.InvokeAsync(Internal(5), rig.Context, rig.Destination,
+            AgentToolOutputScopes.For(AgentToolRegistry.MongoCountToolName), AgentToolRegistry.MongoCountToolName,
+            JsonSerializer.Serialize(new { connectionId = rig.Profile.Id, database = "app", collection = "items" }));
+        var otherProviderDestination = AgentOutputDestination.ProviderExternal("openai");
+        var otherProvider = await rig.Registry.InvokeAsync(Internal(5),
+            new AgentInvocationContext("openai", null, SessionId, TurnId), otherProviderDestination,
+            AgentOutputDataScope.DocumentValues, AgentToolRegistry.MongoFindToolName, FindArguments(rig.Profile, "{}"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(allowedWithoutPrompt.Succeeded, Is.True, allowedWithoutPrompt.ErrorCode);
+            Assert.That(unplanned.ErrorCode, Is.EqualTo("UnknownTool"));
+            Assert.That(otherProvider.ErrorCode, Is.EqualTo("UnknownTool"));
+            Assert.That(rig.Confirmation!.Requests, Is.Empty);
+            Assert.That(rig.Find.Calls, Is.EqualTo(1));
+        });
+    }
+
+    private static CopilotReadScenario CopilotReadRig(AgentConfirmationCategories confirmations,
+        IAgentToolConfirmationPrompt? prompt, IAgentAuditRepository? auditOverride = null, TimeSpan? approvalTimeout = null)
+    {
+        var profile = Connection();
+        var profiles = new CountingProfiles(profile);
+        var policies = new MapPolicyProvider();
+        var audit = new MemoryAudit();
+        var find = new CountingFind { Documents = [DocumentEjson] };
+        var turns = new AgentNativeChatTurnScopeRegistry();
+        var destination = AgentOutputDestination.ProviderExternal(AgentProviderIds.GitHubCopilotSubscription);
+        var permissions = AgentProviderPermissions.Default(AgentProviderIds.GitHubCopilotSubscription) with
+        {
+            ExternalDestinationConsentAt = DateTimeOffset.UtcNow,
+            EnabledReadTools = [AgentToolRegistry.MongoFindToolName],
+            ConnectionScope = AgentConnectionScope.Selected,
+            SelectedConnectionIds = [profile.Id],
+            DataSending = new AgentDataSendingPermissions { MongoDocuments = true },
+            ConfirmationCategories = confirmations
+        };
+        var plan = AgentModePolicy.Plan(AgentOperationMode.Agent, permissions, new AgentPlatformFacts(false, true, false));
+        turns.Register(new AgentNativeChatTurnScope(SessionId, TurnId, AgentProviderIds.GitHubCopilotSubscription,
+            plan, permissions, null) { ConversationId = Guid.NewGuid() });
+        policies.Set(InternalPrincipalId, 5, [.. new[] { AgentPermission.ExecuteReadQueries, AgentPermission.ReadDocuments }
+            .Select(permission => new AgentPermissionGrant(InternalPrincipalId,
+                AgentInvocationScope.ForTurn(SessionId, TurnId), profile.SourceGenerationId!.Value, permission,
+                AgentNamespaceScope.ForCollection(profile.Id, "app", "items"), destination,
+                AgentOutputDataScope.DocumentValues))]);
+        var registry = new AgentToolRegistry(profiles, policies, new AgentPermissionEvaluator(policies), auditOverride ?? audit,
+            metadata: new NoMetadata(), schemaSamplingConsent: new DenySchemaConsent(), find: find,
+            count: new CountingCount(), distinct: new CountingDistinct(), indexes: new NoIndexes(), explain: new NoExplain(),
+            exposure: AgentToolExposure.None, principalAuthority: new TestAgentPrincipalAuthority(),
+            sessionTools: new AgentSessionToolPorts(new AgentMcpSessionRegistry())
+            {
+                NativeChatTurnScopes = turns,
+                ConfirmationPrompt = prompt,
+                ApprovalTimeout = approvalTimeout ?? TimeSpan.FromSeconds(45)
+            }, copilotExposure: AgentToolExposure.Through(AgentToolExposureStage.DerivedReads));
+        var context = new AgentInvocationContext(AgentProviderIds.GitHubCopilotSubscription, null, SessionId, TurnId);
+        return new CopilotReadScenario(profile, destination, context, registry, find, audit, prompt as RecordingConfirmation);
+    }
+
+    private sealed record CopilotReadScenario(ConnectionProfile Profile, AgentOutputDestination Destination,
+        AgentInvocationContext Context, AgentToolRegistry Registry, CountingFind Find, MemoryAudit Audit,
+        RecordingConfirmation? Confirmation);
+
+    private sealed class RecordingConfirmation(AgentToolConfirmationDecision decision) : IAgentToolConfirmationPrompt
+    {
+        public List<AgentToolConfirmationRequest> Requests { get; } = [];
+        public Task<AgentToolConfirmationDecision> ConfirmAsync(AgentToolConfirmationRequest request,
+            CancellationToken cancellationToken)
+        {
+            Requests.Add(request);
+            return Task.FromResult(decision);
+        }
+    }
+
+    private sealed class DelayedConfirmation : IAgentToolConfirmationPrompt
+    {
+        public async Task<AgentToolConfirmationDecision> ConfirmAsync(AgentToolConfirmationRequest request,
+            CancellationToken cancellationToken)
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return AgentToolConfirmationDecision.ApprovedOnce;
+        }
     }
 
     [Test]

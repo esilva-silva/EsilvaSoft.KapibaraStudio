@@ -311,12 +311,15 @@ public sealed partial class AgentToolConfirmationCardItem : AgentChatItemViewMod
 
     public bool HasInput => InputText.Length > 0;
 
-    public bool CanApproveThisSession => Request.Category is AgentConfirmationCategories.MongoMetadataRead or
-        AgentConfirmationCategories.WorkspaceContextRead or AgentConfirmationCategories.NativeFileRead;
+    public bool CanApproveThisSession =>
+        Request.ProviderId != AgentProviderIds.GitHubCopilotSubscription &&
+        Request.Category is AgentConfirmationCategories.MongoMetadataRead or
+            AgentConfirmationCategories.WorkspaceContextRead or AgentConfirmationCategories.NativeFileRead;
 
     public string CategoryText => Text.Resolve(Request.Category switch
     {
         AgentConfirmationCategories.MongoMetadataRead => "agentConfirmCategoryMongo",
+        AgentConfirmationCategories.MongoDocumentRead => "agentConfirmCategoryMongoDocuments",
         AgentConfirmationCategories.WorkspaceContextRead => "agentConfirmCategoryWorkspace",
         AgentConfirmationCategories.NativeFileRead => "agentConfirmCategoryFile",
         AgentConfirmationCategories.NativeCommand => "agentConfirmCategoryCommand",

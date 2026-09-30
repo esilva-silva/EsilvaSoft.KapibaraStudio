@@ -42,6 +42,9 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
     private const int MaximumConnections = 200;
     private const string PermissionDenied = "PermissionDenied";
     private const string InvalidArguments = "InvalidArguments";
+    private const string ConfirmationRejected = "ConfirmationRejected";
+    private const string ConfirmationExpired = "ConfirmationExpired";
+    private const string ConfirmationUnavailable = "ConfirmationUnavailable";
     private const string UnknownTool = "UnknownTool";
     private const string ResultTooLarge = "ResultTooLarge";
     private const string DeadlineExceeded = "DeadlineExceeded";
@@ -185,6 +188,7 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
     private readonly IAgentPrincipalAuthority? _principalAuthority;
     private readonly AgentSessionToolPorts? _sessionTools;
     private readonly AgentToolExposure _inProcessExposure;
+    private readonly AgentToolExposure _copilotExposure;
 
     public AgentToolRegistry(
         IConnectionProfileRepository profiles,
@@ -204,7 +208,8 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
         IAgentMongoWriteSource? write = null,
         IAgentWriteApprovalAuthority? writeApprovals = null,
         AgentSessionToolPorts? sessionTools = null,
-        AgentToolExposure? inProcessExposure = null)
+        AgentToolExposure? inProcessExposure = null,
+        AgentToolExposure? copilotExposure = null)
     {
         _profiles = profiles ?? throw new ArgumentNullException(nameof(profiles));
         _policies = policies ?? throw new ArgumentNullException(nameof(policies));
@@ -229,8 +234,7 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
         _sessionTools = sessionTools;
         // In-process providers announce only what this (narrower) gate releases; omitted = the registry exposure.
         _inProcessExposure = inProcessExposure ?? _exposure;
-        if (_inProcessExposure.Stage > _exposure.Stage)
-            throw new ArgumentException("A exposição in-process não pode exceder a do registry.", nameof(inProcessExposure));
+        _copilotExposure = copilotExposure ?? _inProcessExposure;
         var requestedTimeout = executionTimeout ?? DefaultExecutionTimeout;
         if (requestedTimeout <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(executionTimeout));
         _executionTimeout = requestedTimeout > MaximumExecutionTimeout ? MaximumExecutionTimeout : requestedTimeout;
@@ -245,7 +249,7 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
     /// </summary>
     public IReadOnlyList<AgentToolDescriptor> GetDescriptors() =>
         Descriptors.Where(descriptor => IsAvailable(descriptor.Name) && !IsSessionTool(descriptor.Name) &&
-            _inProcessExposure.Exposes(descriptor.Name)).ToArray();
+            _inProcessExposure.Exposes(descriptor.Name) && _exposure.Exposes(descriptor.Name)).ToArray();
 
     /// <summary>
     /// Every released tool, per-session tools included, for the MCP broker. The broker still filters the list per
@@ -263,9 +267,51 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
             ? Descriptors.FirstOrDefault(descriptor => string.Equals(name, descriptor.Name, StringComparison.Ordinal))
             : null;
 
+    /// <summary>Descriptor for the Copilot adapter only; its declaration remains bounded by the active turn plan.</summary>
+    public AgentToolDescriptor? FindInProcessDescriptor(string providerId, string? name) =>
+        providerId == AgentProviderIds.GitHubCopilotSubscription && IsCopilotProductTool(name) &&
+        IsAvailable(name, _copilotExposure)
+            ? Descriptors.FirstOrDefault(descriptor => string.Equals(name, descriptor.Name, StringComparison.Ordinal))
+            : null;
+
+    private AgentToolDescriptor? FindDescriptorForInvocation(AgentPrincipal? principal,
+        AgentInvocationContext? context, string? name)
+    {
+        if (IsCopilotDocumentInvocation(principal, context, name))
+            return FindInProcessDescriptor(AgentProviderIds.GitHubCopilotSubscription, name);
+        return FindDescriptor(name);
+    }
+
+    private bool IsCopilotDocumentInvocation(AgentPrincipal? principal, AgentInvocationContext? context, string? name)
+    {
+        if (principal?.Origin != AgentPrincipalOrigin.Internal || !IsCopilotDocumentTool(name) ||
+            context?.SessionId is not { } sessionId || context.TurnId is not { } turnId ||
+            _sessionTools?.NativeChatTurnScopes?.Find(sessionId, turnId) is not { } turn)
+            return false;
+        return string.Equals(turn.ProviderId, AgentProviderIds.GitHubCopilotSubscription, StringComparison.Ordinal) &&
+            string.Equals(context.ProviderId, turn.ProviderId, StringComparison.Ordinal) &&
+            !turn.Plan.IsBlocked && turn.Plan.ProductTools.Contains(name!, StringComparer.Ordinal) &&
+            turn.Permissions.IsWellFormed && turn.Permissions.HasExternalDestinationConsent &&
+            turn.Permissions.DataSending.MongoDocuments &&
+            turn.Permissions.EnabledReadTools?.Contains(name!, StringComparer.Ordinal) == true &&
+            _copilotExposure.Exposes(name);
+    }
+
+    private static bool IsCopilotProductTool(string? name) =>
+        name is not null && name != GetCollectionSchemaToolName &&
+            (AgentProductToolNames.ReadTools.Contains(name, StringComparer.Ordinal) ||
+            name == ProposeFileEditToolName);
+
+    private static bool IsCopilotDocumentTool(string? name) =>
+        name is MongoFindToolName or MongoCountToolName or SampleDocumentsToolName or MongoFindOneToolName or
+            GetDocumentToolName or MongoDistinctToolName or MongoExplainToolName;
+
     // A tool is discoverable only when its stage is released, the channel authority that issues and revalidates
     // principals was composed, and its handler dependencies exist.
-    private bool IsAvailable(string? name) => _principalAuthority is not null && _exposure.Exposes(name) && name switch
+    private bool IsAvailable(string? name) => IsAvailable(name, _exposure);
+
+    private bool IsAvailable(string? name, AgentToolExposure exposure) =>
+        _principalAuthority is not null && exposure.Exposes(name) && name switch
     {
         ListConnectionsToolName => true,
         ListDatabasesToolName or ListCollectionsToolName => _metadata is not null,
@@ -289,6 +335,11 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
 
     public string? GetInputSchemaJson(string? name) =>
         FindDescriptor(name) is { } descriptor
+            ? WithSchemaIdentity(descriptor, "input", CatalogInputSchemaJson(descriptor.Name))
+            : null;
+
+    public string? GetInProcessInputSchemaJson(string providerId, string? name) =>
+        FindInProcessDescriptor(providerId, name) is { } descriptor
             ? WithSchemaIdentity(descriptor, "input", CatalogInputSchemaJson(descriptor.Name))
             : null;
 
@@ -373,14 +424,21 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
         // channel, is indistinguishable from an unknown tool (no audit, policy, profile or source access).
         if (!IsExposedToPrincipal(principal, name, invocationContext, destination, outputDataScope))
             return AgentToolInvocationResult.Failure(UnknownTool);
+        var invocationDescriptor = FindDescriptorForInvocation(principal, invocationContext, name);
+        if (invocationDescriptor is null) return AgentToolInvocationResult.Failure(UnknownTool);
         // The confirmation waits for a human (up to the approval window), dispatches nothing and releases no data: it
         // has its own path, outside the 30 s execution deadline, the audit ledger and the per-turn budget.
         if (name == ApproveToolName)
             return await InvokeApproveAsync(principal, invocationContext, destination, argumentsJson, cancellationToken)
                 .ConfigureAwait(false);
+        var confirmationFailure = await ConfirmInternalCopilotToolAsync(principal, invocationContext, destination,
+            name, argumentsJson, cancellationToken).ConfigureAwait(false);
+        if (confirmationFailure is not null) return confirmationFailure;
+        var missingConfirmation = ConsumeRequiredConfirmation(principal, name, argumentsJson);
+        if (missingConfirmation is not null) return missingConfirmation;
         // Writes follow their own pipeline: durable intent, human approval with a separate budget, single-use
         // consumption and uncertain outcome. They never reach the read path below.
-        if (FindDescriptor(name) is { Risk: not AgentToolRisk.ReadOnly } writeDescriptor)
+        if (invocationDescriptor is { Risk: not AgentToolRisk.ReadOnly } writeDescriptor)
             return await InvokeWriteAsync(principal, invocationContext, destination, outputDataScope, writeDescriptor,
                 argumentsJson, cancellationToken).ConfigureAwait(false);
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -389,7 +447,7 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
         // Keep the registry private until an authenticated ingress constructs both objects.
         var auditable = principal is not null && IsCompleteInvocationContext(invocationContext) &&
             destination is not null && IsValidDestination(destination, invocationContext!) &&
-            FindDescriptor(name) is not null;
+            invocationDescriptor is not null;
         AgentAuditEvent? intent = null;
         var intentWritten = false;
         var terminalWritten = false;
@@ -600,7 +658,8 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
         var succeeded = result?.Succeeded == true;
         var cancelled = result is null || result.ErrorCode == DeadlineExceeded;
         // Busy is an admission refusal (nothing dispatched): audited as Denied/LimitExceeded, as before the split.
-        var denied = result?.ErrorCode is PermissionDenied or InvalidArguments or UnknownTool or Busy;
+        var denied = result?.ErrorCode is PermissionDenied or InvalidArguments or UnknownTool or Busy or
+            ConfirmationRejected or ConfirmationExpired;
         var reason = succeeded ? AgentAuditDecisionReason.PolicyAllowed : cancelled ? AgentAuditDecisionReason.Cancelled :
             result?.AuditReason is { } auditReason ? auditReason :
             result?.ErrorCode == InvalidArguments ? AgentAuditDecisionReason.ValidationRejected :
@@ -683,7 +742,8 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (FindDescriptor(name) is null) return AgentToolInvocationResult.Failure(UnknownTool);
+        if (FindDescriptorForInvocation(principal, invocationContext, name) is null)
+            return AgentToolInvocationResult.Failure(UnknownTool);
         // A per-session channel reaches only the connections of its turn plan (null = all, empty = none).
         if (SessionConnectionDenial(principal, name, argumentsJson) is { } connectionDenial)
             return connectionDenial;

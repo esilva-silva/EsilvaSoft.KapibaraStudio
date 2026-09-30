@@ -25,9 +25,9 @@ public sealed class AgentPermissionsResidualUiTests
             LocalizationViewModel.Current.Language = "pt-BR";
             var repository = new PermissionsRepository
             {
-                LoadResult = AgentPersistenceResult.Success(AgentProviderPermissions.Default("claude")),
+                LoadResult = AgentPersistenceResult.Success(AgentProviderPermissions.Default(AgentProviderIds.GitHubCopilotSubscription)),
             };
-            var vm = new AgentPermissionsViewModel(repository, null, "claude", "Claude de teste", null,
+            var vm = new AgentPermissionsViewModel(repository, null, AgentProviderIds.GitHubCopilotSubscription, "GitHub Copilot de teste", null,
                 [new(Guid.NewGuid(), "Produção"), new(Guid.NewGuid(), "Homologação")], productToolsAvailable: true, clock: TimeProvider.System);
             var window = new AgentPermissionsWindow { DataContext = vm, Width = 660, Height = 760 };
             window.Show();
@@ -92,6 +92,36 @@ public sealed class AgentPermissionsResidualUiTests
         Assert.That(vm.CanEdit, Is.True);
         Assert.That(vm.CanSave, Is.True);
         Assert.That(vm.HasConsent, Is.False);
+        Assert.That(vm.ShowMongoDocumentConsent, Is.False);
+        Assert.That(vm.ReadTools.Select(tool => tool.Name), Does.Not.Contain(AgentProductToolNames.MongoFind));
+        Assert.That(vm.ReadTools.Select(tool => tool.Name), Does.Not.Contain(AgentProductToolNames.MongoCount));
+        Assert.That(vm.ProductToolsStatus, Does.Not.Contain(AgentProductToolNames.MongoFind));
+        Assert.That(vm.ProductToolsStatus, Does.Not.Contain(AgentProductToolNames.MongoCount));
+    }
+
+    [Test]
+    public async Task MongoDocumentConsentIsCopilotSpecificAndPersistedSeparately()
+    {
+        var repository = new PermissionsRepository
+        {
+            LoadResult = AgentPersistenceResult.Failure<AgentProviderPermissions>(AgentPersistenceStatus.NotFound),
+        };
+        var vm = new AgentPermissionsViewModel(repository, null, AgentProviderIds.GitHubCopilotSubscription,
+            "GitHub Copilot", null, [], productToolsAvailable: true, clock: TimeProvider.System);
+
+        await vm.LoadTask;
+        Assert.That(vm.ShowMongoDocumentConsent, Is.True);
+        Assert.That(vm.MongoDocuments, Is.False);
+        Assert.That(vm.ReadTools.Select(tool => tool.Name), Does.Contain(AgentProductToolNames.MongoFind));
+        Assert.That(vm.ReadTools.Select(tool => tool.Name), Does.Contain(AgentProductToolNames.MongoCount));
+        Assert.That(vm.ReadTools.Select(tool => tool.Name), Does.Not.Contain(AgentProductToolNames.GetCollectionSchema),
+            "Copilot must not offer live sampling before its dedicated local-consent UI exists.");
+        Assert.That(vm.ProductToolsStatus, Does.Contain(AgentProductToolNames.MongoFind));
+        Assert.That(vm.ProductToolsStatus, Does.Contain(AgentProductToolNames.MongoCount));
+        vm.MongoDocuments = true;
+        await vm.SaveCommand.ExecuteAsync(null);
+
+        Assert.That(repository.Saved!.DataSending.MongoDocuments, Is.True);
     }
 
     [Test]

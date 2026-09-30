@@ -44,7 +44,10 @@ public sealed partial class AgentToolRegistry
                 native.Permissions.HasExternalDestinationConsent &&
                 native.Permissions.EnabledReadTools?.Contains(name!, StringComparer.Ordinal) == true &&
                 native.Plan.ProductTools.Contains(name!, StringComparer.Ordinal) &&
-                string.Equals(native.ProviderId, context.ProviderId, StringComparison.Ordinal);
+                string.Equals(native.ProviderId, context.ProviderId, StringComparison.Ordinal) &&
+                (!IsCopilotDocumentTool(name) ||
+                 string.Equals(native.ProviderId, AgentProviderIds.GitHubCopilotSubscription, StringComparison.Ordinal) &&
+                 native.Permissions.DataSending.MongoDocuments && _copilotExposure.Exposes(name));
         return scope is null || scope.Exposes(name);
     }
 

@@ -21,7 +21,7 @@ public sealed partial class AgentToolRegistry
             return AgentToolInvocationResult.Failure(PermissionDenied, AgentAuditDecisionReason.PermissionMissing);
         if (result.ReleaseProfiles is null || result.StructuredContentJson is null ||
             outputScope is null || !IsCompleteInvocationContext(context) ||
-            !IsValidDestination(destination, context) || FindDescriptor(name) is not { } descriptor)
+            !IsValidDestination(destination, context) || FindDescriptorForInvocation(principal, context, name) is not { } descriptor)
             return AgentToolInvocationResult.Failure(PermissionDenied, AgentAuditDecisionReason.ValidationRejected);
         if (await CheckPrincipalCurrentAsync(principal, cancellationToken).ConfigureAwait(false) is { } channelDenial)
             return channelDenial;

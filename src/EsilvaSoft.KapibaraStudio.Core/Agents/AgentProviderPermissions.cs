@@ -20,6 +20,9 @@ public sealed record AgentDataSendingPermissions
     /// sampled documents and dynamic keys may themselves be data (e.g. e-mails used as keys).
     /// </summary>
     public bool InferredSchema { get; init; }
+
+    /// <summary>MongoDB document values returned by explicitly enabled read tools. Off by default.</summary>
+    public bool MongoDocuments { get; init; }
 }
 
 /// <summary>Workspace folder usage and exclusion globs (matched against paths relative to the workspace, with <c>/</c>).</summary>

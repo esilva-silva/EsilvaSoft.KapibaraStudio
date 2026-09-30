@@ -16,8 +16,7 @@ public sealed class CopilotSubscriptionAgentProvider : IAgentProvider, IAgentPro
     private readonly Func<string?, CopilotClient> _clientFactory;
     private readonly Func<bool> _isCliInstalled;
     private readonly CopilotVolatileSessionFsStore _volatileSessionFs = new();
-    private readonly CopilotPersistentSessionFsStore _persistentSessionFs =
-        new(CopilotRuntimeSettings.PersistentSessionDirectory());
+    private readonly CopilotPersistentSessionFsStore _persistentSessionFs;
     private readonly SemaphoreSlim _statusGate = new(1, 1);
     private AgentProviderStatus _status = AgentProviderStatus.NotReported;
 
@@ -38,10 +37,21 @@ public sealed class CopilotSubscriptionAgentProvider : IAgentProvider, IAgentPro
         IAgentToolRegistry toolRegistry,
         Func<string?, CopilotClient> clientFactory,
         Func<bool> isCliInstalled)
+        : this(toolRegistry, clientFactory, isCliInstalled, persistentSessionRoot: null)
+    {
+    }
+
+    internal CopilotSubscriptionAgentProvider(
+        IAgentToolRegistry toolRegistry,
+        Func<string?, CopilotClient> clientFactory,
+        Func<bool> isCliInstalled,
+        string? persistentSessionRoot)
     {
         _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
         _clientFactory = clientFactory ?? throw new ArgumentNullException(nameof(clientFactory));
         _isCliInstalled = isCliInstalled ?? throw new ArgumentNullException(nameof(isCliInstalled));
+        _persistentSessionFs = new CopilotPersistentSessionFsStore(
+            persistentSessionRoot ?? CopilotRuntimeSettings.PersistentSessionDirectory());
     }
 
     public string ProviderId => Id;

@@ -6,8 +6,10 @@ namespace EsilvaSoft.KapibaraStudio.Infrastructure;
 /// Composition options of the agent platform shared by every ingress (native chat runtime and the opt-in MCP broker).
 /// The registry is always composed. <see cref="ToolExposureStage"/> defaults to <see cref="AgentToolExposureStage.Metadata"/>
 /// (ADR-056: metadata reads and the per-session tools of the integrated Claude Code agent); releasing a stage still
-/// authorizes nothing by itself, and <see cref="AgentToolExposureStage.None"/> keeps everything closed. Stages beyond <see cref="AgentToolExposureStage.LiteralQueries"/> are refused until their gates are
-/// approved. Releasing a stage still grants nothing: every call needs a persisted grant for its principal.
+/// authorizes nothing by itself, and <see cref="AgentToolExposureStage.None"/> keeps everything closed. The shared
+/// external and generic in-process stages stop at <see cref="AgentToolExposureStage.LiteralQueries"/>; the Copilot-only
+/// stage may reach <see cref="AgentToolExposureStage.DerivedReads"/> behind individual opt-ins. Releasing a stage still
+/// grants nothing: every call needs a persisted grant for its principal.
 /// Write tools stay closed independently of the stage: no <see cref="IAgentMongoWriteSource"/> is composed yet
 /// (lote 10), so the registry never exposes them even though the approval chain is wired.
 /// </summary>
@@ -17,12 +19,16 @@ public sealed record AgentPlatformOptions
     public AgentToolExposureStage ToolExposureStage { get; init; } = AgentToolExposureStage.Metadata;
 
     /// <summary>
-    /// Stage announced to in-process providers (native chat: local, OpenAI and Claude API). Defaults to
-    /// <see cref="AgentToolExposureStage.None"/>: the internal principal has no grant by default, so announcing metadata
-    /// tools there would only produce denied calls. Never above <see cref="ToolExposureStage"/>. Per-session tools are
-    /// never announced in process.
+    /// General in-process provider stage. Defaults closed so unrelated in-process providers do not inherit grants.
     /// </summary>
     public AgentToolExposureStage InProcessToolExposureStage { get; init; } = AgentToolExposureStage.None;
+
+    /// <summary>
+    /// Additional stage available only to the GitHub Copilot subscription adapter. The tools still require explicit
+    /// per-provider opt-ins and turn-scoped grants; the external MCP registry is unaffected. The default includes
+    /// bounded derived reads; schema sampling remains absent until its separate local-consent UI is composed.
+    /// </summary>
+    public AgentToolExposureStage CopilotToolExposureStage { get; init; } = AgentToolExposureStage.DerivedReads;
 
     /// <summary>Registry execution ceiling (the registry itself caps at 30 s).</summary>
     public TimeSpan ToolExecutionTimeout { get; init; } = TimeSpan.FromSeconds(30);
@@ -47,8 +53,10 @@ public sealed record AgentPlatformOptions
             throw new ArgumentException("Estágio de exposição desconhecido.", nameof(ToolExposureStage));
         if (ToolExposureStage > AgentToolExposureStage.LiteralQueries)
             throw new ArgumentException("Estágio de exposição ainda não liberado.", nameof(ToolExposureStage));
-        if (!Enum.IsDefined(InProcessToolExposureStage) || InProcessToolExposureStage > ToolExposureStage)
+        if (!Enum.IsDefined(InProcessToolExposureStage) || InProcessToolExposureStage > AgentToolExposureStage.LiteralQueries)
             throw new ArgumentException("Estágio in-process inválido.", nameof(InProcessToolExposureStage));
+        if (!Enum.IsDefined(CopilotToolExposureStage) || CopilotToolExposureStage > AgentToolExposureStage.DerivedReads)
+            throw new ArgumentException("Estágio Copilot inválido.", nameof(CopilotToolExposureStage));
         if (ToolExecutionTimeout <= TimeSpan.Zero || ToolExecutionTimeout > TimeSpan.FromSeconds(30))
             throw new ArgumentException("Prazo de execução inválido.", nameof(ToolExecutionTimeout));
         if (Runtime is null) throw new ArgumentException("Opções do runtime ausentes.", nameof(Runtime));

@@ -5,6 +5,7 @@ using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using EsilvaSoft.KapibaraStudio.Application.Agents;
 using EsilvaSoft.KapibaraStudio.Core;
 using EsilvaSoft.KapibaraStudio.Core.Agents;
 using EsilvaSoft.KapibaraStudio.Desktop;
@@ -24,7 +25,7 @@ public sealed class AgentChatUiTests
     private static readonly ThemeVariant[] Themes = [ThemeVariant.Light, ThemeVariant.Dark];
     private static readonly Key[] DialogKeys = [Key.Enter, Key.Escape];
     private static readonly AgentApprovalOutcome[] OnlyDenied = [AgentApprovalOutcome.Denied];
-    private static readonly string[] ChatStates = ["unavailable", "ready", "streaming", "permission-denied", "outcome-unknown"];
+    private static readonly string[] ChatStates = ["unavailable", "ready", "streaming", "permission-denied", "confirmation-denied", "confirmation-expired", "outcome-unknown"];
 
     private static Task<bool> RunOnUiAsync(Func<Task> body)
     {
@@ -160,6 +161,72 @@ public sealed class AgentChatUiTests
             runtime.Push(turn, AgentEventKind.TaskCompleted, outcome: AgentTurnOutcome.Cancelled);
             await PumpAsync(() => chat.State == AgentChatState.Cancelled);
             await CloseAsync(window, chat, runtime);
+        });
+    }
+
+    [Test]
+    public async Task DesktopConfirmationPromptRoutesCopilotDecisionThroughInlineCard()
+    {
+        await RunOnUiAsync(async () =>
+        {
+            var runtime = new ChannelAgentRuntime();
+            var prompt = new DesktopAgentToolConfirmationPrompt();
+            var tab = new AgentChatTabFixture();
+            var permissions = new FakeAgentPermissionsRepository(AgentProviderPermissions.Default(
+                AgentProviderIds.GitHubCopilotSubscription) with { ExternalDestinationConsentAt = DateTimeOffset.UtcNow });
+            var services = new AgentChatServices(runtime,
+                new FakeAgentCatalog(FakeAgentCatalog.External(AgentProviderIds.GitHubCopilotSubscription,
+                    "GitHub Copilot · assinatura")), new FakeAgentContextProvider())
+            {
+                Permissions = permissions,
+                Confirmations = prompt,
+            };
+            var chat = new AgentChatViewModel(services, tab.Capture);
+            var window = new Window { Content = new AgentChatPanel { DataContext = chat }, Width = 420, Height = 700 };
+            window.Show();
+            await chat.Initialization;
+            await PumpAsync(() => true);
+
+            var request = new AgentToolConfirmationRequest(chat.ActiveConversation.Id,
+                AgentProviderIds.GitHubCopilotSubscription, AgentToolRegistry.ListConnectionsToolName,
+                AgentConfirmationCategories.MongoMetadataRead, "{}", null);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var pendingDecision = prompt.ConfirmAsync(request, deadline.Token);
+            await PumpAsync(() => chat.Items.OfType<AgentToolConfirmationCardItem>().Any());
+            var card = chat.Items.OfType<AgentToolConfirmationCardItem>().Single();
+            Assert.Multiple(() =>
+            {
+                Assert.That(card.Title, Does.StartWith("O agente solicita:"));
+                Assert.That(card.InputText, Is.EqualTo("{}"));
+                Assert.That(card.CanApproveThisSession, Is.False,
+                    "Copilot registry grants are always scoped to this single call.");
+                Assert.That(card.ApproveOnceCommand.CanExecute(null), Is.True);
+                Assert.That(card.RejectCommand.CanExecute(null), Is.True);
+            });
+
+            foreach (var theme in Themes)
+            {
+                Avalonia.Application.Current!.RequestedThemeVariant = theme;
+                await PumpAsync(() => true);
+                Save(window, $"agent-chat-confirmation-pending-{theme}.png");
+            }
+
+            card.ApproveOnceCommand.Execute(null);
+            Assert.That(await pendingDecision, Is.EqualTo(AgentToolConfirmationDecision.ApprovedOnce));
+            Assert.That(card.State, Is.EqualTo(AgentToolConfirmationState.ApprovedOnce));
+
+            var deniedRequest = request with { ToolName = AgentToolRegistry.MongoFindToolName,
+                Category = AgentConfirmationCategories.MongoDocumentRead };
+            var deniedDecision = prompt.ConfirmAsync(deniedRequest, deadline.Token);
+            await PumpAsync(() => chat.Items.OfType<AgentToolConfirmationCardItem>().Count() == 2);
+            var deniedCard = chat.Items.OfType<AgentToolConfirmationCardItem>().Last();
+            deniedCard.RejectCommand.Execute(null);
+            Assert.That(await deniedDecision, Is.EqualTo(AgentToolConfirmationDecision.Rejected));
+            Assert.That(deniedCard.State, Is.EqualTo(AgentToolConfirmationState.Rejected));
+
+            deadline.Cancel();
+            window.Close();
+            await chat.DisposeAsync();
         });
     }
 
@@ -327,13 +394,24 @@ public sealed class AgentChatUiTests
         runtime.Push(turn, AgentEventKind.ToolStarted, call: find, tool: "mongo_find");
         runtime.Push(turn, AgentEventKind.ToolCompleted, call: find, tool: "mongo_find", status: AgentToolResultStatus.Succeeded);
         var denied = AgentToolCallId.New();
-        var deniedTool = state == "permission-denied" ? "get_workspace_context" : "get_collection_schema";
+        var deniedTool = state is "permission-denied" or "confirmation-denied" or "confirmation-expired" ? "mongo_find" : "get_collection_schema";
         runtime.Push(turn, AgentEventKind.ToolRequested, call: denied, tool: deniedTool);
         runtime.Push(turn, AgentEventKind.ToolFailed, call: denied, tool: deniedTool,
-            status: AgentToolResultStatus.Denied, errorCode: "PermissionDenied");
+            status: AgentToolResultStatus.Denied,
+            errorCode: state switch
+            {
+                "confirmation-denied" => "ConfirmationRejected",
+                "confirmation-expired" => "ConfirmationExpired",
+                _ => "PermissionDenied"
+            });
         if (state == "permission-denied")
         {
             await PumpAsync(() => panel.OpenPermissionsWindow is not null);
+            return (window, chat, runtime);
+        }
+        if (state is "confirmation-denied" or "confirmation-expired")
+        {
+            await PumpAsync(() => chat.Items.OfType<AgentToolCallItem>().Last().State == AgentToolCallState.Denied);
             return (window, chat, runtime);
         }
         var second = AgentMessageId.New();
@@ -381,8 +459,17 @@ public sealed class AgentChatUiTests
                 break;
             case "permission-denied":
                 Assert.That(panel.OpenPermissionsWindow, Is.Not.Null,
-                    "A denied workspace-context call opens the permissions window for review.");
+                    "A denied product tool call opens the permissions window for review.");
                 Assert.That(panel.OpenPermissionsWindow!.DataContext, Is.TypeOf<AgentPermissionsViewModel>());
+                break;
+            case "confirmation-denied":
+            case "confirmation-expired":
+                var confirmation = chat.Items.OfType<AgentToolCallItem>().Last();
+                Assert.That(panel.OpenPermissionsWindow, Is.Null,
+                    "A one-call confirmation rejection must not open persistent permission settings.");
+                Assert.That(confirmation.CanReviewPermissions, Is.False);
+                Assert.That(confirmation.StatusText, Does.Contain(state == "confirmation-denied"
+                    ? "Confirmação negada" : "confirmação expirou"));
                 break;
             case "outcome-unknown":
                 Assert.That(chat.IsStatusError, Is.True);

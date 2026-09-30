@@ -315,6 +315,27 @@ public sealed class AgentCliAccountUiTests
             chat.Items.Add(confirmation);
             await PumpAsync(() => confirmation.IsPending);
             Assert.That(confirmation.CanApproveThisSession, Is.True);
+            var documentReadConfirmation = new AgentToolConfirmationCardItem(new AgentToolConfirmationRequest(
+                chat.ActiveConversation.Id, AgentProviderIds.GitHubCopilotSubscription, AgentToolRegistry.MongoFindToolName,
+                AgentConfirmationCategories.MongoDocumentRead, "{}", null), CancellationToken.None);
+            Assert.That(documentReadConfirmation.CanApproveThisSession, Is.False,
+                "Document-value reads always require an individual approval, never a session grant.");
+            var copilotMetadataConfirmation = new AgentToolConfirmationCardItem(new AgentToolConfirmationRequest(
+                chat.ActiveConversation.Id, AgentProviderIds.GitHubCopilotSubscription,
+                AgentToolRegistry.ListConnectionsToolName, AgentConfirmationCategories.MongoMetadataRead, "{}", null),
+                CancellationToken.None);
+            chat.Items.Add(copilotMetadataConfirmation);
+            Assert.That(copilotMetadataConfirmation.CanApproveThisSession, Is.False,
+                "Copilot registry approvals are one-call only, including metadata reads.");
+            Assert.Multiple(() =>
+            {
+                Assert.That(copilotMetadataConfirmation.Title, Does.StartWith("O agente solicita:"),
+                    "A confirmação do Copilot deve identificar o agente atual, sem atribuir a solicitação ao Claude.");
+                Assert.That(copilotMetadataConfirmation.InputText, Is.EqualTo("{}"),
+                    "A confirmação mostra os argumentos exatos do dispatch que será autorizado.");
+                Assert.That(copilotMetadataConfirmation.ApproveOnceCommand.CanExecute(null), Is.True);
+                Assert.That(copilotMetadataConfirmation.RejectCommand.CanExecute(null), Is.True);
+            });
             foreach (var theme in Themes)
             {
                 Avalonia.Application.Current!.RequestedThemeVariant = theme;

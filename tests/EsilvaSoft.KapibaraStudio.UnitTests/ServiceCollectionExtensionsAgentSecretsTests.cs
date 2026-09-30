@@ -27,9 +27,8 @@ public sealed class ServiceCollectionExtensionsAgentSecretsTests
 
             Assert.Multiple(() =>
             {
-                Assert.That(policyProvider, Is.SameAs(owner));
+                Assert.That(policyProvider, Is.InstanceOf<NativeChatTurnPolicyProvider>());
                 Assert.That(policyRepository, Is.SameAs(owner));
-                Assert.That(policyProvider, Is.SameAs(policyRepository));
                 Assert.That(provider.GetRequiredService<IAgentAuthorizationPolicyProvider>(), Is.SameAs(policyProvider));
                 Assert.That(provider.GetRequiredService<IAgentAuthorizationPolicyRepository>(), Is.SameAs(policyRepository));
                 Assert.That(evaluator, Is.InstanceOf<AgentPermissionEvaluator>());

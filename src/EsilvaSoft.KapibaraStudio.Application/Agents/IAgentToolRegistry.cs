@@ -16,7 +16,9 @@ public interface IAgentToolRegistry
     /// </summary>
     IReadOnlyList<AgentToolDescriptor> GetChannelDescriptors() => GetDescriptors();
     AgentToolDescriptor? FindDescriptor(string? name);
+    AgentToolDescriptor? FindInProcessDescriptor(string providerId, string? name) => null;
     string? GetInputSchemaJson(string? name);
+    string? GetInProcessInputSchemaJson(string providerId, string? name) => null;
     string? GetOutputSchemaJson(string? name);
     Task<AgentToolInvocationResult> InvokeAsync(
         AgentPrincipal? principal,

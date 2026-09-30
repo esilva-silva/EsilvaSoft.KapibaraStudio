@@ -265,7 +265,9 @@ public sealed partial class AgentRuntime
             try
             {
                 // Only a registry-known canonical name is ever published; raw model text is not echoed.
-                var descriptor = _toolRegistry!.FindDescriptor(item.ToolName);
+                var descriptor = session.ProviderId == AgentProviderIds.GitHubCopilotSubscription
+                    ? _toolRegistry!.FindInProcessDescriptor(session.ProviderId, item.ToolName)
+                    : _toolRegistry!.FindDescriptor(item.ToolName);
                 descriptorName = descriptor?.Name;
                 isWrite = descriptor is not null && descriptor.Risk != AgentToolRisk.ReadOnly;
             }
@@ -559,7 +561,8 @@ public sealed partial class AgentRuntime
         var code = SafeCode(invocation.ErrorCode) ?? "ToolFailed";
         return code switch
         {
-            PermissionDeniedCode or "ApprovalRejected" or "ApprovalExpired" or "ApprovalUnavailable" or "ApprovalInvalid" =>
+            PermissionDeniedCode or "ApprovalRejected" or "ApprovalExpired" or "ApprovalUnavailable" or "ApprovalInvalid" or
+                "ConfirmationRejected" or "ConfirmationExpired" =>
                 ToolFailure(turn, callId, AgentToolResultStatus.Denied, code),
             RegistryOutcomeUnknownCode =>
                 ToolFailure(turn, callId, AgentToolResultStatus.OutcomeUnknown, ToolOutcomeUnknownCode),

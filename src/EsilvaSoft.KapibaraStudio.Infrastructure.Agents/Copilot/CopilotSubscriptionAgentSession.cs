@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Threading.Channels;
 using EsilvaSoft.KapibaraStudio.Application.Agents;
+using EsilvaSoft.KapibaraStudio.Core;
 using EsilvaSoft.KapibaraStudio.Core.Agents;
 using GitHub.Copilot;
 using GitHub.Copilot.Rpc;
@@ -12,7 +13,10 @@ namespace EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Copilot;
 internal sealed class CopilotSubscriptionAgentSession : IAgentSession
 {
     private static readonly string[] ErrorCodes =
-        ["CopilotNotLoggedIn", "CopilotNonSubscriptionAuth", "CopilotInvalidPlan", "CopilotSessionUnavailable", "CopilotProviderFailure"];
+        ["CopilotNotLoggedIn", "CopilotNonSubscriptionAuth", "CopilotInvalidPlan", "CopilotTurnPlanMissing",
+            "CopilotTurnPlanBlocked", "CopilotNativeToolsUnsupported", "CopilotPromptEmpty", "CopilotToolNotAvailable",
+            "CopilotToolSchemaUnavailable", "CopilotToolRequestInvalid", "CopilotToolNotPlanned",
+            "CopilotSessionUnavailable", "CopilotProviderFailure"];
 
     private readonly IAgentToolRegistry _registry;
     private readonly AgentSessionOptions _options;
@@ -113,9 +117,27 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
     {
         ArgumentNullException.ThrowIfNull(request);
         var plan = request.Plan;
-        if (plan is null || plan.IsBlocked || plan.NativeTools.Count != 0 || string.IsNullOrWhiteSpace(request.UserMessage))
+        if (plan is null)
         {
-            yield return new AgentProviderEvent(AgentEventKind.AgentError, "CopilotInvalidPlan");
+            yield return new AgentProviderEvent(AgentEventKind.AgentError, "CopilotTurnPlanMissing");
+            yield break;
+        }
+
+        if (plan.IsBlocked)
+        {
+            yield return new AgentProviderEvent(AgentEventKind.AgentError, "CopilotTurnPlanBlocked");
+            yield break;
+        }
+
+        if (plan.NativeTools.Count != 0)
+        {
+            yield return new AgentProviderEvent(AgentEventKind.AgentError, "CopilotNativeToolsUnsupported");
+            yield break;
+        }
+
+        if (string.IsNullOrWhiteSpace(request.UserMessage))
+        {
+            yield return new AgentProviderEvent(AgentEventKind.AgentError, "CopilotPromptEmpty");
             yield break;
         }
 
@@ -192,14 +214,20 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
             var available = new ToolSet();
             foreach (var name in names)
             {
-                if (_registry.FindDescriptor(name) is null || _registry.GetInputSchemaJson(name) is not { } schema)
+                if (_registry.FindInProcessDescriptor(AgentProviderIds.GitHubCopilotSubscription, name) is null)
                 {
-                    turn.Emit(new AgentProviderEvent(AgentEventKind.AgentError, "CopilotInvalidPlan"));
+                    turn.Emit(new AgentProviderEvent(AgentEventKind.AgentError, "CopilotToolNotAvailable"));
+                    return;
+                }
+
+                if (_registry.GetInProcessInputSchemaJson(AgentProviderIds.GitHubCopilotSubscription, name) is not { } schema)
+                {
+                    turn.Emit(new AgentProviderEvent(AgentEventKind.AgentError, "CopilotToolSchemaUnavailable"));
                     return;
                 }
 
                 using var document = JsonDocument.Parse(schema);
-                declared.Add(AIFunctionFactory.CreateDeclaration(name, name, document.RootElement.Clone()));
+                declared.Add(AIFunctionFactory.CreateDeclaration(name, ToolDescription(name), document.RootElement.Clone()));
                 available.AddCustom(name);
             }
 
@@ -418,6 +446,39 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
     }
 #pragma warning restore GHCP001
 
+    private static string ToolDescription(string name) => name switch
+    {
+        AgentToolRegistry.ListConnectionsToolName =>
+            "Lista somente conexões MongoDB autorizadas para este turno. Use o ID retornado para chamadas seguintes; conexões fora do escopo não são retornadas.",
+        AgentToolRegistry.ListDatabasesToolName =>
+            "Lista nomes de bancos de uma conexão autorizada. Não lê documentos.",
+        AgentToolRegistry.ListCollectionsToolName =>
+            "Lista nomes de coleções de um banco em uma conexão autorizada. Não lê documentos.",
+        AgentToolRegistry.GetIndexesToolName =>
+            "Lê metadados de índices da coleção autorizada; valores dos filtros dos índices não são retornados.",
+        AgentProductToolNames.GetCachedSchema =>
+            "Retorna apenas o schema inferido já armazenado localmente; não amostra o MongoDB.",
+        AgentToolRegistry.MongoFindToolName =>
+            "Executa uma consulta MongoDB find somente leitura na conexão/banco/coleção autorizados. filterEjson, projectionEjson e sortEjson usam Extended JSON literal; limite máximo de 100 documentos e tempo de execução limitado. Envia documentos ao Copilot e só é permitido com o consentimento MongoDB e a ferramenta ativados.",
+        AgentToolRegistry.MongoCountToolName =>
+            "Conta documentos que correspondem ao filtro na coleção autorizada, sem modificar dados. filterEjson usa Extended JSON literal e maxTimeMs é limitado. O resultado deriva dos documentos MongoDB e só é permitido com consentimento MongoDB e a ferramenta ativados.",
+        AgentToolRegistry.SampleDocumentsToolName =>
+            "Retorna uma amostra de até 20 documentos da coleção autorizada, opcionalmente projetados. Envia valores de documentos ao Copilot e exige consentimento MongoDB e ferramenta ativados.",
+        AgentToolRegistry.MongoFindOneToolName =>
+            "Executa findOne somente leitura com filtro, projeção e ordenação Extended JSON literal. Envia no máximo um documento ao Copilot; exige consentimento MongoDB e ferramenta ativados.",
+        AgentToolRegistry.GetDocumentToolName =>
+            "Lê um único documento por _id Extended JSON literal na coleção autorizada. Envia o documento ao Copilot; exige consentimento MongoDB e ferramenta ativados.",
+        AgentToolRegistry.MongoDistinctToolName =>
+            "Retorna valores distintos limitados de um campo autorizado, com filtro Extended JSON literal. Esses valores podem conter dados; exige consentimento MongoDB e ferramenta ativados.",
+        AgentToolRegistry.MongoExplainToolName =>
+            "Retorna somente o estágio queryPlanner de explain para uma consulta de leitura limitada; não executa a consulta nem inclui documentos. Exige ferramenta ativada, consentimento MongoDB e grants de diagnóstico/leitura.",
+        AgentToolRegistry.ProposeFileEditToolName =>
+            "Registra uma proposta de edição para revisão no editor, sem gravar em disco. Para a consulta ou aba já aberta, use target=active_buffer sem path e baseie old_text no conteúdo autorizado e enviado como anexo; o trecho deve corresponder exatamente ao buffer redigido. Para arquivo do workspace, use path. Não alegue falta de editor ao receber EditNotApplicable: esse código indica texto ausente, ambíguo ou alteração insegura.",
+        AgentToolRegistry.GetWorkspaceContextToolName =>
+            "Retorna metadados autorizados da pasta e da aba ativa (nome do arquivo, conexão, banco e coleção); não retorna o texto do editor nem documentos MongoDB. O conteúdo do buffer só é enviado quando autorizado como anexo.",
+        _ => name,
+    };
+
     private static string BuildPrompt(AgentTurnRequest request)
     {
         var prompt = request.UserMessage;
@@ -611,10 +672,16 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
         public void RequestTool(ExternalToolRequestedData data, HashSet<string> allowed)
         {
             if (string.IsNullOrWhiteSpace(data.RequestId) || string.IsNullOrWhiteSpace(data.ToolName) ||
-                !data.Arguments.HasValue || data.Arguments.Value.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null ||
-                !allowed.Contains(data.ToolName))
+                !data.Arguments.HasValue || data.Arguments.Value.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
             {
-                Emit(new AgentProviderEvent(AgentEventKind.AgentError, "CopilotInvalidPlan"));
+                Emit(new AgentProviderEvent(AgentEventKind.AgentError, "CopilotToolRequestInvalid"));
+                Done.TrySetResult();
+                return;
+            }
+
+            if (!allowed.Contains(data.ToolName))
+            {
+                Emit(new AgentProviderEvent(AgentEventKind.AgentError, "CopilotToolNotPlanned"));
                 Done.TrySetResult();
                 return;
             }

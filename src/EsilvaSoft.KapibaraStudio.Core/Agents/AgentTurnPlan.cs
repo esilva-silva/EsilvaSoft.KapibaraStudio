@@ -33,6 +33,9 @@ public enum AgentConfirmationCategories
     /// <summary><c>propose_file_edit</c>.</summary>
     EditProposal = 8,
 
+    /// <summary>MongoDB document-value reads sent to the external agent.</summary>
+    MongoDocumentRead = 128,
+
     /// <summary>Native shell or command execution.</summary>
     NativeCommand = 16,
 
@@ -42,7 +45,7 @@ public enum AgentConfirmationCategories
     /// <summary>Native network tools.</summary>
     NativeNetwork = 64,
 
-    All = MongoMetadataRead | WorkspaceContextRead | NativeFileRead | EditProposal | NativeCommand | NativeFileWrite | NativeNetwork,
+    All = MongoMetadataRead | WorkspaceContextRead | NativeFileRead | EditProposal | NativeCommand | NativeFileWrite | NativeNetwork | MongoDocumentRead,
 }
 
 /// <summary>Why a turn cannot be sent at all.</summary>

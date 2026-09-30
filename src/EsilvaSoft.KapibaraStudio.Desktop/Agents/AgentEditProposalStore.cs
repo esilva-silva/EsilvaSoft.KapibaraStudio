@@ -88,7 +88,13 @@ public sealed class AgentEditProposalStore : IAgentEditProposalSink
 
     private readonly ConcurrentDictionary<Guid, AgentEditProposalEntry> _entries = new();
     private readonly object _mutationGate = new();
+    private readonly Action<Action> _post;
     private volatile Func<string?, string?, string?>? _currentText;
+
+    public AgentEditProposalStore() : this(AgentUiDispatch.Post) { }
+
+    internal AgentEditProposalStore(Action<Action> post) =>
+        _post = post ?? throw new ArgumentNullException(nameof(post));
 
     /// <summary>A proposal was registered (UI thread).</summary>
     public event EventHandler<AgentEditProposalEntry>? ProposalAdded;
@@ -146,7 +152,7 @@ public sealed class AgentEditProposalStore : IAgentEditProposalSink
             return new AgentEditProposalSubmission(AgentEditProposalSubmissionStatus.Rejected, "ProposalDuplicate");
         }
 
-        AgentUiDispatch.Post(() => ProposalAdded?.Invoke(this, entry));
+        _post(() => ProposalAdded?.Invoke(this, entry));
         return new AgentEditProposalSubmission(AgentEditProposalSubmissionStatus.Registered);
     }
 
@@ -194,7 +200,7 @@ public sealed class AgentEditProposalStore : IAgentEditProposalSink
             // Mutations run concurrently and queue their UI notifications after releasing the lock. The queue order can
             // therefore differ from mutation order; publish the current snapshot at dispatch time so a delayed event
             // can never move a review card back to older hunk states.
-            AgentUiDispatch.Post(() =>
+            _post(() =>
             {
                 if (_entries.TryGetValue(proposalId, out var latest)) ProposalUpdated?.Invoke(this, latest);
             });
@@ -210,7 +216,7 @@ public sealed class AgentEditProposalStore : IAgentEditProposalSink
             return false;
         }
 
-        AgentUiDispatch.Post(() => ReviewRequested?.Invoke(this, entry));
+        _post(() => ReviewRequested?.Invoke(this, entry));
         return true;
     }
 

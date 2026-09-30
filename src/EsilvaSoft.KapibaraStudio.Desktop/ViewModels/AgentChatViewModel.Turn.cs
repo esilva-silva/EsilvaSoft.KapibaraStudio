@@ -346,7 +346,7 @@ public sealed partial class AgentChatViewModel
                 if (run.Tools.TryGetValue(callId, out var finished) && !finished.IsTerminal)
                 {
                     finished.Complete(MapToolState(item), SafeCodeOrNull(item.ErrorCode), _services.Clock);
-                    if (finished.CanReviewPermissions && finished.ToolName == AgentToolRegistry.GetWorkspaceContextToolName)
+                    if (finished.CanReviewPermissions)
                     {
                         PermissionsRequested?.Invoke(this, null);
                     }

@@ -26,9 +26,47 @@ public sealed class AgentModePolicyTests
             Assert.That(permissions.KeepHistory, Is.True);
             Assert.That(permissions.DataSending.ExternalAttachments, Is.False);
             Assert.That(permissions.DataSending.InferredSchema, Is.False);
+            Assert.That(permissions.DataSending.MongoDocuments, Is.False);
             Assert.That(permissions.EditProposals.OtherWorkspaceFiles, Is.False);
             Assert.That(permissions.Workspace.Exclusions, Is.EquivalentTo([".env", "*.pem", "*.key", "**/secrets/**"]));
             Assert.That(permissions.FormatVersion, Is.EqualTo(AgentProviderPermissions.CurrentFormatVersion));
+        });
+    }
+
+    [Test]
+    public void MongoDocumentToolsRequireCopilotOptInAndAreNeverEnabledByDefault()
+    {
+        var tools = AgentProductToolNames.ReadTools.Where(AgentProductToolNames.IsCopilotDocumentRead).ToArray();
+        var permissions = Consented() with { EnabledReadTools = tools };
+        var denied = AgentModePolicy.Plan(AgentOperationMode.Agent, permissions, Windows);
+        Assert.That(denied.ProductTools.Intersect(tools), Is.Empty);
+
+        var allowed = AgentModePolicy.Plan(AgentOperationMode.Agent,
+            permissions with { ProviderId = AgentProviderIds.GitHubCopilotSubscription,
+                DataSending = permissions.DataSending with { MongoDocuments = true } }, Windows);
+        Assert.That(allowed.ProductTools, Is.SupersetOf(tools));
+
+        var otherProvider = AgentModePolicy.Plan(AgentOperationMode.Agent,
+            permissions with { DataSending = permissions.DataSending with { MongoDocuments = true } }, Windows);
+        Assert.That(otherProvider.ProductTools.Intersect(tools), Is.Empty, "The new capability is scoped to Copilot.");
+    }
+
+    [Test]
+    public void CopilotDoesNotPlanLiveCollectionSchemaSamplingWithoutDedicatedConsentUi()
+    {
+        var permissions = Consented() with
+        {
+            ProviderId = AgentProviderIds.GitHubCopilotSubscription,
+            EnabledReadTools = [AgentProductToolNames.GetCollectionSchema, AgentProductToolNames.GetCachedSchema],
+            DataSending = new AgentDataSendingPermissions { InferredSchema = true }
+        };
+
+        var plan = AgentModePolicy.Plan(AgentOperationMode.Agent, permissions, Windows);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(plan.ProductTools, Does.Not.Contain(AgentProductToolNames.GetCollectionSchema));
+            Assert.That(plan.ProductTools, Does.Contain(AgentProductToolNames.GetCachedSchema));
         });
     }
 
@@ -299,7 +337,7 @@ public sealed class AgentModePolicyTests
         yield return new TestCaseData(Consented() with { ConnectionScope = AgentConnectionScope.Selected, SelectedConnectionIds = null! })
             .SetName("SelecionadasNulas");
         yield return new TestCaseData(Consented() with { DefaultMode = (AgentOperationMode)7 }).SetName("ModoPadraoIndefinido");
-        yield return new TestCaseData(Consented() with { ConfirmationCategories = (AgentConfirmationCategories)128 })
+        yield return new TestCaseData(Consented() with { ConfirmationCategories = (AgentConfirmationCategories)256 })
             .SetName("CategoriaIndefinida");
     }
 

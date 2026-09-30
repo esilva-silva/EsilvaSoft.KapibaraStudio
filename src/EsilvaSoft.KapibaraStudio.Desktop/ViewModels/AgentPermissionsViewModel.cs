@@ -30,7 +30,10 @@ public sealed partial class AgentPermissionsViewModel : ObservableObject
         ProductToolsAvailable = productToolsAvailable;
         foreach (var connection in connections.OrderBy(static item => item.Name, StringComparer.CurrentCultureIgnoreCase))
             Connections.Add(new AgentConnectionPermissionItem(connection.Id, connection.Name, true, OnConnectionSelectionChanged));
-        foreach (var tool in AgentProductToolNames.ReadTools)
+        foreach (var tool in AgentProductToolNames.ReadTools.Where(tool =>
+                     providerId == AgentProviderIds.GitHubCopilotSubscription
+                         ? tool != AgentProductToolNames.GetCollectionSchema
+                         : !AgentProductToolNames.IsCopilotDocumentRead(tool)))
             ReadTools.Add(new AgentProductToolPermissionItem(tool, Text.Format("agentPermissionsReadTool", tool), false, OnReadToolSelectionChanged));
         _permissions = AgentProviderPermissions.Default(providerId);
         LoadTask = LoadAsync();
@@ -41,6 +44,7 @@ public sealed partial class AgentPermissionsViewModel : ObservableObject
     public Task LoadTask { get; }
     public string ProviderName { get; }
     public string WorkspacePath { get; }
+    public bool ShowMongoDocumentConsent => _providerId == AgentProviderIds.GitHubCopilotSubscription;
     public bool ProductToolsAvailable { get; }
     public string Status { get; private set; } = Text.Resolve("agentPermissionsLoading");
     public bool IsBusy { get; private set; }
@@ -68,7 +72,7 @@ public sealed partial class AgentPermissionsViewModel : ObservableObject
     public bool HasConsent => _permissions.HasExternalDestinationConsent;
     public string ConsentStatusText => Text.Resolve(HasConsent ? "agentPermissionsConsentActive" : "agentPermissionsNoConsent");
     public string ProductToolsStatus => ProductToolsAvailable
-        ? Text.Format("agentPermissionsToolsReadOnly", string.Join(", ", AgentProductToolNames.ReadTools))
+        ? Text.Format("agentPermissionsToolsReadOnly", string.Join(", ", ReadTools.Select(static tool => tool.Name)))
         : Text.Resolve("agentPermissionsToolsUnavailable");
     public string DeleteHistoryConfirmation => Text.Format("agentPermissionsConfirmDeleteHistory", ProviderName);
     public bool ActiveFile { get => _permissions.DataSending.ActiveFile; set => Change(p => p with { DataSending = p.DataSending with { ActiveFile = value } }); }
@@ -76,6 +80,7 @@ public sealed partial class AgentPermissionsViewModel : ObservableObject
     public bool ExternalAttachments { get => _permissions.DataSending.ExternalAttachments; set => Change(p => p with { DataSending = p.DataSending with { ExternalAttachments = value } }); }
     public bool TabMetadata { get => _permissions.DataSending.TabMetadata; set => Change(p => p with { DataSending = p.DataSending with { TabMetadata = value } }); }
     public bool InferredSchema { get => _permissions.DataSending.InferredSchema; set => Change(p => p with { DataSending = p.DataSending with { InferredSchema = value } }); }
+    public bool MongoDocuments { get => _permissions.DataSending.MongoDocuments; set => Change(p => p with { DataSending = p.DataSending with { MongoDocuments = value } }); }
     public bool UseWorkspace { get => _permissions.Workspace.UseFilesFolder; set => Change(p => p with { Workspace = p.Workspace with { UseFilesFolder = value } }); }
     public bool NativeFileRead { get => _permissions.NativeFileRead; set => Change(p => p with { NativeFileRead = value }); }
     public bool NativeCommandExecution { get => _permissions.NativeCommandExecution; set => Change(p => p with { NativeCommandExecution = value }); }
@@ -85,6 +90,7 @@ public sealed partial class AgentPermissionsViewModel : ObservableObject
     public bool EditOtherFiles { get => _permissions.EditProposals.OtherWorkspaceFiles; set => Change(p => p with { EditProposals = p.EditProposals with { OtherWorkspaceFiles = value } }); }
     public bool KeepHistory { get => _permissions.KeepHistory; set => Change(p => p with { KeepHistory = value }); }
     public bool ConfirmMongoReads { get => Has(AgentConfirmationCategories.MongoMetadataRead); set => Confirm(AgentConfirmationCategories.MongoMetadataRead, value); }
+    public bool ConfirmMongoDocumentReads { get => Has(AgentConfirmationCategories.MongoDocumentRead); set => Confirm(AgentConfirmationCategories.MongoDocumentRead, value); }
     public bool ConfirmWorkspaceReads { get => Has(AgentConfirmationCategories.WorkspaceContextRead); set => Confirm(AgentConfirmationCategories.WorkspaceContextRead, value); }
     public bool ConfirmNativeReads { get => Has(AgentConfirmationCategories.NativeFileRead); set => Confirm(AgentConfirmationCategories.NativeFileRead, value); }
     public bool ConfirmEdits { get => Has(AgentConfirmationCategories.EditProposal); set => Confirm(AgentConfirmationCategories.EditProposal, value); }
@@ -98,7 +104,7 @@ public sealed partial class AgentPermissionsViewModel : ObservableObject
     {
         if (!CanEdit) return;
         _permissions = update(_permissions);
-        foreach (var name in new[] { nameof(ActiveFile), nameof(WorkspaceFiles), nameof(ExternalAttachments), nameof(TabMetadata), nameof(InferredSchema), nameof(UseWorkspace), nameof(NativeFileRead), nameof(NativeCommandExecution), nameof(NativeFileWrite), nameof(NativeNetwork), nameof(EditActiveFile), nameof(EditOtherFiles), nameof(KeepHistory), nameof(ConfirmMongoReads), nameof(ConfirmWorkspaceReads), nameof(ConfirmNativeReads), nameof(ConfirmEdits), nameof(AutomaticActiveFile), nameof(AutomaticTabMetadata), nameof(HasConsent), nameof(ConsentStatusText), nameof(LimitConnections), nameof(DeleteHistoryConfirmation), nameof(CanDeleteHistory), nameof(CanSave) }) OnPropertyChanged(name);
+        foreach (var name in new[] { nameof(ActiveFile), nameof(WorkspaceFiles), nameof(ExternalAttachments), nameof(TabMetadata), nameof(InferredSchema), nameof(MongoDocuments), nameof(UseWorkspace), nameof(NativeFileRead), nameof(NativeCommandExecution), nameof(NativeFileWrite), nameof(NativeNetwork), nameof(EditActiveFile), nameof(EditOtherFiles), nameof(KeepHistory), nameof(ConfirmMongoReads), nameof(ConfirmMongoDocumentReads), nameof(ConfirmWorkspaceReads), nameof(ConfirmNativeReads), nameof(ConfirmEdits), nameof(AutomaticActiveFile), nameof(AutomaticTabMetadata), nameof(HasConsent), nameof(ConsentStatusText), nameof(LimitConnections), nameof(DeleteHistoryConfirmation), nameof(CanDeleteHistory), nameof(CanSave) }) OnPropertyChanged(name);
         NotifyCommandStates();
     }
 

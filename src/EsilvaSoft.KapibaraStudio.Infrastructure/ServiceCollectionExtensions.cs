@@ -128,6 +128,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<MongoAgentFindSource>(provider => new MongoAgentFindSource(
             provider.GetRequiredService<IConnectionSecretStore>(), provider.GetService<IEnvironmentVaultRepository>(),
             provider.GetRequiredService<MongoClientPool>()));
+        services.AddSingleton<MongoAgentExplainSource>(provider => new MongoAgentExplainSource(
+            provider.GetRequiredService<IConnectionSecretStore>(), provider.GetService<IEnvironmentVaultRepository>(),
+            provider.GetRequiredService<MongoClientPool>()));
         services.AddSingleton<IAgentSchemaSamplingConsentProvider, FailClosedAgentSchemaSamplingConsentProvider>();
         // The runtime host below uses options.Runtime; the same instance is registered, once, so the provider adapters
         // check their tool-result wait against exactly that budget (they refuse an ambiguous second registration).
@@ -138,7 +141,8 @@ public static class ServiceCollectionExtensions
         // coordinator -> prompt -> runtime -> registry -> coordinator; the coordinator uses the runtime's approval
         // window, so an unanswered request is audited as Expired, not Rejected. It is the registry's approval authority
         // and the chat's trusted approval-details source. Writes stay closed: no IAgentMongoWriteSource is composed
-        // (MongoAgentWriteSource is not registered) and the stage stops at LiteralQueries, so no write tool is exposed.
+        // (MongoAgentWriteSource is not registered); even though the Copilot-only stage includes DerivedReads, no
+        // write tool can be exposed through this composition.
         // Premise relied on by the runtime (a write that never reached its approval had no ticket, so it is reported as
         // not sent) and by the interaction authority: registry, coordinator, bridge and runtime are these singletons.
         // Any composition that swaps one of them must swap them together.
@@ -160,7 +164,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IAgentNativeChatTurnScopes, AgentNativeChatTurnScopeRegistry>();
         services.AddSingleton<IAgentToolRegistry>(provider =>
         {
-            var literalQueries = options.ToolExposureStage >= AgentToolExposureStage.LiteralQueries
+            var copilotDerivedReads = options.CopilotToolExposureStage >= AgentToolExposureStage.DerivedReads;
+            var literalQueries = Math.Max(Math.Max((int)options.ToolExposureStage,
+                (int)options.InProcessToolExposureStage), (int)options.CopilotToolExposureStage) >= (int)AgentToolExposureStage.LiteralQueries
                 ? provider.GetRequiredService<MongoAgentFindSource>()
                 : null;
             var sessionTools = new AgentSessionToolPorts(provider.GetRequiredService<IAgentMcpSessionScopes>())
@@ -183,6 +189,8 @@ public static class ServiceCollectionExtensions
                 schemaSamplingConsent: provider.GetRequiredService<IAgentSchemaSamplingConsentProvider>(),
                 find: literalQueries,
                 count: literalQueries,
+                distinct: copilotDerivedReads ? literalQueries : null,
+                explain: copilotDerivedReads ? provider.GetRequiredService<MongoAgentExplainSource>() : null,
                 indexes: options.ToolExposureStage >= AgentToolExposureStage.Metadata
                     ? provider.GetRequiredService<MongoAgentIndexSource>()
                     : null,
@@ -191,7 +199,8 @@ public static class ServiceCollectionExtensions
                 write: null,
                 writeApprovals: provider.GetRequiredService<IAgentWriteApprovalAuthority>(),
                 sessionTools: sessionTools,
-                inProcessExposure: AgentToolExposure.Through(options.InProcessToolExposureStage));
+                inProcessExposure: AgentToolExposure.Through(options.InProcessToolExposureStage),
+                copilotExposure: AgentToolExposure.Through(options.CopilotToolExposureStage));
         });
         services.AddSingleton<AgentMcpChannelProvisioner>(provider => new AgentMcpChannelProvisioner(
             provider.GetRequiredService<IAgentToolRegistry>(), provider.GetRequiredService<IAgentPrincipalAuthority>(),

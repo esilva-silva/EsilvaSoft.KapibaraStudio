@@ -15,6 +15,7 @@
             <CheckBox Content="{local:Loc Key=agentPermissionsSendWorkspace}" IsChecked="{Binding WorkspaceFiles}"/>
             <CheckBox Content="{local:Loc Key=agentPermissionsSendMetadata}" IsChecked="{Binding TabMetadata}"/>
             <CheckBox Content="{local:Loc Key=agentPermissionsSendSchema}" IsChecked="{Binding InferredSchema}"/>
+            <CheckBox Content="{local:Loc Key=agentPermissionsSendMongoDocuments}" IsChecked="{Binding MongoDocuments}" IsVisible="{Binding ShowMongoDocumentConsent}"/>
             <CheckBox Content="{local:Loc Key=agentPermissionsExternalAttachments}" IsChecked="{Binding ExternalAttachments}"/>
           </StackPanel>
         </Border>
@@ -67,6 +68,7 @@
           <StackPanel Spacing="6">
             <TextBlock Text="{local:Loc Key=agentPermissionsConfirmSection}" FontWeight="SemiBold"/>
             <CheckBox Content="{local:Loc Key=agentPermissionsConfirmMongo}" IsChecked="{Binding ConfirmMongoReads}"/>
+            <CheckBox Content="{local:Loc Key=agentPermissionsConfirmMongoDocuments}" IsChecked="{Binding ConfirmMongoDocumentReads}" IsVisible="{Binding ShowMongoDocumentConsent}"/>
             <CheckBox Content="{local:Loc Key=agentPermissionsConfirmWorkspace}" IsChecked="{Binding ConfirmWorkspaceReads}"/>
             <CheckBox Content="{local:Loc Key=agentPermissionsConfirmFile}" IsChecked="{Binding ConfirmNativeReads}"/>
             <CheckBox Content="{local:Loc Key=agentPermissionsConfirmEdit}" IsChecked="{Binding ConfirmEdits}"/>

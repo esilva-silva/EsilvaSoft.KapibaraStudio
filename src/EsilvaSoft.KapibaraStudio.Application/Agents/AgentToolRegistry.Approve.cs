@@ -140,15 +140,111 @@ public sealed partial class AgentToolRegistry
     }
 
     /// <summary>
+    /// Prompts for the specific internal Copilot registry invocation before it can read data. This path intentionally
+    /// does not create a session grant: only an explicit ApprovedOnce response is accepted.
+    /// </summary>
+    private async Task<AgentToolInvocationResult?> ConfirmInternalCopilotToolAsync(AgentPrincipal? principal,
+        AgentInvocationContext? context, AgentOutputDestination? destination, string? toolName, string? argumentsJson,
+        CancellationToken cancellationToken)
+    {
+        if (principal is not { Origin: AgentPrincipalOrigin.Internal } || context is null || destination is null ||
+            destination.Kind != AgentOutputDestinationKind.ProviderExternal ||
+            destination.ProviderId != AgentProviderIds.GitHubCopilotSubscription ||
+            !string.Equals(context.ProviderId, AgentProviderIds.GitHubCopilotSubscription, StringComparison.Ordinal) ||
+            context.SessionId is not { } sessionId || context.TurnId is not { } turnId ||
+            _sessionTools?.NativeChatTurnScopes?.Find(sessionId, turnId) is not { } nativeScope ||
+            !string.Equals(nativeScope.ProviderId, AgentProviderIds.GitHubCopilotSubscription, StringComparison.Ordinal) ||
+            toolName is null || toolName == ProposeFileEditToolName)
+            return null;
+
+        var plan = nativeScope.Plan;
+        var category = plan.ProductTools.Contains(toolName, StringComparer.Ordinal)
+            ? AgentProductToolNames.CategoryOf(toolName) : AgentConfirmationCategories.None;
+        if (category == AgentConfirmationCategories.None || category == AgentConfirmationCategories.EditProposal ||
+            (plan.ConfirmationCategories & category) == 0)
+            return null;
+
+        // Do not prompt for invalid/non-object payloads, and never echo a different argument set after approval.
+        var inputHash = CanonicalInputHash(argumentsJson);
+        if (inputHash is null) return AgentToolInvocationResult.Failure(InvalidArguments);
+        var auditToolName = toolName.StartsWith(McpToolPrefix, StringComparison.Ordinal)
+            ? toolName[McpToolPrefix.Length..] : toolName;
+        var intent = CreateConfirmationIntent(principal, context, destination, auditToolName, category);
+        if (intent is null || !await TryAppendAuditAsync(intent).ConfigureAwait(false))
+            return AgentToolInvocationResult.Failure(ConfirmationUnavailable, AgentAuditDecisionReason.PolicyUnavailable);
+
+        var prompt = _sessionTools?.ConfirmationPrompt;
+        if (prompt is null)
+        {
+            await TryAppendAuditAsync(ConfirmationTerminal(intent, AgentToolConfirmationDecision.Rejected, expired: false))
+                .ConfigureAwait(false);
+            return AgentToolInvocationResult.Failure(ConfirmationUnavailable, AgentAuditDecisionReason.PolicyUnavailable);
+        }
+
+        using var window = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        window.CancelAfter(_sessionTools!.ApprovalTimeout);
+        var expired = false;
+        AgentToolConfirmationDecision decision;
+        try
+        {
+            decision = await prompt.ConfirmAsync(new AgentToolConfirmationRequest(nativeScope.ConversationId, nativeScope.ProviderId,
+                toolName, category, argumentsJson!, null), window.Token).WaitAsync(window.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            await TryAppendAuditAsync(ConfirmationTerminal(intent, AgentToolConfirmationDecision.Rejected, expired: true))
+                .ConfigureAwait(false);
+            throw;
+        }
+        catch (OperationCanceledException)
+        {
+            decision = AgentToolConfirmationDecision.Rejected;
+            expired = true;
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            decision = AgentToolConfirmationDecision.Rejected;
+            expired = true;
+        }
+
+        // Copilot can approve one invocation only. ApprovedThisSession is treated as a rejection here.
+        var approved = decision == AgentToolConfirmationDecision.ApprovedOnce &&
+            await CheckPrincipalCurrentAsync(principal, cancellationToken).ConfigureAwait(false) is null &&
+            ReferenceEquals(_sessionTools?.NativeChatTurnScopes?.Find(sessionId, turnId), nativeScope) &&
+            !nativeScope.Plan.IsBlocked && nativeScope.Plan.ProductTools.Contains(toolName, StringComparer.Ordinal) &&
+            AgentProductToolNames.CategoryOf(toolName) == category &&
+            (nativeScope.Plan.ConfirmationCategories & category) != 0;
+        var effective = approved ? AgentToolConfirmationDecision.ApprovedOnce : AgentToolConfirmationDecision.Rejected;
+        if (!await TryAppendAuditAsync(ConfirmationTerminal(intent, effective, expired: expired ||
+                decision == AgentToolConfirmationDecision.ApprovedOnce && !approved)).ConfigureAwait(false))
+            return AgentToolInvocationResult.Failure(ConfirmationUnavailable, AgentAuditDecisionReason.PolicyUnavailable);
+        if (!approved)
+        {
+            if (expired)
+                return AgentToolInvocationResult.Failure(ConfirmationExpired, AgentAuditDecisionReason.ApprovalExpired);
+            if (decision is AgentToolConfirmationDecision.Rejected or AgentToolConfirmationDecision.ApprovedThisSession)
+                return AgentToolInvocationResult.Failure(ConfirmationRejected, AgentAuditDecisionReason.ApprovalRejected);
+            return AgentToolInvocationResult.Failure(ConfirmationUnavailable, AgentAuditDecisionReason.PolicyRevisionMismatch);
+        }
+
+        if (CanonicalInputHash(argumentsJson) != inputHash)
+            return AgentToolInvocationResult.Failure(ConfirmationUnavailable, AgentAuditDecisionReason.PolicyRevisionMismatch);
+        return null;
+    }
+
+    /// <summary>
     /// Server-side confirmation: when the plan of a session principal confirms the category of <paramref name="name"/>,
     /// a valid ticket for exactly these arguments must be consumed first (one shot). Null means allowed to proceed.
     /// </summary>
     private AgentToolInvocationResult? ConsumeRequiredConfirmation(AgentPrincipal? principal, string? name,
         string? argumentsJson)
     {
-        if (principal is null || name is null || SessionScopeOf(principal) is not { Plan: { } plan } scope) return null;
+        if (principal is not { Origin: AgentPrincipalOrigin.External } || name is null ||
+            SessionScopeOf(principal) is not { Plan: { } plan } scope) return null;
         var category = AgentProductToolNames.CategoryOf(name);
-        if (category == AgentConfirmationCategories.None || (plan.ConfirmationCategories & category) == 0) return null;
+        // Edit proposals already carry their own review/apply state machine; a second permission card would be redundant.
+        if (category is AgentConfirmationCategories.None or AgentConfirmationCategories.EditProposal ||
+            (plan.ConfirmationCategories & category) == 0) return null;
         return CanonicalInputHash(argumentsJson) is { } hash && TryConsumeConfirmationTicket(principal.Id, scope.Generation, name, hash)
             ? null
             : AgentToolInvocationResult.Failure(PermissionDenied, AgentAuditDecisionReason.PermissionMissing);
@@ -251,6 +347,7 @@ public sealed partial class AgentToolRegistry
             {
                 AgentConfirmationCategories.MongoMetadataRead or AgentConfirmationCategories.WorkspaceContextRead or
                     AgentConfirmationCategories.NativeFileRead => (AgentToolRisk.ReadOnly, (AgentPermission?)AgentPermission.ReadMetadata),
+                AgentConfirmationCategories.MongoDocumentRead => (AgentToolRisk.ReadOnly, (AgentPermission?)AgentPermission.ReadDocuments),
                 AgentConfirmationCategories.EditProposal or AgentConfirmationCategories.NativeFileWrite =>
                     (AgentToolRisk.Write, (AgentPermission?)null),
                 _ => (AgentToolRisk.Administrative, (AgentPermission?)null),

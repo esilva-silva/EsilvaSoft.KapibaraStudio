@@ -57,7 +57,10 @@ public sealed class NativeChatTurnPolicyProvider : IAgentAuthorizationPolicyProv
                 AgentToolRegistry.ListCollectionsToolName, AgentToolRegistry.GetIndexesToolName]);
             var schema = tools.Contains(AgentToolRegistry.GetCachedSchemaToolName) &&
                 turn.Permissions.DataSending?.InferredSchema == true;
-            if (!metadata && !schema) continue;
+            HashSet<string> documentTools = turn.Permissions.DataSending?.MongoDocuments == true
+                ? tools.Where(IsDocumentReadTool).ToHashSet(StringComparer.Ordinal)
+                : [];
+            if (!metadata && !schema && documentTools.Count == 0) continue;
 
             var selected = turn.Permissions.ConnectionScope == AgentConnectionScope.Selected
                 ? (turn.Permissions.SelectedConnectionIds ?? []).ToHashSet() : null;
@@ -77,10 +80,26 @@ public sealed class NativeChatTurnPolicyProvider : IAgentAuthorizationPolicyProv
                 if (schema)
                     grants.Add(new AgentPermissionGrant(principalId, invocation, generation,
                         AgentPermission.ReadSchema, scope, destination, AgentOutputDataScope.Schema));
+                foreach (var permission in documentTools.SelectMany(RequiredPermissionsFor).Distinct())
+                {
+                    grants.Add(new AgentPermissionGrant(principalId, invocation, generation,
+                        permission, scope, destination, AgentOutputDataScope.DocumentValues));
+                }
             }
         }
 
         return AgentAuthorizationPolicySnapshot.Load(principalId, stored.SchemaVersion, stored.Revision,
             grants.Distinct());
     }
+
+    private static bool IsDocumentReadTool(string name) => name is
+        AgentToolRegistry.MongoFindToolName or AgentToolRegistry.MongoCountToolName or
+            AgentToolRegistry.SampleDocumentsToolName or AgentToolRegistry.MongoFindOneToolName or
+            AgentToolRegistry.GetDocumentToolName or AgentToolRegistry.MongoDistinctToolName or
+            AgentToolRegistry.MongoExplainToolName;
+
+    private static IReadOnlyList<AgentPermission> RequiredPermissionsFor(string name) =>
+        name == AgentToolRegistry.MongoExplainToolName
+            ? [AgentPermission.ReadDiagnostics, AgentPermission.ExecuteReadQueries, AgentPermission.ReadDocuments]
+            : [AgentPermission.ExecuteReadQueries, AgentPermission.ReadDocuments];
 }

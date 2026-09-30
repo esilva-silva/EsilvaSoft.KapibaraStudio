@@ -66,6 +66,22 @@ public sealed class AgentSystemPromptBuilderTests
     }
 
     [Test]
+    public void EditPromptExplainsAuthorizedActiveBufferAndEditNotApplicable()
+    {
+        var prompt = Build(AgentOperationMode.Agent);
+        Assert.Multiple(() =>
+        {
+            Assert.That(prompt, Does.Contain("target=\"active_buffer\" sem path"));
+            Assert.That(prompt, Does.Contain("conteúdo da aba ativa tiver sido autorizado e enviado como anexo"));
+            Assert.That(prompt, Does.Contain("old_text deve corresponder exatamente ao trecho do buffer redigido"));
+            Assert.That(prompt, Does.Contain("EditNotApplicable"));
+            Assert.That(prompt, Does.Contain("isso não significa que falte editor ou arquivo"));
+            Assert.That(prompt, Does.Contain("Não alegue que não há editor"));
+            Assert.That(Encoding.UTF8.GetByteCount(prompt), Is.LessThanOrEqualTo(AgentSystemPromptBuilder.MaximumUtf8Bytes));
+        });
+    }
+
+    [Test]
     public void PermissionsLineReflectsTheEffectivePlanNotTheSettings()
     {
         // Workspace files are permitted in the settings, but without a folder the policy drops the native reads.

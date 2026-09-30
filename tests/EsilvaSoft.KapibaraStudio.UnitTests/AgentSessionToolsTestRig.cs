@@ -6,6 +6,7 @@ using EsilvaSoft.KapibaraStudio.Application.SchemaLearning;
 using EsilvaSoft.KapibaraStudio.Autocomplete.Core;
 using EsilvaSoft.KapibaraStudio.Core;
 using EsilvaSoft.KapibaraStudio.Core.Agents;
+using EsilvaSoft.KapibaraStudio.Desktop.Agents;
 
 namespace EsilvaSoft.KapibaraStudio.UnitTests;
 
@@ -23,7 +24,8 @@ internal sealed class AgentSessionToolsTestRig : IDisposable
 
     public AgentSessionToolsTestRig(AgentOperationMode mode = AgentOperationMode.Agent,
         Func<AgentProviderPermissions, AgentProviderPermissions>? permissions = null, bool withConfirmationPort = true,
-        TimeSpan? approvalTimeout = null, params ConnectionProfile[] extraProfiles)
+        TimeSpan? approvalTimeout = null, IAgentEditProposalSink? proposalSink = null,
+        params ConnectionProfile[] extraProfiles)
     {
         Directory.CreateDirectory(_workspace);
         Profile = ConnectionProfile.Create("Principal", $"mongodb://svc:{UriCanary}@db.internal:27017") with
@@ -45,6 +47,7 @@ internal sealed class AgentSessionToolsTestRig : IDisposable
         BindPlan(AgentModePolicy.Plan(mode, Permissions, new AgentPlatformFacts(true, true)));
         Policies.Set(PrincipalId, 1, GrantsFor(Profile, Other));
         Confirmation = withConfirmationPort ? new FakeConfirmation() : null;
+        ProposalSink = proposalSink ?? Sink;
         Registry = new AgentToolRegistry(Profiles, Policies, new AgentPermissionEvaluator(Policies), Audit,
             metadata: Metadata, exposure: AgentToolExposure.Through(AgentToolExposureStage.Metadata),
             principalAuthority: Authority, indexes: Indexes,
@@ -54,7 +57,7 @@ internal sealed class AgentSessionToolsTestRig : IDisposable
                 LearnedSchemas = Learned,
                 WorkspaceContext = Workspace,
                 NativeChatTurnScopes = NativeChatScopes,
-                ProposalSink = Sink,
+                ProposalSink = ProposalSink,
                 ConfirmationPrompt = Confirmation,
                 ApprovalTimeout = approvalTimeout ?? TimeSpan.FromSeconds(5)
             });
@@ -80,6 +83,7 @@ internal sealed class AgentSessionToolsTestRig : IDisposable
     public FakeLearned Learned { get; } = new();
     public FakeWorkspace Workspace { get; } = new();
     public FakeSink Sink { get; } = new();
+    public IAgentEditProposalSink ProposalSink { get; }
     public FakeConfirmation? Confirmation { get; }
     public AgentToolRegistry Registry { get; }
     public string WorkspaceFolder => _workspace;

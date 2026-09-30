@@ -6,6 +6,7 @@ using EsilvaSoft.KapibaraStudio.Application.SchemaLearning;
 using EsilvaSoft.KapibaraStudio.Autocomplete.Core;
 using EsilvaSoft.KapibaraStudio.Core;
 using EsilvaSoft.KapibaraStudio.Core.Agents;
+using EsilvaSoft.KapibaraStudio.Desktop.Agents;
 
 namespace EsilvaSoft.KapibaraStudio.UnitTests;
 
@@ -126,6 +127,64 @@ public sealed class AgentSessionToolsTests
             Assert.That(missingTurn.ErrorCode, Is.EqualTo("UnknownTool"));
             Assert.That(noPlan.ErrorCode, Is.EqualTo("UnknownTool"));
             Assert.That(noTabPermission.ErrorCode, Is.EqualTo("UnknownTool"));
+        });
+    }
+
+    [Test]
+    public async Task CopilotWorkspaceContextRequiresConsentCheckboxTabMetadataAndExactTurnScope()
+    {
+        using var rig = new AgentSessionToolsTestRig();
+        var principal = new AgentPrincipal(Guid.NewGuid(), AgentPrincipalOrigin.Internal, 1);
+        var provider = AgentProviderIds.GitHubCopilotSubscription;
+        var permissions = rig.Permissions with
+        {
+            ProviderId = provider,
+            Workspace = new AgentWorkspacePermissions { UseFilesFolder = true },
+            DataSending = rig.Permissions.DataSending with { TabMetadata = true }
+        };
+        var snapshot = new AgentWorkspaceContext(DateTimeOffset.UtcNow, rig.WorkspaceFolder,
+            ConnectionId: rig.Profile.Id.ToString("D"), ConnectionName: rig.Profile.Name,
+            DatabaseName: "db-copilot", CollectionName: "collection-copilot");
+        var plan = AgentModePolicy.Plan(AgentOperationMode.Agent, permissions, new AgentPlatformFacts(true, true))
+            with { AllowedConnectionIds = [rig.Profile.Id] };
+
+        async Task<AgentToolInvocationResult> Invoke(AgentProviderPermissions currentPermissions, AgentTurnPlan currentPlan,
+            string? contextProvider = null, Guid? invocationTurn = null)
+        {
+            var session = Guid.NewGuid();
+            var turn = Guid.NewGuid();
+            rig.NativeChatScopes.Register(new AgentNativeChatTurnScope(session, turn, provider, currentPlan,
+                currentPermissions, snapshot));
+            return await rig.Registry.InvokeAsync(principal,
+                new AgentInvocationContext(contextProvider ?? provider, null, session, invocationTurn ?? turn),
+                AgentOutputDestination.ProviderExternal(contextProvider ?? provider),
+                AgentToolOutputScopes.For("get_workspace_context"), "get_workspace_context", "{}");
+        }
+
+        var allowed = await Invoke(permissions, plan);
+        var noCheckbox = await Invoke(permissions with
+        {
+            EnabledReadTools = permissions.EnabledReadTools.Where(name => name != "get_workspace_context").ToArray()
+        }, plan);
+        var noTabConsent = await Invoke(permissions with
+        {
+            DataSending = permissions.DataSending with { TabMetadata = false }
+        }, plan);
+        var noExternalConsent = await Invoke(permissions with { ExternalDestinationConsentAt = null },
+            AgentModePolicy.Plan(AgentOperationMode.Agent, permissions with { ExternalDestinationConsentAt = null },
+                new AgentPlatformFacts(true, true)));
+        var wrongTurn = await Invoke(permissions, plan, invocationTurn: Guid.NewGuid());
+        var wrongProvider = await Invoke(permissions, plan, contextProvider: "other-provider");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(allowed.Succeeded, Is.True, allowed.ErrorCode);
+            Assert.That(allowed.StructuredContentJson, Does.Contain("db-copilot"));
+            Assert.That(noCheckbox.ErrorCode, Is.EqualTo("UnknownTool"));
+            Assert.That(noTabConsent.ErrorCode, Is.EqualTo("UnknownTool"));
+            Assert.That(noExternalConsent.ErrorCode, Is.EqualTo("UnknownTool"));
+            Assert.That(wrongTurn.ErrorCode, Is.EqualTo("UnknownTool"));
+            Assert.That(wrongProvider.ErrorCode, Is.EqualTo("UnknownTool"));
         });
     }
 
@@ -456,6 +515,36 @@ public sealed class AgentSessionToolsTests
             Assert.That(proposal.OriginalText, Is.EqualTo("db.a.find()\r\ndb.b.find()\r\n"), "Base é o buffer, não o disco.");
             Assert.That(proposal.ProposedText, Is.EqualTo("db.a.find({})\r\ndb.b.find()\r\n"));
             Assert.That(File.ReadAllText(file), Is.EqualTo("disco\r\n"));
+        });
+    }
+
+    [Test]
+    public async Task ProductRegistryRegistersProposalInProductionDesktopStoreWithoutApplyingIt()
+    {
+        var store = new AgentEditProposalStore();
+        using var rig = new AgentSessionToolsTestRig(proposalSink: store);
+        const string original = "db.syntheticItems.find({}).limit(10);\n";
+        var file = rig.WriteFile("consulta-sintetica.js", original);
+        var writeTime = File.GetLastWriteTimeUtc(file);
+
+        var result = await rig.CallAsync("propose_file_edit", new
+        {
+            path = file,
+            edits = new[] { new { old_text = ".limit(10)", new_text = ".limit(5)" } }
+        });
+
+        using var receipt = JsonDocument.Parse(result.StructuredContentJson!);
+        var proposalId = receipt.RootElement.GetProperty("proposalId").GetGuid();
+        Assert.That(result.Succeeded, Is.True, result.ErrorCode);
+        Assert.That(store.TryGet(proposalId, out var entry), Is.True);
+        Assert.Multiple(() =>
+        {
+            Assert.That(entry.Proposal.TargetPath, Is.EqualTo(Path.GetFullPath(file)));
+            Assert.That(entry.Proposal.OriginalText, Is.EqualTo(original));
+            Assert.That(entry.Proposal.ProposedText, Is.EqualTo("db.syntheticItems.find({}).limit(5);\n"));
+            Assert.That(entry.Status, Is.EqualTo(AgentEditProposalStatus.Registered), "Registration must wait for explicit review.");
+            Assert.That(File.ReadAllText(file), Is.EqualTo(original), "The production proposal store never writes to disk.");
+            Assert.That(File.GetLastWriteTimeUtc(file), Is.EqualTo(writeTime));
         });
     }
 

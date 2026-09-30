@@ -13,6 +13,14 @@ public static class AgentProductToolNames
     public const string ListDatabases = AgentToolRegistry.ListDatabasesToolName;
     public const string ListCollections = AgentToolRegistry.ListCollectionsToolName;
     public const string GetIndexes = AgentToolRegistry.GetIndexesToolName;
+    public const string GetCollectionSchema = AgentToolRegistry.GetCollectionSchemaToolName;
+    public const string MongoFind = AgentToolRegistry.MongoFindToolName;
+    public const string MongoCount = AgentToolRegistry.MongoCountToolName;
+    public const string SampleDocuments = AgentToolRegistry.SampleDocumentsToolName;
+    public const string MongoFindOne = AgentToolRegistry.MongoFindOneToolName;
+    public const string GetDocument = AgentToolRegistry.GetDocumentToolName;
+    public const string MongoDistinct = AgentToolRegistry.MongoDistinctToolName;
+    public const string MongoExplain = AgentToolRegistry.MongoExplainToolName;
 
     /// <summary>Reads the autocomplete schema cache only; never samples the database.</summary>
     public const string GetCachedSchema = "get_cached_schema";
@@ -34,7 +42,12 @@ public static class AgentProductToolNames
 
     /// <summary>Product read tools in a stable order.</summary>
     public static IReadOnlyList<string> ReadTools { get; } =
-        [ListConnections, ListDatabases, ListCollections, GetIndexes, GetCachedSchema, GetWorkspaceContext];
+        [ListConnections, ListDatabases, ListCollections, GetIndexes, GetCachedSchema, GetWorkspaceContext,
+            MongoFind, MongoCount, SampleDocuments, MongoFindOne, GetDocument, MongoDistinct, MongoExplain];
+
+    /// <summary>Document-value query tools are exposed only to Copilot with a separate data-sending opt-in.</summary>
+    public static bool IsCopilotDocumentRead(string toolName) => toolName is
+        MongoFind or MongoCount or SampleDocuments or MongoFindOne or GetDocument or MongoDistinct or MongoExplain;
 
     /// <summary>Provider-native file read tools (Claude Code), in a stable order.</summary>
     public static IReadOnlyList<string> NativeFileReadTools { get; } = [NativeRead, NativeGlob, NativeGrep];
@@ -46,6 +59,7 @@ public static class AgentProductToolNames
     /// <summary>Confirmation category of a product tool; <see cref="AgentConfirmationCategories.None"/> for unknown names.</summary>
     public static AgentConfirmationCategories CategoryOf(string toolName) => toolName switch
     {
+        var name when IsCopilotDocumentRead(name) => AgentConfirmationCategories.MongoDocumentRead,
         ListConnections or ListDatabases or ListCollections or GetIndexes or GetCachedSchema =>
             AgentConfirmationCategories.MongoMetadataRead,
         GetWorkspaceContext => AgentConfirmationCategories.WorkspaceContextRead,

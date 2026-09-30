@@ -125,8 +125,8 @@ public partial class App : Avalonia.Application
         services.AddSingleton<IAgentToolConfirmationPrompt>(provider => provider.GetRequiredService<DesktopAgentToolConfirmationPrompt>());
         services.AddSingleton<AgentProviderAvailabilityService>();
         // Resolved only when the user first opens the AI Agent panel. Approval details come from the write approval
-        // coordinator composed by the infrastructure (the trusted source of pending registry proposals); no write tool
-        // is exposed yet, so in practice no approval is ever requested until lote 10 releases a write source.
+        // coordinator composed by the infrastructure. This is separate from DesktopAgentToolConfirmationPrompt,
+        // which handles one-call confirmations for Copilot's read tools and workspace context.
         services.AddSingleton(provider => new AgentChatServicesFactory(() => new AgentChatServices(
             provider.GetRequiredService<IAgentRuntime>(),
             provider.GetRequiredService<IAgentProviderCatalog>(),
