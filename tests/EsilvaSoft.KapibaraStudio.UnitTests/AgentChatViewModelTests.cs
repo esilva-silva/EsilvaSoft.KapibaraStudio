@@ -94,6 +94,94 @@ public sealed class AgentChatViewModelTests
     }
 
     [Test]
+    public async Task RestoredConversationKeepsSavedModelUntilAutomaticAccountCatalogFinishes()
+    {
+        await RunOnUiAsync(async () =>
+        {
+            var providerId = "restored-cli";
+            var conversationId = Guid.NewGuid();
+            const string savedModel = "model-from-session";
+            var accountGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var accounts = new StartupAccountManager(providerId, accountGate.Task);
+            var initial = new AgentProviderPresentation(providerId, "CLI de teste", AgentDataDestinationKind.External,
+                false, [], [AgentAuthenticationMethod.OfficialCliDelegated], AgentProviderAuthState.Unknown,
+                UnavailableReason: "StatusNotReported");
+            var catalog = new MutableAgentCatalog(initial)
+            {
+                OnRefresh = _ => initial with
+                {
+                    IsAvailable = true,
+                    Models = [savedModel, "model-current"],
+                    AuthState = AgentProviderAuthState.Configured,
+                    UnavailableReason = null,
+                },
+            };
+            var availability = new AgentProviderAvailabilityService(catalog, accounts: accounts);
+            var conversation = new AgentConversation(conversationId, providerId, "Conversa salva", savedModel,
+                AgentOperationMode.Agent, null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, 1, []);
+            var repo = new RestoredConversationRepository(conversation);
+            await using var runtime = new AgentRuntime([new ScriptedAgentProvider(providerId)], new AllowingInteractionAuthority());
+            var services = new AgentChatServices(runtime, catalog, new FakeAgentContextProvider(), AccountManager: accounts)
+            {
+                Availability = availability,
+                Conversations = repo,
+                Permissions = new FakeAgentPermissionsRepository([AgentProviderPermissions.Default(providerId)]),
+            };
+            await using var chat = new AgentChatViewModel(services, new AgentChatTabFixture().Capture,
+                new AgentPanelPreferences { SelectedProviderId = providerId, SelectedModelId = savedModel, ActiveConversationId = conversationId });
+
+            await accounts.CheckEntered.Task;
+            Assert.Multiple(() =>
+            {
+                Assert.That(chat.SelectedModel, Is.EqualTo(savedModel));
+                Assert.That(chat.ActiveConversation.ModelId, Is.EqualTo(savedModel));
+                Assert.That(chat.Models, Does.Contain(savedModel), "A pending restored selection remains represented during discovery.");
+            });
+
+            accountGate.SetResult();
+            await chat.Initialization;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(chat.SelectedModel, Is.EqualTo(savedModel));
+                Assert.That(chat.ActiveConversation.ModelId, Is.EqualTo(savedModel));
+                Assert.That(chat.Models, Does.Contain(savedModel));
+            });
+        });
+    }
+
+    private sealed class StartupAccountManager(string providerId, Task gate) : IAgentAccountManager
+    {
+        public TaskCompletionSource CheckEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public AgentAccountCheckPolicy DescribeCheckPolicy(string candidate) => candidate == providerId
+            ? new AgentAccountCheckPolicy(true, false)
+            : AgentAccountCheckPolicy.Unsupported;
+        public async Task<AgentAccountStatus> CheckAsync(string candidate, CancellationToken token)
+        {
+            CheckEntered.SetResult();
+            await gate.WaitAsync(token);
+            return new AgentAccountStatus(AgentAccountInstallState.Installed, null, AgentAccountAuthState.Subscription);
+        }
+        public Task<AgentAccountCommandResult> SignInAsync(string candidate, CancellationToken token) => throw new NotSupportedException();
+        public Task<AgentAccountCommandResult> SignOutAsync(string candidate, bool confirmed, CancellationToken token) => throw new NotSupportedException();
+    }
+
+    private sealed class RestoredConversationRepository(AgentConversation conversation) : IAgentConversationRepository
+    {
+        public Task<AgentPersistenceResult<IReadOnlyList<AgentConversationSummary>>> ListAsync(string? providerId, CancellationToken token) =>
+            Task.FromResult(AgentPersistenceResult.Success<IReadOnlyList<AgentConversationSummary>>([]));
+        public Task<AgentPersistenceResult<AgentConversation>> GetAsync(Guid id, CancellationToken token) =>
+            Task.FromResult(id == conversation.Id ? AgentPersistenceResult.Success(conversation) :
+                AgentPersistenceResult.Failure<AgentConversation>(AgentPersistenceStatus.NotFound));
+        public Task<AgentPersistenceResult<AgentConversation>> SaveAsync(AgentConversation value, long expectedRevision, CancellationToken token) =>
+            Task.FromResult(AgentPersistenceResult.Success(value));
+        public Task<AgentPersistenceOutcome> DeleteAsync(Guid id, long? revision, CancellationToken token) =>
+            Task.FromResult(AgentPersistenceOutcome.Success);
+        public Task<AgentPersistenceResult<int>> DeleteAllAsync(string? providerId, CancellationToken token) =>
+            Task.FromResult(AgentPersistenceResult.Success(0));
+    }
+
+    [Test]
     public async Task DirectSendCapturesTheActiveTabBeforeTheFirstAwait()
     {
         await RunOnUiAsync(async () =>

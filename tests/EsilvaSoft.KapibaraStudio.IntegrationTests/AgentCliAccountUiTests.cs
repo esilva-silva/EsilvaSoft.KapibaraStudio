@@ -212,7 +212,7 @@ public sealed class AgentCliAccountUiTests
                 await context.Repository.SaveAsync(profile);
                 var vm = new WorkspaceViewModel(context.Workspace, context.Repository,
                     agentChat: new AgentChatServicesFactory(() =>
-                        new AgentChatServices(runtime, catalog, new FakeAgentContextProvider(), CliAccounts: accounts)));
+                        new AgentChatServices(runtime, catalog, new FakeAgentContextProvider(), AccountManager: accounts)));
                 var window = new MainWindow { DataContext = vm, Width = 1366, Height = 768 };
                 window.Show();
                 await window.InitializationTask;
@@ -270,7 +270,7 @@ public sealed class AgentCliAccountUiTests
             var accounts = new FakeCliAccountManager { WorkspaceDirectory = SyntheticWorkspace };
             var catalog = new MutableAgentCatalog(MutableAgentCatalog.Subscription(), MutableAgentCatalog.Api());
             var tab = new AgentChatTabFixture { WorkspaceFolder = SyntheticWorkspace };
-            var chat = new AgentChatViewModel(new AgentChatServices(runtime, catalog, new FakeAgentContextProvider(), CliAccounts: accounts)
+            var chat = new AgentChatViewModel(new AgentChatServices(runtime, catalog, new FakeAgentContextProvider(), AccountManager: accounts)
             {
                 Permissions = new FakeAgentPermissionsRepository(AgentProviderPermissions.Default(FakeCliAccountManager.ProviderId) with
                 {
@@ -407,19 +407,19 @@ public sealed class AgentCliAccountUiTests
         var catalog = new MutableAgentCatalog(subscriptionProvider, MutableAgentCatalog.Api());
         accounts.Status = state switch
         {
-            "not-found" => new AgentCliAccountStatus(AgentCliInstallState.NotFound, null, AgentCliAuthState.NotChecked),
-            "unsupported" => new AgentCliAccountStatus(AgentCliInstallState.UnsupportedExecutable, null, AgentCliAuthState.NotChecked),
-            "version-low" => new AgentCliAccountStatus(AgentCliInstallState.VersionTooLow, "2.0.14", AgentCliAuthState.NotChecked,
+            "not-found" => new AgentAccountStatus(AgentAccountInstallState.NotFound, null, AgentAccountAuthState.NotChecked),
+            "unsupported" => new AgentAccountStatus(AgentAccountInstallState.UnsupportedExecutable, null, AgentAccountAuthState.NotChecked),
+            "version-low" => new AgentAccountStatus(AgentAccountInstallState.VersionTooLow, "2.0.14", AgentAccountAuthState.NotChecked,
                 ExecutablePath: FakeCliAccountManager.FakeExecutablePath),
-            "subscription" when copilot => new AgentCliAccountStatus(AgentCliInstallState.Installed, "1.0.85",
-                AgentCliAuthState.Subscription),
+            "subscription" when copilot => new AgentAccountStatus(AgentAccountInstallState.Installed, "1.0.85",
+                AgentAccountAuthState.Subscription),
             "subscription" => FakeCliAccountManager.Subscription(),
             "blocked" => FakeCliAccountManager.BlockedByApiKey(),
             _ => FakeCliAccountManager.SignedOut(),
         };
         if (state == "no-terminal")
         {
-            accounts.SignInResult = new AgentCliCommandResult(AgentCliCommandOutcome.NoVisibleTerminal, null);
+            accounts.SignInResult = new AgentAccountCommandResult(AgentAccountCommandOutcome.NoVisibleTerminal, null);
         }
 
         var settings = new AgentSettingsViewModel(catalog, new RecordingCredentialSetup(), FakeCliAccountManager.ProviderId, accounts);

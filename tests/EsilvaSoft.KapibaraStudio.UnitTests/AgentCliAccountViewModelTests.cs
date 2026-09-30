@@ -1,5 +1,6 @@
 using System.Reflection;
 using Avalonia.Headless;
+using EsilvaSoft.KapibaraStudio.Application.Agents;
 using EsilvaSoft.KapibaraStudio.Core.Agents;
 using EsilvaSoft.KapibaraStudio.Desktop.Agents;
 using EsilvaSoft.KapibaraStudio.Desktop.ViewModels;
@@ -35,7 +36,7 @@ public sealed class AgentCliAccountViewModelTests
     }
 
     private static AgentSettingsViewModel Settings(MutableAgentCatalog catalog, FakeCliAccountManager accounts) =>
-        new(catalog, new RecordingCredentialSetup(), FakeCliAccountManager.ProviderId, accounts);
+        new(catalog, new RecordingCredentialSetup(), FakeCliAccountManager.ProviderId, accounts, accounts);
 
     private static FakeAgentPermissionsRepository ConsentedPermissions() => new(
         AgentProviderPermissions.Default(FakeCliAccountManager.ProviderId) with
@@ -97,16 +98,16 @@ public sealed class AgentCliAccountViewModelTests
             var catalog = new MutableAgentCatalog(MutableAgentCatalog.Subscription(false, AgentProviderAuthState.Unknown, "ExecutableNotFound"));
             var accounts = new FakeCliAccountManager();
             using var settings = Settings(catalog, accounts);
-            (AgentCliInstallState State, string Expected)[] cases =
+            (AgentAccountInstallState State, string Expected)[] cases =
             [
-                (AgentCliInstallState.NotFound, "não encontrado"),
-                (AgentCliInstallState.UnsupportedExecutable, "executável nativo"),
-                (AgentCliInstallState.VersionTooLow, "Versão incompatível"),
-                (AgentCliInstallState.TimedOut, "não respondeu"),
+                (AgentAccountInstallState.NotFound, "não encontrado"),
+                (AgentAccountInstallState.UnsupportedExecutable, "executável nativo"),
+                (AgentAccountInstallState.VersionTooLow, "Versão incompatível"),
+                (AgentAccountInstallState.TimedOut, "não respondeu"),
             ];
             foreach (var (state, expected) in cases)
             {
-                accounts.Status = new AgentCliAccountStatus(state, state == AgentCliInstallState.VersionTooLow ? "2.0.1" : null, AgentCliAuthState.NotChecked);
+                accounts.Status = new AgentAccountStatus(state, state == AgentAccountInstallState.VersionTooLow ? "2.0.1" : null, AgentAccountAuthState.NotChecked);
                 await settings.TestConnectionCommand.ExecuteAsync(null);
                 Assert.Multiple(() =>
                 {
@@ -122,6 +123,30 @@ public sealed class AgentCliAccountViewModelTests
             Assert.That(catalog.ProviderRefreshes, Is.All.EqualTo(FakeCliAccountManager.ProviderId), "Só o provider testado é reverificado.");
             Assert.That(catalog.FullRefreshes, Is.Zero, "Testar um provider não lê o cofre dos demais.");
             Assert.That(accounts.SignIns + accounts.SignOuts, Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task TestConnectionUsesTheSharedForcedInitializationFlight()
+    {
+        await RunOnUiAsync(async () =>
+        {
+            var catalog = new MutableAgentCatalog(MutableAgentCatalog.Subscription());
+            var accounts = new FakeCliAccountManager { Status = FakeCliAccountManager.Subscription() };
+            var availability = new AgentProviderAvailabilityService(catalog, accounts: accounts);
+            using var settings = new AgentSettingsViewModel(catalog, new RecordingCredentialSetup(),
+                FakeCliAccountManager.ProviderId, accounts, accounts, availability);
+
+            await settings.TestConnectionCommand.ExecuteAsync(null);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(accounts.Checks, Is.EqualTo(1));
+                Assert.That(catalog.ProviderRefreshes, Is.EqualTo(new[] { FakeCliAccountManager.ProviderId }));
+                Assert.That(settings.CliStatus?.Auth, Is.EqualTo(AgentAccountAuthState.Subscription));
+                Assert.That(settings.IsCliSignedIn, Is.True);
+                Assert.That(settings.IsStatusError, Is.False);
+            });
         });
     }
 
@@ -251,7 +276,7 @@ public sealed class AgentCliAccountViewModelTests
             var accounts = new FakeCliAccountManager
             {
                 Status = FakeCliAccountManager.SignedOut(),
-                SignInResult = new AgentCliCommandResult(AgentCliCommandOutcome.NoVisibleTerminal, null),
+                SignInResult = new AgentAccountCommandResult(AgentAccountCommandOutcome.NoVisibleTerminal, null),
             };
             using var settings = Settings(catalog, accounts);
             await settings.TestConnectionCommand.ExecuteAsync(null);
@@ -297,7 +322,7 @@ public sealed class AgentCliAccountViewModelTests
             var accounts = new FakeCliAccountManager();
             var tab = new AgentChatTabFixture();
             await using var chat = new AgentChatViewModel(
-                new AgentChatServices(runtime, catalog, new FakeAgentContextProvider(), CliAccounts: accounts), tab.Capture);
+                new AgentChatServices(runtime, catalog, new FakeAgentContextProvider(), AccountManager: accounts), tab.Capture);
             chat.SelectedProvider = chat.Providers.Single(p => p.ProviderId == FakeCliAccountManager.ProviderId);
             chat.ComposerText = "resuma a coleção";
 
@@ -337,7 +362,7 @@ public sealed class AgentCliAccountViewModelTests
             var folderB = SyntheticPaths.Combine("workspace-b");
             var tab = new AgentChatTabFixture { WorkspaceFolder = folderA };
             await using var chat = new AgentChatViewModel(
-                new AgentChatServices(runtime, catalog, new FakeAgentContextProvider(), CliAccounts: new FakeCliAccountManager())
+                new AgentChatServices(runtime, catalog, new FakeAgentContextProvider(), AccountManager: new FakeCliAccountManager())
                 {
                     Permissions = ConsentedPermissions(),
                 }, tab.Capture);
@@ -380,7 +405,7 @@ public sealed class AgentCliAccountViewModelTests
             var tab = new AgentChatTabFixture();
             await using var chat = new AgentChatViewModel(new AgentChatServices(runtime,
                 new MutableAgentCatalog(MutableAgentCatalog.Subscription()), new FakeAgentContextProvider(),
-                CliAccounts: new FakeCliAccountManager()) { Permissions = ConsentedPermissions() }, tab.Capture);
+                AccountManager: new FakeCliAccountManager()) { Permissions = ConsentedPermissions() }, tab.Capture);
             await chat.Initialization;
             chat.ComposerText = "oi";
             _ = chat.SendCommand.ExecuteAsync(null);
@@ -421,7 +446,7 @@ public sealed class AgentCliAccountViewModelTests
             var runtime = new ChannelAgentRuntime();
             var tab = new AgentChatTabFixture { WorkspaceFolder = folder };
             await using var chat = new AgentChatViewModel(new AgentChatServices(runtime,
-                new MutableAgentCatalog(MutableAgentCatalog.Subscription()), new FakeAgentContextProvider(), CliAccounts: accounts),
+                new MutableAgentCatalog(MutableAgentCatalog.Subscription()), new FakeAgentContextProvider(), AccountManager: accounts),
                 tab.Capture);
             chat.ComposerText = "leia";
             Assert.Multiple(() =>
@@ -457,7 +482,7 @@ public sealed class AgentCliAccountViewModelTests
             var catalog = new MutableAgentCatalog(MutableAgentCatalog.Subscription(false, AgentProviderAuthState.NotConfigured, "NotLoggedIn"));
             var tab = new AgentChatTabFixture();
             await using var chat = new AgentChatViewModel(
-                new AgentChatServices(new ChannelAgentRuntime(), catalog, new FakeAgentContextProvider(), CliAccounts: new FakeCliAccountManager()),
+                new AgentChatServices(new ChannelAgentRuntime(), catalog, new FakeAgentContextProvider(), AccountManager: new FakeCliAccountManager()),
                 tab.Capture);
             Assert.That(chat.State, Is.EqualTo(AgentChatState.NotAuthenticated));
             Assert.That(chat.StatusText, Does.Contain("não está conectado").And.Contain("CLI oficial").And.Not.Contain("chave de API"));

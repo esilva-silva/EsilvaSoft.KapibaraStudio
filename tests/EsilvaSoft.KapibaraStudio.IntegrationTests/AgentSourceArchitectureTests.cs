@@ -5,7 +5,7 @@ namespace EsilvaSoft.KapibaraStudio.IntegrationTests;
 public sealed class AgentSourceArchitectureTests
 {
     [Test]
-    public void DesktopProductionSourceOnlyMentionsProviderSdksInsideAppAxamlCs()
+    public void DesktopProductionSourceOnlyMentionsProviderSdksInsideAppCompositionFiles()
     {
         // Closes the gap reflection cannot see: a method-body-only call (e.g. calling an extension method inside a
         // type whose own signatures never name the SDK). Comment-only lines are skipped so this stays a check of
@@ -17,8 +17,13 @@ public sealed class AgentSourceArchitectureTests
             "AddKapibaraStudioOpenAiAgentProvider", "AddKapibaraStudioClaudeAgentProvider",
             "using OpenAI", "using Anthropic", "using ModelContextProtocol",
         ];
+        string[] appCompositionFiles =
+        [
+            "App.axaml.cs", "App.AgentAccountOperations.cs", "App.ClaudeCodeAccountHandler.cs",
+            "App.CopilotAccountHandler.cs", "App.CodexAccountHandler.cs",
+        ];
         var offenders = DesktopProductionSourceFiles()
-            .Where(file => !Path.GetFileName(file).Equals("App.axaml.cs", StringComparison.Ordinal))
+            .Where(file => !appCompositionFiles.Contains(Path.GetFileName(file), StringComparer.Ordinal))
             .SelectMany(file => File.ReadLines(file).Select((line, index) => (file, line, number: index + 1)))
             .Where(entry => !entry.line.TrimStart().StartsWith("//", StringComparison.Ordinal))
             .SelectMany(entry => forbiddenTokens.Where(token => entry.line.Contains(token, StringComparison.Ordinal))

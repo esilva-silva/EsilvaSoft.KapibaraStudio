@@ -1,89 +1,5 @@
 namespace EsilvaSoft.KapibaraStudio.Desktop.Agents;
 
-// Presentation ports for providers whose account belongs to an official CLI installed by the user
-// (AgentAuthenticationMethod.OfficialCliDelegated; P7-CL5-02, 25/09/2026). ViewModels only see these neutral types:
-// the composition root (App.axaml.cs) adapts the concrete provider, so no ViewModel or View names a provider brand.
-// Nothing here carries a credential, e-mail, organization, token or process output: only states, a version, the
-// subscription tier token and the *names* of variables/sources that block the subscription mode.
-
-/// <summary>Installation of the official CLI, as detected on explicit request.</summary>
-public enum AgentCliInstallState
-{
-    Installed,
-    NotFound,
-
-    /// <summary>Only a shim/script was found (e.g. <c>.cmd</c>/<c>.ps1</c>); the native executable is required.</summary>
-    UnsupportedExecutable,
-
-    VersionTooLow,
-    VersionUnreadable,
-    TimedOut,
-    CheckFailed,
-}
-
-/// <summary>Effective authentication method reported by the CLI. Only <see cref="Subscription"/> allows sending.</summary>
-public enum AgentCliAuthState
-{
-    /// <summary>Not queried (the CLI is not usable or the check has not run).</summary>
-    NotChecked,
-
-    Subscription,
-    SignedOut,
-
-    /// <summary>An API key (e.g. from the environment) is in effect: billing would be per API use. Blocked.</summary>
-    ApiKey,
-
-    ApiKeyHelper,
-    EnvironmentToken,
-    CloudProvider,
-
-    /// <summary>An environment variable changes billing/destination or signals a hosting CLI session. Blocked.</summary>
-    BlockedEnvironment,
-
-    UnsupportedMethod,
-    Unreadable,
-}
-
-/// <summary>
-/// Result of an explicit check. <paramref name="SubscriptionTier"/> is a short safe token (e.g. <c>pro</c>);
-/// <paramref name="BlockingSource"/> is only the name of a variable or key source, never its value.
-/// <paramref name="ExecutablePath"/> is the absolute, validated path of the executable that would run (shown only in
-/// the settings so the user can confirm which binary is used; never sent to the chat or to the provider).
-/// </summary>
-public sealed record AgentCliAccountStatus(
-    AgentCliInstallState Install,
-    string? Version,
-    AgentCliAuthState Auth,
-    string? SubscriptionTier = null,
-    string? BlockingSource = null,
-    string? ExecutablePath = null)
-{
-    public bool IsBlockedMethod => Auth is AgentCliAuthState.ApiKey or AgentCliAuthState.ApiKeyHelper or
-        AgentCliAuthState.EnvironmentToken or AgentCliAuthState.CloudProvider or AgentCliAuthState.BlockedEnvironment or
-        AgentCliAuthState.UnsupportedMethod;
-}
-
-public enum AgentCliCommandOutcome
-{
-    /// <summary>The visible CLI window opened and closed; the real result is the status queried afterwards.</summary>
-    Completed,
-
-    /// <summary>The window is still open after the deadline or the user stopped waiting; only the status was re-read.</summary>
-    StillRunning,
-
-    /// <summary>The official command ran but returned a failure status; its output is intentionally not captured.</summary>
-    CommandFailed,
-
-    ExecutableUnavailable,
-
-    /// <summary>No visible terminal can be opened on this platform: the user runs the command manually.</summary>
-    NoVisibleTerminal,
-
-    StartFailed,
-}
-
-public sealed record AgentCliCommandResult(AgentCliCommandOutcome Outcome, AgentCliAccountStatus? Status);
-
 /// <summary>
 /// Static, I/O-free description supplied by the composition root: names shown in explanatory text ("sign in through
 /// {CliName}", "sent to {RecipientName}"), the exact sign-in command for manual use and the fixed locations the CLI
@@ -179,26 +95,14 @@ public sealed record AgentCliReadScope(
 }
 
 /// <summary>
-/// Account operations of CLI-delegated providers. <see cref="Describe"/> and <see cref="DescribeReadScope"/> never
-/// start a process; the other members run only on explicit user actions and never call the model.
+/// I/O-free presentation metadata and workspace read-scope preview for official CLI providers. Account commands
+/// belong to the Application-layer IAgentAccountManager contract; describing these values never starts a process.
 /// </summary>
-public interface IAgentCliAccountManager
+public interface IAgentCliAccountPresentation
 {
-    /// <summary>Profile of a CLI-delegated provider, or <c>null</c> when the provider is not managed here.</summary>
+    /// <summary>Profile of a CLI-delegated provider, or null when the provider is not managed here.</summary>
     AgentCliProviderProfile? Describe(string providerId);
 
-    /// <summary>
-    /// Synchronous preview of the read scope for <paramref name="candidateWorkspace"/> (the folder captured on the UI
-    /// thread): exactly the working directory a session started with that candidate would use.
-    /// </summary>
+    /// <summary>Preview of the working directory and read policy for the workspace captured by the UI.</summary>
     AgentCliReadScope DescribeReadScope(string providerId, string? candidateWorkspace);
-
-    /// <summary>Re-detects the executable and queries the authentication status, without sending any prompt.</summary>
-    Task<AgentCliAccountStatus> CheckAsync(string providerId, CancellationToken cancellationToken);
-
-    /// <summary>Opens the official sign-in in a visible window; the flow finishes with the vendor, never in the app.</summary>
-    Task<AgentCliCommandResult> SignInAsync(string providerId, CancellationToken cancellationToken);
-
-    /// <summary>Global sign-out of the CLI (affects it outside the app too); requires the user's explicit confirmation.</summary>
-    Task<AgentCliCommandResult> SignOutAsync(string providerId, bool userConfirmedGlobalSignOut, CancellationToken cancellationToken);
 }

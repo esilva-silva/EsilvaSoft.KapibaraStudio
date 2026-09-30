@@ -148,9 +148,9 @@ public sealed partial class AgentChatViewModel
                 SelectedProvider = provider;
                 LoadModels(conversation.ModelId);
             }
-            else if (conversation.ModelId is { } model && Models.Contains(model))
+            else if (conversation.ModelId is { } model)
             {
-                SelectedModel = model;
+                LoadModels(model);
             }
 
             if (Modes.FirstOrDefault(option => option.Mode == conversation.Mode) is { } mode)

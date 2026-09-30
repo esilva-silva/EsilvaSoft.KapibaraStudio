@@ -95,9 +95,9 @@
           <TextBlock Text="{Binding ReadScopeText}" Classes="metadata" Foreground="{DynamicResource PrimaryText}" TextWrapping="Wrap" MaxLines="8" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding ReadScopeText}" AutomationProperties.Name="{Binding ReadScopeText}" />
         </Border>
       </StackPanel>
-      <Border Grid.Row="1" Classes="card" Padding="8,6">
+      <Border Grid.Row="1" Classes="card" Padding="8,6" MinHeight="84">
         <StackPanel Spacing="6">
-          <TextBlock x:Name="StatusLine" Text="{Binding StatusText}" TextWrapping="Wrap" Classes.error="{Binding IsStatusError}" AutomationProperties.LiveSetting="Polite" />
+          <TextBlock x:Name="StatusLine" Text="{Binding StatusText}" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding StatusText}" Classes.error="{Binding IsStatusError}" AutomationProperties.LiveSetting="Polite" />
           <Button x:Name="RetryAvailabilityButton" HorizontalAlignment="Right" Content="{Binding AvailabilityActionText}" Command="{Binding RetryAvailabilityCommand}" IsVisible="{Binding ShowAvailabilityRetry}" ToolTip.Tip="{local:Loc Key=agentRefreshProvidersHint}" />
           <Button x:Name="RefreshProvidersButton" HorizontalAlignment="Right" Content="{local:Loc Key=agentRefreshProviders}" Command="{Binding RefreshProvidersCommand}" IsVisible="{Binding ShowRefreshProviders}" ToolTip.Tip="{local:Loc Key=agentRefreshProvidersHint}" AutomationProperties.Name="{local:Loc Key=agentRefreshProviders}" AutomationProperties.HelpText="{local:Loc Key=agentRefreshProvidersHint}" />
         </StackPanel>

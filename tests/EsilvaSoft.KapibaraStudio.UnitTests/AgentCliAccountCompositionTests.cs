@@ -14,8 +14,12 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests;
 [Category("Unit")]
 public sealed class AgentCliAccountCompositionTests
 {
-    private static App.ClaudeCodeCliAccountManager Manager() =>
-        new(new ClaudeCodeAgentProvider(new ClaudeCodeAgentProviderOptions(), new MissingClaudeCodeSystem()));
+    private static DesktopAgentAccountManager Manager()
+    {
+        var handler = new App.ClaudeCodeAccountHandler(
+            new ClaudeCodeAgentProvider(new ClaudeCodeAgentProviderOptions(), new MissingClaudeCodeSystem()));
+        return new DesktopAgentAccountManager([handler], [handler]);
+    }
 
     [Test]
     public async Task MissingExecutableIsReportedWithoutStartingAnyProcess()
@@ -24,14 +28,14 @@ public sealed class AgentCliAccountCompositionTests
         var status = await manager.CheckAsync(ClaudeCodeAgentProvider.Id, CancellationToken.None);
         Assert.Multiple(() =>
         {
-            Assert.That(status.Install, Is.EqualTo(AgentCliInstallState.NotFound));
-            Assert.That(status.Auth, Is.EqualTo(AgentCliAuthState.NotChecked));
+            Assert.That(status.Install, Is.EqualTo(AgentAccountInstallState.NotFound));
+            Assert.That(status.Auth, Is.EqualTo(AgentAccountAuthState.NotChecked));
             Assert.That(status.Version, Is.Null);
             Assert.That(status.SubscriptionTier, Is.Null);
         });
 
         var signIn = await manager.SignInAsync(ClaudeCodeAgentProvider.Id, CancellationToken.None);
-        Assert.That(signIn.Outcome, Is.EqualTo(AgentCliCommandOutcome.ExecutableUnavailable));
+        Assert.That(signIn.Outcome, Is.EqualTo(AgentAccountCommandOutcome.ExecutableUnavailable));
     }
 
     [Test]
@@ -110,6 +114,25 @@ public sealed class AgentCliAccountCompositionTests
         Assert.That(catalog.List().Single().IsExperimental, Is.True);
     }
 
+    [Test]
+    public async Task LateProviderRefreshCannotOverwriteANewerSnapshot()
+    {
+        var provider = new DelayedProvider("delayed");
+        var catalog = new DesktopAgentProviderCatalog(new AgentProviderCatalog([provider]));
+
+        var staleRefresh = catalog.RefreshProviderAsync(provider.ProviderId, CancellationToken.None);
+        await provider.FirstCallStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await catalog.RefreshProviderAsync(provider.ProviderId, CancellationToken.None);
+        Assert.That(catalog.List().Single().IsAvailable, Is.True);
+
+        provider.CompleteFirstCall(new AgentProviderStatus(false, AgentProviderAuthState.NotConfigured,
+            AgentProviderCapabilities.None, unavailableCode: "NotLoggedIn"));
+        await staleRefresh;
+
+        Assert.That(catalog.List().Single().IsAvailable, Is.True,
+            "A response from a refresh started before the current snapshot must be discarded.");
+    }
+
     private sealed class CountingProvider(string id, AgentAuthenticationMethod method) : IAgentProvider
     {
         public int StatusCalls { get; private set; }
@@ -124,6 +147,33 @@ public sealed class AgentCliAccountCompositionTests
             StatusCalls++;
             return Task.FromResult(new AgentProviderStatus(true, AgentProviderAuthState.Configured,
                 new AgentProviderCapabilities { Chat = true, Streaming = true, UsesNetwork = true }, ["m"], "m"));
+        }
+
+        public Task<IAgentSession> CreateSessionAsync(AgentSessionOptions options, CancellationToken cancellationToken) =>
+            throw new NotSupportedException("Nenhuma sessão nestes testes.");
+    }
+
+    private sealed class DelayedProvider(string id) : IAgentProvider
+    {
+        private readonly TaskCompletionSource<AgentProviderStatus> _first = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _calls;
+
+        public TaskCompletionSource FirstCallStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public string ProviderId => id;
+        public AgentProviderDescriptor Describe() => new(id, id, [AgentAuthenticationMethod.OfficialCliDelegated],
+            new AgentProviderCapabilities { Chat = true, Streaming = true, UsesNetwork = true });
+
+        public Task<AgentProviderStatus> GetStatusAsync(CancellationToken cancellationToken) =>
+            Interlocked.Increment(ref _calls) == 1 ? StartFirstCall() : Task.FromResult(
+                new AgentProviderStatus(true, AgentProviderAuthState.Configured,
+                    new AgentProviderCapabilities { Chat = true, Streaming = true, UsesNetwork = true }, ["m"], "m"));
+
+        public void CompleteFirstCall(AgentProviderStatus status) => _first.TrySetResult(status);
+
+        private Task<AgentProviderStatus> StartFirstCall()
+        {
+            FirstCallStarted.TrySetResult();
+            return _first.Task;
         }
 
         public Task<IAgentSession> CreateSessionAsync(AgentSessionOptions options, CancellationToken cancellationToken) =>

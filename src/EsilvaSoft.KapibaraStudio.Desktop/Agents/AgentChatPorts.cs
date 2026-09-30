@@ -17,9 +17,9 @@ namespace EsilvaSoft.KapibaraStudio.Desktop.Agents;
 //
 // P7-L06-HOST (25/09/2026): the main window hosts AgentChatPanel as a collapsible right-hand surface (Ctrl+Shift+A),
 // one AgentChatViewModel per workspace tab, created only when the panel is shown. AgentChatServices come from
-// AgentChatServicesFactory, invoked lazily on that first explicit opening, so starting the IDE resolves no runtime,
-// vault or network. IAgentApiKeyStore has a production implementation (DesktopAgentApiKeyStore, OS vault slots mapped
-// by the composition root).
+// AgentChatServicesFactory, invoked lazily on that first explicit opening. The factory may separately receive the
+// lightweight availability service for one restored provider's policy-approved account check, without resolving chat
+// runtime, tools or conversation repositories. IAgentApiKeyStore uses OS vault slots mapped by the composition root.
 //
 // P7-L10-WIRE (25/09/2026): IAgentApprovalDetailsSource is the AgentWriteApprovalCoordinator composed by the
 // infrastructure (pending registry write proposals only); unknown or decided approvals still yield no details and the
@@ -97,9 +97,10 @@ public interface IAgentProviderCatalog
 /// IDE starts without composing the runtime, touching the vault or the network (AC-15). A failing factory degrades to
 /// <see cref="AgentChatServices.Unavailable"/> instead of breaking the workspace.
 /// </summary>
-public sealed class AgentChatServicesFactory(Func<AgentChatServices> create)
+public sealed class AgentChatServicesFactory(Func<AgentChatServices> create, AgentProviderAvailabilityService? startupAvailability = null)
 {
     private readonly Func<AgentChatServices> _create = create ?? throw new ArgumentNullException(nameof(create));
+    private readonly AgentProviderAvailabilityService? _startupAvailability = startupAvailability;
     private readonly object _gate = new();
     private AgentChatServices? _services;
 
@@ -137,6 +138,21 @@ public sealed class AgentChatServicesFactory(Func<AgentChatServices> create)
             return _services;
         }
     }
+
+    /// <summary>Checks only a valid, restored provider selection without creating the chat ViewModel or opening its panel.</summary>
+    public async Task InitializeSavedProviderAsync(string? providerId)
+    {
+        if (string.IsNullOrWhiteSpace(providerId)) return;
+        if (_startupAvailability is null) return;
+        try
+        {
+            await _startupAvailability.InitializeSavedProviderAsync(providerId).ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            // Startup account discovery is best effort; retry remains available from the provider UI.
+        }
+    }
 }
 
 /// <summary>Services consumed by the chat. Every member is optional: missing pieces make the feature unavailable.</summary>
@@ -155,7 +171,7 @@ public sealed record AgentChatServices(
     IAgentApprovalDetailsSource? ApprovalDetails = null,
     IAgentApiKeyStore? Credentials = null,
     TimeProvider? Time = null,
-    IAgentCliAccountManager? CliAccounts = null)
+    IAgentAccountManager? AccountManager = null)
 {
     public static AgentChatServices Unavailable { get; } = new(null, null, null);
 
@@ -180,6 +196,11 @@ public sealed record AgentChatServices(
 
     /// <summary>Automatic availability check (cache, single flight, timeout).</summary>
     public AgentProviderAvailabilityService? Availability { get; init; }
+
+    /// <summary>CLI presentation metadata and workspace scope previews; account operations stay in Application.</summary>
+    public IAgentCliAccountPresentation? CliPresentation { get; init; }
+
+    public IAgentCliAccountPresentation? CliAccountPresentation => CliPresentation ?? AccountManager as IAgentCliAccountPresentation;
 
     public bool IsComplete => Runtime is not null && Catalog is not null;
 

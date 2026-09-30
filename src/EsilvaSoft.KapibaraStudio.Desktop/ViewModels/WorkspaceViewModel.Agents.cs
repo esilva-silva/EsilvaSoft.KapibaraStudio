@@ -41,6 +41,12 @@ public sealed partial class WorkspaceViewModel : IAgentChatHost
             catch (InvalidDataException) { _agentPanelPreferences = null; IsAgentPanelOpen = false; }
         }
         _restoringAgentPanel = false;
+        // Restore only the saved provider when it has a declared non-interactive startup account check. This works
+        // while the panel remains collapsed and never guesses a default provider or scans the whole catalog.
+        if (_agentPanelPreferences?.SelectedProviderId is { } selectedProviderId)
+        {
+            _ = _agentChatServices?.InitializeSavedProviderAsync(selectedProviderId);
+        }
         OnPropertyChanged(nameof(ActiveAgentChat));
     }
 

@@ -1,6 +1,6 @@
 # Guia rápido de uso
 
-**Limitação atual — 30/09/2026:** após reabrir, GitHub Copilot pode permanecer não verificado até usar **Testar conexão** nas configurações do agente. Isso verifica conta/modelos da CLI e não exige abrir MongoDB. A correção por inicialização automática está [planejada em P7-AUTH](phases/phase-07-v0.11.0/meta-inicializacao-autenticacao-agentes.md); ainda não está disponível.
+**Disponibilidade do agente — 30/09/2026:** ao iniciar, o aplicativo verifica em segundo plano o agente salvo quando o runtime permite a consulta sem diálogo. No Windows, Copilot reutiliza a autenticação da CLI oficial e carrega seus modelos elegíveis; não envia prompt nem abre conexão MongoDB. Se aparecer **Não verificado**, use **Verificar disponibilidade** ou **Testar conexão**. Quando for necessário login, use **Entrar** para iniciar o fluxo oficial; nenhum login interativo ocorre automaticamente. Consulte [P7-AUTH](phases/phase-07-v0.11.0/meta-inicializacao-autenticacao-agentes.md) para políticas e limites por agente/SO.
 
 **Recuperação de sessão:** o snapshot respeita o opt-out geral e por conexão e exclui resultados de consultas. Falha ao salvar deve aparecer na interface; uma sessão ilegível não é substituída por uma sessão vazia. A [refatoração dos adapters](architecture/system-adapters.md) mantém essas regras antes da persistência e não altera os comandos de uso.
 

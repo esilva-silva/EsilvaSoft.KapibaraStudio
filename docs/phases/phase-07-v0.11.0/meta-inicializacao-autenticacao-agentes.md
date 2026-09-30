@@ -1,6 +1,8 @@
 # Meta P7-AUTH — Inicialização automática e contratos de conta dos agentes
 
-Data: **30/09/2026**. Estado: **planejada; análise concluída, implementação e homologação pendentes**. Escopo: EsilvaSoft.KapibaraStudio desktop .NET 10/Avalonia, MIT. Vinculada a ADV-09 e à Fase 7; não fecha os gates de P7-COP nem libera capacidades experimentais.
+Data: **30/09/2026**. Estado: **implementada e validada com doubles; homologação nativa por SO pendente**. Escopo: EsilvaSoft.KapibaraStudio desktop .NET 10/Avalonia, MIT. Vinculada a ADV-09 e à Fase 7; não fecha os gates de P7-COP nem libera capacidades experimentais.
+
+**Evidência desta implementação:** `IAgentAccountManager`/`IAgentAccountHandler` foram extraídos para Application e os handlers Claude Code, Copilot e Codex são registrados em DI com políticas próprias. `AgentProviderAvailabilityService` coordena startup, seleção, Testar conexão, retry e atualização após comandos explícitos. A checagem automática do provider salvo respeita a política do handler e não atualiza o catálogo quando há risco de diálogo de cofre. O timeout/cache, o single-flight, geração de publicação do catálogo, estado após falha, recuperação, modelo restaurado e cancelamento no encerramento têm cobertura determinística. Restore locked e build da solução passaram, build com 0 avisos/erros; UnitTests: **3.340 aprovados, 20 ignorados**. Filtros de conta/UI/arquitetura passaram **10/10**. A suíte completa de IntegrationTests terminou com 866 aprovados, 2 falhas de remoção de diretório temporário em fixtures de migração/LiteDB e 14 ignorados; os dois casos de cleanup passaram quando isolados. Esses doubles não substituem autenticação real. O startup Copilot elegível no Windows está automatizado; login real e diálogos de cofre não foram repetidos nesta execução, e a elegibilidade Linux/Codex permanece restrita conforme a política.
 
 ## Resultado esperado
 
@@ -24,11 +26,11 @@ Ao abrir a aplicação, verificar em segundo plano a conta oficial já autentica
 
 Os caminhos acima são relativos a `src/`, exceto o teste, em `tests/EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Tests/Copilot/`. O problema não depende de conexão MongoDB: autenticação do agente e abertura de banco são operações independentes.
 
-## Arquitetura proposta
+## Arquitetura implementada
 
 Concluir as abstrações existentes, mantendo `IAgentProvider`/`IAgentSession` como contratos da integração de chat, streaming, turnos e tools. Não criar outro provider nem substituir `IAgentRuntime`, `IAgentToolRegistry`, catálogo ou adapters de sistema.
 
-Extrair o contrato de conta hoje definido em `Desktop/Agents/AgentCliAccountPorts.cs` para `Application/Agents`, com tipos neutros e sem referências Avalonia/SDK. Evoluir `IAgentCliAccountManager` para **`IAgentAccountManager`**, reutilizando o comportamento de Check/SignIn/SignOut; separar metadados de apresentação e escopo de leitura dos comandos de conta. O nome final pode ser ajustado na implementação, sem manter dois fluxos concorrentes. Providers API/local continuam nos contratos atuais de credenciais/status e não precisam implementar login CLI fictício.
+O contrato de conta está em `Application/Agents`, com tipos neutros e sem referências Avalonia/SDK. `IAgentAccountManager` concentra Check/SignIn/SignOut; `IAgentAccountHandler` representa cada adapter registrado, e metadados de apresentação/escopo de leitura ficam em portas Desktop separadas. Providers API/local continuam nos contratos atuais de credenciais/status e não implementam login CLI fictício.
 
 Contrato de conta proposto:
 
@@ -36,7 +38,7 @@ Contrato de conta proposto:
 public interface IAgentAccountManager
 {
     AgentAccountCheckPolicy DescribeCheckPolicy(string providerId);
-    Task<AgentAccountSnapshot> CheckAsync(
+    Task<AgentAccountStatus> CheckAsync(
         string providerId, CancellationToken cancellationToken);
     Task<AgentAccountCommandResult> SignInAsync(
         string providerId, CancellationToken cancellationToken);
@@ -46,11 +48,11 @@ public interface IAgentAccountManager
 }
 ```
 
-Os tipos são propostas, ainda não presentes no código. `AgentAccountCheckPolicy` informa suporte à checagem automática, possibilidade de rede e interação com cofre/diálogos. `AgentAccountSnapshot` contém apenas classificação segura, motivo tipado e instante da checagem; não contém token, e-mail, saída bruta de processo ou diretório privado. Modelos/capacidades permanecem publicados no status/catalog existente, sem segunda lista autoritativa.
+`AgentAccountCheckPolicy` informa suporte à checagem automática, possibilidade de rede e interação com cofre/diálogos. `AgentAccountStatus` contém classificação segura, motivo tipado, versão/tier allowlisted e instante da checagem; não contém token, e-mail ou saída bruta de processo. Modelos/capacidades permanecem publicados no status/catalog existente, sem segunda lista autoritativa. O caminho executável Claude permanece restrito à apresentação de configurações e nunca entra no contexto do agente.
 
-Registrar handlers/adapters de conta por provider em DI e resolvê-los por contrato, retirando o roteamento por marcas da classe aninhada em `App.axaml.cs`. `App` compõe; ViewModels não conhecem SDKs, processos nem classes concretas dos fornecedores. A adaptação de estado e regras permanece em Application/Agents ou Infrastructure.Agents, conforme dependências; processo, ambiente, descoberta, terminal e recursos nativos permanecem em Infrastructure.System (ADR-060).
+Handlers/adapters Claude Code, Copilot e Codex são registrados em DI e resolvidos por contrato, retirando o roteamento por marca de `App.axaml.cs`. `App` compõe; ViewModels não conhecem SDKs, processos nem classes concretas dos fornecedores. `AgentProviderAvailabilityService` é o coordenador Desktop de inicialização, retry e teste manual. A adaptação de estado e regras permanece em Application/Agents ou Infrastructure.Agents, conforme dependências; processo, ambiente, descoberta, terminal e recursos nativos permanecem em Infrastructure.System (ADR-060).
 
-Evoluir o serviço atual de disponibilidade para **`IAgentProviderInitializationService`** em Application, com implementação compartilhada. Reaproveitar cache, tempo limite e compartilhamento de operação por provider do `AgentProviderAvailabilityService`, evitando dois caches independentes. Ele coordena:
+`AgentProviderAvailabilityService` continua como coordenador Desktop: seus estados de disponibilidade são apresentação do painel e o catálogo usado por ViewModels também é uma porta Desktop. O contrato transversal Application fica nas operações de conta (`IAgentAccountManager`/`IAgentAccountHandler`), evitando duplicar no domínio de Application um serviço de apresentação. O serviço de disponibilidade mantém um cache, timeout e single-flight por provider. Ele coordena:
 
 1. Capturar provider/modelo selecionados e política antes do primeiro `await`.
 2. Para conta delegada elegível, chamar `IAgentAccountManager.CheckAsync`; para provider API/local, aplicar política de status existente sem provocar diálogo de cofre automático.
@@ -59,7 +61,7 @@ Evoluir o serviço atual de disponibilidade para **`IAgentProviderInitialization
 
 ```text
 Startup / seleção / Testar conexão / Tentar novamente
-  → IAgentProviderInitializationService
+  → AgentProviderAvailabilityService (Desktop)
     → IAgentAccountManager → handler oficial registrado
     → status existente → catálogo → apresentação
 
@@ -111,7 +113,7 @@ Enviar (ação explícita)
 | Estados visuais e localização | Gerar e inspecionar PNGs reais nos temas/tamanhos/escalas do design system, incluindo textos longos; homologação nativa de teclado/leitor de tela separada |
 | Windows/Linux | Contratos simulados em ambos; runtime oficial e diálogos em cada SO suportado. Linux permanece pendente até evidência específica, inclusive suporte Copilot atual |
 
-Executar restore locked, build e testes conforme AGENTS.md; `-p:UsedAvaloniaProducts=` somente se a telemetria externa bloquear o ambiente. Testes unitários usam doubles das portas; SDK/CLI/processos/cofre reais ficam na integração explícita. Nesta meta documental não foram executados build, testes, login real ou renderizações, pois não houve alteração de runtime/UI.
+Verificação executada em 30/09/2026: build da solução sem avisos/erros com `-p:UsedAvaloniaProducts=` e UnitTests **3.340 aprovados, 20 ignorados**. Testes focados de dispatcher e composição passaram; doubles cobrem concorrência, timeout, recuperação, resposta tardia, modelo restaurado, logout confirmado e encerramento. A autenticação real da Copilot não foi repetida neste incremento. Falta homologar a checagem de startup com a CLI oficial e interações nativas do cofre em cada sistema suportado; a integração real, leitura de tela e visualizações nativas permanecem fora desta evidência.
 
 ## Práticas oficiais consultadas
 

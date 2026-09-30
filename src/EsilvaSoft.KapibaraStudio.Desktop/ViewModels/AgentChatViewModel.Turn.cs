@@ -368,6 +368,12 @@ public sealed partial class AgentChatViewModel
                 break;
             case AgentEventKind.AgentError:
                 run.ErrorCode = SafeCode(item.ErrorCode);
+                if (IsAuthenticationFailure(run.ErrorCode) && _services.Availability is { } availability)
+                {
+                    // Revalidate the account after the failed turn so the panel can offer the official sign-in action.
+                    // The failed turn is never replayed and no tools are repeated.
+                    _ = ObserveAvailabilityAsync(availability.CheckAsync(run.ProviderId, force: true));
+                }
                 break;
             case AgentEventKind.TaskCompleted:
                 Finish(run, item.Outcome ?? AgentTurnOutcome.OutcomeUnknown);
@@ -377,6 +383,10 @@ public sealed partial class AgentChatViewModel
                 break;
         }
     }
+
+    private static bool IsAuthenticationFailure(string? code) => code is
+        "CopilotNotLoggedIn" or "CopilotNonSubscriptionAuth" or "ClaudeCodeNotLoggedIn" or
+        "ClaudeCodeNonSubscriptionAuth" or "ClaudeCodeAuthenticationFailed";
 
     private static AgentChatMessageItem GetOrAddMessage(TurnRun run, AgentMessageId id)
     {

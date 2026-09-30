@@ -1,4 +1,5 @@
 using EsilvaSoft.KapibaraStudio.Application;
+using EsilvaSoft.KapibaraStudio.Application.Agents;
 using EsilvaSoft.KapibaraStudio.Desktop;
 using EsilvaSoft.KapibaraStudio.Desktop.Agents;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,7 +11,7 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests;
 public sealed class AppSystemBoundaryTests
 {
     private static readonly Uri AuthorizationUrl = new("https://auth.openai.com/fixture-login");
-    private static readonly AgentCliAccountStatus Status = new(AgentCliInstallState.Installed, null, AgentCliAuthState.Subscription, "plus");
+    private static readonly AgentAccountStatus Status = new(AgentAccountInstallState.Installed, null, AgentAccountAuthState.Subscription, "plus");
     private static readonly string[] ExpectedLoginSteps = ["login", "browser", "login-complete", "status"];
 
     [Test]
@@ -41,9 +42,9 @@ public sealed class AppSystemBoundaryTests
         Assert.That(browser.Calls, Is.Zero);
     }
 
-    [TestCase(true, AgentCliCommandOutcome.Completed)]
-    [TestCase(false, AgentCliCommandOutcome.StartFailed)]
-    public async Task BrowserLoginAwaitsTheCapturedUrlThenChecksTheAccount(bool completed, AgentCliCommandOutcome expected)
+    [TestCase(true, AgentAccountCommandOutcome.Completed)]
+    [TestCase(false, AgentAccountCommandOutcome.StartFailed)]
+    public async Task BrowserLoginAwaitsTheCapturedUrlThenChecksTheAccount(bool completed, AgentAccountCommandOutcome expected)
     {
         var steps = new List<string>();
         var browser = new BrowserFake { Steps = steps };
@@ -83,7 +84,7 @@ public sealed class AppSystemBoundaryTests
             return true;
         }, _ => { checks++; return Task.FromResult(Status); }, browser, CancellationToken.None);
 
-        Assert.That(result.Outcome, Is.EqualTo(AgentCliCommandOutcome.StartFailed));
+        Assert.That(result.Outcome, Is.EqualTo(AgentAccountCommandOutcome.StartFailed));
         Assert.That(result.Status, Is.SameAs(Status));
         Assert.That(browser.Calls, Is.EqualTo(1));
         Assert.That(checks, Is.EqualTo(1));

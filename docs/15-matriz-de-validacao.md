@@ -1,6 +1,16 @@
 # Matriz de validação
 
-**P7-AUTH — planejado em 30/09/2026:** análise de código concluída; startup automático com CLI oficial ainda não validado nem implementado. A [matriz de aceite da meta](phases/phase-07-v0.11.0/meta-inicializacao-autenticacao-agentes.md#matriz-de-aceite-a-executar) inclui conta expirada, concorrência, logout, timeout, recuperação, catálogo passivo e UI nativa. Não reutilizar evidências anteriores de Testar conexão como prova de inicialização automática.
+**P7-AUTH — implementada com doubles em 30/09/2026:** [diagnóstico e aceite](phases/phase-07-v0.11.0/meta-inicializacao-autenticacao-agentes.md). Restore locked e build solução passaram; build teve 0 avisos/erros. UnitTests: **3.340 aprovados, 20 ignorados**; dispatcher/composição **19/19** focados; filtro de conta, painel e guarda de arquitetura **10/10**. A suíte completa de IntegrationTests teve 866 aprovados, 2 falhas de remoção de diretório temporário em fixtures de migração/LiteDB e 14 ignorados; os dois testes de cleanup e a guarda passaram isoladamente **3/3**. Ainda pendem CLI/cofre reais em cada SO e confirmação do startup Copilot em ambiente de usuário. A evidência de “Testar conexão” anterior não é tratada como prova manual do novo gatilho.
+
+| Verificação P7-AUTH | Evidência | Limite |
+| --- | --- | --- |
+| Contratos e roteamento por provider | `IAgentAccountManager`/`IAgentAccountHandler` em Application; handlers DI e testes de dispatcher/composição 19/19 | Não valida CLI/cofre oficial; arquitetura impede referência de adapters em ViewModels |
+| Startup/retry/Testar conexão/login/logout | UnitTests completos 3340/20 ignorados; 19 focados em arquitetura/dispatcher/composição | Doubles em memória; login continua explícito e logout global exige confirmação |
+| Conta inelegível para checagem sem diálogo | Teste garante ausência de chamada de conta e refresh de catálogo automáticos; retry explícito executa | Dialog/keyring real depende de plataforma |
+| Concorrência, timeout, resposta tardia e recuperação | Testes focados cobrem single-flight, refresh pós-comando, timeout, clearing e publicação protegida por geração | Operações de runtime real ainda precisam ser homologadas |
+| Modelo e conversa restaurados | Testes confirmam preservação do modelo pendente e sem fallback destrutivo | Catálogo/modelos reais dependem de autenticação oficial |
+| Encerramento | Teste valida cancelamento e espera bounded antes de descartar providers | Providers que ignorem cancelamento além do limite ainda não têm teste nativo separado |
+| Erro tipado de autenticação em turno | Revalidação é acionada sem replay do turno/tools | Não foi validado com stream oficial autenticado |
 
 ## Adapters do SO — incremento de 30/09/2026
 

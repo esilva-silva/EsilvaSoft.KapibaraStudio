@@ -1,3 +1,4 @@
+using EsilvaSoft.KapibaraStudio.Application.Agents;
 using EsilvaSoft.KapibaraStudio.Core.Agents;
 using EsilvaSoft.KapibaraStudio.Desktop.Agents;
 
@@ -7,7 +8,7 @@ namespace EsilvaSoft.KapibaraStudio.Testing;
 /// Scripted CLI-delegated account manager: no process, no network, no model. Every call is counted so tests can prove
 /// that opening screens runs nothing and that sign-out only happens after an explicit confirmation.
 /// </summary>
-internal sealed class FakeCliAccountManager : IAgentCliAccountManager
+internal sealed class FakeCliAccountManager : IAgentAccountManager, IAgentCliAccountPresentation
 {
     public const string ProviderId = "cli-sub";
 
@@ -16,11 +17,11 @@ internal sealed class FakeCliAccountManager : IAgentCliAccountManager
 
     public AgentCliProviderProfile Profile { get; set; } = TestProfile;
 
-    public AgentCliAccountStatus Status { get; set; } = new(AgentCliInstallState.NotFound, null, AgentCliAuthState.NotChecked);
+    public AgentAccountStatus Status { get; set; } = new(AgentAccountInstallState.NotFound, null, AgentAccountAuthState.NotChecked);
 
-    public AgentCliCommandResult? SignInResult { get; set; }
+    public AgentAccountCommandResult? SignInResult { get; set; }
 
-    public AgentCliCommandResult? SignOutResult { get; set; }
+    public AgentAccountCommandResult? SignOutResult { get; set; }
 
     /// <summary>When set, sign-in waits for it (simulates the visible CLI window still open).</summary>
     public TaskCompletionSource? SignInGate { get; set; }
@@ -36,6 +37,10 @@ internal sealed class FakeCliAccountManager : IAgentCliAccountManager
     public bool? LastSignOutConfirmation { get; private set; }
 
     public AgentCliProviderProfile? Describe(string providerId) => providerId == ProviderId ? Profile : null;
+
+    public AgentAccountCheckPolicy DescribeCheckPolicy(string providerId) => providerId == ProviderId
+        ? new AgentAccountCheckPolicy(SupportsAutomaticCheck: true, MayUseNetwork: false)
+        : AgentAccountCheckPolicy.Unsupported;
 
     /// <summary>Scripted provider decision; null derives it from the candidate (accepted when given, none otherwise).</summary>
     public Func<string?, AgentCliReadScope>? ScopeFor { get; set; }
@@ -59,13 +64,13 @@ internal sealed class FakeCliAccountManager : IAgentCliAccountManager
 
     public static string DedicatedFolder => SyntheticPaths.Combine("ClaudeCode", "empty");
 
-    public Task<AgentCliAccountStatus> CheckAsync(string providerId, CancellationToken cancellationToken)
+    public Task<AgentAccountStatus> CheckAsync(string providerId, CancellationToken cancellationToken)
     {
         Checks++;
         return Task.FromResult(Status);
     }
 
-    public async Task<AgentCliCommandResult> SignInAsync(string providerId, CancellationToken cancellationToken)
+    public async Task<AgentAccountCommandResult> SignInAsync(string providerId, CancellationToken cancellationToken)
     {
         SignIns++;
         if (SignInGate is { } gate)
@@ -73,25 +78,25 @@ internal sealed class FakeCliAccountManager : IAgentCliAccountManager
             await gate.Task.WaitAsync(cancellationToken);
         }
 
-        return SignInResult ?? new AgentCliCommandResult(AgentCliCommandOutcome.Completed, Status);
+        return SignInResult ?? new AgentAccountCommandResult(AgentAccountCommandOutcome.Completed, Status);
     }
 
-    public Task<AgentCliCommandResult> SignOutAsync(string providerId, bool userConfirmedGlobalSignOut, CancellationToken cancellationToken)
+    public Task<AgentAccountCommandResult> SignOutAsync(string providerId, bool userConfirmedGlobalSignOut, CancellationToken cancellationToken)
     {
         SignOuts++;
         LastSignOutConfirmation = userConfirmedGlobalSignOut;
-        return Task.FromResult(SignOutResult ?? new AgentCliCommandResult(AgentCliCommandOutcome.Completed,
-            new AgentCliAccountStatus(AgentCliInstallState.Installed, null, AgentCliAuthState.SignedOut)));
+        return Task.FromResult(SignOutResult ?? new AgentAccountCommandResult(AgentAccountCommandOutcome.Completed,
+            new AgentAccountStatus(AgentAccountInstallState.Installed, null, AgentAccountAuthState.SignedOut)));
     }
 
-    public static AgentCliAccountStatus Subscription(string tier = "pro") =>
-        new(AgentCliInstallState.Installed, "2.1.268", AgentCliAuthState.Subscription, tier, ExecutablePath: FakeExecutablePath);
+    public static AgentAccountStatus Subscription(string tier = "pro") =>
+        new(AgentAccountInstallState.Installed, "2.1.268", AgentAccountAuthState.Subscription, tier, ExecutablePath: FakeExecutablePath);
 
-    public static AgentCliAccountStatus SignedOut() =>
-        new(AgentCliInstallState.Installed, "2.1.268", AgentCliAuthState.SignedOut, ExecutablePath: FakeExecutablePath);
+    public static AgentAccountStatus SignedOut() =>
+        new(AgentAccountInstallState.Installed, "2.1.268", AgentAccountAuthState.SignedOut, ExecutablePath: FakeExecutablePath);
 
-    public static AgentCliAccountStatus BlockedByApiKey() =>
-        new(AgentCliInstallState.Installed, "2.1.268", AgentCliAuthState.BlockedEnvironment, BlockingSource: "ANTHROPIC_API_KEY",
+    public static AgentAccountStatus BlockedByApiKey() =>
+        new(AgentAccountInstallState.Installed, "2.1.268", AgentAccountAuthState.BlockedEnvironment, BlockingSource: "ANTHROPIC_API_KEY",
             ExecutablePath: FakeExecutablePath);
 
     public static string FakeExecutablePath => SyntheticPaths.Combine("tools", "claude-test", "claude.exe");

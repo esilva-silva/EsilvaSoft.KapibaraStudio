@@ -129,6 +129,20 @@ public sealed class AgentChatHostUiTests
                         Avalonia.Application.Current!.RequestedThemeVariant = theme;
                         Resize(host.Window, size, 1);
                         AssertHostedLayout(host, size);
+                        if (state == "not-checked" && size == Sizes[0])
+                        {
+                            var panel = host.Window.GetVisualDescendants().OfType<AgentChatPanel>().Single();
+                            var retryButton = panel.FindControl<Button>("RetryAvailabilityButton");
+                            var statusCard = retryButton?.FindAncestorOfType<Border>();
+                            Assert.That(retryButton is not null && statusCard is not null, Is.True);
+                            var button = retryButton ?? throw new AssertionException("Retry action was not found.");
+                            var card = statusCard ?? throw new AssertionException("Status card was not found.");
+                            var buttonBottom = button.TranslatePoint(new Point(0, button.Bounds.Height), host.Window)!.Value.Y;
+                            var cardBottom = card.TranslatePoint(new Point(0, card.Bounds.Height), host.Window)!.Value.Y;
+                            Assert.That(buttonBottom, Is.LessThanOrEqualTo(cardBottom + 1),
+                                "The availability action must remain inside its status card at the narrow layout.");
+                        }
+
                         Save(host.Window, $"agent-host-{state}-{theme}-{size.Width}x{size.Height}.png");
                     }
 

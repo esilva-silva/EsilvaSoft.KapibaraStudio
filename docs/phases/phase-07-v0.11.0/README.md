@@ -1,6 +1,6 @@
 # Fase 7 — Agentes por assinatura no KapibaraStudio
 
-**Meta planejada em 30/09/2026:** [P7-AUTH — inicialização automática e contratos de conta](meta-inicializacao-autenticacao-agentes.md). A análise identificou que o startup consulta apenas o snapshot passivo do Copilot; Testar conexão é que verifica a conta/modelos. A meta unifica os caminhos por contratos na Application e reutiliza a autenticação oficial. Implementação e homologação pendentes.
+**P7-AUTH implementada em 30/09/2026:** [inicialização automática e contratos de conta](meta-inicializacao-autenticacao-agentes.md). A inicialização do provider salvo, retry e **Testar conexão** compartilham o mesmo coordenador; handlers de conta ficam atrás dos contratos Application e não iniciam autenticação interativa. Build passou com 0 avisos/erros; UnitTests **3.340 aprovados, 20 ignorados**. Esta evidência automatizada não homologa CLI/cofre em cada SO nem altera os gates de P7-COP.
 
 Estado revisado em **29/09/2026**. Esta página distingue comportamento presente no código, capacidades liberadas e gates de homologação. Claude continua em homologação, Codex é experimental e GitHub Copilot tem liberação limitada no Windows: após checagem explícita de conta/modelos, o chat e as chamadas mediadas pelo registry estão habilitados. Isso não significa homologação completa da meta P7-COP; testes automatizados e chamadas manuais sintéticas não substituem as verificações ainda pendentes com MongoDB de teste, falhas/concorrência do runtime oficial, diálogos nativos e acessibilidade.
 

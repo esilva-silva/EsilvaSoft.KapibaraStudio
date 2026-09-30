@@ -329,6 +329,7 @@ public sealed partial class LocalizationViewModel
         // Labels used by the live agent panel, chips, permission summary and conversation history.
         ("agentAvailabilityRetry", "Retry check", "Tentar novamente", "Volver a comprobar", "重试检查"),
         ("agentAvailabilityChecking", "Checking availability…", "Verificando disponibilidade…", "Comprobando disponibilidad…", "正在检查可用性…"),
+        ("agentAvailabilityExplicitCheckRequired", "Check required to continue", "Faça uma verificação para continuar", "Debe comprobarlo para continuar", "需要手动检查才能继续"),
         ("agentAvailabilityAvailable", "Available", "Disponível", "Disponible", "可用"),
         ("agentAvailabilityNotConnected", "Not connected", "Não conectado", "No conectado", "未连接"),
         ("agentAvailabilityCliMissing", "{0} was not found", "{0} não foi encontrado", "No se encontró {0}", "未找到 {0}"),

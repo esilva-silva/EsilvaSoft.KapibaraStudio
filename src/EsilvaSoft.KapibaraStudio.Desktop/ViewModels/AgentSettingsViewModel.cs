@@ -24,18 +24,23 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
 {
     private readonly IAgentProviderCatalog? _catalog;
     private readonly IAgentApiKeyStore? _credentials;
-    private readonly IAgentCliAccountManager? _cliAccounts;
+    private readonly IAgentAccountManager? _accountManager;
+    private readonly IAgentCliAccountPresentation? _cliPresentation;
+    private readonly AgentProviderAvailabilityService? _availability;
     private readonly Func<string?>? _captureWorkspaceFolder;
     private readonly CancellationTokenSource _lifetime = new();
     private CancellationTokenSource? _signInWait;
 
     public AgentSettingsViewModel(IAgentProviderCatalog? catalog, IAgentApiKeyStore? credentials, string? providerId = null,
-        IAgentCliAccountManager? cliAccounts = null, Func<string?>? captureWorkspaceFolder = null)
+        IAgentAccountManager? accountManager = null, IAgentCliAccountPresentation? cliPresentation = null,
+        AgentProviderAvailabilityService? availability = null, Func<string?>? captureWorkspaceFolder = null)
     {
         _captureWorkspaceFolder = captureWorkspaceFolder;
         _catalog = catalog;
         _credentials = credentials;
-        _cliAccounts = cliAccounts;
+        _accountManager = accountManager;
+        _cliPresentation = cliPresentation ?? accountManager as IAgentCliAccountPresentation;
+        _availability = availability;
         Reload(providerId);
     }
 
@@ -87,7 +92,7 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
         nameof(IsCliAuthBlocked), nameof(IsCliSignedIn), nameof(CliAccountTypeText), nameof(IsCliChecked), nameof(CliExecutableText),
         nameof(HasCliExecutable))]
     [NotifyCanExecuteChangedFor(nameof(SignInCommand), nameof(SignOutCommand))]
-    private AgentCliAccountStatus? _cliStatus;
+    private AgentAccountStatus? _cliStatus;
 
     /// <summary>Exact command for platforms where no visible terminal can be opened ("Copy command").</summary>
     [ObservableProperty]
@@ -123,7 +128,7 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
 
     public bool IsCliChecked => CliStatus is not null;
 
-    public bool IsCliSignedIn => CliStatus?.Auth == AgentCliAuthState.Subscription;
+    public bool IsCliSignedIn => CliStatus?.Auth == AgentAccountAuthState.Subscription;
 
     public bool IsCliAuthBlocked => CliStatus?.IsBlockedMethod == true;
 
@@ -131,12 +136,12 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
         ? Text.Resolve("agentCliNotChecked")
         : status.Install switch
         {
-            AgentCliInstallState.Installed => Text.Format("agentCliInstalled", status.Version ?? "?"),
-            AgentCliInstallState.NotFound => Text.Format("agentCliNotFound", CliName),
-            AgentCliInstallState.UnsupportedExecutable => Text.Format("agentCliUnsupportedExecutable", CliName),
-            AgentCliInstallState.VersionTooLow => Text.Format("agentCliVersionTooLow", status.Version ?? "?", CliName),
-            AgentCliInstallState.VersionUnreadable => Text.Format("agentCliVersionUnreadable", CliName),
-            AgentCliInstallState.TimedOut => Text.Format("agentCliCheckTimedOut", CliName),
+            AgentAccountInstallState.Installed => Text.Format("agentCliInstalled", status.Version ?? "?"),
+            AgentAccountInstallState.NotFound => Text.Format("agentCliNotFound", CliName),
+            AgentAccountInstallState.UnsupportedExecutable => Text.Format("agentCliUnsupportedExecutable", CliName),
+            AgentAccountInstallState.VersionTooLow => Text.Format("agentCliVersionTooLow", status.Version ?? "?", CliName),
+            AgentAccountInstallState.VersionUnreadable => Text.Format("agentCliVersionUnreadable", CliName),
+            AgentAccountInstallState.TimedOut => Text.Format("agentCliCheckTimedOut", CliName),
             _ => Text.Format("agentCliCheckFailed", CliName),
         };
 
@@ -149,10 +154,10 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
         ? Text.Resolve("agentCliNotChecked")
         : Text.Resolve(status.Auth switch
         {
-            AgentCliAuthState.Subscription => "agentCliAuthSubscription",
-            AgentCliAuthState.SignedOut => "agentCliAuthSignedOut",
-            AgentCliAuthState.NotChecked => "agentCliAuthNotChecked",
-            AgentCliAuthState.Unreadable => "agentCliAuthUnreadable",
+            AgentAccountAuthState.Subscription => "agentCliAuthSubscription",
+            AgentAccountAuthState.SignedOut => "agentCliAuthSignedOut",
+            AgentAccountAuthState.NotChecked => "agentCliAuthNotChecked",
+            AgentAccountAuthState.Unreadable => "agentCliAuthUnreadable",
             _ => "agentCliAuthBlocked",
         });
 
@@ -161,23 +166,23 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
         ? ""
         : status.Auth switch
         {
-            AgentCliAuthState.ApiKey or AgentCliAuthState.BlockedEnvironment when status.BlockingSource is { Length: > 0 } source =>
+            AgentAccountAuthState.ApiKey or AgentAccountAuthState.BlockedEnvironment when status.BlockingSource is { Length: > 0 } source =>
                 Text.Format("agentCliBlockedVariable", source, CliName),
-            AgentCliAuthState.ApiKey => Text.Format("agentCliBlockedApiKey", CliName),
-            AgentCliAuthState.ApiKeyHelper => Text.Format("agentCliBlockedApiKeyHelper", CliName),
-            AgentCliAuthState.EnvironmentToken => Text.Format("agentCliBlockedToken", CliName),
-            AgentCliAuthState.CloudProvider => Text.Format("agentCliBlockedCloud", CliName),
-            AgentCliAuthState.BlockedEnvironment => Text.Format("agentCliBlockedEnvironment", CliName),
-            AgentCliAuthState.UnsupportedMethod => Text.Format("agentCliBlockedUnsupported", CliName),
-            AgentCliAuthState.SignedOut => Text.Format("agentCliSignedOutHint", SignInButtonText),
-            AgentCliAuthState.Unreadable => Text.Format("agentCliAuthUnreadableHint", CliName),
+            AgentAccountAuthState.ApiKey => Text.Format("agentCliBlockedApiKey", CliName),
+            AgentAccountAuthState.ApiKeyHelper => Text.Format("agentCliBlockedApiKeyHelper", CliName),
+            AgentAccountAuthState.EnvironmentToken => Text.Format("agentCliBlockedToken", CliName),
+            AgentAccountAuthState.CloudProvider => Text.Format("agentCliBlockedCloud", CliName),
+            AgentAccountAuthState.BlockedEnvironment => Text.Format("agentCliBlockedEnvironment", CliName),
+            AgentAccountAuthState.UnsupportedMethod => Text.Format("agentCliBlockedUnsupported", CliName),
+            AgentAccountAuthState.SignedOut => Text.Format("agentCliSignedOutHint", SignInButtonText),
+            AgentAccountAuthState.Unreadable => Text.Format("agentCliAuthUnreadableHint", CliName),
             _ => "",
         };
 
     public bool HasCliAuthExplanation => CliAuthExplanation.Length > 0;
 
     /// <summary>Only the tier token reported by the CLI (e.g. "Pro"); never e-mail, organization or account IDs.</summary>
-    public string CliAccountTypeText => CliStatus is { Auth: AgentCliAuthState.Subscription } status
+    public string CliAccountTypeText => CliStatus is { Auth: AgentAccountAuthState.Subscription } status
         ? string.IsNullOrWhiteSpace(status.SubscriptionTier)
             ? Text.Resolve("agentAccountTypeSubscription")
             : Text.Format("agentAccountTypeSubscriptionTier", Capitalize(status.SubscriptionTier))
@@ -313,12 +318,22 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
         try
         {
             var failed = false;
-            if (isCli)
+            if (_availability is not null)
             {
-                failed |= !await CheckCliAsync(providerId);
-            }
+                var result = await _availability.CheckAsync(providerId, force: true);
+                if (isCli)
+                {
+                    CliStatus = _availability.CurrentAccountStatus(providerId) ??
+                        new AgentAccountStatus(AgentAccountInstallState.CheckFailed, null, AgentAccountAuthState.Unreadable);
+                }
 
-            failed |= !await RefreshProviderAsync(providerId);
+                failed = result.State is AgentProviderAvailabilityState.Failed or AgentProviderAvailabilityState.CliMissing;
+            }
+            else
+            {
+                if (isCli) failed |= !await CheckCliAsync(providerId);
+                failed |= !await RefreshProviderAsync(providerId);
+            }
             if (_lifetime.IsCancellationRequested)
             {
                 return;
@@ -335,14 +350,14 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
 
     private string CliOutcomeKey() => CliStatus switch
     {
-        { Install: not AgentCliInstallState.Installed } => "agentTestConnectionCliUnavailable",
-        { Auth: AgentCliAuthState.Subscription } => CliProfile?.SubscriptionReadyMessageKey ?? "agentTestConnectionCliReady",
+        { Install: not AgentAccountInstallState.Installed } => "agentTestConnectionCliUnavailable",
+        { Auth: AgentAccountAuthState.Subscription } => CliProfile?.SubscriptionReadyMessageKey ?? "agentTestConnectionCliReady",
         { IsBlockedMethod: true } => "agentTestConnectionCliBlocked",
         _ => "agentTestConnectionCliSignedOut",
     };
 
-    private bool CanSignIn() => !IsBusy && IsCliProvider && CliStatus is not { Install: not AgentCliInstallState.Installed } &&
-        CliStatus is not { Auth: AgentCliAuthState.Subscription } && !IsEnvironmentBlocked(CliStatus);
+    private bool CanSignIn() => !IsBusy && IsCliProvider && CliStatus is not { Install: not AgentAccountInstallState.Installed } &&
+        CliStatus is not { Auth: AgentAccountAuthState.Subscription } && !IsEnvironmentBlocked(CliStatus);
 
     /// <summary>
     /// Opens the official sign-in in a visible CLI window; the flow finishes with the vendor in the browser. The app
@@ -360,11 +375,11 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
         IsWaitingForSignIn = true;
         try
         {
-            AgentCliCommandResult? result = null;
+            AgentAccountCommandResult? result = null;
             var stopped = false;
             try
             {
-                result = await _cliAccounts!.SignInAsync(providerId, wait.Token);
+                result = await _accountManager!.SignInAsync(providerId, wait.Token);
             }
             catch (OperationCanceledException) when (!_lifetime.IsCancellationRequested)
             {
@@ -372,7 +387,7 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
             }
             catch (Exception) when (!_lifetime.IsCancellationRequested)
             {
-                result = new AgentCliCommandResult(AgentCliCommandOutcome.StartFailed, null);
+                result = new AgentAccountCommandResult(AgentAccountCommandOutcome.StartFailed, null);
             }
             catch (OperationCanceledException)
             {
@@ -383,21 +398,21 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
             ProgressText = Text.Resolve("agentTestingConnection");
             if (result?.Status is { } reported)
             {
-                CliStatus = reported with { Install = AgentCliInstallState.Installed, Version = CliStatus?.Version ?? reported.Version };
+                CliStatus = reported with { Install = AgentAccountInstallState.Installed, Version = CliStatus?.Version ?? reported.Version };
             }
             else
             {
                 await CheckCliAsync(providerId);
             }
 
-            await RefreshProviderAsync(providerId);
+            await RefreshAccountProviderAsync(providerId);
             if (_lifetime.IsCancellationRequested)
             {
                 return;
             }
 
             Reload(providerId);
-            ReportCommand(stopped ? AgentCliCommandOutcome.StillRunning : result!.Outcome, profile, signIn: true);
+            ReportCommand(stopped ? AgentAccountCommandOutcome.StillRunning : result!.Outcome, profile, signIn: true);
         }
         finally
         {
@@ -412,8 +427,8 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
     [RelayCommand(CanExecute = nameof(CanStopWaiting))]
     private void StopWaiting() => _signInWait?.Cancel();
 
-    private bool CanSignOut() => !IsBusy && IsCliProvider && CliStatus is { Install: AgentCliInstallState.Installed } status &&
-        status.Auth is not (AgentCliAuthState.SignedOut or AgentCliAuthState.NotChecked or AgentCliAuthState.Unreadable);
+    private bool CanSignOut() => !IsBusy && IsCliProvider && CliStatus is { Install: AgentAccountInstallState.Installed } status &&
+        status.Auth is not (AgentAccountAuthState.SignedOut or AgentAccountAuthState.NotChecked or AgentAccountAuthState.Unreadable);
 
     /// <summary>
     /// Global sign-out: it ends the CLI login for the whole OS user, including terminals outside the app, so it runs
@@ -449,10 +464,10 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
         Begin(Text.Format("agentCliSigningOut", profile.CliName));
         try
         {
-            AgentCliCommandResult result;
+            AgentAccountCommandResult result;
             try
             {
-                result = await _cliAccounts!.SignOutAsync(providerId, userConfirmedGlobalSignOut: true, _lifetime.Token);
+                result = await _accountManager!.SignOutAsync(providerId, userConfirmedGlobalSignOut: true, _lifetime.Token);
             }
             catch (OperationCanceledException)
             {
@@ -460,19 +475,19 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
             }
             catch (Exception)
             {
-                result = new AgentCliCommandResult(AgentCliCommandOutcome.StartFailed, null);
+                result = new AgentAccountCommandResult(AgentAccountCommandOutcome.StartFailed, null);
             }
 
             if (result.Status is { } reported)
             {
-                CliStatus = reported with { Install = AgentCliInstallState.Installed, Version = CliStatus?.Version ?? reported.Version };
+                CliStatus = reported with { Install = AgentAccountInstallState.Installed, Version = CliStatus?.Version ?? reported.Version };
             }
             else
             {
                 await CheckCliAsync(providerId);
             }
 
-            await RefreshProviderAsync(providerId);
+            await RefreshAccountProviderAsync(providerId);
             if (_lifetime.IsCancellationRequested)
             {
                 return;
@@ -487,28 +502,28 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
         }
     }
 
-    private void ReportCommand(AgentCliCommandOutcome outcome, AgentCliProviderProfile profile, bool signIn)
+    private void ReportCommand(AgentAccountCommandOutcome outcome, AgentCliProviderProfile profile, bool signIn)
     {
         switch (outcome)
         {
-            case AgentCliCommandOutcome.NoVisibleTerminal:
+            case AgentAccountCommandOutcome.NoVisibleTerminal:
                 ManualCommand = signIn ? profile.SignInCommand : null;
                 StatusText = Text.Format("agentCliNoTerminal", profile.CliName);
                 IsStatusError = true;
                 return;
-            case AgentCliCommandOutcome.ExecutableUnavailable:
+            case AgentAccountCommandOutcome.ExecutableUnavailable:
                 StatusText = Text.Format("agentCliExecutableUnavailable", profile.CliName);
                 IsStatusError = true;
                 return;
-            case AgentCliCommandOutcome.StartFailed:
+            case AgentAccountCommandOutcome.StartFailed:
                 StatusText = Text.Format("agentCliStartFailed", profile.CliName);
                 IsStatusError = true;
                 return;
-            case AgentCliCommandOutcome.CommandFailed:
+            case AgentAccountCommandOutcome.CommandFailed:
                 StatusText = Text.Format("agentCliCommandFailed", profile.CliName);
                 IsStatusError = true;
                 return;
-            case AgentCliCommandOutcome.StillRunning:
+            case AgentAccountCommandOutcome.StillRunning:
                 StatusText = Text.Format("agentCliStillRunning", profile.CliName);
                 IsStatusError = false;
                 return;
@@ -521,8 +536,8 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
         }
         else
         {
-            Report(CliStatus?.Auth == AgentCliAuthState.SignedOut ? "agentCliSignOutDone" : "agentCliSignOutNotCompleted",
-                CliStatus?.Auth != AgentCliAuthState.SignedOut);
+            Report(CliStatus?.Auth == AgentAccountAuthState.SignedOut ? "agentCliSignOutDone" : "agentCliSignOutNotCompleted",
+                CliStatus?.Auth != AgentAccountAuthState.SignedOut);
         }
     }
 
@@ -531,7 +546,7 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
     {
         try
         {
-            CliStatus = await _cliAccounts!.CheckAsync(providerId, _lifetime.Token);
+            CliStatus = await _accountManager!.CheckAsync(providerId, _lifetime.Token);
             return true;
         }
         catch (OperationCanceledException)
@@ -540,7 +555,7 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
         }
         catch (Exception)
         {
-            CliStatus = new AgentCliAccountStatus(AgentCliInstallState.CheckFailed, null, AgentCliAuthState.NotChecked);
+            CliStatus = new AgentAccountStatus(AgentAccountInstallState.CheckFailed, null, AgentAccountAuthState.NotChecked);
             return false;
         }
     }
@@ -563,6 +578,26 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
         }
     }
 
+    /// <summary>Publishes account-command results through the same forced flight/cache used by startup and retry.</summary>
+    private async Task RefreshAccountProviderAsync(string providerId)
+    {
+        if (_availability is null)
+        {
+            await RefreshProviderAsync(providerId);
+            return;
+        }
+
+        var result = await _availability.RefreshAfterAccountCommandAsync(providerId);
+        if (IsCliProvider)
+        {
+            CliStatus = _availability.CurrentAccountStatus(providerId) ?? CliStatus;
+        }
+
+        // Failure is represented by the shared availability state and the last known presentation. The explicit
+        // sign-in/out outcome below still reports the account command's authoritative status.
+        _ = result;
+    }
+
     private void Begin(string progress)
     {
         StatusText = "";
@@ -577,15 +612,15 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
         ProgressText = "";
     }
 
-    private static bool IsEnvironmentBlocked(AgentCliAccountStatus? status) => status?.Auth is AgentCliAuthState.ApiKey or
-        AgentCliAuthState.ApiKeyHelper or AgentCliAuthState.EnvironmentToken or AgentCliAuthState.CloudProvider or
-        AgentCliAuthState.BlockedEnvironment;
+    private static bool IsEnvironmentBlocked(AgentAccountStatus? status) => status?.Auth is AgentAccountAuthState.ApiKey or
+        AgentAccountAuthState.ApiKeyHelper or AgentAccountAuthState.EnvironmentToken or AgentAccountAuthState.CloudProvider or
+        AgentAccountAuthState.BlockedEnvironment;
 
     private AgentCliProviderProfile? SafeDescribe(string providerId)
     {
         try
         {
-            return _cliAccounts?.Describe(providerId);
+            return _cliPresentation?.Describe(providerId);
         }
         catch (Exception)
         {
@@ -598,7 +633,7 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
         try
         {
             var candidate = _captureWorkspaceFolder?.Invoke();
-            return _cliAccounts?.DescribeReadScope(providerId, string.IsNullOrWhiteSpace(candidate) ? null : candidate);
+            return _cliPresentation?.DescribeReadScope(providerId, string.IsNullOrWhiteSpace(candidate) ? null : candidate);
         }
         catch (Exception)
         {

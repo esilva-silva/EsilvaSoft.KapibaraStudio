@@ -288,7 +288,7 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
 
     private (AgentCliReadScope Scope, AgentCliProviderProfile Profile)? CurrentReadScope()
     {
-        if (SelectedProvider is not { UsesOfficialCli: true } provider || _services.CliAccounts is not { } accounts)
+        if (SelectedProvider is not { UsesOfficialCli: true } provider || _services.CliAccountPresentation is not { } presentation)
         {
             return null;
         }
@@ -301,12 +301,12 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
 
         try
         {
-            if (accounts.Describe(provider.ProviderId) is not { } profile)
+            if (presentation.Describe(provider.ProviderId) is not { } profile)
             {
                 return null;
             }
 
-            var scope = accounts.DescribeReadScope(provider.ProviderId, candidate);
+            var scope = presentation.DescribeReadScope(provider.ProviderId, candidate);
             _readScopeCache = (provider.ProviderId, candidate, scope, profile);
             return (scope, profile);
         }
@@ -361,7 +361,7 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
     {
         try
         {
-            return _services.CliAccounts?.Describe(providerId)?.CliName ??
+            return _services.CliAccountPresentation?.Describe(providerId)?.CliName ??
                 Providers.FirstOrDefault(p => p.ProviderId == providerId)?.Presentation.DisplayName;
         }
         catch (Exception)
@@ -400,8 +400,8 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
     }
 
     public AgentSettingsViewModel CreateSettingsViewModel() =>
-        new(_services.Catalog, _services.Credentials, SelectedProvider?.ProviderId, _services.CliAccounts,
-            () => _host.WorkspaceFolder);
+        new(_services.Catalog, _services.Credentials, SelectedProvider?.ProviderId, _services.AccountManager,
+            _services.CliAccountPresentation, _services.Availability, () => _host.WorkspaceFolder);
 
     private void LoadProviders(string? keepProviderId, string? keepModel)
     {
@@ -457,6 +457,23 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
         foreach (var model in SelectedProvider?.Presentation.Models ?? [])
         {
             Models.Add(model);
+        }
+
+        // A restored conversation may target a saved CLI model while its first account/model discovery is still
+        // running. Keep that selection visible until the active check completes; then this method runs again against
+        // the published list and naturally falls back if the model is no longer eligible.
+        var selectedProviderId = SelectedProvider?.ProviderId;
+        var accountProvider = SelectedProvider?.Presentation.AuthenticationMethods.Any(static method =>
+            method is AgentAuthenticationMethod.OfficialCliDelegated or AgentAuthenticationMethod.OfficialAppServerDelegated) == true;
+        var availability = selectedProviderId is null ? null : _services.Availability?.Current(selectedProviderId);
+        var accountCheckPending = accountProvider && availability is null or
+            { State: AgentProviderAvailabilityState.Checking or AgentProviderAvailabilityState.NotChecked };
+        if (accountCheckPending && keep is { Length: > 0 } && !Models.Contains(keep))
+        {
+            Models.Insert(0, keep);
+            SelectedModel = keep;
+            OnPropertyChanged(nameof(HasModels));
+            return;
         }
 
         var fallback = CurrentPermissions?.DefaultModel;

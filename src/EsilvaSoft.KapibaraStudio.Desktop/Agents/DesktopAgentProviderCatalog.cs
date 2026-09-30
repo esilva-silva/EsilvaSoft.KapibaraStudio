@@ -25,7 +25,7 @@ public sealed class DesktopAgentProviderCatalog : IAgentProviderCatalog
     private readonly IReadOnlySet<string> _experimentalProviders;
     private readonly Lock _gate = new();
     private volatile IReadOnlyList<AgentProviderPresentation> _snapshot;
-    private long _refreshGeneration;
+    private readonly Dictionary<string, long> _providerGenerations = new(StringComparer.Ordinal);
 
     /// <param name="catalog">Shared catalog composed by the infrastructure.</param>
     /// <param name="families">
@@ -52,10 +52,16 @@ public sealed class DesktopAgentProviderCatalog : IAgentProviderCatalog
     /// </summary>
     public async Task RefreshAsync(CancellationToken cancellationToken)
     {
-        // Two tabs may refresh concurrently: only the most recently started refresh publishes, so an older, slower
-        // check never overwrites a newer result (e.g. a key saved between both checks).
-        var generation = Interlocked.Increment(ref _refreshGeneration);
+        // A full refresh and a provider-only refresh may overlap. Track each provider independently so a slower
+        // earlier read cannot overwrite a newer account change or retry when it finally returns.
         var entries = _catalog.List();
+        Dictionary<string, long> generations;
+        lock (_gate)
+        {
+            generations = entries.ToDictionary(entry => entry.Descriptor.ProviderId,
+                entry => NextGeneration(entry.Descriptor.ProviderId), StringComparer.Ordinal);
+        }
+
         var statuses = new Dictionary<string, AgentProviderStatus>(entries.Count, StringComparer.Ordinal);
         foreach (var entry in entries)
         {
@@ -63,13 +69,21 @@ public sealed class DesktopAgentProviderCatalog : IAgentProviderCatalog
                 await _catalog.GetStatusAsync(entry.Descriptor.ProviderId, cancellationToken).ConfigureAwait(false);
         }
 
-        var refreshed = Present(entries, id => statuses[id]);
+        cancellationToken.ThrowIfCancellationRequested();
         lock (_gate)
         {
-            if (generation == Interlocked.Read(ref _refreshGeneration))
+            var refreshed = _snapshot.ToDictionary(item => item.ProviderId, StringComparer.Ordinal);
+            foreach (var entry in entries)
             {
-                _snapshot = refreshed;
+                var providerId = entry.Descriptor.ProviderId;
+                if (_providerGenerations.GetValueOrDefault(providerId) == generations[providerId])
+                {
+                    refreshed[providerId] = PresentOne(entry, statuses[providerId]);
+                }
             }
+
+            _snapshot = [.. entries.Select(entry => refreshed.GetValueOrDefault(entry.Descriptor.ProviderId) ??
+                PresentOne(entry, statuses[entry.Descriptor.ProviderId]))];
         }
     }
 
@@ -86,12 +100,26 @@ public sealed class DesktopAgentProviderCatalog : IAgentProviderCatalog
             return;
         }
 
+        long generation;
+        lock (_gate) generation = NextGeneration(providerId);
+
         var status = await _catalog.GetStatusAsync(providerId, cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
         var updated = PresentOne(entry, status);
         lock (_gate)
         {
-            _snapshot = [.. _snapshot.Select(item => string.Equals(item.ProviderId, providerId, StringComparison.Ordinal) ? updated : item)];
+            if (_providerGenerations.GetValueOrDefault(providerId) == generation)
+            {
+                _snapshot = [.. _snapshot.Select(item => string.Equals(item.ProviderId, providerId, StringComparison.Ordinal) ? updated : item)];
+            }
         }
+    }
+
+    private long NextGeneration(string providerId)
+    {
+        var next = _providerGenerations.GetValueOrDefault(providerId) + 1;
+        _providerGenerations[providerId] = next;
+        return next;
     }
 
     private IReadOnlyList<AgentProviderPresentation> Present(

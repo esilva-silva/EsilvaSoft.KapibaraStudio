@@ -356,10 +356,11 @@ public sealed partial class AgentChatViewModel
                 return "";
             }
 
-            var cli = _services.CliAccounts?.Describe(provider.ProviderId)?.CliName ?? provider.Presentation.DisplayName;
+                var cli = _services.CliAccountPresentation?.Describe(provider.ProviderId)?.CliName ?? provider.Presentation.DisplayName;
             return Availability?.State switch
             {
                 AgentProviderAvailabilityState.Checking => Text.Resolve("agentAvailabilityChecking"),
+                AgentProviderAvailabilityState.NotChecked => Text.Resolve("agentAvailabilityExplicitCheckRequired"),
                 AgentProviderAvailabilityState.Available => Text.Resolve("agentAvailabilityAvailable"),
                 AgentProviderAvailabilityState.NotConnected => Text.Resolve("agentAvailabilityNotConnected"),
                 AgentProviderAvailabilityState.CliMissing => Text.Format("agentAvailabilityCliMissing", cli),
@@ -431,6 +432,9 @@ public sealed partial class AgentChatViewModel
         {
             // The refreshed presentation (availability, auth, models, capabilities) comes from the catalog snapshot.
             ReloadProvidersIfChanged();
+            // A timeout/policy result can leave the catalog object unchanged; resolve any pending restored model
+            // against the terminal check state instead of retaining an unknown model indefinitely.
+            LoadModels(SelectedModel);
             UpdateIdleState();
         }
     });
