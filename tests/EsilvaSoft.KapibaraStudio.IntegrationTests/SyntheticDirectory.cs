@@ -3,13 +3,17 @@ namespace EsilvaSoft.KapibaraStudio.IntegrationTests;
 /// <summary>Exclusive test directory with cleanup restricted to its fixed synthetic parent.</summary>
 internal sealed class SyntheticDirectory : IDisposable
 {
-    private readonly string _parent = System.IO.Path.GetFullPath(System.IO.Path.Combine(
-        System.IO.Path.GetTempPath(), "kapibara-integration"));
+    private readonly string _parent;
     public string Path { get; }
 
-    public SyntheticDirectory()
+    public SyntheticDirectory(bool useShortPath = false)
     {
-        Path = System.IO.Path.Combine(_parent, Guid.NewGuid().ToString("N"));
+        // Unix socket paths include the runtime directory and have a small byte limit.
+        // Keep regular fixtures unchanged; IPC fixtures use a short, random directory.
+        _parent = System.IO.Path.GetFullPath(System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(), useShortPath ? "kbi" : "kapibara-integration"));
+        Path = System.IO.Path.Combine(_parent,
+            useShortPath ? System.IO.Path.GetRandomFileName() : Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path);
     }
 

@@ -9,7 +9,7 @@ public sealed class BrokerLocalTransportIntegrationTests
     [Test]
     public async Task AdapterConnectsCurrentUserStreamsAndCleansUpEndpoint()
     {
-        using var workspace = new SyntheticDirectory();
+        using var workspace = new SyntheticDirectory(useShortPath: true);
         var transport = new BrokerLocalTransport();
         var endpoint = OperatingSystem.IsWindows()
             ? transport.GetEndpoint(Guid.NewGuid())
@@ -41,7 +41,7 @@ public sealed class BrokerLocalTransportIntegrationTests
     public async Task ClientCancellationDoesNotLeaveAConnection()
     {
         var transport = new BrokerLocalTransport();
-        using var workspace = new SyntheticDirectory();
+        using var workspace = new SyntheticDirectory(useShortPath: true);
         var endpoint = OperatingSystem.IsWindows()
             ? transport.GetEndpoint(Guid.NewGuid())
             : AgentBrokerEndpoint.ForWorkspace(Guid.NewGuid(), new(false, RuntimeDirectory: workspace.Path));
@@ -61,7 +61,7 @@ public sealed class BrokerLocalTransportIntegrationTests
             Assert.Ignore("Permissões Unix exigem Linux.");
             return;
         }
-        using var workspace = new SyntheticDirectory();
+        using var workspace = new SyntheticDirectory(useShortPath: true);
         var transport = new BrokerLocalTransport();
         var endpoint = AgentBrokerEndpoint.ForWorkspace(Guid.NewGuid(), new(false, RuntimeDirectory: workspace.Path));
         Directory.CreateDirectory(endpoint.PrivateDirectory!);
