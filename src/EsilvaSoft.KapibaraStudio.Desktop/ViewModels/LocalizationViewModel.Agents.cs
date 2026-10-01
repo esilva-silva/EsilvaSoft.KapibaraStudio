@@ -5,6 +5,15 @@ public sealed partial class LocalizationViewModel
     /// <summary>Native agent chat, settings and approval texts (phase 7, lote 6). Order: key, en, pt-BR, es, zh-CN.</summary>
     private static readonly (string Key, string En, string Pt, string Es, string Zh)[] AgentTranslations =
     [
+        ("agentNotice", "Notice", "Aviso", "Aviso", "提示"),
+        ("agentResumeLostForProvider", "The previous session with {0} is no longer available. A new session started without its prior context.", "A sessão anterior de {0} não está mais disponível. Uma nova sessão começou sem o contexto anterior.", "La sesión anterior de {0} ya no está disponible. Se inició una nueva sesión sin el contexto anterior.", "{0} 的上一会话已不可用。新会话已启动，不包含之前的上下文。"),
+        ("agentReadyCompact", "Ready", "Pronto", "Listo", "就绪"),
+        ("agentLatestMessage", "Go to latest message", "Ir para a última mensagem", "Ir al último mensaje", "转到最新消息"),
+        ("agentAttach", "Attach…", "Anexar…", "Adjuntar…", "附加…"),
+        ("agentReadScopeNoWorkspaceSummary", "No workspace · file access", "Sem workspace · acesso a arquivos", "Sin workspace · acceso a archivos", "无工作区 · 文件访问"),
+        ("agentReadScopeDetails", "File access · details", "Acesso a arquivos · detalhes", "Acceso a archivos · detalles", "文件访问 · 详情"),
+        ("agentContextSummary", "Message context · {0} items", "Contexto da mensagem · {0} itens", "Contexto del mensaje · {0} elementos", "消息上下文 · {0} 项"),
+        ("agentComposerHelp", "Enter: new line · Ctrl+Enter: send", "Enter: nova linha · Ctrl+Enter: enviar", "Enter: nueva línea · Ctrl+Enter: enviar", "Enter：换行 · Ctrl+Enter：发送"),
         ("agentPanelTitle", "AI Agent", "Agente IA", "Agente IA", "AI 智能体"),
         ("agentProvider", "Provider", "Provider", "Proveedor", "提供程序"),
         ("agentModel", "Model", "Modelo", "Modelo", "模型"),
@@ -23,7 +32,7 @@ public sealed partial class LocalizationViewModel
         ("agentConsentExternal", "I authorize sending the message and the chosen context to {0} (External) in this session.", "Autorizo enviar a mensagem e o contexto escolhido para {0} (Externo) nesta sessão.", "Autorizo enviar el mensaje y el contexto elegido a {0} (Externo) en esta sesión.", "我授权在本会话中将消息和所选上下文发送到 {0}（外部）。"),
         ("agentConsentHint", "Connecting an account or saving a key does not authorize sending data.", "Conectar a conta ou salvar a chave não autoriza envio de dados.", "Conectar la cuenta o guardar la clave no autoriza el envío de datos.", "连接账户或保存密钥并不授权发送数据。"),
         ("agentComposer", "Message to the agent", "Mensagem para o agente", "Mensaje para el agente", "发送给智能体的消息"),
-        ("agentComposerPlaceholder", "Describe what you need. Enter adds a line; Ctrl+Enter sends.", "Descreva o que precisa. Enter quebra linha; Ctrl+Enter envia.", "Describa lo que necesita. Enter agrega una línea; Ctrl+Enter envía.", "描述您的需求。Enter 换行；Ctrl+Enter 发送。"),
+        ("agentComposerPlaceholder", "Describe what you need…", "Descreva o que precisa…", "Describa lo que necesita…", "描述您的需求…"),
         ("agentComposerShortcut", "Ctrl+Enter works only while the message box has focus.", "Ctrl+Enter vale somente com o foco na caixa de mensagem.", "Ctrl+Enter solo funciona con el foco en el cuadro de mensaje.", "仅当消息框获得焦点时 Ctrl+Enter 才生效。"),
         ("agentSend", "Send", "Enviar", "Enviar", "发送"),
         ("agentEdit", "Edit", "Editar", "Editar", "编辑"),

@@ -16,6 +16,8 @@ public sealed partial class AgentChatViewModel
 
     public bool HasChips => Chips.Count > 0;
 
+    public string ContextSummary => Text.Format("agentContextSummary", Chips.Count);
+
     /// <summary>Chips are sent only to providers that honor them (<see cref="AgentProviderCapabilities.TurnPlan"/>).</summary>
     public bool AreChipsEnabled => IsFeatureAvailable && SupportsTurnPlan;
 
@@ -73,6 +75,7 @@ public sealed partial class AgentChatViewModel
         }
 
         OnPropertyChanged(nameof(HasChips));
+        OnPropertyChanged(nameof(ContextSummary));
         OnPropertyChanged(nameof(AreChipsEnabled));
         OnPropertyChanged(nameof(ShowChipsDisabledNotice));
         OnPropertyChanged(nameof(CanAttachExternal));
@@ -133,6 +136,7 @@ public sealed partial class AgentChatViewModel
         }
 
         OnPropertyChanged(nameof(HasChips));
+        OnPropertyChanged(nameof(ContextSummary));
         ComposerFocusRequested?.Invoke(this, EventArgs.Empty);
     }
 
@@ -191,6 +195,7 @@ public sealed partial class AgentChatViewModel
 
         Chips.Add(chip);
         OnPropertyChanged(nameof(HasChips));
+        OnPropertyChanged(nameof(ContextSummary));
         ComposerFocusRequested?.Invoke(this, EventArgs.Empty);
         return chip;
     }
@@ -224,6 +229,7 @@ public sealed partial class AgentChatViewModel
 
         Chips.Add(chip);
         OnPropertyChanged(nameof(HasChips));
+        OnPropertyChanged(nameof(ContextSummary));
         ComposerFocusRequested?.Invoke(this, EventArgs.Empty);
         return chip;
     }

@@ -1,5 +1,7 @@
 # Fase 7 — Agentes por assinatura no KapibaraStudio
 
+**P7-UX — implementado e validado automaticamente em 30/09/2026:** [painel Agente IA com prioridade para a conversa](meta-ui-ux-painel-agente-ia.md). Histórico ampliado, configurações compactas e compositor integrado; restore/build e 4.466 testes aprovados, PNGs reais inspecionados. Preserva contratos e gates dos providers. Homologação nativa e serviços reais continuam pendentes.
+
 **P7-AUTH implementada em 30/09/2026:** [inicialização automática e contratos de conta](meta-inicializacao-autenticacao-agentes.md). A inicialização do provider salvo, retry e **Testar conexão** compartilham o mesmo coordenador; handlers de conta ficam atrás dos contratos Application e não iniciam autenticação interativa. Build passou com 0 avisos/erros; UnitTests **3.340 aprovados, 20 ignorados**. Esta evidência automatizada não homologa CLI/cofre em cada SO nem altera os gates de P7-COP.
 
 Estado revisado em **29/09/2026**. Esta página distingue comportamento presente no código, capacidades liberadas e gates de homologação. Claude continua em homologação, Codex é experimental e GitHub Copilot tem liberação limitada no Windows: após checagem explícita de conta/modelos, o chat e as chamadas mediadas pelo registry estão habilitados. Isso não significa homologação completa da meta P7-COP; testes automatizados e chamadas manuais sintéticas não substituem as verificações ainda pendentes com MongoDB de teste, falhas/concorrência do runtime oficial, diálogos nativos e acessibilidade.

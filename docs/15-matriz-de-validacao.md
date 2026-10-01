@@ -1,5 +1,9 @@
 # Matriz de validação
 
+**Revisão P7-UX após uso — 30/09/2026:** seletor direto de provider com lista única limitada, nomes sem repetição e chips menores; contornos removidos dos detalhes comuns, preservando destaque de bloqueios. Build em saída isolada (aplicativo aberto): 0 avisos/erros; 22/22 testes UI/hosting/conta aprovados e PNGs da lista aberta inspecionados. [Evidências e limites](phases/phase-07-v0.11.0/meta-ui-ux-painel-agente-ia.md#revisão-após-captura-do-usuário--30092026).
+
+**P7-UX — evidência automatizada em 30/09/2026:** [P7-UX — painel Agente IA](phases/phase-07-v0.11.0/meta-ui-ux-painel-agente-ia.md). Restore locked, build 0 avisos/erros, 4.466 testes aprovados e 23 ignorados; TRXs por assembly em `TestResults/P7UX/Final`. Matriz Avalonia de 144 PNGs cobre dois tipos de provider, quatro idiomas, dois temas, três larguras e três escalas; fixtures adicionais cobrem foco/rolagem, contexto expandido, falha de persistência durante streaming e eventos na origem. Amostras reais inspecionadas. Não comprova leitor de tela, IME, diálogos nativos ou serviços reais em Windows/Linux.
+
 **P7-AUTH — implementada com doubles em 30/09/2026:** [diagnóstico e aceite](phases/phase-07-v0.11.0/meta-inicializacao-autenticacao-agentes.md). Restore locked e build solução passaram; build teve 0 avisos/erros. UnitTests: **3.340 aprovados, 20 ignorados**; dispatcher/composição **19/19** focados; filtro de conta, painel e guarda de arquitetura **10/10**. A suíte completa de IntegrationTests teve 866 aprovados, 2 falhas de remoção de diretório temporário em fixtures de migração/LiteDB e 14 ignorados; os dois testes de cleanup e a guarda passaram isoladamente **3/3**. Ainda pendem CLI/cofre reais em cada SO e confirmação do startup Copilot em ambiente de usuário. A evidência de “Testar conexão” anterior não é tratada como prova manual do novo gatilho.
 
 | Verificação P7-AUTH | Evidência | Limite |

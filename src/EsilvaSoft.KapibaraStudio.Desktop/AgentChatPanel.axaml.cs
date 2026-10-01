@@ -9,7 +9,7 @@ using EsilvaSoft.KapibaraStudio.Desktop.ViewModels;
 namespace EsilvaSoft.KapibaraStudio.Desktop;
 
 /// <summary>
-/// Native agent chat of one tab. The view owns focus, scrolling and dialogs; the view model owns state and the runtime.
+/// Native workspace agent chat. The view owns focus, scrolling and dialogs; the view model owns state and the runtime.
 /// Ctrl+Enter acts only while the composer has focus; Escape there discards the preview and never cancels a turn.
 /// Streaming updates neither move focus nor scroll away from a message the user is reading.
 /// </summary>
@@ -25,6 +25,7 @@ public partial class AgentChatPanel : UserControl
         InitializeComponent();
         Composer.AddHandler(KeyDownEvent, OnComposerKeyDown, RoutingStrategies.Tunnel);
         DataContextChanged += (_, _) => Attach(DataContext as AgentChatViewModel);
+        SizeChanged += (_, _) => UpdateRegionLimits();
         History.TemplateApplied += (_, _) => AttachHistoryScroll();
         History.LayoutUpdated += (_, _) => AttachHistoryScroll();
     }
@@ -123,10 +124,13 @@ public partial class AgentChatPanel : UserControl
         if (_viewModel is null || sender is not Control { DataContext: AgentWorkspaceFileChoice file }) return;
         _viewModel.AddWorkspaceFile(file.FullPath);
         WorkspaceFileButton.Flyout?.Hide();
+        AttachButton.Flyout?.Hide();
+        Composer.Focus();
     }
 
     private async void OnExternalFilePickRequested(object? sender, EventArgs e)
     {
+        AttachButton.Flyout?.Hide();
         var topLevel = TopLevel.GetTopLevel(this);
         if (topLevel?.StorageProvider is not { } storage || _viewModel is null) return;
         try
@@ -194,6 +198,15 @@ public partial class AgentChatPanel : UserControl
         }
     }
 
+    private void UpdateRegionLimits()
+    {
+        // Exceptional combinations (expanded context, long prompt, account error) scroll locally.
+        // Reserve space for the history, helper and send/cancel row even in the minimum host size.
+        HeaderScroll.MaxHeight = Math.Max(80, Bounds.Height * .2);
+        StatusScroll.MaxHeight = Math.Max(48, Bounds.Height * .1);
+        ComposerDetailsScroll.MaxHeight = Math.Max(96, Bounds.Height - HeaderScroll.MaxHeight - StatusScroll.MaxHeight - 200);
+    }
+
     private void AttachHistoryScroll()
     {
         if (_historyScroll is not null)
@@ -206,6 +219,14 @@ public partial class AgentChatPanel : UserControl
         {
             _historyScroll.ScrollChanged += OnHistoryScrollChanged;
         }
+    }
+
+    private void OnLatestMessageClick(object? sender, RoutedEventArgs e)
+    {
+        if (_historyScroll is not { } scroll) return;
+        _stickToBottom = true;
+        scroll.Offset = new Vector(scroll.Offset.X, Math.Max(0, scroll.Extent.Height - scroll.Viewport.Height));
+        LatestMessageButton.IsVisible = false;
     }
 
     private void OnHistoryScrollChanged(object? sender, ScrollChangedEventArgs e)
@@ -227,6 +248,7 @@ public partial class AgentChatPanel : UserControl
         }
 
         _stickToBottom = scroll.Offset.Y + scroll.Viewport.Height >= scroll.Extent.Height - StickThreshold;
+        LatestMessageButton.IsVisible = !_stickToBottom;
     }
 
     private void OnApprovalRequested(object? sender, AgentApprovalViewModel approval) => _ = ShowApprovalAsync(approval);

@@ -1,5 +1,7 @@
 # Roadmap de evolução do Kapibara Studio
 
+**P7-UX — entregas de implementação e validação automatizada concluídas em 30/09/2026:** [P7-UX — painel Agente IA](phases/phase-07-v0.11.0/meta-ui-ux-painel-agente-ia.md). Composição, conversa, compositor e estados reorganizados; build e suíte completa aprovados, PNGs Avalonia inspecionados. Homologação nativa de teclado/leitor de tela/IME e Windows/Linux permanece pendente; não fecha gates de providers.
+
 **P7-AUTH — implementado em 30/09/2026:** [inicialização automática e contratos de conta](phases/phase-07-v0.11.0/meta-inicializacao-autenticacao-agentes.md) padroniza o reconhecimento da conta oficial já existente e o dispatch de integrações por contratos. Copilot é a primeira checagem automática elegível no Windows; políticas que podem exibir diálogo permanecem explícitas. Build e UnitTests passaram; homologação nativa de CLI/cofre continua pendente por SO. Não altera os gates da Fase 7.
 
 ## Meta transversal ativa — adapters do SO e isolamento unitário (30/09/2026)

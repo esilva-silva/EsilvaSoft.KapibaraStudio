@@ -106,10 +106,14 @@ public sealed partial class AgentChatViewModel
                     OnPropertyChanged(nameof(ActivePersistenceText));
                     OnPropertyChanged(nameof(HasActivePersistenceText));
                     OnPropertyChanged(nameof(ActivePersistenceIsError));
+                    OnPropertyChanged(nameof(ShowStatusArea));
                     break;
                 case nameof(AgentChatConversation.IsEmpty):
                     OnPropertyChanged(nameof(IsEmpty));
                     OnPropertyChanged(nameof(ShowEmptyInvitation));
+                    OnPropertyChanged(nameof(ActivePersistenceText));
+                    OnPropertyChanged(nameof(HasActivePersistenceText));
+                    OnPropertyChanged(nameof(ShowStatusArea));
                     NewConversationCommand.NotifyCanExecuteChanged();
                     break;
             }
@@ -198,7 +202,9 @@ public sealed partial class AgentChatViewModel
     [NotifyPropertyChangedFor(nameof(HasHistoryStatus))]
     private string _historyStatus = "";
 
-    [ObservableProperty] private bool _historyStatusIsError;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowStatusArea))]
+    private bool _historyStatusIsError;
 
     public bool HasHistoryStatus => HistoryStatus.Length > 0;
 

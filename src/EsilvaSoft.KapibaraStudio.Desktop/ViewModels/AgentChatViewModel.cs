@@ -114,7 +114,7 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
     /// <summary>The conversation shown by the panel. Never null (an empty one when nothing was opened).</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Items), nameof(ConversationTitle), nameof(IsEmpty), nameof(ShowEmptyInvitation),
-        nameof(ActivePersistenceText), nameof(HasActivePersistenceText), nameof(ActivePersistenceIsError))]
+        nameof(ActivePersistenceText), nameof(HasActivePersistenceText), nameof(ActivePersistenceIsError), nameof(ShowStatusLine), nameof(ShowStatusArea))]
     private AgentChatConversation _activeConversation;
 
     /// <summary>Rows of the visible conversation.</summary>
@@ -131,8 +131,8 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsExternalDestination), nameof(DestinationText), nameof(DestinationHint),
-        nameof(HasModels), nameof(IsStatusError), nameof(ModeText), nameof(HasModeText), nameof(ReadScopeText),
-        nameof(HasReadScope), nameof(SupportsTurnPlan), nameof(AreChipsEnabled), nameof(ShowChipsDisabledNotice))]
+        nameof(HasModels), nameof(IsStatusError), nameof(ProviderSummary), nameof(ModeText), nameof(HasModeText), nameof(ReadScopeText),
+        nameof(HasReadScope), nameof(ReadScopeSummary), nameof(IsReadScopeCritical), nameof(SupportsTurnPlan), nameof(AreChipsEnabled), nameof(ShowChipsDisabledNotice))]
     private AgentProviderOption? _selectedProvider;
 
     [ObservableProperty] private string? _selectedModel;
@@ -146,13 +146,13 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
     [ObservableProperty] private string _composerText = "";
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(StatusText), nameof(IsStatusError), nameof(IsBusy), nameof(IsIdle),
-        nameof(CanChangeProvider), nameof(ShowEmptyInvitation), nameof(ShowRefreshProviders))]
+    [NotifyPropertyChangedFor(nameof(StatusText), nameof(StatusSummary), nameof(IsStatusError), nameof(IsBusy), nameof(IsIdle),
+        nameof(CanChangeProvider), nameof(ShowStatusLine), nameof(ShowStatusArea), nameof(ShowEmptyInvitation), nameof(ShowRefreshProviders))]
     private AgentChatState _state;
 
     /// <summary>Idle notice of the panel (e.g. provider switched); turn details belong to the conversation.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(StatusText))]
+    [NotifyPropertyChangedFor(nameof(StatusText), nameof(StatusSummary))]
     private string? _statusDetail;
 
     [ObservableProperty] private bool _isRefreshingProviders;
@@ -166,6 +166,16 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
     public string DestinationHint => SelectedProvider?.DestinationHint ?? "";
 
     /// <summary>Mode chip next to Local/Externo ("Claude · assinatura" / "Claude · API"); derived from capabilities.</summary>
+    public string ProviderSummary => SelectedProvider?.ModeText ?? SelectedProvider?.Label ?? Text.Resolve("agentProvider");
+
+    public bool ShowStatusLine => State != AgentChatState.Generating ||
+        !Items.OfType<AgentChatMessageItem>().Any(static message => message.IsStreaming);
+
+    public bool ShowStatusArea => ShowStatusLine || HasActivePersistenceText || HistoryStatusIsError;
+
+    public string StatusSummary => State == AgentChatState.Ready && string.IsNullOrEmpty(StatusDetail)
+        ? Text.Resolve("agentReadyCompact") : StatusText;
+
     public string? ModeText => SelectedProvider?.ModeText;
 
     public bool HasModeText => ModeText is not null;
@@ -278,6 +288,16 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
 
     public bool HasReadScope => ReadScopeText.Length > 0;
 
+    public string ReadScopeSummary => Text.Resolve(CurrentReadScope()?.Scope.CandidateDirectory is null
+        ? "agentReadScopeNoWorkspaceSummary" : "agentReadScopeDetails");
+
+    // Keep blocked or pinned-session scope warnings expanded; routine scope details can be disclosed on demand.
+    public bool IsReadScopeCritical => IsReadScopeBlocked ||
+        (CurrentReadScope()?.Scope.Rejection is not null and not AgentCliReadScopeRejection.None and not AgentCliReadScopeRejection.NotProvided) ||
+        (CurrentReadScope() is { } current && ActiveConversation.HasSessionWorkingDirectory &&
+         ActiveConversation.SessionProviderId == SelectedProvider?.ProviderId &&
+         !string.Equals(ActiveConversation.SessionWorkingDirectory, current.Scope.CandidateDirectory, StringComparison.Ordinal));
+
     /// <summary>Neither the chosen folder nor the dedicated folder can be used: no session can start (no fallback).</summary>
     public bool IsReadScopeBlocked => CurrentReadScope()?.Scope.BlocksSending == true;
 
@@ -343,6 +363,8 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
         _readScopeCache = null;
         OnPropertyChanged(nameof(ReadScopeText));
         OnPropertyChanged(nameof(HasReadScope));
+        OnPropertyChanged(nameof(ReadScopeSummary));
+        OnPropertyChanged(nameof(IsReadScopeCritical));
         OnPropertyChanged(nameof(IsReadScopeBlocked));
         RefreshSendBlock();
         if (IsIdle)
@@ -449,6 +471,7 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
         RefreshAutomaticChips();
         UpdateIdleState();
         OnPropertyChanged(nameof(AvailabilityText));
+            OnPropertyChanged(nameof(StatusSummary));
     }
 
     private void LoadModels(string? keep)
@@ -584,6 +607,8 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
         OnPropertyChanged(nameof(CanChangeProvider));
         OnPropertyChanged(nameof(ReadScopeText));
         OnPropertyChanged(nameof(HasReadScope));
+        OnPropertyChanged(nameof(ReadScopeSummary));
+        OnPropertyChanged(nameof(IsReadScopeCritical));
         UpdateIdleState();
         NotifyCommands();
         RefreshHistoryActiveFlags();
@@ -706,8 +731,11 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
             OnPropertyChanged(nameof(DestinationText));
             OnPropertyChanged(nameof(DestinationHint));
             OnPropertyChanged(nameof(ModeText));
+            OnPropertyChanged(nameof(ProviderSummary));
             OnPropertyChanged(nameof(PermissionsSummary));
+            OnPropertyChanged(nameof(ContextSummary));
             OnPropertyChanged(nameof(AvailabilityText));
+            OnPropertyChanged(nameof(StatusSummary));
             OnPropertyChanged(nameof(SendBlockText));
             OnPropertyChanged(nameof(ConversationTitle));
             RefreshReadScope();

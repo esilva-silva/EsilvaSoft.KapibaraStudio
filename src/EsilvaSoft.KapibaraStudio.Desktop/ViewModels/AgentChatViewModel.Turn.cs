@@ -134,6 +134,7 @@ public sealed partial class AgentChatViewModel
                 attachments: resolution.Attachments.Select(static attachment => attachment.ToDescriptor()).ToArray()));
             foreach (var chip in Chips.Where(static chip => !chip.IsAutomatic).ToArray()) Chips.Remove(chip);
             OnPropertyChanged(nameof(HasChips));
+            OnPropertyChanged(nameof(ContextSummary));
             var systemPrompt = AgentSystemPromptBuilder.Build(new AgentSystemPromptContext(plan,
                 context.WorkspaceFolder, permissions.DataSending.ActiveFile ? context.ActiveFileName : null));
             var request = new AgentTurnRequest(run.TurnId, message, context.TabId ?? "", context.DocumentVersion ?? 0)
@@ -270,6 +271,7 @@ public sealed partial class AgentChatViewModel
             return existing;
         }
 
+        var providerLabel = Providers.FirstOrDefault(option => option.ProviderId == providerId)?.Presentation.DisplayName ?? providerId;
         await CloseSessionAsync(conversation);
         var created = await runtime.StartSessionAsync(new AgentSessionOptions(providerId, modelId, workingDirectory)
         {
@@ -288,7 +290,7 @@ public sealed partial class AgentChatViewModel
                     if (!string.Equals(providerId, AgentProviderIds.GitHubCopilotSubscription, StringComparison.Ordinal))
                         conversation.ProviderSessionId = null;
                     conversation.Items.Add(new AgentChatNoticeItem(
-                        Text.Resolve("agentResumeLost"),
+                        Text.Format("agentResumeLostForProvider", providerLabel),
                         isWarning: true));
                 }
             }),
@@ -382,6 +384,7 @@ public sealed partial class AgentChatViewModel
                 ForgetSession(run.Conversation);
                 break;
         }
+        if (ReferenceEquals(ActiveConversation, run.Conversation)) OnPropertyChanged(nameof(ShowStatusLine));
     }
 
     private static bool IsAuthenticationFailure(string? code) => code is

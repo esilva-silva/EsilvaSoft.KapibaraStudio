@@ -5,6 +5,9 @@ using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
+using Avalonia.Interactivity;
+using Avalonia.Controls.Primitives;
 using EsilvaSoft.KapibaraStudio.Application.Agents;
 using EsilvaSoft.KapibaraStudio.Core;
 using EsilvaSoft.KapibaraStudio.Core.Agents;
@@ -23,6 +26,9 @@ namespace EsilvaSoft.KapibaraStudio.IntegrationTests;
 public sealed class AgentChatUiTests
 {
     private static readonly ThemeVariant[] Themes = [ThemeVariant.Light, ThemeVariant.Dark];
+    private static readonly string[] PanelLanguages = ["pt-BR", "en", "es", "zh-CN"];
+    private static readonly int[] PanelWidths = [320, 380, 560];
+    private static readonly double[] PanelScales = [1, 1.5, 2];
     private static readonly Key[] DialogKeys = [Key.Enter, Key.Escape];
     private static readonly AgentApprovalOutcome[] OnlyDenied = [AgentApprovalOutcome.Denied];
     private static readonly string[] ChatStates = ["unavailable", "ready", "streaming", "permission-denied", "confirmation-denied", "confirmation-expired", "outcome-unknown"];
@@ -44,6 +50,263 @@ public sealed class AgentChatUiTests
 
             return true;
         }, CancellationToken.None);
+    }
+
+    [Test]
+    public async Task ProviderOpensOneBoundedListAndCanBeSelectedByKeyboard()
+    {
+        await RunOnUiAsync(async () =>
+        {
+            var runtime = new ChannelAgentRuntime();
+            var tab = new AgentChatTabFixture();
+            var catalog = new FakeAgentCatalog(FakeAgentCatalog.External("api", "OpenAI API"),
+                FakeAgentCatalog.External("claude", "Claude (Anthropic API)"),
+                FakeAgentCatalog.External("subscription", "Claude — assinatura via Claude Code"),
+                FakeAgentCatalog.External("codex", "Codex — assinatura ChatGPT com nome longo para revisão"),
+                FakeAgentCatalog.External("copilot", "GitHub Copilot"), FakeAgentCatalog.Local("local", "IA local"));
+            var chat = new AgentChatViewModel(new AgentChatServices(runtime, catalog, new FakeAgentContextProvider()), tab.Capture);
+            var panel = new AgentChatPanel { DataContext = chat };
+            var window = new Window { Content = panel, Width = 340, Height = 820 };
+            window.Show();
+            await chat.Initialization;
+            try
+            {
+                var selector = panel.FindControl<ComboBox>("ProviderSelector")!;
+                foreach (var theme in Themes)
+                {
+                    Avalonia.Application.Current!.RequestedThemeVariant = theme;
+                    selector.Focus();
+                    selector.IsDropDownOpen = true;
+                    await PumpAsync(() => true);
+                    var popup = selector.GetVisualDescendants().OfType<Popup>().Single();
+                    Assert.That(popup.Child, Is.Not.Null);
+                    Assert.That(popup.Child!.Bounds.Width, Is.LessThanOrEqualTo(320),
+                        "Long provider names must not create the oversized popup from the user capture.");
+                    Assert.That(popup.Child.GetVisualDescendants().OfType<ComboBox>(), Is.Empty,
+                        "The provider list must not contain a second selector.");
+                    var directory = UiEvidenceDirectory.Current();
+                    Directory.CreateDirectory(directory);
+                    using var bitmap = new Avalonia.Media.Imaging.RenderTargetBitmap(
+                        PixelSize.FromSize(popup.Child.Bounds.Size, 1));
+                    bitmap.Render(popup.Child);
+                    bitmap.Save(Path.Combine(directory, $"agent-provider-list-{theme}.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+                    selector.IsDropDownOpen = false;
+                    await PumpAsync(() => true);
+                    Save(window, $"agent-provider-single-selector-{theme}.png");
+                }
+                selector.Focus();
+                window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
+                window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+                await PumpAsync(() => true);
+                Assert.That(chat.SelectedProvider!.ProviderId, Is.EqualTo("claude"));
+                Assert.That(runtime.LastRequest, Is.Null, "Choosing a provider does not send a turn.");
+            }
+            finally { await CloseAsync(window, chat, runtime); }
+        });
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task ConversationHasPriorityAndContextRemainsReviewableAcrossLanguagesAndScales(bool officialCli)
+    {
+        await RunOnUiAsync(async () =>
+        {
+            var runtime = new ChannelAgentRuntime();
+            var tab = new AgentChatTabFixture { Selection = "db.orders.find({ active: true }).limit(10)" };
+            var accounts = new EsilvaSoft.KapibaraStudio.Testing.FakeCliAccountManager();
+            var provider = officialCli ? EsilvaSoft.KapibaraStudio.Testing.MutableAgentCatalog.Subscription() with
+                { SupportsTurnPlan = true } : FakeAgentCatalog.External("ext", "Provider externo com nome longo") with
+                { SupportsTurnPlan = true };
+            var permissions = new FakeAgentPermissionsRepository(AgentProviderPermissions.Default(provider.ProviderId) with
+            {
+                ExternalDestinationConsentAt = DateTimeOffset.UtcNow,
+            });
+            var services = new AgentChatServices(runtime, new FakeAgentCatalog(provider), new FakeAgentContextProvider(),
+                AccountManager: accounts) { Permissions = permissions };
+            var chat = new AgentChatViewModel(services, tab);
+            var panel = new AgentChatPanel { DataContext = chat };
+            var window = new Window { Content = panel, Width = 380, Height = 820 };
+            window.Show();
+            await chat.Initialization;
+            await PumpAsync(() => chat.Chips.Count == 2);
+            try
+            {
+                foreach (var language in PanelLanguages)
+                    foreach (var theme in Themes)
+                        foreach (var width in PanelWidths)
+                            foreach (var scale in PanelScales)
+                            {
+                                LocalizationViewModel.Current.Language = language;
+                                Avalonia.Application.Current!.RequestedThemeVariant = theme;
+                                window.Width = width;
+                                window.SetRenderScaling(scale);
+                                await PumpAsync(() => true);
+                                var history = panel.FindControl<ListBox>("History")!;
+                                if (width == 380 && scale == 1 && language == "pt-BR")
+                                    Assert.That(history.Bounds.Height / (panel.Bounds.Height - 16), Is.GreaterThanOrEqualTo(.55),
+                                        "The conversation must receive at least 55% of usable panel height.");
+                                TestContext.WriteLine($"UX panel: CLI={officialCli}, {language}, {theme}, {width}@{scale}; history={history.Bounds.Height:F1}/{panel.Bounds.Height - 16:F1}");
+                                foreach (var control in new Control[] { panel.ComposerBox,
+                                    panel.FindControl<Button>("SendButton")!, panel.FindControl<Button>("AttachButton")!,
+                                    panel.FindControl<ComboBox>("ModeSelector")!, panel.FindControl<ComboBox>("ModelSelector")! })
+                                {
+                                    var origin = control.TranslatePoint(new Point(), panel)!.Value;
+                                    Assert.That(origin.X, Is.GreaterThanOrEqualTo(0));
+                                    Assert.That(origin.Y + control.Bounds.Height, Is.LessThanOrEqualTo(panel.Bounds.Height + .5));
+                                    Assert.That(origin.X + control.Bounds.Width, Is.LessThanOrEqualTo(panel.Bounds.Width + .5));
+                                }
+                                Save(window, $"agent-ux-context-{officialCli}-{language}-{theme}-{width}-{scale.ToString(CultureInfo.InvariantCulture)}.png");
+                            }
+
+                window.Width = 320;
+                window.SetRenderScaling(1);
+                LocalizationViewModel.Current.Language = "pt-BR";
+                var details = panel.FindControl<Expander>("ContextDetails")!;
+                details.IsExpanded = true;
+                await PumpAsync(() => true);
+                Assert.That(panel.FindControl<ItemsControl>("ContextChips")!.IsEffectivelyVisible, Is.True);
+                Save(window, $"agent-ux-context-expanded-{officialCli}.png");
+                var active = chat.Chips.Single(chip => chip.Kind == AgentAttachmentKind.ActiveFile);
+                chat.RemoveChipCommand.Execute(active);
+                await PumpAsync(() => chat.Chips.Count == 1);
+                Assert.That(((TextBlock)details.Header!).Text, Is.EqualTo(chat.ContextSummary), "Removal updates the context summary.");
+                Assert.That(runtime.LastRequest, Is.Null, "Reviewing or removing context must not send a message.");
+                for (var index = 0; index < 12; index++)
+                    chat.Chips.Add(new AgentContextChipViewModel(AgentAttachmentKind.WorkspaceFile,
+                        $"consulta-com-nome-longo-{index}.json", null, $"consulta-{index}.json", isAutomatic: false));
+                chat.OnWorkspaceContextChanged();
+                chat.ComposerText = string.Join("\n", Enumerable.Repeat("Uma instrução longa com BSON, contexto e filtro.", 80));
+                window.Height = 620;
+                panel.FindControl<Expander>("ReadScopeDetails")!.IsExpanded = true;
+                panel.ComposerBox.Focus();
+                await PumpAsync(() => true);
+                var send = panel.FindControl<Button>("SendButton")!;
+                var sendOrigin = send.TranslatePoint(new Point(), panel)!.Value;
+                Assert.That(sendOrigin.Y + send.Bounds.Height, Is.LessThanOrEqualTo(panel.Bounds.Height + .5));
+                Assert.That(panel.FindControl<ListBox>("History")!.Bounds.Height, Is.GreaterThanOrEqualTo(96));
+                Assert.That(panel.FindControl<ScrollViewer>("ComposerDetailsScroll")!.Extent.Height,
+                    Is.GreaterThan(panel.FindControl<ScrollViewer>("ComposerDetailsScroll")!.Viewport.Height),
+                    "Large context and prompt use local scroll, preserving the send action and conversation.");
+                Save(window, $"agent-ux-context-overflow-{officialCli}.png");
+            }
+            finally
+            {
+                LocalizationViewModel.Current.Language = "pt-BR";
+                window.SetRenderScaling(1);
+                await CloseAsync(window, chat, runtime);
+            }
+        });
+    }
+
+    [Test]
+    public async Task StreamingCodePreservesReaderPositionAndExplicitReturnToLatest()
+    {
+        await RunOnUiAsync(async () =>
+        {
+            var (window, chat, runtime) = await BuildAsync("ready", 380, 820);
+            var panel = (AgentChatPanel)window.Content!;
+            try
+            {
+                _ = chat.SendCommand.ExecuteAsync(null);
+                await PumpAsync(() => runtime.LastRequest is not null);
+                var turn = runtime.LastRequest!.TurnId;
+                Assert.That(chat.ShowStatusLine, Is.True, "Progress is visible before a response starts.");
+                var message = AgentMessageId.New();
+                runtime.Push(turn, AgentEventKind.MessageStarted, message: message);
+                runtime.Push(turn, AgentEventKind.MessageDelta,
+                    "Código para revisão, sem executar:\n```javascript\n" +
+                    "db.getCollection(\"clientes\").find({ ativo: true, nome: \"um valor suficientemente longo para exigir rolagem local\" }).limit(10)\n" +
+                    "```\n" + string.Join("\n", Enumerable.Range(0, 80).Select(index => $"Explicação da consulta, linha {index}.")), message: message);
+                await PumpAsync(() => chat.Items.OfType<AgentChatMessageItem>().Any(item => item.Blocks.Count == 3));
+                Assert.That(chat.ShowStatusLine, Is.False, "The active reply carries progress instead of a duplicated status card.");
+                var scroll = panel.FindControl<ListBox>("History")!.GetVisualDescendants().OfType<ScrollViewer>().First();
+                await PumpAsync(() => scroll.Extent.Height > scroll.Viewport.Height);
+                scroll.Offset = new Vector(0, 0);
+                panel.ComposerBox.Focus();
+                await PumpAsync(() => panel.FindControl<Button>("LatestMessageButton")!.IsVisible);
+                runtime.Push(turn, AgentEventKind.MessageDelta, "\nNova parte do stream.", message: message);
+                await PumpAsync(() => chat.Items.OfType<AgentChatMessageItem>().Last().Content.EndsWith("Nova parte do stream.", StringComparison.Ordinal));
+                Assert.That(scroll.Offset.Y, Is.LessThanOrEqualTo(8), "Streaming does not drag a reader away from the beginning.");
+                Assert.That(window.FocusManager!.GetFocusedElement(), Is.SameAs(panel.ComposerBox));
+                foreach (var theme in Themes)
+                {
+                    Avalonia.Application.Current!.RequestedThemeVariant = theme;
+                    await PumpAsync(() => true);
+                    Save(window, $"agent-ux-code-reading-{theme}.png");
+                }
+                panel.FindControl<Button>("LatestMessageButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await PumpAsync(() => !panel.FindControl<Button>("LatestMessageButton")!.IsVisible);
+                Assert.That(scroll.Offset.Y + scroll.Viewport.Height, Is.GreaterThanOrEqualTo(scroll.Extent.Height - 8));
+                Assert.That(window.FocusManager!.GetFocusedElement(), Is.SameAs(panel.ComposerBox));
+            }
+            finally { await CloseAsync(window, chat, runtime); }
+        });
+    }
+
+    [Test]
+    public async Task ResumeNoticeKeepsTheOriginatingProviderAndConversation()
+    {
+        await RunOnUiAsync(async () =>
+        {
+            var (window, chat, runtime) = await BuildAsync("ready", 380, 820);
+            try
+            {
+                _ = chat.SendCommand.ExecuteAsync(null);
+                await PumpAsync(() => runtime.LastRequest is not null);
+                var original = chat.ActiveConversation;
+                var options = runtime.SessionOptions.Single();
+                chat.NewConversationCommand.Execute(null);
+                await PumpAsync(() => !ReferenceEquals(chat.ActiveConversation, original));
+                options.ProviderSessionObserver!(new AgentProviderSessionUpdate(options.ConversationId,
+                    AgentProviderSessionChange.ResumeFallback, null));
+                await PumpAsync(() => original.Items.OfType<AgentChatNoticeItem>().Any());
+                var notice = original.Items.OfType<AgentChatNoticeItem>().Last();
+                Assert.That(notice.Content, Does.Contain("Provider externo de teste").And.Not.Contains("Claude"));
+                Assert.That(chat.Items.OfType<AgentChatNoticeItem>(), Is.Empty, "An event cannot leak into the newly visible conversation.");
+                runtime.Push(runtime.LastRequest!.TurnId, AgentEventKind.TaskCompleted, outcome: AgentTurnOutcome.Cancelled);
+                await PumpAsync(() => !original.IsBusy);
+            }
+            finally { await CloseAsync(window, chat, runtime); }
+        });
+    }
+
+    [Test]
+    public async Task PersistenceFailureStaysVisibleDuringStreamingAndDoesNotLeakIntoAnotherConversation()
+    {
+        await RunOnUiAsync(async () =>
+        {
+            var (window, chat, runtime) = await BuildAsync("ready", 380, 820);
+            var panel = (AgentChatPanel)window.Content!;
+            try
+            {
+                _ = chat.SendCommand.ExecuteAsync(null);
+                await PumpAsync(() => runtime.LastRequest is not null);
+                var turn = runtime.LastRequest!.TurnId;
+                var message = AgentMessageId.New();
+                runtime.Push(turn, AgentEventKind.MessageStarted, message: message);
+                runtime.Push(turn, AgentEventKind.MessageDelta, "Resposta ainda em andamento.", message: message);
+                await PumpAsync(() => !chat.ShowStatusLine);
+                var original = chat.ActiveConversation;
+                original.PersistenceText = "Falha ao guardar histórico. A conversa continua em memória.";
+                original.PersistenceIsError = true;
+                await PumpAsync(() => panel.FindControl<TextBlock>("PersistenceNotice")!.IsEffectivelyVisible);
+                Assert.That(panel.FindControl<TextBlock>("PersistenceNotice")!.Text, Is.EqualTo(original.PersistenceText));
+                Assert.That(chat.ShowStatusArea, Is.True, "Streaming cannot hide persistence failure.");
+                foreach (var theme in Themes)
+                {
+                    Avalonia.Application.Current!.RequestedThemeVariant = theme;
+                    await PumpAsync(() => true);
+                    Save(window, $"agent-ux-persistence-failure-{theme}.png");
+                }
+                chat.NewConversationCommand.Execute(null);
+                await PumpAsync(() => !ReferenceEquals(chat.ActiveConversation, original));
+                Assert.That(panel.FindControl<TextBlock>("PersistenceNotice")!.IsEffectivelyVisible, Is.False);
+                Assert.That(original.PersistenceText, Is.Not.Empty, "Switching conversations does not erase the failed save.");
+                runtime.Push(turn, AgentEventKind.TaskCompleted, outcome: AgentTurnOutcome.Cancelled);
+                await PumpAsync(() => !original.IsBusy);
+            }
+            finally { await CloseAsync(window, chat, runtime); }
+        });
     }
 
     [Test]
@@ -450,7 +713,9 @@ public sealed class AgentChatUiTests
     {
         var panel = (AgentChatPanel)window.Content!;
         var status = panel.FindControl<TextBlock>("StatusLine")!;
-        Assert.That(status.Text, Is.EqualTo(chat.StatusText));
+        Assert.That(status.Text, Is.EqualTo(chat.StatusSummary));
+        Assert.That(Avalonia.Automation.AutomationProperties.GetHelpText(status), Is.EqualTo(chat.StatusText),
+            "The full state remains available to assistive technology.");
         switch (state)
         {
             case "unavailable":

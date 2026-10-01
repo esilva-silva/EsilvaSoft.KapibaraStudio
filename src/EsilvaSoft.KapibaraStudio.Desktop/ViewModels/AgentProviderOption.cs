@@ -55,6 +55,19 @@ public sealed class AgentProviderOption(AgentProviderPresentation presentation)
     public string Label => Text.Format("agentProviderItem", Presentation.DisplayName,
         Presentation.IsAvailable ? DestinationText : AvailabilityText);
 
+    /// <summary>Secondary picker line without repeating the provider name.</summary>
+    public string ListDetail
+    {
+        get
+        {
+            var mode = UsesOfficialCli ? Text.Resolve("agentModeSubscription")
+                : RequiresApiKey ? Text.Resolve("agentModeApi") : null;
+            var destination = mode is null ? DestinationText
+                : Text.Format(Presentation.IsExperimental ? "agentModeChipExperimental" : "agentModeChip", DestinationText, mode);
+            return $"{destination} · {AvailabilityText}";
+        }
+    }
+
     public bool RequiresApiKey => Presentation.AuthenticationMethods.Contains(AgentAuthenticationMethod.ApiKey);
 
     /// <summary>Authentication delegated to an official CLI: no key or vault is involved, so states read differently.</summary>

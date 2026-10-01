@@ -1,5 +1,12 @@
 # Guia rápido de uso
 
+## Painel Agente IA — apresentação de 30/09/2026
+
+O menu com o nome do provider permite escolher a integração; o selo Externo/Local indica o destino. Modelo e modo ficam junto da entrada. Expanda **Contexto da mensagem** para revisar os anexos e remover itens antes de enviar. **Anexar…** reúne arquivos do workspace e externos; **Permissões…** mantém as regras do provider.
+
+**Enter** quebra linha e **Ctrl+Enter** envia. Durante a resposta, **Cancelar execução** fica disponível. Ao rolar para mensagens anteriores, a resposta não desloca a leitura: use **Ir para a última mensagem** para acompanhar novamente. Blocos de código preservam o texto e têm rolagem própria. Avisos críticos e falhas de histórico continuam visíveis; cancelar não promete desfazer operações já realizadas.
+
+
 **Disponibilidade do agente — 30/09/2026:** ao iniciar, o aplicativo verifica em segundo plano o agente salvo quando o runtime permite a consulta sem diálogo. No Windows, Copilot reutiliza a autenticação da CLI oficial e carrega seus modelos elegíveis; não envia prompt nem abre conexão MongoDB. Se aparecer **Não verificado**, use **Verificar disponibilidade** ou **Testar conexão**. Quando for necessário login, use **Entrar** para iniciar o fluxo oficial; nenhum login interativo ocorre automaticamente. Consulte [P7-AUTH](phases/phase-07-v0.11.0/meta-inicializacao-autenticacao-agentes.md) para políticas e limites por agente/SO.
 
 **Recuperação de sessão:** o snapshot respeita o opt-out geral e por conexão e exclui resultados de consultas. Falha ao salvar deve aparecer na interface; uma sessão ilegível não é substituída por uma sessão vazia. A [refatoração dos adapters](architecture/system-adapters.md) mantém essas regras antes da persistência e não altera os comandos de uso.

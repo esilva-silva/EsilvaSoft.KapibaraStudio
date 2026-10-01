@@ -110,6 +110,10 @@ public sealed partial class AgentChatViewModel
     {
         OnPropertyChanged(nameof(PermissionsSummary));
         OnPropertyChanged(nameof(HasPermissionsSummary));
+        OnPropertyChanged(nameof(ActivePersistenceText));
+        OnPropertyChanged(nameof(HasActivePersistenceText));
+        OnPropertyChanged(nameof(ActivePersistenceIsError));
+        OnPropertyChanged(nameof(ShowStatusArea));
         OnPropertyChanged(nameof(CanAttachExternal));
         OnPropertyChanged(nameof(IsHistoryDisabled));
         OnPropertyChanged(nameof(ActivePersistenceText));

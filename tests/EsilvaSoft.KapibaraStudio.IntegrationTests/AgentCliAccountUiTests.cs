@@ -237,7 +237,9 @@ public sealed class AgentCliAccountUiTests
                         window.Height = size.Height;
                         window.SetRenderScaling(scale);
                         await PumpAsync(() => true);
-                        var badge = panel.FindControl<TextBlock>("ModeBadge")!;
+                        var selector = panel.FindControl<ComboBox>("ProviderSelector")!;
+                        var badge = selector.GetVisualDescendants().OfType<TextBlock>()
+                            .Single(text => text.Text == chat.ProviderSummary);
                         var destination = panel.FindControl<TextBlock>("DestinationBadge")!;
                         Assert.Multiple(() =>
                         {

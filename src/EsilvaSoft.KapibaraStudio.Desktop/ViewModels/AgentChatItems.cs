@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using System.Collections.ObjectModel;
 using EsilvaSoft.KapibaraStudio.Application.Agents;
 using EsilvaSoft.KapibaraStudio.Core.Agents;
 using EsilvaSoft.KapibaraStudio.Desktop.Agents;
@@ -34,6 +35,7 @@ public sealed partial class AgentChatMessageItem : AgentChatItemViewModel
         _content = text;
         _isStreaming = role == AgentChatRole.Agent && messageId is not null;
         Attachments = attachments ?? [];
+        UpdateBlocks(text);
     }
 
     public AgentChatRole Role { get; }
@@ -60,6 +62,28 @@ public sealed partial class AgentChatMessageItem : AgentChatItemViewModel
     [ObservableProperty] private bool _isStreaming;
 
     public string StreamingLabel { get; } = Text.Resolve("agentStreaming");
+
+    public ObservableCollection<AgentChatMessageBlock> Blocks { get; } = [];
+
+    partial void OnContentChanged(string value) => UpdateBlocks(value);
+
+    private void UpdateBlocks(string content)
+    {
+        var parsed = AgentChatMessageBlock.Parse(content);
+        for (var index = 0; index < parsed.Count; index++)
+        {
+            var block = parsed[index];
+            if (index < Blocks.Count && Blocks[index].IsCode == block.IsCode)
+            {
+                // Preserve each block/control identity during streaming (selection, scroll and focus).
+                Blocks[index].Text = block.Text;
+                Blocks[index].Language = block.Language;
+            }
+            else if (index < Blocks.Count) Blocks[index] = block;
+            else Blocks.Add(block);
+        }
+        while (Blocks.Count > parsed.Count) Blocks.RemoveAt(Blocks.Count - 1);
+    }
 
     internal void Append(string fragment) => Content += fragment;
 }
@@ -517,6 +541,8 @@ public sealed partial class AgentEditProposalCardItem : AgentChatItemViewModel
 public sealed class AgentChatNoticeItem(string content, bool isError = false, bool isWarning = false) : AgentChatItemViewModel
 {
     public string Content { get; } = content;
+
+    public string TimeText => Timestamp.UtcDateTime.ToString("HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture);
 
     public bool IsError { get; } = isError;
 
