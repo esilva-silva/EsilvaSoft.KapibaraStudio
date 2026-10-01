@@ -15,6 +15,12 @@ public sealed class CopilotSessionEventContractTests
         .GetType("EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Copilot.CopilotSubscriptionAgentSession", throwOnError: true)!;
     private static readonly Type ActiveTurnType = SessionType.GetNestedType("ActiveTurn", BindingFlags.NonPublic)!;
     private static readonly MethodInfo OnEvent = SessionType.GetMethod("OnEvent", BindingFlags.NonPublic | BindingFlags.Static)!;
+    private static readonly AgentEventKind[] TwoMessageEvents =
+    [
+        AgentEventKind.MessageStarted, AgentEventKind.MessageDelta, AgentEventKind.MessageCompleted,
+        AgentEventKind.MessageStarted, AgentEventKind.MessageDelta, AgentEventKind.MessageCompleted,
+    ];
+    private static readonly string[] TwoMessageContents = ["first answer", "second answer"];
 
     [Test]
     public void SdkContractExposesStdioTransportAndConstructibleSessionEvents()
@@ -37,6 +43,32 @@ public sealed class CopilotSessionEventContractTests
         var ordinaryEvent = new SessionIdleEvent { Data = new SessionIdleData { Mode = SessionMode.Interactive } };
         Dispatch(ordinary, ordinaryEvent);
         Assert.That(GetDone(ordinary).IsCompleted, Is.True);
+    }
+
+    [Test]
+    public void LateDeltaAfterCompletionDoesNotReopenTheMessageOrFailTheNextMessage()
+    {
+        var turn = CreateTurn();
+        Dispatch(turn, new AssistantMessageStartEvent { Data = new AssistantMessageStartData { MessageId = "first" } });
+        Dispatch(turn, new AssistantMessageDeltaEvent
+        { Data = new AssistantMessageDeltaData { MessageId = "first", DeltaContent = "first answer" } });
+        Dispatch(turn, new AssistantMessageEvent
+        { Data = new AssistantMessageData { MessageId = "first", Content = "first answer" } });
+        Assert.DoesNotThrow(() => Dispatch(turn, new AssistantMessageDeltaEvent
+        { Data = new AssistantMessageDeltaData { MessageId = "first", DeltaContent = "late content" } }));
+        Dispatch(turn, new AssistantMessageDeltaEvent
+        { Data = new AssistantMessageDeltaData { MessageId = "second", DeltaContent = "second answer" } });
+        Dispatch(turn, new AssistantMessageEvent
+        { Data = new AssistantMessageData { MessageId = "second", Content = "second answer" } });
+
+        var events = ReadEvents(turn);
+        Assert.That(events.Select(item => item.Kind), Is.EqualTo(TwoMessageEvents));
+        Assert.That(events.Where(item => item.Kind == AgentEventKind.MessageDelta).Select(item => item.Text),
+            Is.EqualTo(TwoMessageContents));
+        Assert.That(events.Take(3).Select(item => item.MessageId).Distinct().Count(), Is.EqualTo(1));
+        Assert.That(events.Skip(3).Select(item => item.MessageId).Distinct().Count(), Is.EqualTo(1));
+        Assert.That(events[0].MessageId, Is.Not.EqualTo(events[3].MessageId));
+        Assert.That(GetDone(turn).IsCompleted, Is.False);
     }
 
     [Test]

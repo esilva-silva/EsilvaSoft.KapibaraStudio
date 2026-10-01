@@ -3,6 +3,7 @@ using System.Text;
 using EsilvaSoft.KapibaraStudio.Application;
 using EsilvaSoft.KapibaraStudio.Core;
 using EsilvaSoft.KapibaraStudio.Infrastructure;
+using EsilvaSoft.KapibaraStudio.SystemAdapters;
 using Tmds.DBus.Protocol;
 
 namespace EsilvaSoft.KapibaraStudio.UnitTests;
@@ -250,6 +251,82 @@ public sealed class LinuxSecretServiceSecretStoreTests
         Assert.That(wire.LastSecret!.Value, Is.All.EqualTo((byte)0));
     }
 
+    [Test]
+    public async Task TransportReaderReadsOnlyExactReferenceWithoutUnlockingOrMutating()
+    {
+        var wire = new FakeWire();
+        var reader = new LinuxClientTransportCredentialStore(Store(wire));
+        Assert.That(await reader.ReadAsync(Reference, CancellationToken.None), Is.EqualTo("credencial-á"));
+        Assert.Multiple(() =>
+        {
+            Assert.That(wire.Attributes, Is.EquivalentTo(LinuxSecretServiceSecretStore.Attributes(Reference)));
+            Assert.That(wire.UnlockCalls, Is.Zero);
+            Assert.That(wire.PromptCalls, Is.Zero);
+            Assert.That(wire.Created, Is.False);
+            Assert.That(wire.DeleteCalls, Is.Zero);
+            Assert.That(wire.CiphertextWrite, Is.Null);
+            Assert.That(wire.Disposed, Is.True);
+            Assert.That(wire.LastSecret!.Value, Is.All.Zero);
+        });
+    }
+
+    [TestCase("locked")]
+    [TestCase("missing")]
+    [TestCase("ambiguous")]
+    [TestCase("denied")]
+    [TestCase("corrupt")]
+    [TestCase("empty")]
+    public async Task TransportReaderFailuresReturnNoProofWithoutPromptOrFallback(string scenario)
+    {
+        var wire = new FakeWire
+        {
+            Locked = scenario == "locked",
+            Missing = scenario == "missing",
+            Ambiguous = scenario == "ambiguous",
+            ReadFailure = scenario == "denied" ? new DBusErrorReplyException("org.freedesktop.DBus.Error.AccessDenied", "secret-canary") : null,
+            Plaintext = scenario == "corrupt" ? [0xFF] : scenario == "empty" ? [] : Encoding.UTF8.GetBytes("proof")
+        };
+        Assert.That(await new LinuxClientTransportCredentialStore(Store(wire)).ReadAsync(Reference, CancellationToken.None), Is.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(wire.UnlockCalls, Is.Zero);
+            Assert.That(wire.PromptCalls, Is.Zero);
+            Assert.That(wire.Created, Is.False);
+            Assert.That(wire.DeleteCalls, Is.Zero);
+            Assert.That(wire.CiphertextWrite, Is.Null);
+            Assert.That(wire.Disposed, Is.True);
+            if (scenario is "locked" or "missing" or "ambiguous") Assert.That(wire.SessionCalls, Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task TransportReaderTimeoutReturnsNoProofAndCanRecoverOnNextRead()
+    {
+        var wire = new FakeWire { WaitAtSearch = true };
+        var reader = new LinuxClientTransportCredentialStore(Store(wire, TimeSpan.FromMilliseconds(20)));
+        Assert.That(await reader.ReadAsync(Reference, CancellationToken.None), Is.Null);
+        Assert.That(wire.Disposed, Is.True);
+        var recovered = new FakeWire();
+        Assert.That(await new LinuxClientTransportCredentialStore(Store(recovered)).ReadAsync(Reference, CancellationToken.None),
+            Is.EqualTo("credencial-á"));
+    }
+
+    [Test]
+    public async Task TransportReaderCancellationDoesNotCancelAnotherReader()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var pending = new FakeWire { WaitAtSearch = true };
+        var other = new FakeWire();
+        var task = new LinuxClientTransportCredentialStore(Store(pending)).ReadAsync(Reference, cancellation.Token);
+        await pending.SearchStarted.Task;
+        Assert.That(await new LinuxClientTransportCredentialStore(Store(other)).ReadAsync(Reference, CancellationToken.None),
+            Is.EqualTo("credencial-á"));
+        cancellation.Cancel();
+        Assert.ThrowsAsync<OperationCanceledException>(async () => await task);
+        Assert.That(pending.Disposed, Is.True);
+        Assert.That(pending.PromptCalls, Is.Zero);
+    }
+
     private static LinuxSecretServiceSecretStore Store(FakeWire wire, TimeSpan? timeout = null) =>
         new(token => { wire.Token = token; return wire; }, () => true, timeout ?? TimeSpan.FromSeconds(5));
 
@@ -274,6 +351,7 @@ public sealed class LinuxSecretServiceSecretStoreTests
         public TaskCompletionSource SearchStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public int SessionCalls { get; private set; }
         public int PromptCalls { get; private set; }
+        public int UnlockCalls { get; private set; }
         public int DeleteCalls { get; private set; }
         public IReadOnlyDictionary<string, string>? Attributes { get; private set; }
         public SecretServiceSecret? LastSecret { get; private set; }
@@ -302,7 +380,11 @@ public sealed class LinuxSecretServiceSecretStoreTests
         }
 
         public Task<bool> IsLockedAsync(string path, bool collection) => Task.FromResult(Locked);
-        public Task<SecretServiceUnlock> UnlockAsync(string path) => Task.FromResult(new SecretServiceUnlock([], "/prompt"));
+        public Task<SecretServiceUnlock> UnlockAsync(string path)
+        {
+            UnlockCalls++;
+            return Task.FromResult(new SecretServiceUnlock([], "/prompt"));
+        }
         public Task<SecretServicePromptResult> PromptAsync(string path)
         {
             PromptCalls++;

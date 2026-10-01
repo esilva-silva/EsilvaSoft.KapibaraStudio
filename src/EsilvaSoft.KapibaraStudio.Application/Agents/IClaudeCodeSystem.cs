@@ -33,6 +33,7 @@ public enum ClaudeCodeAccountCommandState
     ExecutableUnavailable,
     NoVisibleTerminal,
     StartFailed,
+    CommandFailed,
 }
 
 /// <summary>Processo isolado por operação, com captura limitada de stderr e propriedade da árvore.</summary>

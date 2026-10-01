@@ -105,8 +105,7 @@ internal sealed class CopilotVolatileSessionFsStore : ICopilotSessionFsStore
             _disposed = true;
             var sessions = _sessions.ToArray();
             _sessions.Clear();
-            foreach (var (_, session) in sessions)
-                await session.DisposeAsync().ConfigureAwait(false);
+            await CopilotResourceCleanup.DisposeAllAsync(sessions.Select(item => item.Value)).ConfigureAwait(false);
         }
         finally { _lifecycleGate.Release(); }
     }

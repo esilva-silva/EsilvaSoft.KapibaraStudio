@@ -45,13 +45,27 @@ public sealed class LinuxSecretServiceSecretStore : ISecretStore
     }
 
     public Task<SecretStoreResult<string>> GetAsync(SecretReference reference, CancellationToken cancellationToken = default)
+        => ReadAsync(reference, allowUnlock: true, cancellationToken);
+
+    /// <summary>Reads an existing transport proof without unlocking the keyring or showing a prompt.</summary>
+    internal Task<SecretStoreResult<string>> ReadWithoutPromptAsync(SecretReference reference, CancellationToken cancellationToken)
+        => ReadAsync(reference, allowUnlock: false, cancellationToken);
+
+    private Task<SecretStoreResult<string>> ReadAsync(SecretReference reference, bool allowUnlock, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(reference);
         return RunAsync(async (wire, token) =>
         {
             var item = await FindItemAsync(wire, reference).ConfigureAwait(false)
                 ?? throw new SecretServiceException(SecretStoreFailureCode.NotFound);
-            await EnsureUnlockedAsync(wire, item, collection: false).ConfigureAwait(false);
+            if (allowUnlock)
+            {
+                await EnsureUnlockedAsync(wire, item, collection: false).ConfigureAwait(false);
+            }
+            else if (await wire.IsLockedAsync(item, collection: false).ConfigureAwait(false))
+            {
+                throw new SecretServiceException(SecretStoreFailureCode.Locked);
+            }
             using var crypto = new SecretServiceCryptography();
             var session = await OpenSessionAsync(wire, crypto).ConfigureAwait(false);
             using var secret = await wire.GetSecretAsync(item, session).ConfigureAwait(false);

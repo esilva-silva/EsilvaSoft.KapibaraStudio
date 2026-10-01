@@ -1,4 +1,5 @@
 using EsilvaSoft.KapibaraStudio.Application.Agents;
+using EsilvaSoft.KapibaraStudio.Application;
 using EsilvaSoft.KapibaraStudio.Core;
 using EsilvaSoft.KapibaraStudio.Core.Agents;
 using EsilvaSoft.KapibaraStudio.Infrastructure.Agents;
@@ -12,6 +13,24 @@ namespace EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Tests.Copilot;
 [TestFixture, Category("Unit")]
 internal sealed class CopilotProviderIsolationTests
 {
+    private static readonly string[] ExpectedFilteredModels = ["model-a", "model-z"];
+    private sealed record Platform(bool IsWindows, bool IsLinux) : IHostPlatformSnapshot;
+
+    [TestCase(true, AgentCapabilityEvidence.Homologated)]
+    [TestCase(false, AgentCapabilityEvidence.AutomatedContract)]
+    public async Task ExplicitAccountCheckDoesNotTransferWindowsEvidenceToLinux(bool isWindows, AgentCapabilityEvidence evidence)
+    {
+        var resources = new Resources();
+        using var provider = new CopilotSubscriptionAgentProvider(new NoTools(), resources, new Commands(),
+            new Platform(isWindows, !isWindows));
+        Assert.That(provider.Describe().Capabilities.Evidence, Is.EqualTo(evidence));
+        Assert.That(resources.AccountCalls, Is.Zero);
+        await provider.CheckAccountAndModelsAsync();
+        var status = await provider.GetStatusAsync(CancellationToken.None);
+        Assert.That(status.IsAvailable, Is.True);
+        Assert.That(status.Capabilities.Evidence, Is.EqualTo(evidence));
+    }
+
     private sealed class NoTools : IAgentToolRegistry
     {
         public IReadOnlyList<AgentToolDescriptor> GetDescriptors() => [];
@@ -97,6 +116,83 @@ internal sealed class CopilotProviderIsolationTests
         Assert.That(resources.Account.Disposals, Is.EqualTo(1));
         Assert.That(resources.SessionCalls, Is.Zero);
         Assert.That((await provider.GetStatusAsync(CancellationToken.None)).IsAvailable, Is.False);
+    }
+
+    [Test]
+    public async Task ExplicitModelRefreshFiltersUnsafeIdsDeduplicatesSortsAndSelectsStableDefault()
+    {
+        var resources = new Resources();
+        resources.Account.Models = ["model-z", "model-a", "model-z", "unsafe model", "bad\nmodel", new string('x', 129)];
+        using var provider = new CopilotSubscriptionAgentProvider(new NoTools(), resources, new Commands(), new Platform(false, true));
+
+        Assert.That((await provider.CheckAccountAndModelsAsync()).State, Is.EqualTo(CopilotAccountState.Subscription));
+        var status = await provider.GetStatusAsync(CancellationToken.None);
+        Assert.That(status.Models, Is.EqualTo(ExpectedFilteredModels));
+        Assert.That(status.DefaultModel, Is.EqualTo("model-a"));
+        Assert.That(status.Capabilities.Evidence, Is.EqualTo(AgentCapabilityEvidence.AutomatedContract));
+    }
+
+    [Test]
+    public async Task RefreshAfterSubscriptionExpiresClearsModelsAndRejectsNewSessions()
+    {
+        var resources = new Resources();
+        using var provider = new CopilotSubscriptionAgentProvider(new NoTools(), resources, new Commands());
+        await provider.CheckAccountAndModelsAsync();
+        Assert.That((await provider.GetStatusAsync(CancellationToken.None)).IsAvailable, Is.True);
+
+        resources.Account.Authentication = new(false, "user");
+        Assert.That((await provider.CheckAccountAndModelsAsync()).State, Is.EqualTo(CopilotAccountState.NotLoggedIn));
+        var expired = await provider.GetStatusAsync(CancellationToken.None);
+        Assert.That(expired.IsAvailable, Is.False);
+        Assert.That(expired.Models, Is.Empty);
+        Assert.ThrowsAsync<InvalidOperationException>(async () => await provider.CreateSessionAsync(
+            new AgentSessionOptions(provider.ProviderId, "synthetic-model"), CancellationToken.None));
+        Assert.That(resources.SessionCalls, Is.Zero);
+    }
+
+    [TestCase("start")]
+    [TestCase("authentication")]
+    [TestCase("catalog")]
+    public async Task FailedAccountRefreshClearsAvailabilityAndRetryRecovers(string failurePoint)
+    {
+        var resources = new Resources();
+        using var provider = new CopilotSubscriptionAgentProvider(new NoTools(), resources, new Commands());
+        await provider.CheckAccountAndModelsAsync();
+        switch (failurePoint)
+        {
+            case "start": resources.Account.StartFailure = new IOException("synthetic start failure"); break;
+            case "authentication": resources.Account.AuthenticationFailure = new IOException("synthetic auth failure"); break;
+            case "catalog": resources.Account.ModelCatalogFailure = new IOException("synthetic catalog failure"); break;
+            default: throw new ArgumentOutOfRangeException(nameof(failurePoint));
+        }
+
+        Assert.That((await provider.CheckAccountAndModelsAsync()).State, Is.EqualTo(CopilotAccountState.Unavailable));
+        var unavailable = await provider.GetStatusAsync(CancellationToken.None);
+        Assert.That(unavailable.IsAvailable, Is.False);
+        Assert.That(unavailable.UnavailableCode, Is.EqualTo("CopilotProviderUnavailable"));
+        Assert.ThrowsAsync<InvalidOperationException>(async () => await provider.CreateSessionAsync(
+            new AgentSessionOptions(provider.ProviderId, "synthetic-model"), CancellationToken.None));
+        Assert.That(resources.SessionCalls, Is.Zero);
+
+        resources.Account.StartFailure = null;
+        resources.Account.AuthenticationFailure = null;
+        resources.Account.ModelCatalogFailure = null;
+        Assert.That((await provider.CheckAccountAndModelsAsync()).State, Is.EqualTo(CopilotAccountState.Subscription));
+        Assert.That((await provider.GetStatusAsync(CancellationToken.None)).IsAvailable, Is.True);
+    }
+
+    [Test]
+    public async Task EmptyEligibleModelCatalogDoesNotPublishAvailability()
+    {
+        var resources = new Resources();
+        resources.Account.Models = ["unsafe model", "bad\tmodel"];
+        using var provider = new CopilotSubscriptionAgentProvider(new NoTools(), resources, new Commands());
+
+        Assert.That((await provider.CheckAccountAndModelsAsync()).State, Is.EqualTo(CopilotAccountState.Subscription));
+        var status = await provider.GetStatusAsync(CancellationToken.None);
+        Assert.That(status.IsAvailable, Is.False);
+        Assert.That(status.UnavailableCode, Is.EqualTo("CopilotNoModels"));
+        Assert.That(status.Models, Is.Empty);
     }
 
     [Test]

@@ -111,6 +111,7 @@ public partial class App
                 ClaudeCodeAccountCommandState.StillRunning => AgentAccountCommandOutcome.StillRunning,
                 ClaudeCodeAccountCommandState.ExecutableUnavailable => AgentAccountCommandOutcome.ExecutableUnavailable,
                 ClaudeCodeAccountCommandState.NoVisibleTerminal => AgentAccountCommandOutcome.NoVisibleTerminal,
+                ClaudeCodeAccountCommandState.CommandFailed => AgentAccountCommandOutcome.CommandFailed,
                 _ => AgentAccountCommandOutcome.StartFailed,
             },
             result.AuthStatus is { } auth ? Map(auth, null, null) : null);

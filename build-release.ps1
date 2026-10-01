@@ -31,35 +31,7 @@ function Invoke-Step([string]$Title, [scriptblock]$Command) {
     if ($LASTEXITCODE -ne 0) { throw "Falhou: $Title (exit $LASTEXITCODE)" }
 }
 
-# tar.exe do Windows não grava o bit de execução; TarWriter permite definir o modo Unix.
-function New-TarGz([string]$SourceDir, [string]$Destination) {
-    $fileMode = [IO.UnixFileMode][Convert]::ToInt32('644', 8)
-    $execMode = [IO.UnixFileMode][Convert]::ToInt32('755', 8)
-
-    $output = [IO.File]::Create($Destination)
-    $gzip = [IO.Compression.GZipStream]::new($output, [IO.Compression.CompressionLevel]::SmallestSize)
-    $writer = [Formats.Tar.TarWriter]::new($gzip, [Formats.Tar.TarEntryFormat]::Pax, $false)
-    try {
-        foreach ($file in Get-ChildItem -LiteralPath $SourceDir -Recurse -File | Sort-Object FullName) {
-            $name = [IO.Path]::GetRelativePath($SourceDir, $file.FullName).Replace('\', '/')
-            $entry = [Formats.Tar.PaxTarEntry]::new([Formats.Tar.TarEntryType]::RegularFile, $name)
-            $entry.Mode = if ($file.Name -in @($ExecutableName, 'EsilvaSoft.KapibaraStudio.McpServer', 'copilot', 'copilot-runtime', 'createdump', 'rg', 'tgrep')) { $execMode } else { $fileMode }
-            $entry.ModificationTime = [DateTimeOffset]$file.LastWriteTimeUtc
-            $content = $file.OpenRead()
-            try {
-                $entry.DataStream = $content
-                $writer.WriteEntry($entry)
-            }
-            finally { $content.Dispose() }
-        }
-    }
-    finally {
-        $writer.Dispose()
-        $gzip.Dispose()
-        $output.Dispose()
-    }
-}
-
+. (Join-Path $PSScriptRoot 'eng/ReleasePackaging.ps1')
 Push-Location $PSScriptRoot
 try {
     if (-not $Version) {
@@ -92,7 +64,17 @@ try {
     Invoke-Step 'restore' { dotnet restore $Solution --locked-mode }
     Invoke-Step 'build' { dotnet build $Solution --no-restore -c Release "-p:Version=$Version" }
     if (-not $SkipTests) {
-        Invoke-Step 'test' { dotnet test $Solution --no-build --no-restore -c Release }
+        if ($IsLinux) {
+            Invoke-Step 'unit tests (Linux)' {
+                dotnet test 'tests/EsilvaSoft.KapibaraStudio.UnitTests/EsilvaSoft.KapibaraStudio.UnitTests.csproj' --no-build --no-restore -c Release
+            }
+            Invoke-Step 'agent adapter unit tests (Linux)' {
+                dotnet test 'tests/EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Tests/EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Tests.csproj' --no-build --no-restore -c Release
+            }
+        }
+        else {
+            Invoke-Step 'test' { dotnet test $Solution --no-build --no-restore -c Release }
+        }
     }
 
     foreach ($rid in $Rids) {
@@ -123,7 +105,9 @@ try {
 
         Remove-Item (Join-Path $publishDir '*.pdb'), (Join-Path $publishDir '*.xml'), (Join-Path $publishDir '*.lib') -ErrorAction Ignore
 
-        & (Join-Path $PSScriptRoot 'eng/Test-ReleasePackage.ps1') -PublishDirectory $publishDir -Rid $rid
+        $packageValidationArgs = @{ PublishDirectory = $publishDir; Rid = $rid }
+        if ($rid.StartsWith('linux-')) { $packageValidationArgs.SkipRuntimeExecution = $true }
+        & (Join-Path $PSScriptRoot 'eng/Test-ReleasePackage.ps1') @packageValidationArgs
 
         Write-Host "==> package $rid" -ForegroundColor Cyan
         if ($rid.StartsWith('win-')) {
@@ -133,7 +117,7 @@ try {
             if (-not (Test-Path (Join-Path $publishDir $ExecutableName))) {
                 throw "Executável '$ExecutableName' não encontrado em $publishDir"
             }
-            New-TarGz $publishDir (Join-Path $distDir "$packageName.tar.gz")
+            New-KapibaraLinuxPackage $publishDir (Join-Path $distDir "$packageName.tar.gz") $rid
         }
     }
 

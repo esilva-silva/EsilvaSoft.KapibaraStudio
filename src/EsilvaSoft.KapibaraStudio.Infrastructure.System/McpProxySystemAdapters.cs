@@ -20,6 +20,7 @@ public static class McpProxySystemAdapters
             transport ?? new BrokerLocalTransport(),
             credentials ?? (platform.IsWindows
                 ? new WindowsClientTransportCredentialStore()
+                : platform.IsLinux ? new LinuxClientTransportCredentialStore()
                 : new UnavailableClientTransportCredentialStore()),
             console ?? new LocalAgentMcpConsole());
     }

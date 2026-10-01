@@ -6,6 +6,8 @@ namespace EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Tests.ClaudeCode;
 
 internal sealed class MemoryClaudeCodeSystem : IClaudeCodeSystem
 {
+    private static readonly string[] MissingResumeErrors = ["No conversation found"];
+
     public static string Root => Path.DirectorySeparatorChar == '\\' ? @"C:\claude-tests" : "/claude-tests";
     public string HomeDirectory => Path.Combine(Root, "home");
     public string TemporaryDirectory => Path.Combine(Root, "temp");
@@ -17,9 +19,16 @@ internal sealed class MemoryClaudeCodeSystem : IClaudeCodeSystem
     public bool Missing { get; set; }
     public bool Unsupported { get; set; }
     public bool VersionTimedOut { get; set; }
+    public int VersionExitCode { get; set; }
+    public int AuthExitCode { get; set; }
     public bool ExecutableValid { get; set; } = true;
     public bool HangTurn { get; set; }
+    public bool PersistedResumeMissingOnce { get; set; }
+    public bool OmitResultFrame { get; set; }
+    public int ProcessExitCode { get; set; }
     public string? UnexpectedTool { get; set; }
+    public IReadOnlyList<string> ProductTools { get; set; } = [];
+    public Action? BeforeProcessStart { get; set; }
     public Exception? FingerprintFailure { get; set; }
     public ClaudeCodeExecutableFingerprint Fingerprint { get; set; } = new(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), 100);
     public HashSet<string> Directories { get; } = new(StringComparer.Ordinal);
@@ -28,6 +37,8 @@ internal sealed class MemoryClaudeCodeSystem : IClaudeCodeSystem
     public List<string> DebugLines { get; } = [];
     public List<string[]> Probes { get; } = [];
     public List<MemoryClaudeCodeProcess> Processes { get; } = [];
+    public List<string[]> AccountArguments { get; } = [];
+    public ClaudeCodeAccountCommandState AccountCommandState { get; set; } = ClaudeCodeAccountCommandState.Completed;
     public TaskCompletionSource<MemoryClaudeCodeProcess> ProcessStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public int AccountCalls { get; private set; }
     public bool IsEnvironmentVariableSet(string name) => name == BlockingVariable;
@@ -42,7 +53,8 @@ internal sealed class MemoryClaudeCodeSystem : IClaudeCodeSystem
         string workingDirectory, TimeSpan timeout, CancellationToken cancellationToken)
     {
         AccountCalls++;
-        return Task.FromResult(ClaudeCodeAccountCommandState.Completed);
+        AccountArguments.Add(arguments.ToArray());
+        return Task.FromResult(AccountCommandState);
     }
     public Task<ClaudeCodeProbeResult> ProbeAsync(string executable, IReadOnlyList<string> arguments, string workingDirectory,
         TimeSpan timeout, int maxOutputBytes, int maxStderrBytes, CancellationToken cancellationToken)
@@ -50,11 +62,12 @@ internal sealed class MemoryClaudeCodeSystem : IClaudeCodeSystem
         cancellationToken.ThrowIfCancellationRequested();
         Probes.Add(arguments.ToArray());
         return Task.FromResult(arguments.Contains("--version")
-            ? new ClaudeCodeProbeResult(VersionTimedOut, false, 0, VersionOutput)
-            : new ClaudeCodeProbeResult(false, false, 0, AuthOutput));
+            ? new ClaudeCodeProbeResult(VersionTimedOut, false, VersionExitCode, VersionOutput)
+            : new ClaudeCodeProbeResult(false, false, AuthExitCode, AuthOutput));
     }
     public IClaudeCodeProcess Start(string executable, IReadOnlyList<string> arguments, string workingDirectory, int maxStderrBytes)
     {
+        BeforeProcessStart?.Invoke();
         var args = arguments.ToArray();
         string Value(string flag) => args[Array.IndexOf(args, flag) + 1];
         var id = Value(args.Contains("--resume") ? "--resume" : "--session-id");
@@ -68,25 +81,45 @@ internal sealed class MemoryClaudeCodeSystem : IClaudeCodeSystem
             _ => requestedModel,
         };
         var tools = Value("--tools").Split(',', StringSplitOptions.RemoveEmptyEntries).ToList();
+        if (PersistedResumeMissingOnce && args.Contains("--resume"))
+        {
+            PersistedResumeMissingOnce = false;
+            var missing = JsonSerializer.Serialize(new
+            {
+                type = "result",
+                session_id = id,
+                is_error = true,
+                errors = MissingResumeErrors,
+            });
+            var failed = new MemoryClaudeCodeProcess(args, new MemoryStream(Encoding.UTF8.GetBytes(missing + "\n")), 1);
+            Processes.Add(failed);
+            ProcessStarted.TrySetResult(failed);
+            return failed;
+        }
+
+        var hasMcp = args.Contains("--mcp-config");
+        if (hasMcp) tools.AddRange(ProductTools.Select(McpServerLaunchSpec.ToolName));
         if (UnexpectedTool is not null) tools.Add(UnexpectedTool);
-        var frames = new[]
+        var frames = new List<string>
         {
             JsonSerializer.Serialize(new { type = "system", subtype = "init", session_id = id, tools,
-                mcp_servers = Array.Empty<object>(), model = observedModel, permissionMode = "default", apiKeySource = "none", claude_code_version = "2.1.268" }),
+                mcp_servers = hasMcp ? new object[] { new { name = McpServerLaunchSpec.DefaultServerName, status = "connected" } }
+                    : Array.Empty<object>(), model = observedModel, permissionMode = "default", apiKeySource = "none", claude_code_version = "2.1.268" }),
             JsonSerializer.Serialize(new { type = "assistant", session_id = id,
                 message = new { id = "msg-memory", role = "assistant", content = new[] { new { type = "text", text = "ok" } } } }),
-            JsonSerializer.Serialize(new { type = "result", subtype = "success", session_id = id, is_error = false, num_turns = 1, result = "ok" }),
         };
+        if (!OmitResultFrame)
+            frames.Add(JsonSerializer.Serialize(new { type = "result", subtype = "success", session_id = id, is_error = false, num_turns = 1, result = "ok" }));
         var bytes = Encoding.UTF8.GetBytes(string.Join('\n', frames) + "\n");
         var process = new MemoryClaudeCodeProcess(args, HangTurn ? new PendingOutputStream(bytes)
-            : new MemoryStream(bytes));
+            : new MemoryStream(bytes), ProcessExitCode);
         Processes.Add(process);
         ProcessStarted.TrySetResult(process);
         return process;
     }
 }
 
-internal sealed class MemoryClaudeCodeProcess(string[] arguments, Stream output) : IClaudeCodeProcess
+internal sealed class MemoryClaudeCodeProcess(string[] arguments, Stream output, int processExitCode = 0) : IClaudeCodeProcess
 {
     private bool _exited;
     public Task ReadStarted => output is PendingOutputStream pending ? pending.ReadStarted.Task : Task.CompletedTask;
@@ -99,7 +132,7 @@ internal sealed class MemoryClaudeCodeProcess(string[] arguments, Stream output)
     public Stream StandardOutput => output;
     public StreamWriter StandardInput { get; } = new(new MemoryStream(), new UTF8Encoding(false));
     public bool HasExited => _exited || WasKilled;
-    public int? ExitCode => HasExited ? 0 : null;
+    public int? ExitCode => HasExited ? processExitCode : null;
     public bool WasKilled { get; private set; }
     public int KillRequests { get; private set; }
     public string StderrSnapshot => string.Empty;
@@ -111,8 +144,9 @@ internal sealed class MemoryClaudeCodeProcess(string[] arguments, Stream output)
     }
     public Task<bool> WaitForExitAsync(TimeSpan timeout)
     {
-        // Assim como a fixture STDIO, o processo só termina depois de o consumidor fechar stdin.
-        if ((output is MemoryStream || output is PendingOutputStream { IsReleased: true }) && !StandardInput.BaseStream.CanWrite)
+        // EOF significa que o filho encerrou stdout; preservar o exit code deixa a camada de turno classificar crash vs. truncamento.
+        if (output is MemoryStream memory && memory.Position >= memory.Length ||
+            output is PendingOutputStream pending && pending.IsAtEnd)
             _exited = true;
         return Task.FromResult(HasExited);
     }
@@ -132,6 +166,7 @@ internal sealed class PendingOutputStream(byte[] frames) : Stream
     private readonly TaskCompletionSource _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public TaskCompletionSource ReadStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public bool IsReleased => _release.Task.IsCompletedSuccessfully;
+    public bool IsAtEnd => _output.Position >= _output.Length;
     public void Release() => _release.TrySetResult();
     public override bool CanRead => true;
     public override bool CanSeek => false;

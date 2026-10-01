@@ -1,10 +1,10 @@
 namespace EsilvaSoft.KapibaraStudio.IntegrationTests.Mcp;
 
 /// <summary>
-/// Linux has no homologated proxy-side reader for the channel proof yet (Secret Service pending). The real proxy
-/// process must fail closed against a real broker on the Unix socket: no proof crosses the channel, the authority is
+/// The synthetic proof exists only in the IDE's in-memory store, so the Linux proxy cannot find it in Secret Service.
+/// The real proxy must fail closed against a real broker on the Unix socket: no proof crosses the channel, the authority is
 /// never reached, data calls report <c>AuthenticationRequired</c>, and stdout stays pure JSON-RPC. This is not a
-/// Linux homologation of MCP; it only pins the safe failure until the native reader exists.
+/// Linux homologation of MCP; it pins safe failure when the exact versioned proof is missing from the OS vault.
 /// </summary>
 [TestFixture]
 [NonParallelizable]
@@ -14,7 +14,7 @@ namespace EsilvaSoft.KapibaraStudio.IntegrationTests.Mcp;
 public sealed class McpStdioProxyLinuxTests
 {
     [Test]
-    public async Task ProxyWithoutATransportCredentialReaderFailsClosedWithoutReachingTheAuthority()
+    public async Task ProxyWithoutTheVersionedProofInOsVaultFailsClosedWithoutReachingTheAuthority()
     {
         await using var fixture = new McpBrokerFixture(new InMemoryProfileSecretStore());
         await fixture.Host.StartAsync();

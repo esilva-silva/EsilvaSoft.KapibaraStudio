@@ -288,4 +288,6 @@ Disponível hoje: `Ctrl+Espaço` abre a lista tradicional (padrão de teclado de
 
 ## Claude Code e Anthropic API
 
+No Linux, a conclusão de Copilot/Claude está sendo acompanhada pela [meta P7-LINUX](phases/phase-07-v0.11.0/meta-linux-copilot-claude.md). Use a CLI oficial instalada e execute login nela pelo fluxo oficial. Copilot exige **Verificar disponibilidade**/**Testar conexão** explícito no Linux; a inicialização não deve abrir o cofre automaticamente. O pacote deve conter os launchers Copilot e o proxy MCP executáveis, mas isso não comprova homologação. As ferramentas MCP/aprovações Claude continuam indisponíveis na composição Linux até concluir o aceite nativo.
+
 O chat com Claude Code e o fluxo oficial de login já estão disponíveis no código. A API Key Anthropic é uma modalidade separada, selecionada explicitamente. Para configurar, verificar conexão, entender ferramentas/permissões ou seguir o roteiro Windows, consulte [Claude no KapibaraStudio](phases/phase-07-v0.11.0/README.md). A homologação com conta Claude Pro real permanece pendente; não trate testes com mocks como validação da conta.

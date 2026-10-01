@@ -42,7 +42,7 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           if [[ "$version" == *-* ]]; then echo "prerelease=true" >> "$GITHUB_OUTPUT"; else echo "prerelease=false" >> "$GITHUB_OUTPUT"; fi
 
-  # Tests on Linux and Windows run in parallel with packaging; the release waits for both.
+  # Linux runs unit tests only; Windows runs the complete suite. Packaging runs in parallel.
   test:
     uses: ./.github/workflows/ci.yml
 
@@ -58,7 +58,7 @@ jobs:
         include:
           - { rid: win-x64, os: windows-latest, backend: WinML }
           - { rid: win-arm64, os: windows-latest, backend: WinML }
-          - { rid: linux-x64, os: ubuntu-latest, backend: Cpu }
+          - { rid: linux-x64, os: ubuntu-24.04, backend: Cpu }
           - { rid: linux-arm64, os: ubuntu-latest, backend: Cpu }
     env:
       VERSION: ${{ needs.version.outputs.version }}
@@ -80,17 +80,22 @@ jobs:
           -p:Version=${{ env.VERSION }} -o publish
       - name: Package
         shell: pwsh
+        env:
+          SKIP_RUNTIME_EXECUTION: ${{ startsWith(matrix.rid, 'linux-') }}
         run: |
           Remove-Item publish/*.pdb, publish/*.xml, publish/*.lib -ErrorAction Ignore
           if (-not $IsWindows) {
             chmod +x publish/EsilvaSoft.KapibaraStudio.Desktop publish/mcp/EsilvaSoft.KapibaraStudio.McpServer publish/runtimes/${{ matrix.rid }}/native/copilot publish/runtimes/${{ matrix.rid }}/copilot-cli/copilot
           }
-          ./eng/Test-ReleasePackage.ps1 -PublishDirectory publish -Rid '${{ matrix.rid }}'
+          $validationArgs = @{ PublishDirectory = 'publish'; Rid = '${{ matrix.rid }}' }
+          if ([bool]::Parse($env:SKIP_RUNTIME_EXECUTION)) { $validationArgs.SkipRuntimeExecution = $true }
+          ./eng/Test-ReleasePackage.ps1 @validationArgs
           New-Item -ItemType Directory -Force dist | Out-Null
           if ($IsWindows) {
             Compress-Archive -Path publish/* -DestinationPath "dist/$env:PACKAGE.zip"
           } else {
-            tar -czf "dist/$env:PACKAGE.tar.gz" -C publish .
+            . ./eng/ReleasePackaging.ps1
+            New-KapibaraLinuxPackage (Join-Path $PWD 'publish') (Join-Path $PWD "dist/$env:PACKAGE.tar.gz") '${{ matrix.rid }}'
           }
       - uses: actions/upload-artifact@v4
         with:

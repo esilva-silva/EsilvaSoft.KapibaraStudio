@@ -54,6 +54,15 @@ public sealed class AgentCliAccountCompositionTests
     }
 
     [Test]
+    public void FailedClaudeCliCommandRemainsFailedInTheDesktopAccountContract()
+    {
+        var mapped = App.ClaudeCodeAccountHandler.Map(
+            new ClaudeCodeAccountCommandResult(ClaudeCodeAccountCommandState.CommandFailed, null));
+
+        Assert.That(mapped.Outcome, Is.EqualTo(AgentAccountCommandOutcome.CommandFailed));
+    }
+
+    [Test]
     public void ReadScopeIsTheProvidersOwnWorkingDirectoryDecision()
     {
         var manager = Manager();

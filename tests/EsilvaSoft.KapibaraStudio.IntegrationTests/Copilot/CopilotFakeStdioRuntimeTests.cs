@@ -97,10 +97,11 @@ public sealed class CopilotFakeStdioRuntimeTests
         });
     }
 
-    [Test, Explicit("Aceite manual Windows: consulta o estado OAuth Copilot e os modelos do SDK real, sem enviar prompt/contexto.")]
-    public async Task WindowsOfficialRuntimeReportsSanitizedAccountAndModelCatalog()
+    [Test, Explicit("Aceite manual Windows/Linux: consulta pelo provider o estado da conta oficial Copilot e os modelos elegíveis, sem enviar prompt/contexto.")]
+    public async Task OfficialRuntimeReportsSanitizedAccountAndModelCatalog()
     {
-        Assert.That(OperatingSystem.IsWindows(), Is.True, "A homologação P7-COP está limitada ao Windows.");
+        Assert.That(OperatingSystem.IsWindows() || OperatingSystem.IsLinux(), Is.True,
+            "Requer runtime oficial em Windows ou Linux; executar não implica homologação.");
         using var provider = new CopilotSubscriptionAgentProvider(new NoToolsRegistry());
 
         var account = await provider.CheckAccountAndModelsAsync();
@@ -118,19 +119,6 @@ public sealed class CopilotFakeStdioRuntimeTests
             Assert.That(status.Capabilities.ToolCalling, Is.True);
             Assert.That(status.Capabilities.NativeTools, Is.False);
         }
-    }
-
-    [Test, Explicit("Aceite manual Windows: verifica a inicialização do runtime oficial no modo SessionFs volátil sem criar sessão ou enviar prompt.")]
-    public async Task WindowsOfficialRuntimeAcceptsVolatileSessionFsConfiguration()
-    {
-        Assert.That(OperatingSystem.IsWindows(), Is.True, "A homologação P7-COP está limitada ao Windows.");
-        await using var store = new CopilotVolatileSessionFsStore();
-        var sessionFs = CopilotVolatileSessionFsStore.CreateConfiguration(Environment.CurrentDirectory);
-        await using var client = new CopilotClient(
-            CopilotRuntimeSettings.SessionClientOptions(Environment.CurrentDirectory, sessionFs));
-
-        await client.StartAsync(CancellationToken.None);
-        TestContext.Progress.WriteLine("O runtime oficial iniciou em modo CopilotCli e aceitou a negociação SessionFs; nenhum turno foi criado ou enviado.");
     }
 
     [Test]

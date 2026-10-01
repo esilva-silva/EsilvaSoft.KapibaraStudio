@@ -13,7 +13,6 @@ namespace EsilvaSoft.KapibaraStudio.SystemAdapters.ClaudeCode;
 /// </summary>
 internal sealed class ClaudeCodeProcess : IClaudeCodeProcess
 {
-    private const string SetsidPath = "/usr/bin/setsid";
     private static readonly UTF8Encoding Utf8 = new(encoderShouldEmitUTF8Identifier: false);
 
     private readonly Process _process;
@@ -64,10 +63,11 @@ internal sealed class ClaudeCodeProcess : IClaudeCodeProcess
 
     public static ClaudeCodeProcess Start(string executable, IReadOnlyList<string> arguments, string workingDirectory, int maxStderrBytes)
     {
-        var useSetsid = OperatingSystem.IsLinux() && File.Exists(SetsidPath);
+        var setsid = ResolveProcessGroupLauncher(OperatingSystem.IsLinux(), IsExecutable);
+        var useSetsid = setsid is not null;
         var info = new ProcessStartInfo
         {
-            FileName = useSetsid ? SetsidPath : executable,
+            FileName = setsid ?? executable,
             WorkingDirectory = workingDirectory,
             UseShellExecute = false,
             CreateNoWindow = true,
@@ -115,6 +115,31 @@ internal sealed class ClaudeCodeProcess : IClaudeCodeProcess
         }
     }
 
+    internal static string? ResolveProcessGroupLauncher(bool isLinux, Func<string, bool> isExecutable)
+    {
+        if (!isLinux) return null;
+        foreach (var path in new[] { "/usr/bin/setsid", "/bin/setsid" })
+        {
+            if (isExecutable(path)) return path;
+        }
+        // A parent-link tree walk cannot reach an orphaned tool process. Never start without the group boundary.
+        throw new InvalidOperationException("O Claude Code exige setsid executável para isolar e encerrar processos no Linux.");
+    }
+
+    private static bool IsExecutable(string path)
+    {
+        if (!OperatingSystem.IsLinux()) return false;
+        try
+        {
+            return File.Exists(path) && (File.GetUnixFileMode(path) &
+                (UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute)) != 0;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
     /// <summary>
     /// Encerra o processo e todos os descendentes. Idempotente; nunca lança. Não há rollback do que já foi executado.
     /// </summary>
@@ -126,16 +151,7 @@ internal sealed class ClaudeCodeProcess : IClaudeCodeProcess
             ProcessTreeNativeMethods.TryTerminate(_job);
         }
 
-        if (_ownProcessGroup)
-        {
-            try
-            {
-                ProcessTreeNativeMethods.TryKillProcessGroup(_process.Id);
-            }
-            catch (Exception exception) when (exception is InvalidOperationException or DllNotFoundException or EntryPointNotFoundException)
-            {
-            }
-        }
+        KillProcessGroup();
 
         TryKill(_process);
     }
@@ -168,6 +184,11 @@ internal sealed class ClaudeCodeProcess : IClaudeCodeProcess
         {
             KillTree();
         }
+        else
+        {
+            // The leader can exit while a tool's orphaned descendants still belong to its group.
+            KillProcessGroup();
+        }
 
         try
         {
@@ -181,6 +202,18 @@ internal sealed class ClaudeCodeProcess : IClaudeCodeProcess
         // Fechar o último handle do Job encerra qualquer neto que ainda reste (KILL_ON_JOB_CLOSE).
         _job?.Dispose();
         _process.Dispose();
+    }
+
+    private void KillProcessGroup()
+    {
+        if (!_ownProcessGroup) return;
+        try
+        {
+            ProcessTreeNativeMethods.TryKillProcessGroup(_process.Id);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or DllNotFoundException or EntryPointNotFoundException)
+        {
+        }
     }
 
     private int? SafeExitCode()

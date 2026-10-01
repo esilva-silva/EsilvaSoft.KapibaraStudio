@@ -48,11 +48,45 @@ internal sealed class CopilotCliDiscoveryIntegrationTests
             Assert.That(LocalCopilotAccountCommands.FindCliExecutable(root), Is.Null);
             Assert.That(LocalCopilotAccountCommands.FindCliExecutable("relative-path"), Is.Null);
             File.WriteAllText(executable, "test placeholder");
+            if (OperatingSystem.IsLinux())
+            {
+                File.SetUnixFileMode(executable, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+                Assert.That(LocalCopilotAccountCommands.FindCliExecutable(root), Is.Null,
+                    "Arquivo sem permissão de execução não é uma CLI disponível.");
+                File.SetUnixFileMode(executable, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+            }
             Assert.That(LocalCopilotAccountCommands.FindCliExecutable(root), Is.EqualTo(executable));
         }
         finally
         {
             if (root.StartsWith(parent + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) && Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Test]
+    [Platform("Linux")]
+    public void LinuxTerminalCandidateMustBeExecutable()
+    {
+        if (!OperatingSystem.IsLinux()) throw new PlatformNotSupportedException("Permissões POSIX exigem Linux.");
+
+        var parent = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "KapibaraStudio.CopilotTerminalTest"));
+        var root = Path.GetFullPath(Path.Combine(parent, Guid.NewGuid().ToString("N")));
+        Directory.CreateDirectory(root);
+        var candidate = Path.Combine(root, "terminal");
+        try
+        {
+            File.WriteAllText(candidate, "test placeholder");
+            File.SetUnixFileMode(candidate, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            Assert.That(LocalCopilotAccountCommands.IsLinuxTerminalExecutable(candidate), Is.False);
+            Assert.That(LocalCopilotAccountCommands.IsLinuxTerminalExecutable("relative-terminal"), Is.False);
+
+            File.SetUnixFileMode(candidate, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+            Assert.That(LocalCopilotAccountCommands.IsLinuxTerminalExecutable(candidate), Is.True);
+        }
+        finally
+        {
+            if (root.StartsWith(parent + Path.DirectorySeparatorChar, StringComparison.Ordinal) && Directory.Exists(root))
                 Directory.Delete(root, recursive: true);
         }
     }

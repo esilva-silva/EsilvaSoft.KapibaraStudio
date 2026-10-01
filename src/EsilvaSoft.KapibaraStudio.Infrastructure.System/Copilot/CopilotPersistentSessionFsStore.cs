@@ -116,8 +116,9 @@ internal sealed class CopilotPersistentSessionFsStore : ICopilotSessionFsStore
         {
             if (_disposed) return;
             _disposed = true;
-            foreach (var (_, state) in _sessions.ToArray()) await state.DisposeAsync().ConfigureAwait(false);
+            var sessions = _sessions.ToArray();
             _sessions.Clear();
+            await CopilotResourceCleanup.DisposeAllAsync(sessions.Select(item => item.Value)).ConfigureAwait(false);
         }
         finally { _lifecycleGate.Release(); }
     }
@@ -389,8 +390,9 @@ internal sealed class CopilotPersistentSessionFsStore : ICopilotSessionFsStore
             {
                 if (_disposed) return;
                 lock (_filesGate) _disposed = true;
-                if (_sqlite is not null) await _sqlite.DisposeAsync().ConfigureAwait(false);
-                _ownershipLock.Dispose();
+                // The ownership lock must close even when SQLite reports a disposal failure.
+                await CopilotResourceCleanup.DisposeAllAsync(_sqlite is null
+                    ? [_ownershipLock] : [_sqlite, _ownershipLock]).ConfigureAwait(false);
             }
             finally { _sqliteGate.Release(); }
         }

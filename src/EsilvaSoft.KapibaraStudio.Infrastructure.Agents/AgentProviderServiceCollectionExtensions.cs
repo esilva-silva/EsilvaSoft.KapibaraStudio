@@ -24,11 +24,13 @@ public static class AgentProviderServiceCollectionExtensions
         if (services.Any(static descriptor => descriptor.ServiceType == typeof(CopilotSubscriptionAgentProvider)))
             throw new InvalidOperationException("O provider Copilot por assinatura já foi composto.");
         services.TryAddSingleton<ICopilotAccountCommands, LocalCopilotAccountCommands>();
+        services.TryAddSingleton<IHostPlatformSnapshot, LocalHostPlatformSnapshot>();
         services.TryAddSingleton<ICopilotRuntimeResourcesFactory, LocalCopilotRuntimeResourcesFactory>();
         services.AddSingleton(provider => new CopilotSubscriptionAgentProvider(
             provider.GetRequiredService<IAgentToolRegistry>(),
             provider.GetRequiredService<ICopilotRuntimeResourcesFactory>().Create(),
-            provider.GetRequiredService<ICopilotAccountCommands>()));
+            provider.GetRequiredService<ICopilotAccountCommands>(),
+            provider.GetRequiredService<IHostPlatformSnapshot>()));
         services.AddSingleton<IAgentProvider>(provider => provider.GetRequiredService<CopilotSubscriptionAgentProvider>());
         return services;
     }

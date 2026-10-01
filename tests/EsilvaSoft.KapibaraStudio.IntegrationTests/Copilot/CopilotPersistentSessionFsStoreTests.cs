@@ -211,17 +211,32 @@ internal sealed class CopilotPersistentSessionFsStoreTests
     }
 
     [Test]
-    public async Task WindowsSessionLockIsExclusiveAcrossProcesses()
+    public async Task SessionLockIsExclusiveAcrossProcesses()
     {
-        if (!OperatingSystem.IsWindows()) Assert.Ignore("A trava entre processos P7-COP é homologada somente no Windows.");
+        if (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux())
+            Assert.Ignore("A trava cross-process é verificada somente em Windows e Linux nesta suíte.");
         var root = Path.Combine(Path.GetTempPath(), "kapibara-copilot-sessionfs-" + Guid.NewGuid().ToString("N"));
         const string id = "cross-process-session-id";
         try
         {
+            var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(id)));
+            var lockPath = Path.Combine(root, ".locks", hash + ".lock");
+
+            if (OperatingSystem.IsLinux())
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(lockPath)!);
+                await AssertLinuxFlockSemanticsAsync(lockPath);
+            }
+
             await using var store = new CopilotPersistentSessionFsStore(root);
             _ = store.CreateProvider(id);
-            var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(id)));
-            var lockPath = Path.Combine(root, ".locks", hash + ".lock").Replace("'", "''", StringComparison.Ordinal);
+            if (OperatingSystem.IsLinux())
+            {
+                await AssertLinuxFlockBlockedAsync(lockPath);
+                return;
+            }
+
+            lockPath = lockPath.Replace("'", "''", StringComparison.Ordinal);
             var powershell = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
                 "WindowsPowerShell", "v1.0", "powershell.exe");
             Assert.That(File.Exists(powershell), Is.True, "Windows PowerShell is required for this cross-process lock test.");
@@ -253,6 +268,84 @@ internal sealed class CopilotPersistentSessionFsStoreTests
                 "The operating system must deny a different process exclusive access while this store owns the session.");
         }
         finally { if (Directory.Exists(root)) Directory.Delete(root, recursive: true); }
+    }
+
+    private static async Task AssertLinuxFlockSemanticsAsync(string lockPath)
+    {
+        var flock = FindLinuxExecutable("flock");
+        var trueCommand = FindLinuxExecutable("true");
+        if (flock is null || trueCommand is null)
+            Assert.Ignore("Linux cross-process lock probe requires executable `flock` and `true` commands on PATH.");
+
+        var probe = await RunLinuxFlockAsync(flock, lockPath, trueCommand);
+        if (probe.ExitCode != 0 || !string.IsNullOrWhiteSpace(probe.StandardError))
+            Assert.Ignore("The native `flock` probe is present but cannot acquire a lock on the temporary filesystem; cross-process behavior was not tested.");
+    }
+
+    private static async Task AssertLinuxFlockBlockedAsync(string lockPath)
+    {
+        var flock = FindLinuxExecutable("flock")!;
+        var trueCommand = FindLinuxExecutable("true")!;
+        var probe = await RunLinuxFlockAsync(flock, lockPath, trueCommand);
+        Assert.That(probe.ExitCode, Is.EqualTo(1),
+            "A different Linux process must fail to acquire the flock held by FileShare.None.");
+        Assert.That(probe.StandardError, Is.Empty,
+            "The Linux flock probe must report the expected lock conflict without a command or filesystem error.");
+    }
+
+    private static string? FindLinuxExecutable(string name)
+    {
+        if (!OperatingSystem.IsLinux()) return null;
+
+        foreach (var directory in (Environment.GetEnvironmentVariable("PATH") ?? string.Empty)
+                     .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (!Path.IsPathFullyQualified(directory)) continue;
+            var candidate = Path.GetFullPath(Path.Combine(directory, name));
+            try
+            {
+                if (File.Exists(candidate) &&
+                    (File.GetUnixFileMode(candidate) & (UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute)) != 0)
+                    return candidate;
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                // Ignore unreadable PATH entries and keep looking for a usable system command.
+            }
+        }
+
+        return null;
+    }
+
+    private static async Task<(int ExitCode, string StandardOutput, string StandardError)> RunLinuxFlockAsync(
+        string flock, string lockPath, string trueCommand)
+    {
+        var start = new ProcessStartInfo(flock)
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+        };
+        start.ArgumentList.Add("--nonblock");
+        start.ArgumentList.Add(lockPath);
+        start.ArgumentList.Add(trueCommand);
+
+        using var process = Process.Start(start) ?? throw new InvalidOperationException("Could not start Linux flock probe process.");
+        var stdoutTask = process.StandardOutput.ReadToEndAsync();
+        var stderrTask = process.StandardError.ReadToEndAsync();
+        try
+        {
+            await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
+        }
+        catch (TimeoutException)
+        {
+            process.Kill(entireProcessTree: true);
+            await process.WaitForExitAsync();
+            throw;
+        }
+
+        return (process.ExitCode, await stdoutTask, await stderrTask);
     }
 
     [Test]

@@ -192,10 +192,12 @@ public sealed class ClaudeCodeProviderTests
         var home = Directory.CreateDirectory(Path.Combine(fixture.Root, "home")).FullName;
         var localBin = Directory.CreateDirectory(Path.Combine(home, ".local", "bin")).FullName;
         File.WriteAllBytes(Path.Combine(localBin, name), header);
+        if (OperatingSystem.IsLinux()) File.SetUnixFileMode(Path.Combine(localBin, name), UnixFileMode.UserRead | UnixFileMode.UserExecute);
         var pathDir = Directory.CreateDirectory(Path.Combine(fixture.Root, "path")).FullName;
 
         var fromHome = new ClaudeCodeExecutableLocator(pathDir, home, null).Locate(null);
         File.WriteAllBytes(Path.Combine(pathDir, name), header);
+        if (OperatingSystem.IsLinux()) File.SetUnixFileMode(Path.Combine(pathDir, name), UnixFileMode.UserRead | UnixFileMode.UserExecute);
         var fromPath = new ClaudeCodeExecutableLocator(pathDir, home, null).Locate(null);
 
         Assert.Multiple(() =>
@@ -213,6 +215,31 @@ public sealed class ClaudeCodeProviderTests
             var fromWinGet = new ClaudeCodeExecutableLocator(null, Path.Combine(fixture.Root, "nohome"), localAppData).Locate(null);
             Assert.That(fromWinGet.Path, Is.EqualTo(Path.Combine(package, name)));
         }
+    }
+
+    [Test]
+    public void LinuxLocatorSkipsNonExecutableElfAndFindsTheNextNativeCandidate()
+    {
+        if (!OperatingSystem.IsLinux()) Assert.Ignore("Requer permissões Unix reais.");
+        using var fixture = new ClaudeCodeFixture();
+        var pathDir = Directory.CreateDirectory(Path.Combine(fixture.Root, "path")).FullName;
+        var localBin = Directory.CreateDirectory(Path.Combine(fixture.Root, "home", ".local", "bin")).FullName;
+        var rejected = Path.Combine(pathDir, "claude");
+        var accepted = Path.Combine(localBin, "claude");
+        byte[] header = [0x7F, (byte)'E', (byte)'L', (byte)'F'];
+        File.WriteAllBytes(rejected, header);
+        File.WriteAllBytes(accepted, header);
+        if (OperatingSystem.IsLinux())
+        {
+            File.SetUnixFileMode(rejected, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            File.SetUnixFileMode(accepted, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+        }
+        Assert.That(ClaudeCodeExecutableLocator.Validate(rejected), Is.Null);
+        Assert.That(new ClaudeCodeExecutableLocator(pathDir, Path.Combine(fixture.Root, "home"), null).Locate(null).Path,
+            Is.EqualTo(accepted));
+        File.Delete(accepted);
+        Assert.That(new ClaudeCodeExecutableLocator(pathDir, Path.Combine(fixture.Root, "home"), null).Locate(null).State,
+            Is.EqualTo(ClaudeCodeExecutableState.UnsupportedExecutable));
     }
 
     [Test]
@@ -371,6 +398,43 @@ public sealed class ClaudeCodeProviderTests
             Assert.That(info.CreateNoWindow, Is.False);
             Assert.That(ClaudeCodeCommandLine.LogoutArguments, Is.EqualTo(LogoutPair));
         });
+    }
+
+    [TestCase(0, ClaudeCodeAccountCommandState.Completed)]
+    [TestCase(1, ClaudeCodeAccountCommandState.CommandFailed)]
+    [TestCase(-1, ClaudeCodeAccountCommandState.CommandFailed)]
+    public void VisibleAccountCommandReportsProcessExitOutcome(int exitCode, ClaudeCodeAccountCommandState expected)
+    {
+        Assert.That(ClaudeCodeAccountCommands.ClassifyExitCode(exitCode), Is.EqualTo(expected));
+    }
+
+    [Test]
+    [Platform("Linux")]
+    public void LinuxTerminalSearchSkipsAnInexecutableFirstPathEntry()
+    {
+        if (!OperatingSystem.IsLinux()) throw new PlatformNotSupportedException("Permissões POSIX exigem Linux.");
+
+        var parent = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "KapibaraStudio.ClaudeTerminalTest"));
+        var root = Path.GetFullPath(Path.Combine(parent, Guid.NewGuid().ToString("N")));
+        var first = Directory.CreateDirectory(Path.Combine(root, "first")).FullName;
+        var second = Directory.CreateDirectory(Path.Combine(root, "second")).FullName;
+        var rejected = Path.Combine(first, "x-terminal-emulator");
+        var accepted = Path.Combine(second, "x-terminal-emulator");
+        try
+        {
+            File.WriteAllText(rejected, "synthetic terminal");
+            File.SetUnixFileMode(rejected, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            File.WriteAllText(accepted, "synthetic terminal");
+            File.SetUnixFileMode(accepted, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+
+            var selected = ClaudeCodeAccountCommands.FindLinuxTerminal(first + Path.PathSeparator + second);
+            Assert.That(selected?.Path, Is.EqualTo(accepted));
+        }
+        finally
+        {
+            if (root.StartsWith(parent + Path.DirectorySeparatorChar, StringComparison.Ordinal) && Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
     }
 
     [Test]

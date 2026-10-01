@@ -49,6 +49,7 @@ internal sealed class McpBrokerFixture : IAsyncDisposable
     }
 
     public ISecretStore Secrets { get; }
+    public string WorkspaceDatabasePath => _workspace.DatabasePath;
     public LiteDbConnectionProfileRepository Owner { get; }
     public CountingAuthority Authority => _authority ??= new CountingAuthority(Owner);
     private CountingAuthority? _authority;
@@ -105,12 +106,51 @@ internal sealed class McpBrokerFixture : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        await Host.DisposeAsync();
+        List<Exception> cleanupErrors = [];
+        var cleanupPendingObserved = false;
+        try { await Host.DisposeAsync(); }
+        catch (Exception error) { cleanupErrors.Add(error); }
+
         // Revocation removes each synthetic proof from the store (the real OS vault in STDIO tests).
         foreach (var channel in _channels)
-            await ((IAgentPrincipalAuthority)Owner).RevokeExternalChannelAsync(channel.ChannelId);
-        Owner.Dispose();
-        _workspace.Dispose();
+        {
+            try
+            {
+                var status = await ((IAgentPrincipalAuthority)Owner).RevokeExternalChannelAsync(channel.ChannelId);
+                if (status == AgentChannelRevocationStatus.RevokedCleanupPending)
+                    cleanupPendingObserved = true;
+                else if (status == AgentChannelRevocationStatus.UnknownChannel)
+                    cleanupErrors.Add(new InvalidOperationException(
+                        $"O canal MCP {channel.ChannelId} desapareceu antes da limpeza da fixture."));
+            }
+            catch (Exception error) { cleanupErrors.Add(error); }
+        }
+
+        // Retry durable pending removals once before deciding whether the workspace can be discarded.
+        try
+        {
+            var remaining = await ((IAgentPrincipalAuthority)Owner).RecoverPendingChannelsAsync();
+            if (remaining > 0)
+                cleanupErrors.Add(new InvalidOperationException(
+                    $"{remaining} prova(s) sintética(s) MCP continuam pendentes de remoção do cofre."));
+            else if (cleanupPendingObserved)
+                TestContext.Progress.WriteLine("A limpeza pendente das provas MCP foi concluída na tentativa de recuperação.");
+        }
+        catch (Exception error) { cleanupErrors.Add(error); }
+
+        try { Owner.Dispose(); }
+        catch (Exception error) { cleanupErrors.Add(error); }
+
+        if (cleanupErrors.Count == 0)
+        {
+            _workspace.Dispose();
+            return;
+        }
+
+        // Keep the durable pending marker so recovery can be retried instead of silently deleting it.
+        throw new AggregateException(
+            $"Falha na limpeza da fixture MCP; o workspace foi preservado em {_workspace.DatabasePath}.",
+            cleanupErrors);
     }
 
     internal sealed record Channel(Guid ChannelId, Guid PrincipalId, SecretReference ProofReference);

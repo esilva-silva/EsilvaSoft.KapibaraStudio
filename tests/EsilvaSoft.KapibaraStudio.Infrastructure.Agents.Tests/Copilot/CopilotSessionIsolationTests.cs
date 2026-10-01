@@ -2,6 +2,7 @@ using EsilvaSoft.KapibaraStudio.Application.Agents;
 using EsilvaSoft.KapibaraStudio.Core;
 using EsilvaSoft.KapibaraStudio.Core.Agents;
 using EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Copilot;
+using GitHub.Copilot;
 using NUnit.Framework;
 
 namespace EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Tests.Copilot;
@@ -27,11 +28,72 @@ internal sealed class CopilotSessionIsolationTests
     };
     private static CopilotSubscriptionAgentSession Session(MemoryCopilotRuntime client) =>
         new(new NoTools(), new(CopilotSubscriptionAgentProvider.Id, "synthetic-model"), client);
-    private static async Task<List<AgentProviderEvent>> CollectAsync(CopilotSubscriptionAgentSession session, AgentTurnRequest request)
+    private static async Task<List<AgentProviderEvent>> CollectAsync(CopilotSubscriptionAgentSession session, AgentTurnRequest request,
+        CancellationToken cancellationToken = default)
     {
         var events = new List<AgentProviderEvent>();
-        await foreach (var item in session.RunTurnAsync(request, CancellationToken.None)) events.Add(item);
+        await foreach (var item in session.RunTurnAsync(request, cancellationToken)) events.Add(item);
         return events;
+    }
+
+#pragma warning disable GHCP001 // Assert only that experimental SDK capabilities stay explicitly disabled.
+    private static void AssertProductSessionDefaults(SessionConfigBase config)
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(config.Streaming, Is.True);
+            Assert.That(config.Model, Is.EqualTo("synthetic-model"));
+            Assert.That(config.EnableConfigDiscovery, Is.False);
+            Assert.That(config.EnableExperimentalMode, Is.False);
+            Assert.That(config.EnableSessionTelemetry, Is.False);
+            Assert.That(config.EnableFileChangeTracking, Is.False);
+            Assert.That(config.SkipEmbeddingRetrieval, Is.True);
+            Assert.That(config.SkipCustomInstructions, Is.True);
+            Assert.That(config.EnableOnDemandInstructionDiscovery, Is.False);
+            Assert.That(config.EnableFileHooks, Is.False);
+            Assert.That(config.EnableHostGitOperations, Is.False);
+            Assert.That(config.EnableSkills, Is.False);
+            Assert.That(config.EnableSessionStore, Is.False);
+            Assert.That(config.Memory?.Enabled, Is.False);
+            Assert.That(config.ToolSearch?.Enabled, Is.False);
+            Assert.That(config.CustomAgentsLocalOnly, Is.True);
+            Assert.That(config.EnableMcpApps, Is.False);
+            Assert.That(config.RequestCanvasRenderer, Is.False);
+            Assert.That(config.RequestExtensions, Is.False);
+            Assert.That(config.CoauthorEnabled, Is.False);
+            Assert.That(config.ManageScheduleEnabled, Is.False);
+            Assert.That(config.PluginDirectories, Is.Empty);
+            Assert.That(config.InstructionDirectories, Is.Empty);
+            Assert.That(config.SkillDirectories, Is.Empty);
+            Assert.That(config.CustomAgents, Is.Empty);
+            Assert.That(config.Commands, Is.Empty);
+            Assert.That(config.Canvases, Is.Empty);
+        });
+    }
+#pragma warning restore GHCP001
+
+    [Test]
+    public async Task ProductSessionDefaultsAreAppliedOnCreateAndResume()
+    {
+        var createClient = new MemoryCopilotRuntime();
+        await using (var created = Session(createClient))
+        {
+            await CollectAsync(created, Request()).WaitAsync(TimeSpan.FromSeconds(5));
+            AssertProductSessionDefaults(createClient.Creates.Single());
+        }
+
+        const string reservedId = "reserved-session";
+        var resumeClient = new MemoryCopilotRuntime { SessionExists = true };
+        var storage = new MemoryCopilotSessionStorage(persistent: true);
+        storage.ReserveSession(reservedId);
+        await using var resumed = new CopilotSubscriptionAgentSession(new NoTools(),
+            new(CopilotSubscriptionAgentProvider.Id, "synthetic-model")
+            {
+                ReservedProviderSessionId = reservedId,
+                ResumeProviderSessionId = reservedId,
+            }, resumeClient, storage);
+        await CollectAsync(resumed, Request()).WaitAsync(TimeSpan.FromSeconds(5));
+        AssertProductSessionDefaults(resumeClient.Resumes.Single());
     }
 
     [Test]
@@ -50,6 +112,133 @@ internal sealed class CopilotSessionIsolationTests
     }
 
     [Test]
+    public async Task FailedTurnSessionDisposalEndsTheInstanceAndPreservesDeliveryReport()
+    {
+        var cleanupFailure = new IOException("synthetic session cleanup failure");
+        var client = new MemoryCopilotRuntime { SessionDisposalFailure = cleanupFailure };
+        var session = Session(client);
+        var request = Request();
+
+        var failure = Assert.ThrowsAsync<IOException>(async () => await CollectAsync(session, request));
+
+        Assert.That(failure, Is.SameAs(cleanupFailure));
+        Assert.That(session.GetCancellationReport(request.TurnId), Is.EqualTo(AgentTurnCancellationReport.MayHaveTakenEffect));
+        await session.CancelTurnAsync(request.TurnId, CancellationToken.None);
+        Assert.ThrowsAsync<ObjectDisposedException>(async () => await CollectAsync(session, Request()));
+        var repeatedFailure = Assert.ThrowsAsync<AggregateException>(async () => await session.DisposeAsync())!;
+        Assert.That(repeatedFailure.Flatten().InnerExceptions, Is.EqualTo(new[] { cleanupFailure }));
+        Assert.That(client.Disposals, Is.EqualTo(1));
+        Assert.That(client.Sessions.Single().Disposals, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task FailedTurnCleanupReportsSessionAndClientFailures()
+    {
+        var sessionFailure = new IOException("synthetic session cleanup failure");
+        var clientFailure = new IOException("synthetic client cleanup failure");
+        var client = new MemoryCopilotRuntime
+        {
+            SessionDisposalFailure = sessionFailure,
+            DisposalFailure = clientFailure,
+        };
+        var session = Session(client);
+        var request = Request();
+
+        var failure = Assert.ThrowsAsync<AggregateException>(async () => await CollectAsync(session, request))!;
+
+        Assert.That(failure.Flatten().InnerExceptions, Is.EquivalentTo(new[] { sessionFailure, clientFailure }));
+        Assert.That(session.GetCancellationReport(request.TurnId), Is.EqualTo(AgentTurnCancellationReport.MayHaveTakenEffect));
+        await session.CancelTurnAsync(request.TurnId, CancellationToken.None);
+        Assert.ThrowsAsync<AggregateException>(async () => await session.DisposeAsync());
+        Assert.That(client.Disposals, Is.EqualTo(1));
+        Assert.That(client.Sessions.Single().Disposals, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task ConcurrentDisposalSharesCleanupAndReportsAllFailuresAfterClosingOwnedStore()
+    {
+        var releaseCleanup = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var sessionFailure = new IOException("synthetic session cleanup failure");
+        var clientFailure = new IOException("synthetic client cleanup failure");
+        var storeFailure = new IOException("synthetic store cleanup failure");
+        var client = new MemoryCopilotRuntime
+        {
+            CompleteOnSend = false,
+            SessionDisposalFailure = sessionFailure,
+            SessionDisposalWait = releaseCleanup.Task,
+            DisposalFailure = clientFailure,
+        };
+        var store = new MemoryCopilotSessionStorage(persistent: false) { DisposalFailure = storeFailure };
+        var session = new CopilotSubscriptionAgentSession(new NoTools(),
+            new(CopilotSubscriptionAgentProvider.Id, "synthetic-model") { PersistProviderSession = false },
+            client, store, ownsSessionFsStore: true);
+        var request = Request();
+        var turn = CollectAsync(session, request);
+        var nativeSession = client.Sessions.Single();
+        await nativeSession.Sent.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var first = session.DisposeAsync().AsTask();
+        await nativeSession.DisposalStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var second = session.DisposeAsync().AsTask();
+        Assert.That(first, Is.SameAs(second));
+        Assert.That(nativeSession.Disposals, Is.EqualTo(1));
+        Assert.That(client.Disposals, Is.Zero);
+        releaseCleanup.TrySetResult();
+
+        var failure = Assert.ThrowsAsync<AggregateException>(async () => await first)!;
+        var repeatedFailure = Assert.ThrowsAsync<AggregateException>(async () => await second);
+        Assert.That(repeatedFailure, Is.SameAs(failure));
+        Assert.That(failure.Flatten().InnerExceptions, Is.EquivalentTo(new[] { sessionFailure, clientFailure, storeFailure }));
+        var turnFailure = Assert.ThrowsAsync<AggregateException>(async () => await turn.WaitAsync(TimeSpan.FromSeconds(5)))!;
+        Assert.That(turnFailure.Flatten().InnerExceptions, Is.EquivalentTo(new[] { sessionFailure, clientFailure, storeFailure }));
+        Assert.That(session.GetCancellationReport(request.TurnId), Is.EqualTo(AgentTurnCancellationReport.MayHaveTakenEffect));
+        await session.CancelTurnAsync(request.TurnId, CancellationToken.None);
+        Assert.That(client.Disposals, Is.EqualTo(1));
+        Assert.That(store.Disposals, Is.EqualTo(1));
+        Assert.That(nativeSession.Disposals, Is.EqualTo(1));
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task DisposalWaitsForPendingCreateOrResumeAndClosesTheLateHandleWithoutSending(bool resume)
+    {
+        var releaseAcquisition = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var client = new MemoryCopilotRuntime
+        {
+            SessionAcquisitionWait = releaseAcquisition.Task,
+            SessionExists = resume,
+        };
+        var store = new MemoryCopilotSessionStorage(persistent: true);
+        var options = new AgentSessionOptions(CopilotSubscriptionAgentProvider.Id, "synthetic-model")
+        {
+            ReservedProviderSessionId = "reserved-id",
+            ResumeProviderSessionId = resume ? "reserved-id" : null,
+        };
+        var session = new CopilotSubscriptionAgentSession(new NoTools(), options, client, store, ownsSessionFsStore: true);
+        var request = Request();
+        var turn = CollectAsync(session, request);
+        await client.SessionAcquisitionStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var disposal = session.DisposeAsync().AsTask();
+        Assert.That(disposal.IsCompleted, Is.False);
+        Assert.That(client.Disposals, Is.Zero);
+        Assert.That(store.Disposals, Is.Zero);
+        Assert.That(client.Sessions, Is.Empty);
+        releaseAcquisition.TrySetResult();
+
+        await disposal.WaitAsync(TimeSpan.FromSeconds(5));
+        await turn.WaitAsync(TimeSpan.FromSeconds(5));
+        var nativeSession = client.Sessions.Single();
+        Assert.That(nativeSession.Disposals, Is.EqualTo(1));
+        Assert.That(nativeSession.Operations, Does.Not.Contain("send"));
+        Assert.That(client.Disposals, Is.EqualTo(1));
+        Assert.That(store.Disposals, Is.EqualTo(1));
+        Assert.That(session.GetCancellationReport(request.TurnId), Is.EqualTo(AgentTurnCancellationReport.NothingSent));
+        await session.DisposeAsync();
+        Assert.That(nativeSession.Disposals, Is.EqualTo(1));
+    }
+
+    [Test]
     public async Task FailedAgentRestrictionDoesNotSendPrompt()
     {
         var client = new MemoryCopilotRuntime { RestrictionSucceeds = false };
@@ -57,6 +246,33 @@ internal sealed class CopilotSessionIsolationTests
         var events = await CollectAsync(session, Request());
         Assert.That(events.Any(item => item.Kind == AgentEventKind.AgentError), Is.True);
         Assert.That(client.Sessions.Single().Operations, Is.EqualTo(RestrictedOnly));
+    }
+
+    [Test]
+    public async Task CancellationFromEstablishedObserverDoesNotInvokeSendOrClaimPossibleEffects()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var client = new MemoryCopilotRuntime();
+        var session = new CopilotSubscriptionAgentSession(new NoTools(),
+            new(CopilotSubscriptionAgentProvider.Id, "synthetic-model")
+            {
+                ProviderSessionObserver = update =>
+                {
+                    if (update.Change == AgentProviderSessionChange.Established) cancellation.Cancel();
+                },
+            }, client);
+        await using (session)
+        {
+            var request = Request();
+            await CollectAsync(session, request, cancellation.Token).WaitAsync(TimeSpan.FromSeconds(5));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(client.Sessions.Single().SendInvocations, Is.Zero);
+                Assert.That(client.Sessions.Single().Operations, Is.EqualTo(RestrictedOnly));
+                Assert.That(session.GetCancellationReport(request.TurnId), Is.EqualTo(AgentTurnCancellationReport.NothingSent));
+            });
+        }
     }
 
     [TestCase(false, "user")]

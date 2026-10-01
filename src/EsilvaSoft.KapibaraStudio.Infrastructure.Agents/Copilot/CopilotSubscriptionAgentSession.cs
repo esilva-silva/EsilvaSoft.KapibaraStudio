@@ -34,6 +34,8 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
     private bool _volatileResumeMissing;
     private bool _started;
     private bool _disposed;
+    private Task? _disposeTask;
+    private Task? _nativeSessionDisposalTask;
     private (AgentTurnId TurnId, bool Sent)? _lastDelivery;
 
     public CopilotSubscriptionAgentSession(IAgentToolRegistry registry, AgentSessionOptions options)
@@ -67,7 +69,7 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
         ICopilotRuntimeClient client, ICopilotSessionFsStore? sessionFs = null)
         : this(registry, options, client, sessionFs, ownsSessionFsStore: false) { }
 
-    private CopilotSubscriptionAgentSession(IAgentToolRegistry registry, AgentSessionOptions options,
+    internal CopilotSubscriptionAgentSession(IAgentToolRegistry registry, AgentSessionOptions options,
         ICopilotRuntimeClient client, ICopilotSessionFsStore? sessionFs, bool ownsSessionFsStore)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
@@ -173,20 +175,40 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
         }
         finally
         {
+            await CompleteTurnCleanupAsync(turn, producer, streamCompleted).ConfigureAwait(false);
+        }
+    }
+
+    private async Task CompleteTurnCleanupAsync(ActiveTurn turn, Task? producer, bool streamCompleted)
+    {
+        try
+        {
             if (!streamCompleted) turn.Cancel();
             if (producer is not null) await producer.ConfigureAwait(false);
-            if (turn.Cancelled && _sdkSession is { } session)
+            try { await DisposeNativeSessionAsync(turn.Cancelled).ConfigureAwait(false); }
+            catch (Exception sessionCleanupFailure)
             {
-                try { await session.AbortAsync(CancellationToken.None).ConfigureAwait(false); }
-                catch (Exception) { /* O turno já foi cancelado; a disposição abaixo encerra a sessão local. */ }
-            }
+                // A failed native-session cleanup leaves the runtime uncertain. Make this instance terminal,
+                // close its remaining resources and propagate cleanup failures instead of permitting a retry.
+                try { await DisposeAsync().ConfigureAwait(false); }
+                catch (Exception resourcesCleanupFailure)
+                {
+                    // Dispose and turn cleanup share the same native-session result. Report that failure once.
+                    var remainingFailures = resourcesCleanupFailure is AggregateException aggregate
+                        ? aggregate.Flatten().InnerExceptions.Where(error => !ReferenceEquals(error, sessionCleanupFailure)).ToArray()
+                        : ReferenceEquals(resourcesCleanupFailure, sessionCleanupFailure) ? [] : new[] { resourcesCleanupFailure };
+                    if (remainingFailures.Length > 0)
+                    {
+                        throw new AggregateException("Falha ao encerrar a sessão e os recursos Copilot.",
+                            new[] { sessionCleanupFailure }.Concat(remainingFailures));
+                    }
+                }
 
-            if (_sdkSession is { } completedSession)
-            {
-                await completedSession.DisposeAsync().ConfigureAwait(false);
-                _sdkSession = null;
+                throw;
             }
-
+        }
+        finally
+        {
             lock (_gate)
             {
                 _lastDelivery = (turn.TurnId, turn.Sent);
@@ -329,6 +351,7 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
             }
 
             var session = _sdkSession;
+            cancellationToken.ThrowIfCancellationRequested();
             // SessionConfig has no built-in-agent allowlist, but the pinned SDK exposes this mutable option.
             // Apply an empty allowlist and require acknowledgement before any prompt can reach the runtime.
             var builtInAgentsRestricted = await session.RestrictBuiltInAgentsAsync(cancellationToken).ConfigureAwait(false);
@@ -348,6 +371,7 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
             using var subscription = session.Subscribe(evt => OnEventSafely(turn, evt, allowed));
             turn.Session = session;
             var prompt = BuildPrompt(request);
+            cancellationToken.ThrowIfCancellationRequested();
             // The RPC may take effect before SendAsync returns (including when its wait is cancelled).
             turn.Sent = true;
             await session.SendAsync(new MessageOptions { Prompt = prompt }, cancellationToken).ConfigureAwait(false);
@@ -365,6 +389,7 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
         finally
         {
             turn.Events.Writer.TryComplete();
+            turn.ProductionCompleted.TrySetResult();
         }
     }
 
@@ -564,9 +589,14 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
     public async Task CancelTurnAsync(AgentTurnId turnId, CancellationToken cancellationToken)
     {
         ActiveTurn? turn;
-        lock (_gate) { turn = _active; }
-        if (turn is null || turn.TurnId != turnId) return;
-        turn.Cancel();
+        lock (_gate)
+        {
+            turn = _active;
+            if (turn is null || turn.TurnId != turnId) return;
+            // Keep cancellation within the state gate: the iterator can otherwise clear/dispose this turn between
+            // reading _active and cancelling its token source.
+            turn.Cancel();
+        }
         if (turn.Session is { } session) await session.AbortAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -582,13 +612,77 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
         }
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        lock (_gate) { if (_disposed) return; _disposed = true; _active?.Cancel(); }
-        if (_sdkSession is { } session) await session.DisposeAsync().ConfigureAwait(false);
-        await _client.DisposeAsync().ConfigureAwait(false);
+        TaskCompletionSource completion;
+        ActiveTurn? active;
+        lock (_gate)
+        {
+            if (_disposeTask is not null) return new ValueTask(_disposeTask);
+            _disposed = true;
+            active = _active;
+            active?.Cancel();
+            completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            _disposeTask = completion.Task;
+        }
+
+        _ = DisposeResourcesAsync(active, completion);
+        return new ValueTask(completion.Task);
+    }
+
+    private async Task DisposeResourcesAsync(ActiveTurn? active, TaskCompletionSource completion)
+    {
+        List<Exception> failures = [];
+        // Wait for production, not the consumer/iterator cleanup. A pending create/resume may return a handle
+        // after cancellation; its producer must publish that handle before resources can be closed safely.
+        if (active is not null) await active.ProductionCompleted.Task.ConfigureAwait(false);
+        try { await DisposeNativeSessionAsync(active?.Cancelled == true).ConfigureAwait(false); }
+        catch (Exception error) { failures.Add(error); }
+
+        try { await _client.DisposeAsync().ConfigureAwait(false); }
+        catch (Exception error) { failures.Add(error); }
         if (_ownsSessionFsStore && _sessionFsStore is not null)
-            await _sessionFsStore.DisposeAsync().ConfigureAwait(false);
+        {
+            try { await _sessionFsStore.DisposeAsync().ConfigureAwait(false); }
+            catch (Exception error) { failures.Add(error); }
+        }
+
+        if (failures.Count == 0) completion.TrySetResult();
+        else completion.TrySetException(new AggregateException("Falha ao encerrar os recursos Copilot.", failures));
+    }
+
+    private Task DisposeNativeSessionAsync(bool abort)
+    {
+        TaskCompletionSource completion;
+        ICopilotRuntimeSession session;
+        lock (_gate)
+        {
+            if (_sdkSession is null) return _nativeSessionDisposalTask ?? Task.CompletedTask;
+            session = _sdkSession;
+            _sdkSession = null;
+            completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            _nativeSessionDisposalTask = completion.Task;
+        }
+
+        _ = CompleteNativeSessionDisposalAsync(session, abort, completion);
+        return completion.Task;
+    }
+
+    private static async Task CompleteNativeSessionDisposalAsync(ICopilotRuntimeSession session, bool abort,
+        TaskCompletionSource completion)
+    {
+        if (abort)
+        {
+            try { await session.AbortAsync(CancellationToken.None).ConfigureAwait(false); }
+            catch (Exception) { /* Best-effort cancellation; disposal below remains mandatory. */ }
+        }
+
+        try
+        {
+            await session.DisposeAsync().ConfigureAwait(false);
+            completion.TrySetResult();
+        }
+        catch (Exception error) { completion.TrySetException(error); }
     }
 
     private sealed class ActiveTurn : IDisposable
@@ -608,6 +702,7 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
         public Channel<AgentProviderEvent> Events { get; } = Channel.CreateUnbounded<AgentProviderEvent>(
             new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
         public TaskCompletionSource Done { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource ProductionCompleted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public Dictionary<AgentToolCallId, string> Pending { get; } = [];
         public ICopilotRuntimeSession? Session { get; set; }
         public bool Sent { get; set; }
@@ -631,7 +726,7 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
 
         public void Delta(string? key, string? text)
         {
-            if (string.IsNullOrEmpty(key) || string.IsNullOrEmpty(text)) return;
+            if (string.IsNullOrEmpty(key) || string.IsNullOrEmpty(text) || _completedMessages.Contains(key)) return;
             StartMessage(key);
             var message = _messages[key];
             _messages[key] = (message.Id, true, true);

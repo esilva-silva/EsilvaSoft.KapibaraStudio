@@ -44,7 +44,7 @@ internal static class ClaudeCodeAccountCommands
             {
                 // Cancelar a espera não fecha a janela do usuário: o login pode continuar e o estado é reconsultado depois.
                 await process.WaitForExitAsync(cancellationToken).WaitAsync(timeout, cancellationToken).ConfigureAwait(false);
-                return ClaudeCodeAccountCommandState.Completed;
+                return ClassifyExitCode(process.ExitCode);
             }
             catch (TimeoutException)
             {
@@ -99,9 +99,14 @@ internal static class ClaudeCodeAccountCommands
         return linux;
     }
 
-    private static (string Path, string[] Prefix)? FindLinuxTerminal()
+    internal static ClaudeCodeAccountCommandState ClassifyExitCode(int exitCode) => exitCode == 0
+        ? ClaudeCodeAccountCommandState.Completed
+        : ClaudeCodeAccountCommandState.CommandFailed;
+
+    internal static (string Path, string[] Prefix)? FindLinuxTerminal(string? pathValue = null,
+        Func<string, bool>? executableProbe = null)
     {
-        var directories = (Environment.GetEnvironmentVariable("PATH") ?? string.Empty)
+        var directories = (pathValue ?? Environment.GetEnvironmentVariable("PATH") ?? string.Empty)
             .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Where(Path.IsPathFullyQualified)
             .ToArray();
@@ -110,7 +115,7 @@ internal static class ClaudeCodeAccountCommands
             foreach (var directory in directories)
             {
                 var candidate = Path.Combine(directory, name);
-                if (File.Exists(candidate))
+                if ((executableProbe ?? IsLinuxTerminalExecutable)(candidate))
                 {
                     return (candidate, prefix);
                 }
@@ -119,4 +124,6 @@ internal static class ClaudeCodeAccountCommands
 
         return null;
     }
+
+    internal static bool IsLinuxTerminalExecutable(string path) => LinuxExecutableProbe.IsExecutable(path);
 }

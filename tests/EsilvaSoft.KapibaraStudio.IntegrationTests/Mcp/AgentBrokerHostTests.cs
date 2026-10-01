@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Text.Json;
+using EsilvaSoft.KapibaraStudio.Application;
 using EsilvaSoft.KapibaraStudio.Application.Agents;
 using EsilvaSoft.KapibaraStudio.Application.Agents.Broker;
 using EsilvaSoft.KapibaraStudio.Infrastructure;
@@ -18,6 +19,31 @@ public sealed class AgentBrokerHostTests
 {
     private static readonly string[] LiteralQueryTools =
         ["list_connections", "list_databases", "list_collections", "mongo_find", "mongo_count"];
+
+    [Test]
+    public async Task FailedFixtureProofCleanupPreservesWorkspaceForRecovery()
+    {
+        var secrets = new InMemoryProfileSecretStore();
+        var fixture = new McpBrokerFixture(secrets);
+        var channel = await fixture.EnrollAsync();
+        var databasePath = fixture.WorkspaceDatabasePath;
+        var workspaceDirectory = Path.GetDirectoryName(databasePath)!;
+        secrets.DenyDelete = true;
+
+        Assert.ThrowsAsync<AggregateException>(async () => await fixture.DisposeAsync());
+        Assert.That(File.Exists(databasePath), Is.True,
+            "O registro de recuperação durável precisa sobreviver ao teardown com falha.");
+
+        secrets.DenyDelete = false;
+        using (var recovered = new LiteDbConnectionProfileRepository(databasePath, secrets))
+        {
+            Assert.That(await ((IAgentPrincipalAuthority)recovered).RecoverPendingChannelsAsync(), Is.Zero);
+            Assert.That((await ((IAgentPrincipalAuthority)recovered).AuthenticateExternalAsync(
+                channel.ChannelId, "unavailable-proof")).Status, Is.EqualTo(AgentPrincipalIssueStatus.Revoked));
+        }
+        Assert.That(secrets.Count, Is.Zero);
+        Directory.Delete(workspaceDirectory, recursive: true);
+    }
 
     [Test]
     public async Task IncompatibleMajorIsRejectedBeforeAnyCredentialIsRequested()

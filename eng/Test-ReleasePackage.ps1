@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][string]$PublishDirectory,
-    [Parameter(Mandatory)][ValidateSet('win-x64', 'win-arm64', 'linux-x64', 'linux-arm64')][string]$Rid
+    [Parameter(Mandatory)][ValidateSet('win-x64', 'win-arm64', 'linux-x64', 'linux-arm64')][string]$Rid,
+    [switch]$SkipRuntimeExecution
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -22,7 +23,7 @@ foreach ($relative in $required) {
 }
 # Cross-compiles are checked structurally; only execute binaries for the host RID.
 $hostRid = [Runtime.InteropServices.RuntimeInformation]::RuntimeIdentifier
-if ($hostRid -eq $Rid) {
+if (-not $SkipRuntimeExecution -and $hostRid -eq $Rid) {
     $cli = Join-Path $packageRoot "runtimes/$Rid/copilot-cli/copilot$extension"
     foreach ($arguments in @(@('--version'), @('login', '--help'))) {
         $start = [Diagnostics.ProcessStartInfo]::new($cli)
@@ -44,4 +45,8 @@ if ($hostRid -eq $Rid) {
         finally { $process.Dispose() }
     }
 }
-Write-Host "Release $Rid verificado: aplicativo, proxy MCP, runtime Copilot e CLI interativa."
+if ($SkipRuntimeExecution) {
+    Write-Host "Release $Rid verificado estruturalmente; execução de binários ignorada por política."
+} else {
+    Write-Host "Release $Rid verificado: aplicativo, proxy MCP, runtime Copilot e CLI interativa."
+}

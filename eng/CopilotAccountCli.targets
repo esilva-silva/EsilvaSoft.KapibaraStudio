@@ -1,8 +1,10 @@
 <Project>
   <!-- The SDK supplies a headless wrapper, not the interactive login CLI. Fetch the standalone CLI
        from the same pinned, checksum-verified official release. Never install or download on startup. -->
+  <!-- Offline developer builds may omit the interactive CLI; release validation requires the packaged executable. -->
   <Target Name="PrepareCopilotAccountCli" BeforeTargets="GetCopyToOutputDirectoryItems;GetCopyToPublishDirectoryItems"
-          DependsOnTargets="_DownloadCopilotCli" Condition="'$(DesignTimeBuild)' != 'true' And '$(_CopilotPlatform)' != ''">
+          DependsOnTargets="_DownloadCopilotCli"
+          Condition="'$(DesignTimeBuild)' != 'true' And '$(_CopilotPlatform)' != '' And '$(CopilotSkipCliDownload)' != 'true'">
     <PropertyGroup>
       <_AccountCliCache>$(IntermediateOutputPath)copilot-account-cli/$(CopilotCliVersion)/$(_CopilotPlatform)</_AccountCliCache>
       <_AccountCliPayload>$(_AccountCliCache)/payload</_AccountCliPayload>

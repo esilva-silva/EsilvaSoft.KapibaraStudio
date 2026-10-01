@@ -21,13 +21,22 @@ internal sealed class LocalCopilotRuntimeResources : ICopilotRuntimeResources
     }
 
     private readonly Func<string?, CopilotClient>? _injectedClient;
-    public ICopilotSessionFsStore VolatileStore { get; } = new CopilotVolatileSessionFsStore();
+    private readonly Lock _disposeGate = new();
+    private Task? _disposal;
+    public ICopilotSessionFsStore VolatileStore { get; }
     public ICopilotSessionFsStore PersistentStore { get; }
 
     public LocalCopilotRuntimeResources(Func<string?, CopilotClient>? injectedClient = null, string? persistentRoot = null)
     {
         _injectedClient = injectedClient;
+        VolatileStore = new CopilotVolatileSessionFsStore();
         PersistentStore = new CopilotPersistentSessionFsStore(persistentRoot ?? CopilotRuntimeSettings.PersistentSessionDirectory());
+    }
+
+    internal LocalCopilotRuntimeResources(ICopilotSessionFsStore volatileStore, ICopilotSessionFsStore persistentStore)
+    {
+        VolatileStore = volatileStore ?? throw new ArgumentNullException(nameof(volatileStore));
+        PersistentStore = persistentStore ?? throw new ArgumentNullException(nameof(persistentStore));
     }
 
     public ICopilotRuntimeClient CreateAccountClient() => new SdkCopilotRuntimeClient(
@@ -46,7 +55,12 @@ internal sealed class LocalCopilotRuntimeResources : ICopilotRuntimeResources
 
     public void Dispose()
     {
-        VolatileStore.DisposeAsync().AsTask().GetAwaiter().GetResult();
-        PersistentStore.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        Task disposal;
+        lock (_disposeGate)
+        {
+            _disposal ??= CopilotResourceCleanup.DisposeAllAsync([VolatileStore, PersistentStore]);
+            disposal = _disposal;
+        }
+        disposal.GetAwaiter().GetResult();
     }
 }

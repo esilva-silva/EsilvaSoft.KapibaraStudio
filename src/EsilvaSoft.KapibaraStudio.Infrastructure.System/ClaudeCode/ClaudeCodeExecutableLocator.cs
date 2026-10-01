@@ -1,8 +1,12 @@
 namespace EsilvaSoft.KapibaraStudio.SystemAdapters.ClaudeCode;
 internal enum ClaudeCodeExecutableState { Found, NotFound, UnsupportedExecutable }
-internal sealed class ClaudeCodeExecutableLocator(string? pathVariable, string homeDirectory, string? localAppData)
+internal sealed class ClaudeCodeExecutableLocator(string? pathVariable, string homeDirectory, string? localAppData,
+    Func<string, string?>? validateCandidate = null, Func<string, bool>? fileExists = null, bool? isWindows = null)
 {
     private static readonly string[] WindowsShimExtensions = [".cmd", ".bat", ".ps1", ".js", ""];
+    private readonly Func<string, string?> _validate = validateCandidate ?? Validate;
+    private readonly Func<string, bool> _exists = fileExists ?? SafeFileExists;
+    private readonly bool _isWindows = isWindows ?? OperatingSystem.IsWindows();
 
     public static ClaudeCodeExecutableLocator ForCurrentProcess() => new(
         Environment.GetEnvironmentVariable("PATH"),
@@ -14,29 +18,29 @@ internal sealed class ClaudeCodeExecutableLocator(string? pathVariable, string h
     {
         if (configuredPath is not null)
         {
-            return Validate(configuredPath) is { } accepted
+            return _validate(configuredPath) is { } accepted
                 ? (accepted, ClaudeCodeExecutableState.Found)
-                : (null, File.Exists(configuredPath) ? ClaudeCodeExecutableState.UnsupportedExecutable : ClaudeCodeExecutableState.NotFound);
+                : (null, _exists(configuredPath) ? ClaudeCodeExecutableState.UnsupportedExecutable : ClaudeCodeExecutableState.NotFound);
         }
 
         var sawUnsupported = false;
         foreach (var candidate in Candidates())
         {
-            if (Validate(candidate) is { } accepted)
+            if (_validate(candidate) is { } accepted)
             {
                 return (accepted, ClaudeCodeExecutableState.Found);
             }
 
-            sawUnsupported |= SafeFileExists(candidate);
+            sawUnsupported |= _exists(candidate);
         }
 
-        sawUnsupported |= ShimCandidates().Any(SafeFileExists);
+        sawUnsupported |= ShimCandidates().Any(_exists);
         return (null, sawUnsupported ? ClaudeCodeExecutableState.UnsupportedExecutable : ClaudeCodeExecutableState.NotFound);
     }
 
     private IEnumerable<string> Candidates()
     {
-        var name = OperatingSystem.IsWindows() ? "claude.exe" : "claude";
+        var name = _isWindows ? "claude.exe" : "claude";
         foreach (var directory in PathDirectories())
         {
             yield return Path.Combine(directory, name);
@@ -47,7 +51,7 @@ internal sealed class ClaudeCodeExecutableLocator(string? pathVariable, string h
             yield return Path.Combine(homeDirectory, ".local", "bin", name);
         }
 
-        if (OperatingSystem.IsWindows() && !string.IsNullOrEmpty(localAppData))
+        if (_isWindows && !string.IsNullOrEmpty(localAppData))
         {
             var winget = Path.Combine(localAppData, "Microsoft", "WinGet");
             yield return Path.Combine(winget, "Links", name);
@@ -74,7 +78,7 @@ internal sealed class ClaudeCodeExecutableLocator(string? pathVariable, string h
     /// <summary>Shims conhecidos (npm, scripts) que indicam instalação não nativa; nunca executados.</summary>
     private IEnumerable<string> ShimCandidates()
     {
-        if (!OperatingSystem.IsWindows())
+        if (!_isWindows)
         {
             yield break;
         }
@@ -93,10 +97,18 @@ internal sealed class ClaudeCodeExecutableLocator(string? pathVariable, string h
             .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(static entry => entry.Trim('"'))
             .Where(static entry => entry.Length > 0 && !entry.Any(char.IsControl) && Path.IsPathFullyQualified(entry))
-            .Distinct(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+            .Distinct(_isWindows ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
 
     /// <summary>Caminho final (links resolvidos) aceito como executável nativo, ou nulo.</summary>
-    internal static string? Validate(string candidate)
+    internal static string? Validate(string candidate) => Validate(candidate, OperatingSystem.IsWindows(),
+        OperatingSystem.IsLinux(), ReadCandidate);
+
+    internal sealed record CandidateMetadata(string FinalPath, bool IsDirectory, UnixFileMode Mode,
+        Func<byte[]> ReadHeader);
+
+    /// <summary>Pure selection policy; metadata, link resolution and bytes belong to the supplied probe.</summary>
+    internal static string? Validate(string candidate, bool isWindows, bool isLinux,
+        Func<string, CandidateMetadata?> probe)
     {
         if (string.IsNullOrWhiteSpace(candidate) || !Path.IsPathFullyQualified(candidate) || candidate.Any(char.IsControl))
         {
@@ -105,43 +117,53 @@ internal sealed class ClaudeCodeExecutableLocator(string? pathVariable, string h
 
         try
         {
-            var info = new FileInfo(candidate);
-            if (!info.Exists)
+            if (probe(candidate) is not { } final || final.IsDirectory || !Path.IsPathFullyQualified(final.FinalPath))
             {
                 return null;
             }
 
-            var final = info.ResolveLinkTarget(returnFinalTarget: true) is FileInfo target ? target : info;
-            if (!final.Exists || (final.Attributes & FileAttributes.Directory) != 0)
+            if (isLinux &&
+                (final.Mode & (UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute)) == 0)
             {
                 return null;
             }
 
-            if (OperatingSystem.IsWindows() &&
-                (!string.Equals(Path.GetExtension(info.FullName), ".exe", StringComparison.OrdinalIgnoreCase) ||
-                 !string.Equals(Path.GetExtension(final.FullName), ".exe", StringComparison.OrdinalIgnoreCase)))
+            if (isWindows &&
+                (!string.Equals(Path.GetExtension(candidate), ".exe", StringComparison.OrdinalIgnoreCase) ||
+                 !string.Equals(Path.GetExtension(final.FinalPath), ".exe", StringComparison.OrdinalIgnoreCase)))
             {
                 return null;
             }
 
-            Span<byte> header = stackalloc byte[4];
-            using (var stream = new FileStream(final.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
-            {
-                if (stream.ReadAtLeast(header, header.Length, throwOnEndOfStream: false) < header.Length)
-                {
-                    return null;
-                }
-            }
+            var header = final.ReadHeader();
+            if (header.Length < 4) return null;
 
-            var native = OperatingSystem.IsWindows()
+            var native = isWindows
                 ? header[0] == (byte)'M' && header[1] == (byte)'Z'
                 : header[0] == 0x7F && header[1] == (byte)'E' && header[2] == (byte)'L' && header[3] == (byte)'F';
-            return native ? final.FullName : null;
+            return native ? final.FinalPath : null;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
             return null;
         }
+    }
+
+    private static CandidateMetadata? ReadCandidate(string candidate)
+    {
+        var info = new FileInfo(candidate);
+        if (!info.Exists) return null;
+        var final = info.ResolveLinkTarget(returnFinalTarget: true) is FileInfo target ? target : info;
+        if (!final.Exists) return null;
+        return new(final.FullName, (final.Attributes & FileAttributes.Directory) != 0,
+            OperatingSystem.IsLinux() ? final.UnixFileMode : (UnixFileMode)0,
+            () =>
+            {
+                var header = new byte[4];
+                using var stream = new FileStream(final.FullName, FileMode.Open, FileAccess.Read,
+                    FileShare.ReadWrite | FileShare.Delete);
+                return stream.ReadAtLeast(header, header.Length, throwOnEndOfStream: false) < header.Length ? [] : header;
+            });
     }
 
     private static bool SafeFileExists(string path)

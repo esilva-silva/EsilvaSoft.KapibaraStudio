@@ -207,6 +207,8 @@ As seções de incrementos preservam evidência histórica. Seu texto não encer
 
 ## Integração Claude e agentes
 
+**Escopo Linux retomado em 30/09/2026:** [P7-LINUX — Copilot e Claude](phases/phase-07-v0.11.0/meta-linux-copilot-claude.md) organiza implementação e homologação x64/ARM64. O leitor de prova do proxy MCP Linux já reutiliza o Secret Service sem desbloqueio/diálogo; o provisionamento produtivo permanece sob gate. Payload externo e licença Copilot, modos executáveis do TAR, alias FFI e helpers `rg`/`tgrep` foram validados; Claude exige `setsid` para isolamento e limpeza de grupos de processos. Copilot Linux informa evidência `AutomatedContract`; não está homologado. As referências históricas abaixo ao escopo exclusivamente Windows pertencem à meta P7-COP original.
+
 O provider Claude Code, autenticação oficial, streaming, retomada, chat e ponte de ferramentas MCP estão implementados e em validação no Windows. A API Anthropic permanece modalidade independente. Limites atuais, permissões e roteiro de homologação estão em [Claude no KapibaraStudio](phases/phase-07-v0.11.0/README.md). MCP/aprovações ainda não estão disponíveis no Linux; isso não implica aceite da fase funcional inteira ou de outros providers.
 
 > As notas P7-COP datadas abaixo são um histórico de verificações intermediárias. Quando contradisserem este estado, prevalece o **status corrente P7-COP** e a tabela/gates em [Fase 7](phases/phase-07-v0.11.0/README.md#meta-p7-cop--github-copilot-por-assinatura).

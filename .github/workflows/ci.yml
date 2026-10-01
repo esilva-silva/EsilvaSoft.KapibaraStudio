@@ -23,7 +23,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
-      # The product targets both systems; Windows also compiles the WinML (DirectML) backend.
+      # Exercise both Linux architectures natively; Windows also compiles the WinML (DirectML) backend.
       matrix:
         os: [ubuntu-latest, windows-latest]
     steps:
@@ -35,9 +35,17 @@ jobs:
           cache-dependency-path: '**/packages*.lock.json'
       - run: dotnet restore EsilvaSoft.KapibaraStudio.slnx --locked-mode
       - run: dotnet build EsilvaSoft.KapibaraStudio.slnx --no-restore -c Release
-      - run: dotnet test EsilvaSoft.KapibaraStudio.slnx --no-build --no-restore -c Release --logger trx --results-directory TestResults
-      - if: failure()
+      - name: Run full test suite on Windows
+        if: runner.os == 'Windows'
+        run: dotnet test EsilvaSoft.KapibaraStudio.slnx --no-build --no-restore -c Release --logger trx --results-directory TestResults
+      - name: Run unit tests on Linux
+        if: runner.os == 'Linux'
+        run: |
+          dotnet test tests/EsilvaSoft.KapibaraStudio.UnitTests/EsilvaSoft.KapibaraStudio.UnitTests.csproj --no-build --no-restore -c Release --logger trx --results-directory TestResults
+          dotnet test tests/EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Tests/EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Tests.csproj --no-build --no-restore -c Release --logger trx --results-directory TestResults
+      - if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results-${{ matrix.os }}
           path: TestResults
+          if-no-files-found: warn

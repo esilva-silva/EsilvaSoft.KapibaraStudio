@@ -1,4 +1,6 @@
 using EsilvaSoft.KapibaraStudio.SystemAdapters.Copilot;
+using EsilvaSoft.KapibaraStudio.Application;
+using EsilvaSoft.KapibaraStudio.SystemAdapters;
 using EsilvaSoft.KapibaraStudio.Application.Agents;
 using EsilvaSoft.KapibaraStudio.Core.Agents;
 using GitHub.Copilot;
@@ -16,14 +18,16 @@ public sealed class CopilotSubscriptionAgentProvider : IAgentProvider, IAgentPro
     private readonly IAgentToolRegistry _toolRegistry;
     private readonly ICopilotRuntimeResources _resources;
     private readonly ICopilotAccountCommands _commands;
+    private readonly AgentCapabilityEvidence _capabilityEvidence;
     private ICopilotSessionFsStore VolatileStore => _resources.VolatileStore;
     private ICopilotSessionFsStore PersistentStore => _resources.PersistentStore;
     private readonly SemaphoreSlim _statusGate = new(1, 1);
+    private readonly Lock _lifecycleGate = new();
     private AgentProviderStatus _status = AgentProviderStatus.NotReported;
     private int _disposed;
 
     public CopilotSubscriptionAgentProvider(IAgentToolRegistry toolRegistry)
-        : this(toolRegistry, new LocalCopilotRuntimeResources(), new LocalCopilotAccountCommands())
+        : this(toolRegistry, new LocalCopilotRuntimeResources(), new LocalCopilotAccountCommands(), new LocalHostPlatformSnapshot())
     {
     }
 
@@ -51,11 +55,13 @@ public sealed class CopilotSubscriptionAgentProvider : IAgentProvider, IAgentPro
             persistentSessionRoot), new InjectedAccountCommands(isCliInstalled)) { }
 
     internal CopilotSubscriptionAgentProvider(IAgentToolRegistry toolRegistry, ICopilotRuntimeResources resources,
-        ICopilotAccountCommands commands)
+        ICopilotAccountCommands commands, IHostPlatformSnapshot? platform = null)
     {
         _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
         _resources = resources ?? throw new ArgumentNullException(nameof(resources));
         _commands = commands ?? throw new ArgumentNullException(nameof(commands));
+        _capabilityEvidence = platform?.IsWindows == true
+            ? AgentCapabilityEvidence.Homologated : AgentCapabilityEvidence.AutomatedContract;
     }
 
     private sealed class InjectedAccountCommands(Func<bool> installed) : ICopilotAccountCommands
@@ -69,12 +75,12 @@ public sealed class CopilotSubscriptionAgentProvider : IAgentProvider, IAgentPro
     public string ProviderId => Id;
     public bool IsLocal => false;
 
-    // The real Windows runtime has verified message-only chat, streaming and session recovery. Tool plans stay
-    // always use the shared product registry and persisted grants. Provider-native shell/file/network tools stay off.
+    // The returned capability evidence is scoped to this host OS. Product tool calls use the shared registry and
+    // persisted grants; provider-native shell, file and network tools remain disabled.
     public AgentProviderDescriptor Describe() => new(Id, "GitHub Copilot",
-        [AgentAuthenticationMethod.OfficialCliDelegated], MessageOnlyCapabilities);
+        [AgentAuthenticationMethod.OfficialCliDelegated], SupportedCapabilities);
 
-    private static AgentProviderCapabilities MessageOnlyCapabilities => new()
+    private AgentProviderCapabilities SupportedCapabilities => new()
     {
         Chat = true,
         Streaming = true,
@@ -83,15 +89,18 @@ public sealed class CopilotSubscriptionAgentProvider : IAgentProvider, IAgentPro
         ModelSelection = true,
         TurnPlan = true,
         UsesNetwork = true,
-        Evidence = AgentCapabilityEvidence.Homologated,
+        Evidence = _capabilityEvidence,
     };
 
     /// <summary>
     /// Returns only the last explicitly checked account/model snapshot. Listing never starts the runtime, checks the
     /// network or authenticates; users refresh it through the provider's explicit account action.
     /// </summary>
-    public Task<AgentProviderStatus> GetStatusAsync(CancellationToken cancellationToken) =>
-        Task.FromResult(Volatile.Read(ref _status));
+    public Task<AgentProviderStatus> GetStatusAsync(CancellationToken cancellationToken)
+    {
+        ThrowIfDisposed();
+        return Task.FromResult(Volatile.Read(ref _status));
+    }
 
     /// <summary>
     /// Explicit account check. It queries auth status first and contacts the model catalog only for an authenticated
@@ -99,9 +108,11 @@ public sealed class CopilotSubscriptionAgentProvider : IAgentProvider, IAgentPro
     /// </summary>
     public async Task<CopilotAccountStatus> CheckAccountAndModelsAsync(CancellationToken cancellationToken = default)
     {
+        ThrowIfDisposed();
         await _statusGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            ThrowIfDisposed();
             if (!_commands.IsCliInstalled())
             {
                 SetUnavailable(AgentProviderAuthState.NotConfigured,
@@ -137,14 +148,14 @@ public sealed class CopilotSubscriptionAgentProvider : IAgentProvider, IAgentPro
                 .ToArray();
             if (models.Length == 0)
             {
-                Volatile.Write(ref _status, Unavailable(AgentProviderAuthState.Configured, "CopilotNoModels"));
+                PublishStatus(Unavailable(AgentProviderAuthState.Configured, "CopilotNoModels"));
                 return new CopilotAccountStatus(accountState);
             }
 
             // Only the product registry is exposed for tool calls. Provider-native shell/file/network tools stay off;
             // the registry applies the persisted tool and data permissions to every invocation.
-            Volatile.Write(ref _status, new AgentProviderStatus(true, AgentProviderAuthState.Configured,
-                MessageOnlyCapabilities, models, models[0]));
+            PublishStatus(new AgentProviderStatus(true, AgentProviderAuthState.Configured,
+                SupportedCapabilities, models, models[0]));
             return new CopilotAccountStatus(accountState);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -153,6 +164,7 @@ public sealed class CopilotSubscriptionAgentProvider : IAgentProvider, IAgentPro
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
+            ThrowIfDisposed();
             SetUnavailable(AgentProviderAuthState.Unknown,
                 "CopilotProviderUnavailable");
             return new CopilotAccountStatus(CopilotAccountState.Unavailable);
@@ -172,7 +184,13 @@ public sealed class CopilotSubscriptionAgentProvider : IAgentProvider, IAgentPro
 
     public async Task<CopilotAccountCommandResult> LoginAsync(CancellationToken cancellationToken = default)
     {
-        var state = await _commands.RunVisibleAsync("login", cancellationToken).ConfigureAwait(false);
+        Task<CopilotAccountCommandState> command;
+        lock (_lifecycleGate)
+        {
+            ThrowIfDisposed();
+            command = _commands.RunVisibleAsync("login", cancellationToken);
+        }
+        var state = await command.ConfigureAwait(false);
         var account = state == CopilotAccountCommandState.Completed
             ? await CheckAccountAndModelsAsync(cancellationToken).ConfigureAwait(false) : null;
         return new CopilotAccountCommandResult(state, account);
@@ -182,12 +200,19 @@ public sealed class CopilotSubscriptionAgentProvider : IAgentProvider, IAgentPro
     public async Task<CopilotAccountCommandResult> LogoutAsync(
         bool userConfirmedGlobalLogout, CancellationToken cancellationToken = default)
     {
+        ThrowIfDisposed();
         if (!userConfirmedGlobalLogout)
         {
             throw new InvalidOperationException("O logout global do Copilot exige confirmação do usuário.");
         }
 
-        var state = await _commands.RunVisibleAsync("logout", cancellationToken).ConfigureAwait(false);
+        Task<CopilotAccountCommandState> command;
+        lock (_lifecycleGate)
+        {
+            ThrowIfDisposed();
+            command = _commands.RunVisibleAsync("logout", cancellationToken);
+        }
+        var state = await command.ConfigureAwait(false);
         var account = state == CopilotAccountCommandState.Completed
             ? await CheckAccountAndModelsAsync(cancellationToken).ConfigureAwait(false) : null;
         return new CopilotAccountCommandResult(state, account);
@@ -195,58 +220,80 @@ public sealed class CopilotSubscriptionAgentProvider : IAgentProvider, IAgentPro
 
     public Task<IAgentSession> CreateSessionAsync(AgentSessionOptions options, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(options);
-        cancellationToken.ThrowIfCancellationRequested();
-        if (!string.Equals(options.ProviderId, Id, StringComparison.Ordinal))
+        lock (_lifecycleGate)
         {
-            throw new ArgumentException("A sessão não pertence ao GitHub Copilot.", nameof(options));
+            ThrowIfDisposed();
+            ArgumentNullException.ThrowIfNull(options);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!string.Equals(options.ProviderId, Id, StringComparison.Ordinal))
+            {
+                throw new ArgumentException("A sessão não pertence ao GitHub Copilot.", nameof(options));
+            }
+
+            var status = Volatile.Read(ref _status);
+            if (!status.IsAvailable || options.ModelId is not { Length: > 0 } model ||
+                !status.Models.Contains(model, StringComparer.Ordinal))
+            {
+                throw new InvalidOperationException("CopilotAccountOrModelUnavailable");
+            }
+
+            if (options.PersistProviderSession && string.IsNullOrWhiteSpace(options.ReservedProviderSessionId))
+                throw new InvalidOperationException("CopilotHistoryReservationRequired");
+
+            var sessionFs = options.PersistProviderSession ? PersistentStore : VolatileStore;
+            var client = _resources.CreateSessionClient(options.WorkingDirectory, options.PersistProviderSession);
+            return Task.FromResult<IAgentSession>(new CopilotSubscriptionAgentSession(_toolRegistry, options, client, sessionFs));
         }
-
-        var status = Volatile.Read(ref _status);
-        if (!status.IsAvailable || options.ModelId is not { Length: > 0 } model ||
-            !status.Models.Contains(model, StringComparer.Ordinal))
-        {
-            throw new InvalidOperationException("CopilotAccountOrModelUnavailable");
-        }
-
-        if (options.PersistProviderSession && string.IsNullOrWhiteSpace(options.ReservedProviderSessionId))
-            throw new InvalidOperationException("CopilotHistoryReservationRequired");
-
-        var sessionFs = options.PersistProviderSession ? PersistentStore : VolatileStore;
-        var client = _resources.CreateSessionClient(options.WorkingDirectory, options.PersistProviderSession);
-        return Task.FromResult<IAgentSession>(new CopilotSubscriptionAgentSession(_toolRegistry, options, client, sessionFs));
     }
 
     public async Task DeleteProviderSessionAsync(string providerSessionId, CancellationToken cancellationToken)
     {
+        ThrowIfDisposed();
         if (string.IsNullOrWhiteSpace(providerSessionId) || providerSessionId.Length > 128 || providerSessionId.Any(char.IsControl))
             throw new ArgumentException("Identificador de sessão Copilot inválido.", nameof(providerSessionId));
-        var isVolatile = VolatileStore.ContainsSession(providerSessionId);
-        await using var client = _resources.CreateCleanupClient(isVolatile);
-        await client.StartAsync(cancellationToken).ConfigureAwait(false);
-        // Deletion is local data hygiene; it must still work after logout and be idempotent if the LiteDB delete
-        // failed after the runtime had already removed its session.
-        if (isVolatile)
+        await _statusGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            if (await client.HasSessionAsync(providerSessionId, cancellationToken).ConfigureAwait(false))
-                await client.DeleteSessionAsync(providerSessionId, cancellationToken).ConfigureAwait(false);
-            await VolatileStore.DeleteSessionAsync(providerSessionId, cancellationToken).ConfigureAwait(false);
-        }
-        else
-        {
-            await PersistentStore.DeleteSessionAsync(providerSessionId, async token =>
+            ThrowIfDisposed();
+            var isVolatile = VolatileStore.ContainsSession(providerSessionId);
+            await using var client = _resources.CreateCleanupClient(isVolatile);
+            await client.StartAsync(cancellationToken).ConfigureAwait(false);
+            // Deletion is local data hygiene; it must still work after logout and be idempotent if the LiteDB delete
+            // failed after the runtime had already removed its session.
+            if (isVolatile)
             {
-                if (await client.HasSessionAsync(providerSessionId, token).ConfigureAwait(false))
-                    await client.DeleteSessionAsync(providerSessionId, token).ConfigureAwait(false);
-            }, cancellationToken).ConfigureAwait(false);
+                if (await client.HasSessionAsync(providerSessionId, cancellationToken).ConfigureAwait(false))
+                    await client.DeleteSessionAsync(providerSessionId, cancellationToken).ConfigureAwait(false);
+                await VolatileStore.DeleteSessionAsync(providerSessionId, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await PersistentStore.DeleteSessionAsync(providerSessionId, async token =>
+                {
+                    if (await client.HasSessionAsync(providerSessionId, token).ConfigureAwait(false))
+                        await client.DeleteSessionAsync(providerSessionId, token).ConfigureAwait(false);
+                }, cancellationToken).ConfigureAwait(false);
+            }
         }
+        finally { _statusGate.Release(); }
     }
 
     private void SetUnavailable(AgentProviderAuthState authState, string code)
     {
         var caps = AgentProviderCapabilities.None with { UsesNetwork = true };
-        Volatile.Write(ref _status, new AgentProviderStatus(false, authState, caps, unavailableCode: code));
+        PublishStatus(new AgentProviderStatus(false, authState, caps, unavailableCode: code));
     }
+
+    private void PublishStatus(AgentProviderStatus status)
+    {
+        lock (_lifecycleGate)
+        {
+            ThrowIfDisposed();
+            Volatile.Write(ref _status, status);
+        }
+    }
+
+    private void ThrowIfDisposed() => ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
 
     private static AgentProviderStatus Unavailable(AgentProviderAuthState authState, string code) =>
         new(false, authState, AgentProviderCapabilities.None with { UsesNetwork = true }, unavailableCode: code);
@@ -257,9 +304,17 @@ public sealed class CopilotSubscriptionAgentProvider : IAgentProvider, IAgentPro
 
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        _resources.Dispose();
-        _statusGate.Dispose();
+        lock (_lifecycleGate)
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        }
+
+        // Account checks and cleanup own this gate until their clients have closed. Marking terminal first
+        // prevents pending waiters from starting new work or publishing a stale availability snapshot.
+        _statusGate.Wait();
+        try { _resources.Dispose(); }
+        finally { _statusGate.Release(); }
+        // Do not dispose the semaphore: callers that were already queued must still acquire/release it safely.
     }
 }
 

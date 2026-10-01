@@ -14,7 +14,8 @@ namespace EsilvaSoft.KapibaraStudio.IntegrationTests;
 /// Lote 3 against a real, ephemeral <c>mongod</c>: the real broker (local endpoint), the single real registry, the real
 /// LiteDB owner (channels, policies, audit) and the production literal find/count and metadata sources. The broker
 /// test drives the IPC with the independent <see cref="RawBrokerPeer"/> and runs on every OS; the STDIO test adds the
-/// real proxy process and the OS vault reader, which only exists on Windows today.
+/// real proxy process and the native Windows Credential Manager or Linux Secret Service proof reader. Only
+/// disposable product proofs are enrolled; official Claude/Copilot credentials are never accessed.
 /// </summary>
 public sealed partial class ConsoleMongoIntegrationTests
 {
@@ -109,14 +110,11 @@ public sealed partial class ConsoleMongoIntegrationTests
         finally { CleanupDatabaseDirectory(directory, completed); }
     }
 
-    [Test, Category("MongoReal"), Platform("Win")]
+    [Test, Category("MongoReal"), Platform("Win,Linux")]
     public async Task McpStdioProxyExecutesTheReleasedStageAgainstRealServer()
     {
         var executable = RequireMongod();
-        var vault = new WindowsCredentialSecretStore();
-        var availability = await vault.GetAvailabilityAsync();
-        if (!availability.IsSuccess || availability.Value != SecretStoreAvailability.Available)
-            Assert.Ignore("Credential Manager indisponível nesta sessão; a prova STDIO ponta a ponta exige o cofre real.");
+        var vault = await RequireMcpOsVaultAsync();
         var directory = Path.Combine(TestContext.CurrentContext.WorkDirectory, "mcp-stdio-real-" + Guid.NewGuid().ToString("N"));
         var completed = false;
         try
@@ -213,13 +211,43 @@ public sealed partial class ConsoleMongoIntegrationTests
         return BsonDocument.Parse(documents[0].GetString()!);
     }
 
+    private static async Task<ISecretStore> RequireMcpOsVaultAsync()
+    {
+        ISecretStore store = OperatingSystem.IsLinux()
+            ? new LinuxSecretServiceSecretStore()
+            : new WindowsCredentialSecretStore();
+        var availability = await store.GetAvailabilityAsync();
+        if (OperatingSystem.IsLinux())
+        {
+            Assert.That(availability.IsSuccess && availability.Value == SecretStoreAvailability.Available,
+                Is.True, "O teste explícito exige Secret Service real na sessão Linux, com DBUS_SESSION_BUS_ADDRESS disponível.");
+        }
+        else if (!availability.IsSuccess || availability.Value != SecretStoreAvailability.Available)
+        {
+            Assert.Ignore("Credential Manager indisponível nesta sessão; a prova STDIO ponta a ponta exige o cofre real.");
+        }
+        return store;
+    }
+
     /// <summary>
     /// <c>SLOP_CONSOLE_MONGOD</c> or the portable cache; also accepts the Linux binary name. Ignored when absent, so a
     /// missing server is reported as a pending real homologation, never as a pass.
     /// </summary>
     private static string RequireMongod()
     {
-        if (Environment.GetEnvironmentVariable("SLOP_CONSOLE_MONGOD") is { Length: > 0 } configured) return configured;
+        if (Environment.GetEnvironmentVariable("SLOP_CONSOLE_MONGOD") is { } configured)
+        {
+            Assert.That(Path.IsPathFullyQualified(configured), Is.True,
+                "SLOP_CONSOLE_MONGOD deve apontar para um executável local por caminho absoluto.");
+            Assert.That(File.Exists(configured), Is.True, "O executável configurado em SLOP_CONSOLE_MONGOD não existe.");
+            if (OperatingSystem.IsLinux())
+            {
+                var mode = File.GetUnixFileMode(configured);
+                Assert.That(mode & (UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute),
+                    Is.Not.EqualTo((UnixFileMode)0), "O mongod local precisa de permissão de execução Unix.");
+            }
+            return Path.GetFullPath(configured);
+        }
         var root = new DirectoryInfo(AppContext.BaseDirectory);
         while (root is not null && !File.Exists(Path.Combine(root.FullName, "EsilvaSoft.KapibaraStudio.slnx"))) root = root.Parent;
         var binaries = Path.Combine(root!.FullName, ".cache", "console-mongo", "server");

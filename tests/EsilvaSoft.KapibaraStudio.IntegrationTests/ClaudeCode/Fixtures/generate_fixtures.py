@@ -182,4 +182,5 @@ write("result-without-session.jsonl", [adapt_init(e) if not is_result(e) else {k
 write("exit-before-init.jsonl", [], suffix=["#exit 1"])
 # Lacuna: filho cria um neto e sai; o neto fica órfão (sem pai vivo) e só o Job/grupo o alcança.
 write("cancel-with-grandchild.jsonl", head, suffix=["#spawn-grandchild", "#hang"])
+write("exit-with-grandchild.jsonl", [], suffix=["#spawn-grandchild", "#exit 0"])
 print("ok-revisao")

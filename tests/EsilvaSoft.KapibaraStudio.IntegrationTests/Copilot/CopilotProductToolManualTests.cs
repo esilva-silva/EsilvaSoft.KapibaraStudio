@@ -15,15 +15,15 @@ namespace EsilvaSoft.KapibaraStudio.IntegrationTests.Copilot;
 
 #pragma warning disable GHCP001 // Homologação manual do SDK experimental pinado, em sessão isolada.
 [TestFixture, Category("Integration"), Category("OfficialManual")]
-internal sealed class CopilotProductToolManualTests
+internal sealed partial class CopilotProductToolManualTests
 {
     private const string ToolName = "get_workspace_context";
     private const string ToolPayload = "{\"context\":\"synthetic workspace context; no real paths or files\"}";
 
-    [Test, Explicit("Homologação manual Windows com Copilot: o modelo chama uma ferramenta sintética, sem banco nem dados do workspace real.")]
-    public async Task WindowsOfficialModelCallsSyntheticProductToolThroughAgentRuntime()
+    [Test, Explicit("Homologação manual Windows/Linux com Copilot: o modelo chama uma ferramenta sintética, sem banco nem dados do workspace real.")]
+    public async Task OfficialModelCallsSyntheticProductToolThroughAgentRuntime()
     {
-        Assert.That(OperatingSystem.IsWindows(), Is.True, "A homologação P7-COP está limitada ao Windows.");
+        Assert.That(OperatingSystem.IsWindows() || OperatingSystem.IsLinux(), Is.True, "Requer runtime oficial em Windows ou Linux; executar não implica homologação.");
         using var syntheticDirectory = new SyntheticDirectory();
 
         string modelId;
@@ -99,10 +99,10 @@ internal sealed class CopilotProductToolManualTests
         }
     }
 
-    [Test, Explicit("Homologação manual Windows com conta Copilot autenticada: modelo oficial chama get_workspace_context no registry real usando somente uma pasta temporária sintética.")]
-    public async Task WindowsOfficialModelCallsWorkspaceContextThroughProductionRegistry()
+    [Test, Explicit("Homologação manual Windows/Linux com conta Copilot autenticada: modelo oficial chama get_workspace_context no registry real usando somente uma pasta temporária sintética.")]
+    public async Task OfficialModelCallsWorkspaceContextThroughProductionRegistry()
     {
-        Assert.That(OperatingSystem.IsWindows(), Is.True, "A homologação P7-COP está limitada ao Windows.");
+        Assert.That(OperatingSystem.IsWindows() || OperatingSystem.IsLinux(), Is.True, "Requer runtime oficial em Windows ou Linux; executar não implica homologação.");
         using var syntheticDirectory = new SyntheticDirectory();
         using var rig = new CopilotProductToolTestRig();
         var permissions = AgentProviderPermissions.Default(CopilotSubscriptionAgentProvider.Id) with
@@ -188,10 +188,10 @@ internal sealed class CopilotProductToolManualTests
         }
     }
 
-    [Test, Explicit("Homologação manual Windows: modelo Copilot chama list_connections no registry real; somente perfil sintético autorizado, sem abrir MongoDB.")]
-    public async Task WindowsOfficialModelCallsMongoMetadataToolWithScopedPermission()
+    [Test, Explicit("Homologação manual Windows/Linux: modelo Copilot chama list_connections no registry real; somente perfil sintético autorizado, sem abrir MongoDB.")]
+    public async Task OfficialModelCallsMongoMetadataToolWithScopedPermission()
     {
-        Assert.That(OperatingSystem.IsWindows(), Is.True, "A homologação P7-COP está limitada ao Windows.");
+        Assert.That(OperatingSystem.IsWindows() || OperatingSystem.IsLinux(), Is.True, "Requer runtime oficial em Windows ou Linux; executar não implica homologação.");
         using var syntheticDirectory = new SyntheticDirectory();
         using var rig = new CopilotProductToolTestRig();
         var providerId = CopilotSubscriptionAgentProvider.Id;
@@ -294,10 +294,10 @@ internal sealed class CopilotProductToolManualTests
         }
     }
 
-    [Test, Explicit("Homologação manual Windows com Copilot oficial: get_document exige ApprovedOnce e grant exato do turno; a origem Mongo é fake e não conecta a servidor.")]
-    public async Task WindowsOfficialModelCallsSyntheticDocumentReadWithOneCallApproval()
+    [Test, Explicit("Homologação manual Windows/Linux com Copilot oficial: get_document exige ApprovedOnce e grant exato do turno; a origem Mongo é fake e não conecta a servidor.")]
+    public async Task OfficialModelCallsSyntheticDocumentReadWithOneCallApproval()
     {
-        Assert.That(OperatingSystem.IsWindows(), Is.True, "A homologação P7-COP está limitada ao Windows.");
+        Assert.That(OperatingSystem.IsWindows() || OperatingSystem.IsLinux(), Is.True, "Requer runtime oficial em Windows ou Linux; executar não implica homologação.");
         using var syntheticDirectory = new SyntheticDirectory();
         const string toolName = AgentToolRegistry.GetDocumentToolName;
         const string syntheticDocument = "{\"_id\":{\"$oid\":\"64b000000000000000000001\"},\"label\":\"synthetic-copilot-document\"}";
@@ -443,10 +443,10 @@ internal sealed class CopilotProductToolManualTests
         }
     }
 
-    [Test, Explicit("Homologação manual Windows com Copilot oficial: envia uma consulta sintética como anexo e verifica proposta active_buffer no sink fake; não edita disco nem acessa MongoDB.")]
-    public async Task WindowsOfficialModelProposesEditToSyntheticActiveBuffer()
+    [Test, Explicit("Homologação manual Windows/Linux com Copilot oficial: envia uma consulta sintética como anexo e verifica proposta active_buffer no sink fake; não edita disco nem acessa MongoDB.")]
+    public async Task OfficialModelProposesEditToSyntheticActiveBuffer()
     {
-        Assert.That(OperatingSystem.IsWindows(), Is.True, "A homologação P7-COP está limitada ao Windows.");
+        Assert.That(OperatingSystem.IsWindows() || OperatingSystem.IsLinux(), Is.True, "Requer runtime oficial em Windows ou Linux; executar não implica homologação.");
         using var syntheticDirectory = new SyntheticDirectory();
         const string original = "db.syntheticItems.find({}).limit(10);\n";
         const string toolName = AgentToolRegistry.ProposeFileEditToolName;
@@ -579,10 +579,10 @@ internal sealed class CopilotProductToolManualTests
         }
     }
 
-    [Test, Explicit("Homologação manual Windows: runtime oficial propõe alteração na aba sintética ativa pelo WorkspaceViewModel e store Desktop local; não aplica, salva nem conecta ao MongoDB.")]
-    public async Task WindowsOfficialModelProposesEditIntoActiveWorkspaceViewModelStore()
+    [Test, Explicit("Homologação manual Windows/Linux: runtime oficial propõe alteração na aba sintética ativa pelo WorkspaceViewModel e store Desktop local; não aplica, salva nem conecta ao MongoDB.")]
+    public async Task OfficialModelProposesEditIntoActiveWorkspaceViewModelStore()
     {
-        Assert.That(OperatingSystem.IsWindows(), Is.True, "A homologação P7-COP está limitada ao Windows.");
+        Assert.That(OperatingSystem.IsWindows() || OperatingSystem.IsLinux(), Is.True, "Requer runtime oficial em Windows ou Linux; executar não implica homologação.");
         using var syntheticDirectory = new SyntheticDirectory();
         var headless = HeadlessUnitTestSession.GetOrStartForAssembly(typeof(IntegrationUiTestApp).Assembly);
         await headless.Dispatch(async () =>

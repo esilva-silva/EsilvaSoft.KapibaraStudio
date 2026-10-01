@@ -1,4 +1,3 @@
-using System.IO.Pipes;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using EsilvaSoft.KapibaraStudio.Application;
@@ -10,12 +9,12 @@ namespace EsilvaSoft.KapibaraStudio.IntegrationTests.Mcp;
 
 /// <summary>
 /// Lotes 3/4: the real proxy executable over real STDIO in a separate process, driven by the independent BCL client,
-/// connected through the real named pipe to a real broker. The channel proof lives in the real Windows Credential
-/// Manager (synthetic reference, removed by revocation in teardown); the proxy reads it from there, never from argv.
+/// connected through the real private pipe/socket to a real broker. The channel proof lives in the real Windows
+/// Credential Manager or Linux Secret Service (synthetic reference, revoked in teardown); never supplied in argv.
 /// </summary>
-[TestFixture, Explicit("Homologação de processo MCP com Credential Manager real; grava e remove uma credencial sintética.")]
+[TestFixture, Explicit("Homologação MCP com cofre nativo Windows/Linux; grava e remove apenas uma prova sintética do produto.")]
 [NonParallelizable]
-[Platform("Win")]
+[Platform("Win,Linux")]
 [Category("Integration")]
 [Category("Process")]
 public sealed class McpStdioProxyTests
@@ -125,21 +124,25 @@ public sealed class McpStdioProxyTests
         var channel = await EnrollAsync(fixture);
         var proof = await fixture.ProofAsync(channel);
         var frames = new List<AgentBrokerMessage>();
-        await using var server = new NamedPipeServerStream(new BrokerLocalTransport().GetEndpoint(fixture.WorkspaceId).PipeName,
-            PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+        var transport = new BrokerLocalTransport();
+        var endpoint = transport.GetEndpoint(fixture.WorkspaceId);
+        transport.PrepareServerEndpoint(endpoint);
+        await using var endpointCleanup = new EndpointCleanup(transport, endpoint);
+        await using var server = transport.CreateServerInstance(endpoint, 1, firstInstance: true);
         var futureBroker = Task.Run(async () =>
         {
-            await server.WaitForConnectionAsync();
-            if (await AgentBrokerFrameCodec.ReadAsync(server, AgentBrokerProtocol.MaximumRequestFrameBytes, default) is { } hello)
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            await server.WaitForConnectionAsync(deadline.Token);
+            if (await AgentBrokerFrameCodec.ReadAsync(server.Stream, AgentBrokerProtocol.MaximumRequestFrameBytes, deadline.Token) is { } hello)
                 frames.Add(hello);
-            await AgentBrokerFrameCodec.WriteAsync(server, new AgentBrokerMessage
+            await AgentBrokerFrameCodec.WriteAsync(server.Stream, new AgentBrokerMessage
             {
                 Type = AgentBrokerProtocol.MessageTypes.Error, ErrorCode = AgentBrokerProtocol.ErrorCodes.IncompatibleVersion,
                 SupportedMajor = AgentBrokerProtocol.MajorVersion + 1
-            }, AgentBrokerProtocol.MaximumResponseFrameBytes, default);
+            }, AgentBrokerProtocol.MaximumResponseFrameBytes, deadline.Token);
             try
             {
-                while (await AgentBrokerFrameCodec.ReadAsync(server, AgentBrokerProtocol.MaximumRequestFrameBytes, default) is { } extra)
+                while (await AgentBrokerFrameCodec.ReadAsync(server.Stream, AgentBrokerProtocol.MaximumRequestFrameBytes, deadline.Token) is { } extra)
                     frames.Add(extra);
             }
             catch (IOException) { }
@@ -183,6 +186,43 @@ public sealed class McpStdioProxyTests
             Assert.That(fixture.Find.Calls, Is.EqualTo(1));
             Assert.That(fixture.Host.ActiveConnectionCount, Is.EqualTo(2));
         });
+    }
+
+    [Test]
+    public async Task RevokedChannelCannotReadAgainAndAnotherChannelRemainsUsable()
+    {
+        await using var fixture = await StartAsync();
+        var revoked = await EnrollAsync(fixture);
+        var retained = await EnrollAsync(fixture);
+        var proof = await fixture.ProofAsync(revoked);
+        await using var a = StdioMcpProcess.Start(StdioMcpProcess.Arguments(fixture.WorkspaceId, revoked));
+        await using var b = StdioMcpProcess.Start(StdioMcpProcess.Arguments(fixture.WorkspaceId, retained));
+        await Task.WhenAll(a.InitializeLegacyAsync(), b.InitializeLegacyAsync());
+        await Task.WhenAll(
+            a.RequestAsync(1, "tools/call", StdioMcpProcess.Call("list_connections", "{}")),
+            b.RequestAsync(1, "tools/call", StdioMcpProcess.Call("list_connections", "{}")));
+
+        var revocation = await fixture.Authority.RevokeExternalChannelAsync(revoked.ChannelId);
+        var results = await Task.WhenAll(
+            a.RequestAsync(2, "tools/call", StdioMcpProcess.Call("mongo_find", fixture.FindArguments())),
+            b.RequestAsync(2, "tools/call", StdioMcpProcess.Call("mongo_find", fixture.FindArguments())));
+        var removedProof = await fixture.Secrets.GetAsync(revoked.ProofReference);
+        await Task.WhenAll(a.CloseAndWaitAsync(), b.CloseAndWaitAsync());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(revocation, Is.EqualTo(AgentChannelRevocationStatus.Revoked));
+            Assert.That(removedProof.IsSuccess, Is.False);
+            Assert.That(removedProof.Failure?.Code, Is.EqualTo(SecretStoreFailureCode.NotFound));
+            Assert.That(results[0].GetProperty("result").GetProperty("isError").GetBoolean(), Is.True);
+            Assert.That(results[0].GetProperty("result").GetProperty("content")[0].GetProperty("text").GetString(),
+                Does.StartWith("AuthenticationRequired"));
+            Assert.That(results[1].GetProperty("result").GetProperty("isError").GetBoolean(), Is.False);
+            Assert.That(fixture.Find.Calls, Is.EqualTo(1), "O canal revogado não chegou ao executor.");
+            Assert.That(a.AllOutput + b.AllOutput, Does.Not.Contain(proof).And.Not.Contain(McpBrokerFixture.UriCanary));
+        });
+        a.AssertCleanStdout();
+        b.AssertCleanStdout();
     }
 
     [Test]
@@ -305,6 +345,15 @@ public sealed class McpStdioProxyTests
     private static Task<McpBrokerFixture.Channel> EnrollAsync(McpBrokerFixture fixture, bool grant = true) =>
         fixture.EnrollAsync(grant: grant);
 
+    private sealed class EndpointCleanup(IAgentBrokerLocalTransport transport, AgentBrokerEndpoint endpoint) : IAsyncDisposable
+    {
+        public ValueTask DisposeAsync()
+        {
+            transport.RemoveServerEndpoint(endpoint);
+            return ValueTask.CompletedTask;
+        }
+    }
+
     private static async Task<McpBrokerFixture> StartAsync()
     {
         var fixture = new McpBrokerFixture(RequireOsVault());
@@ -312,8 +361,16 @@ public sealed class McpStdioProxyTests
         return fixture;
     }
 
-    private static WindowsCredentialSecretStore RequireOsVault()
+    private static ISecretStore RequireOsVault()
     {
+        if (OperatingSystem.IsLinux())
+        {
+            var linuxStore = new LinuxSecretServiceSecretStore();
+            var linuxAvailability = linuxStore.GetAvailabilityAsync().GetAwaiter().GetResult();
+            Assert.That(linuxAvailability.IsSuccess && linuxAvailability.Value == SecretStoreAvailability.Available,
+                Is.True, "O teste explícito exige Secret Service real na sessão Linux.");
+            return linuxStore;
+        }
         var store = new WindowsCredentialSecretStore();
         var availability = store.GetAvailabilityAsync().GetAwaiter().GetResult();
         if (!availability.IsSuccess || availability.Value != SecretStoreAvailability.Available)

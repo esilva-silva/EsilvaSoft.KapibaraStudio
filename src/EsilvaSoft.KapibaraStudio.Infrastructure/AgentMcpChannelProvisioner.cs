@@ -48,8 +48,8 @@ public sealed class AgentMcpChannelProvisioner : IAgentMcpChannelProvisioner, IA
     /// <remarks>
     /// <c>externalBroker</c>: the opt-in external broker when composed, reused so there is one endpoint.
     /// <c>serverExecutable</c>: optional absolute proxy path override; otherwise <c>executableLocator</c> resolves the
-    /// packaged proxy path. <c>platformSupported</c>: defaults to Windows, because the proxy reads its proof only from Windows
-    /// Credential Manager today (Linux has no client transport credential store).
+    /// packaged proxy path. <c>platformSupported</c>: defaults to Windows until the Linux Secret Service reader and
+    /// private local transport pass native homologation. Explicit overrides allow isolated Linux integration tests.
     /// </remarks>
     public AgentMcpChannelProvisioner(IAgentToolRegistry registry, IAgentPrincipalAuthority authority,
         IAgentAuthorizationPolicyRepository policies, IConnectionProfileRepository profiles,

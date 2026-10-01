@@ -23,15 +23,28 @@ public sealed class LocalCopilotAccountCommands : ICopilotAccountCommands
         catch (Exception exception) when (exception is FileNotFoundException or PlatformNotSupportedException) { return null; }
     }
 
-    internal static string? FindCliExecutable(string? path)
+    internal static string? FindCliExecutable(string? path, bool? isWindows = null,
+        Func<string, bool>? exists = null, Func<string, bool>? executableProbe = null)
     {
-        var executableName = OperatingSystem.IsWindows() ? "copilot.exe" : "copilot";
+        var windows = isWindows ?? OperatingSystem.IsWindows();
+        var executableName = windows ? "copilot.exe" : "copilot";
         foreach (var directory in (path ?? string.Empty).Split(Path.PathSeparator,
                      StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             if (!Path.IsPathFullyQualified(directory)) continue;
             var candidate = Path.GetFullPath(Path.Combine(directory, executableName));
-            if (File.Exists(candidate)) return candidate;
+            if (!(exists ?? File.Exists)(candidate)) continue;
+            try
+            {
+                if ((executableProbe is not null || OperatingSystem.IsLinux()) &&
+                    !(executableProbe ?? LinuxExecutableProbe.IsExecutable)(candidate))
+                    continue;
+                return candidate;
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                // Um candidato inacessível não impede descobrir uma instalação válida mais adiante.
+            }
         }
 
         return null;
@@ -129,9 +142,11 @@ public sealed class LocalCopilotAccountCommands : ICopilotAccountCommands
         };
         foreach (var candidate in candidates)
         {
-            if (File.Exists(candidate.Path)) return candidate;
+            if (IsLinuxTerminalExecutable(candidate.Path)) return candidate;
         }
 
         return null;
     }
+
+    internal static bool IsLinuxTerminalExecutable(string path) => LinuxExecutableProbe.IsExecutable(path);
 }

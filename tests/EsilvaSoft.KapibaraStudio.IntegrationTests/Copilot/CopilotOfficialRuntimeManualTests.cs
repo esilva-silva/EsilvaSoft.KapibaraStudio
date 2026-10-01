@@ -17,10 +17,10 @@ namespace EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Tests.Copilot;
 [Category("Integration")]
 internal sealed class CopilotOfficialRuntimeManualTests
 {
-    [Test, Explicit("Verificação manual Windows sem inferência: compara a autenticação oficial entre modos do SDK.")]
-    public async Task WindowsSessionRuntimeReportsOfficialAuthenticationAcrossModes()
+    [Test, Explicit("Verificação manual Windows/Linux sem inferência: compara a autenticação oficial entre modos do SDK.")]
+    public async Task SessionRuntimeReportsOfficialAuthenticationAcrossModes()
     {
-        Assert.That(OperatingSystem.IsWindows(), Is.True, "A homologação P7-COP está limitada ao Windows.");
+        Assert.That(OperatingSystem.IsWindows() || OperatingSystem.IsLinux(), Is.True, "Requer runtime oficial em Windows ou Linux; executar não implica homologação.");
 
         await using var accountClient = new CopilotClient(CopilotRuntimeSettings.AccountClientOptions());
         await accountClient.StartAsync(CancellationToken.None);
@@ -57,10 +57,10 @@ internal sealed class CopilotOfficialRuntimeManualTests
         }
     }
 
-    [Test, Explicit("Verificação manual Windows sem inferência: compara autenticação e modelos elegíveis da conta e da sessão.")]
-    public async Task WindowsOfficialAccountAndSessionExposeSameEligibleModels()
+    [Test, Explicit("Verificação manual Windows/Linux sem inferência: compara autenticação e modelos elegíveis da conta e da sessão.")]
+    public async Task OfficialAccountAndSessionExposeSameEligibleModels()
     {
-        Assert.That(OperatingSystem.IsWindows(), Is.True, "A homologação P7-COP está limitada ao Windows.");
+        Assert.That(OperatingSystem.IsWindows() || OperatingSystem.IsLinux(), Is.True, "Requer runtime oficial em Windows ou Linux; executar não implica homologação.");
 
         await using var accountClient = new CopilotClient(CopilotRuntimeSettings.AccountClientOptions());
         await accountClient.StartAsync(CancellationToken.None);
@@ -91,10 +91,10 @@ internal sealed class CopilotOfficialRuntimeManualTests
         TestContext.Progress.WriteLine($"Autenticação de usuário confirmada nos dois clientes; modelos elegíveis em ambos: {accountModels.Length}; sem inferência.");
     }
 
-    [Test, Explicit("Verificação manual Windows sem inferência: cria e apaga uma sessão oficial com allowlist vazia.")]
-    public async Task WindowsOfficialRuntimeCreatesAndDeletesEmptySessionWithoutPrompt()
+    [Test, Explicit("Verificação manual Windows/Linux sem inferência: cria e apaga uma sessão oficial com allowlist vazia.")]
+    public async Task OfficialRuntimeCreatesAndDeletesEmptySessionWithoutPrompt()
     {
-        Assert.That(OperatingSystem.IsWindows(), Is.True, "A homologação P7-COP está limitada ao Windows.");
+        Assert.That(OperatingSystem.IsWindows() || OperatingSystem.IsLinux(), Is.True, "Requer runtime oficial em Windows ou Linux; executar não implica homologação.");
 
         await using var store = new CopilotVolatileSessionFsStore();
         var sessionFs = CopilotVolatileSessionFsStore.CreateConfiguration(Environment.CurrentDirectory);
@@ -127,10 +127,10 @@ internal sealed class CopilotOfficialRuntimeManualTests
         }
     }
 
-    [Test, Explicit("Verificação manual Windows sem inferência: aplica a lista vazia de agentes internos antes de permitir qualquer prompt.")]
-    public async Task WindowsOfficialRuntimeCanDisableAllBuiltInAgentsBeforeAnyPrompt()
+    [Test, Explicit("Verificação manual Windows/Linux sem inferência: aplica a lista vazia de agentes internos antes de permitir qualquer prompt.")]
+    public async Task OfficialRuntimeCanDisableAllBuiltInAgentsBeforeAnyPrompt()
     {
-        Assert.That(OperatingSystem.IsWindows(), Is.True, "A homologação P7-COP está limitada ao Windows.");
+        Assert.That(OperatingSystem.IsWindows() || OperatingSystem.IsLinux(), Is.True, "Requer runtime oficial em Windows ou Linux; executar não implica homologação.");
 
         await using var store = new CopilotVolatileSessionFsStore();
         var sessionFs = CopilotVolatileSessionFsStore.CreateConfiguration(Environment.CurrentDirectory);
@@ -177,10 +177,10 @@ internal sealed class CopilotOfficialRuntimeManualTests
         }
     }
 
-    [Test, Explicit("Aceite manual Windows com conta Copilot: cria uma sessão volátil, envia um prompt sintético sem tools e apaga a sessão ao final.")]
-    public async Task WindowsOfficialRuntimeCreatesStreamsAndDeletesVolatileSession()
+    [Test, Explicit("Aceite manual Windows/Linux com conta Copilot: cria uma sessão volátil, envia um prompt sintético sem tools e apaga a sessão ao final.")]
+    public async Task OfficialRuntimeCreatesStreamsAndDeletesVolatileSession()
     {
-        Assert.That(OperatingSystem.IsWindows(), Is.True, "A homologação P7-COP está limitada ao Windows.");
+        Assert.That(OperatingSystem.IsWindows() || OperatingSystem.IsLinux(), Is.True, "Requer runtime oficial em Windows ou Linux; executar não implica homologação.");
 
         string modelId;
         await using (var accountClient = new CopilotClient(CopilotRuntimeSettings.AccountClientOptions()))
@@ -276,10 +276,10 @@ internal sealed class CopilotOfficialRuntimeManualTests
         }
     }
 
-    [Test, Explicit("Aceite manual Windows com conta Copilot: valida persistência, retomada e erase SessionFs após resposta sintética sem tools.")]
-    public async Task WindowsOfficialRuntimePersistsResumesAndErasesSessionFsConversationWithoutTools()
+    [Test, Explicit("Aceite manual Windows/Linux com conta Copilot: valida persistência, retomada e erase SessionFs após resposta sintética sem tools.")]
+    public async Task OfficialRuntimePersistsResumesAndErasesSessionFsConversationWithoutTools()
     {
-        Assert.That(OperatingSystem.IsWindows(), Is.True, "A homologação P7-COP está limitada ao Windows.");
+        Assert.That(OperatingSystem.IsWindows() || OperatingSystem.IsLinux(), Is.True, "Requer runtime oficial em Windows ou Linux; executar não implica homologação.");
 
         string modelId;
         await using (var accountClient = new CopilotClient(CopilotRuntimeSettings.AccountClientOptions()))
@@ -402,10 +402,10 @@ internal sealed class CopilotOfficialRuntimeManualTests
         Assert.That(sessionCreated, Is.True);
     }
 
-    [Test, Explicit("Aceite manual Windows com conta Copilot: cancela após o primeiro delta e valida estado indeterminado sem alegar rollback.")]
-    public async Task WindowsOfficialAdapterCancelsLiveTurnAndReportsPossibleEffect()
+    [Test, Explicit("Aceite manual Windows/Linux com conta Copilot: cancela após o primeiro delta e valida estado indeterminado sem alegar rollback.")]
+    public async Task OfficialAdapterCancelsLiveTurnAndReportsPossibleEffect()
     {
-        Assert.That(OperatingSystem.IsWindows(), Is.True, "A homologação P7-COP está limitada ao Windows.");
+        Assert.That(OperatingSystem.IsWindows() || OperatingSystem.IsLinux(), Is.True, "Requer runtime oficial em Windows ou Linux; executar não implica homologação.");
 
         string modelId;
         await using (var accountClient = new CopilotClient(CopilotRuntimeSettings.AccountClientOptions()))

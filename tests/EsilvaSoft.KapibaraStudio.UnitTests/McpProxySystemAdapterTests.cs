@@ -97,11 +97,12 @@ public sealed class McpProxySystemAdapterTests
         });
     }
 
-    [TestCase(true, typeof(WindowsClientTransportCredentialStore))]
-    [TestCase(false, typeof(UnavailableClientTransportCredentialStore))]
-    public void CompositionSelectsCredentialReaderFromInjectedPlatform(bool isWindows, Type expectedCredentials)
+    [TestCase(true, false, typeof(WindowsClientTransportCredentialStore))]
+    [TestCase(false, true, typeof(LinuxClientTransportCredentialStore))]
+    [TestCase(false, false, typeof(UnavailableClientTransportCredentialStore))]
+    public void CompositionSelectsCredentialReaderFromInjectedPlatform(bool isWindows, bool isLinux, Type expectedCredentials)
     {
-        var adapters = McpProxySystemAdapters.Create(new FakePlatform(isWindows, IsLinux: !isWindows), new FakeTransport());
+        var adapters = McpProxySystemAdapters.Create(new FakePlatform(isWindows, isLinux), new FakeTransport());
 
         Assert.That(adapters.Credentials, Is.TypeOf(expectedCredentials));
     }

@@ -18,7 +18,7 @@ internal sealed class StdioMcpProcess : IAsyncDisposable
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(20);
     private static readonly string[] InheritedVariables =
         ["SystemRoot", "windir", "SystemDrive", "USERPROFILE", "USERNAME", "USERDOMAIN", "APPDATA", "LOCALAPPDATA",
-         "TEMP", "TMP", "HOME", "XDG_RUNTIME_DIR", "DOTNET_ROOT", "ProgramFiles", "PATH"];
+         "TEMP", "TMP", "HOME", "XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS", "DOTNET_ROOT", "ProgramFiles", "PATH"];
 
     private readonly Process _process;
     private readonly BlockingCollection<string> _lines = new();

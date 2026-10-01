@@ -327,6 +327,55 @@ public sealed class ClaudeCodeReviewFixTests
 
     // Neto órfão -----------------------------------------------------------------------------------------------------
 
+    [TestCase("/usr/bin/setsid")]
+    [TestCase("/bin/setsid")]
+    public void LinuxRequiresAnExecutableSystemLauncherBeforeStartingTheCli(string available)
+    {
+        var launcher = ClaudeCodeProcess.ResolveProcessGroupLauncher(true, path => path == available);
+        Assert.That(launcher, Is.EqualTo(available));
+    }
+
+    [Test]
+    public void LinuxWithoutAnExecutableGroupLauncherFailsClosed()
+    {
+        Assert.Throws<InvalidOperationException>(() =>
+            ClaudeCodeProcess.ResolveProcessGroupLauncher(true, _ => false));
+    }
+
+    [Test]
+    public void WindowsDoesNotProbeForTheLinuxGroupLauncher()
+    {
+        Assert.That(ClaudeCodeProcess.ResolveProcessGroupLauncher(false,
+            _ => throw new AssertionException("Windows deve usar o Job Object.")), Is.Null);
+    }
+
+    [Test]
+    public async Task DisposingAfterTheCliExitedStillTerminatesItsOrphanedGrandchild()
+    {
+        using var fixture = new ClaudeCodeFixture().Turn("exit-with-grandchild.jsonl");
+        await using var cli = ClaudeCodeProcess.Start(ClaudeCodeFixture.FakeExecutable,
+            ["-p", "--session-id", Guid.NewGuid().ToString("D"), "--tools", "Read,Glob,Grep"],
+            fixture.WorkingDirectory, 4096);
+        await cli.StandardInput.WriteLineAsync("{\"type\":\"user\"}");
+        await cli.StandardInput.FlushAsync();
+        var grandchild = await WaitForLoggedPidAsync(fixture, "grandchild");
+        try
+        {
+            Assert.That(await cli.WaitForExitAsync(TimeSpan.FromSeconds(10)), Is.True);
+            Assert.That(WaitUntilGone(grandchild, TimeSpan.FromMilliseconds(200)), Is.False,
+                "A regressão exige líder já encerrado e neto ainda vivo antes de DisposeAsync.");
+            await cli.DisposeAsync();
+            Assert.That(WaitUntilGone(grandchild), Is.True,
+                "Fechar a fronteira Job/grupo precisa alcançar o neto mesmo após a saída do líder.");
+        }
+        finally
+        {
+            try { Process.GetProcessById(grandchild).Kill(); }
+            catch (ArgumentException) { }
+            catch (InvalidOperationException) { }
+        }
+    }
+
     [Test]
     public async Task OrphanedGrandchildIsKilledByTheJobObjectOrProcessGroup()
     {
