@@ -1,5 +1,16 @@
 # Estabilidade dos testes e benchmarks manuais — 01/10/2026
 
+## Continuação: CI 36931654539
+
+O ZIP `logs_100037908780.zip`, da [execução 36931654539](https://github.com/esilva-silva/EsilvaSoft.KapibaraStudio/actions/runs/36931654539), mostra Windows aprovado e Ubuntu com **3.358 aprovados, 2 falhas e 20 ignorados** na unidade. As etapas seguintes no Ubuntu foram puladas após a falha; esse run não comprova Agents ou a guarda de fontes no Linux.
+
+- `CancellingTheTurnDuringTheWaitDeniesWithoutClaimingAnUncertainWrite`: a ponte respondia `Denied` ao cancelamento, mas o coordenador podia receber essa resposta antes de `WaitAsync` observar o token. O resultado/auditoria virava recusa em vez de cancelamento. O coordenador agora confere o token depois da resposta, sob o bloqueio que decide o ticket. Dois casos determinísticos fazem o prompt cancelar e devolver recusa/concessão já concluídas: ambos falharam antes da correção (`Rejected`/`Granted`, com ticket no segundo) e passaram depois (`Cancelled`, sem ticket). O runtime continua verificando auditoria `Cancelled`, nenhuma escrita e nenhuma alegação de rollback.
+- `SecondWriteOfTheSameSessionIsBusyWhileTheFirstAwaitsApproval`: o script anunciava ambas as escritas sem aguardar a primeira entrar na aprovação. O runtime despacha em tarefas concorrentes; a ordem do stream não determina quem adquire a vaga. Se a segunda adquirir primeiro, ela aguarda o prompt que o teste só liberava depois de observar `Busy` para essa mesma chamada, terminando por timeout/`ToolOutcomeUnknown`. Agora um sinal do prompt libera o anúncio da segunda escrita somente enquanto a primeira já aguarda aprovação. As asserções de `Busy`, um prompt, sucesso da primeira e uma única escrita permanecem; o gate é liberado em `finally`.
+
+A [implementação oficial de `Task.WaitAsync` no .NET 10](https://github.com/dotnet/runtime/blob/v10.0.0/src/libraries/System.Private.CoreLib/src/System/Threading/Tasks/Task.cs#L2583) retorna uma tarefa já concluída antes de consultar o cancelamento. O teste de regressão controla essa ordem diretamente, sem depender do sistema operacional ou de pausas reais. Nenhum timeout ou expectativa funcional foi relaxado; benchmarks continuam fora de CI/release.
+
+Validação focada Windows: **36/36**, incluindo os dois casos novos e as duas fixtures do CI. Três execuções adicionais com `DOTNET_PROCESSOR_COUNT=1`, `2` e `4` passaram **36/36** cada, exercitando diferentes configurações do pool. Restore locked passou após permitir o acesso ao NuGet.Config bloqueado pelo sandbox; build Release com `UsedAvaloniaProducts=` passou com zero avisos/erros. A solução completa passou: **4.509 aprovados, zero falhas e 25 ignorados reportados** (UnitTests 3.362/20 ignorados, Agents 254/0, Integration 893/5). Benchmarks não foram executados; `IsTestProject=false` foi reconferido. Evidências em `TestResults/CI-36931654539/{Before,Focused,Scheduling,Final}` e `TestResults/ci-36931654539-*.log`. O novo diff ainda depende da reexecução do CI Ubuntu. Não há homologação de providers/MongoDB reais nem alteração visual.
+
 ## Evidência e diagnóstico
 
 Os logs `logs_100011460831` mostram UnitTests com 3.360 aprovados/20 ignorados e Infrastructure.Agents.Tests com 254 aprovados nos dois sistemas. A falha Windows ocorreu em `UnitSystemBoundaryIntegrationTests`: `AgentMcpChannelProvisionerLifecycleTests` e `LinuxAgentAdapterContractTests` normalizavam caminhos relativos usando o diretório atual. Linux não executava essa guarda. Isso era diferença de cobertura, não evidência de uma falha unitária exclusiva do Windows.
@@ -50,7 +61,7 @@ Os comandos acima são instruções de desenvolvimento; medições não foram ex
 
 Referências primárias: [boas práticas .NET](https://learn.microsoft.com/en-us/dotnet/core/testing/unit-testing-best-practices), [TimeProvider e testes determinísticos](https://devblogs.microsoft.com/dotnet/fake-it-til-you-make-it-to-production/), [paralelismo NUnit](https://docs.nunit.org/articles/nunit/technical-notes/usage/Framework-Parallel-Test-Execution.html), [execução BenchmarkDotNet](https://benchmarkdotnet.org/articles/guides/how-to-run.html) e [restrição de Dispose do SemaphoreSlim](https://learn.microsoft.com/en-us/dotnet/api/system.threading.semaphoreslim).
 
-## Validação e limites
+## Validação e limites da revisão inicial
 
 Restore da solução em `--locked-mode` passou. Build Release com `--no-restore -p:UsedAvaloniaProducts=`: zero avisos/erros. A primeira tentativa de restore no sandbox não conseguia ler NuGet.Config; a repetição com acesso permitido passou. O download oficial de build também exigiu acesso fora do sandbox. Uma recompilação intermediária colidiu com DLLs usadas pelo testhost; o build final ocorreu após o término da execução, sem bloqueios.
 

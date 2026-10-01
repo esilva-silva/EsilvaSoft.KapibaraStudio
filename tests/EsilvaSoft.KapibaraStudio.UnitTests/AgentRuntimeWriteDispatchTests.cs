@@ -178,36 +178,52 @@ public sealed class AgentRuntimeWriteDispatchTests
     public async Task SecondWriteOfTheSameSessionIsBusyWhileTheFirstAwaitsApproval()
     {
         var release = new TaskCompletionSource<AgentApprovalOutcome?>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var prompt = new ScriptedWritePrompt { Handler = (_, _) => release.Task };
+        var awaitingApproval = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var prompt = new ScriptedWritePrompt
+        {
+            Handler = (_, _) =>
+            {
+                awaitingApproval.TrySetResult();
+                return release.Task;
+            }
+        };
         var first = AgentToolCallId.New();
         var second = AgentToolCallId.New();
-        await using var rig = new AgentRuntimeWriteRig(TwoWrites(first, second), ShortTool, useBridge: false,
+        await using var rig = new AgentRuntimeWriteRig(TwoWrites(first, second, awaitingApproval.Task), ShortTool, useBridge: false,
             prompt: prompt);
         var session = await rig.StartAsync();
 
         var run = rig.Run(session);
-        var busy = await run.WaitForAsync(item => item.ToolCallId == second && item.Kind == AgentEventKind.ToolFailed);
-        Assert.Multiple(() =>
+        try
         {
-            Assert.That(busy.ErrorCode, Is.EqualTo("Busy"));
-            Assert.That(busy.ToolStatus, Is.EqualTo(AgentToolResultStatus.Failed));
-            Assert.That(prompt.Prompts, Has.Count.EqualTo(1), "Only one human approval at a time per session.");
-        });
+            var busy = await run.WaitForAsync(item => item.ToolCallId == second && item.Kind == AgentEventKind.ToolFailed);
+            Assert.Multiple(() =>
+            {
+                Assert.That(busy.ErrorCode, Is.EqualTo("Busy"));
+                Assert.That(busy.ToolStatus, Is.EqualTo(AgentToolResultStatus.Failed));
+                Assert.That(prompt.Prompts, Has.Count.EqualTo(1), "Only one human approval at a time per session.");
+            });
+        }
+        finally
+        {
+            release.TrySetResult(AgentApprovalOutcome.Granted);
+        }
 
-        release.TrySetResult(AgentApprovalOutcome.Granted);
         var events = await run.EndAsync();
         Assert.That(events.Single(item => item.ToolCallId == first && item.Kind == AgentEventKind.ToolCompleted).ToolStatus,
             Is.EqualTo(AgentToolResultStatus.Succeeded));
         Assert.That(rig.Source.Writes, Is.EqualTo(1));
 
-        static WriteScript TwoWrites(AgentToolCallId first, AgentToolCallId second) =>
-            (session, _, token) => Script(session, first, second, token);
+        static WriteScript TwoWrites(AgentToolCallId first, AgentToolCallId second, Task awaitingApproval) =>
+            (session, _, token) => Script(session, first, second, awaitingApproval, token);
 
         static async IAsyncEnumerable<AgentProviderEvent> Script(WriteScriptSession session, AgentToolCallId first,
-            AgentToolCallId second, [EnumeratorCancellation] CancellationToken token)
+            AgentToolCallId second, Task awaitingApproval, [EnumeratorCancellation] CancellationToken token)
         {
             yield return new AgentProviderEvent(AgentEventKind.ToolRequested, ToolCallId: first, ToolName: "update_one",
                 ArgumentsJson: Update());
+            // Dispatches are concurrent: stream order does not guarantee which call acquires the write slot.
+            await awaitingApproval.WaitAsync(Wait, token);
             yield return new AgentProviderEvent(AgentEventKind.ToolRequested, ToolCallId: second, ToolName: "update_one",
                 ArgumentsJson: Update("{\"$set\":{\"v\":3}}"));
             await session.NextResultAsync(token);

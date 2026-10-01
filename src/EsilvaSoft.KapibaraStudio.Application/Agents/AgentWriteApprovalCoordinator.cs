@@ -95,6 +95,14 @@ public sealed class AgentWriteApprovalCoordinator : IAgentWriteApprovalAuthority
 
             lock (_gate)
             {
+                // A completed prompt task can win WaitAsync even when its cancellation token is cancelled.
+                // The bridge resolves a pending decision as Denied during cancellation; preserve cancellation
+                // in the verdict/audit, and never issue a ticket for an answer returned by a cancelled prompt.
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    verdict = AgentWriteApprovalVerdict.Cancelled;
+                    return AgentWriteApprovalGrant.Denied(verdict);
+                }
                 // A late answer after the window (monotonic) or after revocation never becomes a ticket.
                 if (entry.State != EntryState.Pending)
                     return AgentWriteApprovalGrant.Denied(verdict);

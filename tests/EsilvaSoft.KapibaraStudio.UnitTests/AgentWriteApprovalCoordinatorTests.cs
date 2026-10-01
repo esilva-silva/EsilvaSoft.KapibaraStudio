@@ -202,6 +202,33 @@ public sealed class AgentWriteApprovalCoordinatorTests
         Assert.That(results.Select(result => result.Ticket), Is.All.Null);
     }
 
+    [TestCase(AgentApprovalOutcome.Denied)]
+    [TestCase(AgentApprovalOutcome.Granted)]
+    public async Task CancellationWinsWhenThePromptReturnsAnAnswerDuringCancellation(AgentApprovalOutcome answer)
+    {
+        using var cancellation = new CancellationTokenSource();
+        var prompt = new ScriptedWritePrompt
+        {
+            Handler = (_, _) =>
+            {
+                // The bridge can finish its decision task before WaitAsync observes the cancelled token.
+                cancellation.Cancel();
+                return Task.FromResult<AgentApprovalOutcome?>(answer);
+            }
+        };
+        var coordinator = new AgentWriteApprovalCoordinator(prompt);
+        var proposal = Proposal();
+
+        var grant = await coordinator.RequestApprovalAsync(proposal, cancellation.Token);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(grant.Verdict, Is.EqualTo(AgentWriteApprovalVerdict.Cancelled));
+            Assert.That(grant.Ticket, Is.Null);
+            Assert.That(coordinator.IsPending(proposal.PublicSessionId, proposal.PublicTurnId, proposal.PublicApprovalId), Is.False);
+        });
+    }
+
     [Test]
     public async Task ExternalPrincipalNeverReachesTheHumanPrompt()
     {
