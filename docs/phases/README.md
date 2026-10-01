@@ -1,10 +1,10 @@
 # Fases do EsilvaSoft.KapibaraStudio
 
-Referência: **28/09/2026**. Esta pasta contém o trabalho **planejado ou em execução** por fase. Requisitos concluídos e aceitos são arquivados em [`../done`](../done/README.md); requisitos sem fase definida, adiados ou retirados do escopo ficam em [`../backlog`](../backlog/README.md). Os documentos de planejamento e agentes antigos da Fase 7 foram removidos; o estado atual de Claude está em [`phase-07-v0.11.0/README.md`](phase-07-v0.11.0/README.md).
+Referência: **01/10/2026**. Esta pasta contém o trabalho **planejado ou em execução** por fase. Requisitos concluídos e aceitos são arquivados em [`../done`](../done/README.md); requisitos sem fase definida, adiados ou retirados do escopo ficam em [`../backlog`](../backlog/README.md). Os documentos de planejamento e agentes antigos da Fase 7 foram removidos; o estado atual de Claude está em [`phase-07-v0.11.0/README.md`](phase-07-v0.11.0/README.md).
 
 O [roadmap](../09-plano-de-implementacao.md) permanece na raiz da documentação como índice e regra geral; cada fase detalha o próprio escopo aqui.
 
-O roadmap abaixo preserva a numeração histórica das fases posteriores; a Fase 7 foi retomada para concluir Claude, com documentação atual resumida em [`phase-07-v0.11.0/README.md`](phase-07-v0.11.0/README.md). Consulte o [acompanhamento](../12-acompanhamento-da-implementacao.md) para validação executada.
+**Prioridade de entregas (01/10/2026):** Fase 5 / v0.9.0 primeiro; Fase 7 / v0.11.0 depois. A retomada de Claude fica adiada até concluir o foco atual na IA local e produtividade contextual. A numeração e os registros já publicados permanecem históricos. Consulte o [acompanhamento](../12-acompanhamento-da-implementacao.md) para validação executada.
 
 ## Meta transversal concluída
 
@@ -18,9 +18,9 @@ A meta de internacionalização da interface foi concluída no recorte automatiz
 | 2 | v0.6.0 | Organização dos projetos e autocomplete básico | [Arquivada](../done/release_v0.6.0/README.md) |
 | 3 | v0.7.0 | Autocomplete com IA | [Arquivada](../done/release_v0.7.0/README.md) |
 | 4 | v0.8.0 | Abertura e salvamento de arquivos de texto | [Arquivada](../done/release_v0.8.0/README.md) |
-| 5 | v0.9.0 | IA local e produtividade contextual | [Experimental](phase-05-v0.9.0/README.md) |
+| 5 | v0.9.0 | IA local e produtividade contextual | **Prioridade atual de entrega** — [plano e estado](phase-05-v0.9.0/README.md) |
 | 6 | v0.10.0 | Administração e manutenção | [Em desenvolvimento](phase-06-v0.10.0/README.md) |
-| 7 | v0.11.0 | Claude e integração com agentes | Implementada em código; em validação Windows — [estado e limites](phase-07-v0.11.0/README.md) |
+| 7 | v0.11.0 | Claude e integração com agentes | **Adiada até concluir a prioridade da Fase 5** — [estado e limites](phase-07-v0.11.0/README.md) |
 | 8 | v0.12.0 | Chat simples com IA baseado em workflow | [Planejada](phase-08-v0.12.0/README.md) |
 | 9 | v0.13.0 | Homologação manual e validação em ambientes reais | [Planejada](phase-09-v0.13.0/README.md) |
 | 10 | v1.0.0 | Estabilidade, revisão completa, instalação e atualizações | [Planejada](phase-10-v1.0.0/README.md) |

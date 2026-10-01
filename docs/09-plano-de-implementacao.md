@@ -12,9 +12,11 @@
 
 O pedido de arquitetura exige completar a migração de todos os acessos reais ao SO para adapters em projeto separado e substituir seu uso unitário por interfaces com doubles. Console STDIO MCP, segredos Windows/Linux, broker/socket, paths, launcher, diagnóstico, owner LiteDB, catálogo/cache de modelos, exportação e atualização passam por adapters em `Infrastructure.System`; ONNX está isolado em `Infrastructure.LocalAi.OnnxAdapter`. Na verificação integrada de 30/09, restore locked passou offline, build CPU teve 0 avisos/erros e a suíte completa aprovou Benchmarks 41/41, Infrastructure.Agents.Tests 198/198, UnitTests 3323 aprovados/20 ignorados e IntegrationTests 868 aprovados/14 ignorados. Builds cruzados `linux-x64` de Desktop/McpServer passaram. Runtime/testes nativos em Linux e homologações explícitas dos adapters continuam pendentes por falta de distribuição Linux neste host. Critérios completos, sequência e inventário em [system-adapters](architecture/system-adapters.md). Esta meta não redefine nem encerra os gates funcionais do roadmap.
 
-Referência: **29/09/2026**. Este plano substitui o cronograma antigo F0–F7 e as numerações anteriores de seis e nove fases. As fases são compromissos de consolidação, não a ordem em que todo código foi escrito. Recursos antecipados continuam disponíveis com seus limites; sua existência não encerra uma fase.
+Referência: **01/10/2026**. Este plano substitui o cronograma antigo F0–F7 e as numerações anteriores de seis e nove fases. As fases são compromissos de consolidação, não a ordem em que todo código foi escrito. Recursos antecipados continuam disponíveis com seus limites; sua existência não encerra uma fase.
 
-**Versão atual identificável:** a última release/tag publicada continua sendo v0.8.0. O estado de desenvolvimento está na meta v0.11.0, com Copilot por assinatura liberado de forma limitada no Windows; o próximo artefato deve ser pré-release até que os gates de homologação sejam fechados. A homologação manual ampla permanece na Fase 9; builds locais não implicam publicação remota. As tags históricas não foram alteradas.
+**Prioridade de entregas — 01/10/2026:** a Fase 5 / v0.9.0 (IA local e produtividade contextual) troca prioridade com a Fase 7 / v0.11.0. As próximas entregas focam a Fase 5; a Fase 7 fica adiada até a conclusão desse foco. Números de fase, versões, IDs de requisitos e evidências históricas permanecem inalterados. O plano detalhado da Fase 5 define o trabalho restante; homologação real de modelo/hardware continua na Fase 9.
+
+**Versão atual identificável:** a última release/tag publicada continua sendo v0.8.0. A prioridade de desenvolvimento é a meta v0.9.0 (Fase 5); v0.11.0 (Fase 7) fica em espera. O trabalho já existente de Copilot por assinatura tem disponibilidade limitada no Windows, sem homologação completa. A homologação manual ampla permanece na Fase 9; builds locais não implicam publicação remota. As tags históricas não foram alteradas.
 
 ## Status e evidências
 
@@ -37,9 +39,9 @@ O incremento cobre catálogo, barra principal, Explorer, editor/resultados, ferr
 | 2 | v0.6.0 | Organização dos projetos e autocomplete básico | [Arquivada](done/release_v0.6.0/README.md). Núcleos separados e autocomplete determinístico aceitos no recorte funcional |
 | 3 | v0.7.0 | Autocomplete com IA | [Arquivada](done/release_v0.7.0/README.md). Sugestões assistidas por modelo local, sempre revisáveis e sem aplicação automática |
 | 4 | v0.8.0 | Abertura e salvamento de arquivos de texto e workspace local de uma pasta | [Arquivada](done/release_v0.8.0/README.md). Inclui Abrir/Salvar/Salvar como, painel Arquivos com raiz única e operações de arquivo/pasta |
-| 5 | v0.9.0 | IA local e produtividade contextual | Escopo automatizável implementado; [experimental](phases/phase-05-v0.9.0/README.md) até inferência real/homologação da Fase 9. Inclui prévia de contexto, propostas revisáveis, IME e gate Headless de latência |
+| 5 | v0.9.0 | IA local e produtividade contextual | **Prioridade atual de entrega.** Escopo automatizável implementado; entregas seguintes conforme [meta](phases/phase-05-v0.9.0/meta-de-implementacao.md). Inferência real/homologação permanece na Fase 9 |
 | 6 | v0.10.0 | Administração e manutenção | [Em desenvolvimento](phases/phase-06-v0.10.0/README.md). Coleções, views, validação, índices, estatísticas, usuários, papéis e exportação/importação lógica |
-| 7 | v0.11.0 | Claude e integração com agentes | Claude Code e GitHub Copilot por assinatura; Copilot com liberação limitada no Windows e homologação incompleta. [Estado, limites e roteiro](phases/phase-07-v0.11.0/README.md) |
+| 7 | v0.11.0 | Claude e integração com agentes | **Prioridade adiada até concluir o foco da Fase 5.** Implementação e gates atuais: [estado, limites e roteiro](phases/phase-07-v0.11.0/README.md) |
 | 8 | v0.12.0 | Chat simples com IA baseado em workflow | [Planejada](phases/phase-08-v0.12.0/README.md). Fluxo predefinido, escopo limitado e ações controladas |
 | 9 | v0.13.0 | Homologação manual e validação em ambientes reais | [Planejada](phases/phase-09-v0.13.0/README.md). Consolida plataformas, acessibilidade, MongoDB/mongosh, hardware, instalação e atualização reais |
 | 10 | v1.0.0 | Estabilidade, revisão completa, instalação e atualizações | [Planejada](phases/phase-10-v1.0.0/README.md). Release estável após os aceites funcionais e a Fase 9 |
@@ -52,7 +54,7 @@ A inserção da nova v0.11.0 preservou integralmente o escopo anterior de workfl
 
 Quatro estados distintos, que não devem ser confundidos:
 
-- **Fase ativa** — o recorte automatizável da Fase 5 / v0.9.0 está concluído; a fase funcional em desenvolvimento é a [Fase 6 / v0.10.0](phases/phase-06-v0.10.0/README.md). A Fase 5 continua experimental até homologação real aplicável na Fase 9.
+- **Prioridade atual** — Fase 5 / v0.9.0; as entregas pendentes estão detalhadas na meta de implementação. A Fase 7 / v0.11.0 foi adiada até concluir esse foco. A homologação real aplicável permanece na Fase 9.
 - **Implementação antecipada** — código integrado que pertence a uma fase futura. Existe, é preservado e continua testado, mas **não** encerra a fase à qual pertence, **não** conta como escopo concluído da fase atual e **não** aparece na interface. Exemplos atuais: administração (v0.10.0), agregação e Script Engine (sem fase), IA local (v0.9.0).
 - **Backlog** — requisito sem fase definida, adiado ou retirado do escopo. Ver [`backlog/`](backlog/README.md). Entrar no backlog não apaga código: a implementação é preservada e isolada, apenas sem ponto de entrada visual.
 - **Release arquivada** — versão cujo escopo funcional foi fechado e movido para [`done/`](done/README.md). Arquivar **não** significa homologar; a validação manual aplicável pertence à Fase 9.
@@ -65,8 +67,8 @@ O backlog de requisitos sem fase atribuída está em [`backlog/bkl-05-requisitos
 
 ## Ordem de trabalho e definição de pronto
 
-1. Manter a Fase 5 / v0.9.0 com seu aceite automatizado registrado; transferir validação de inferência/hardware real para a Fase 9.
-2. Avançar pelas fases 6, 7 e 8 na ordem do roadmap, reutilizando implementações antecipadas e preservando proteções. A meta atual da v0.11.0 entrega somente análise, contratos e plano; não ativa nova fase na interface.
+1. Priorizar as entregas restantes da Fase 5 / v0.9.0 conforme sua meta de implementação; transferir validação de inferência/hardware real para a Fase 9.
+2. Após concluir esse foco, retomar a Fase 7 / v0.11.0. A Fase 6 / v0.10.0 e a Fase 8 / v0.12.0 permanecem definidas em seus documentos; qualquer retomada deve respeitar dependências e o escopo priorizado vigente.
 3. Executar a Fase 9 / v0.13.0, que concentra a homologação manual e a validação em ambientes reais de todas as fases anteriores.
 4. Fechar a v1.0.0 após os aceites funcionais e a Fase 9.
 

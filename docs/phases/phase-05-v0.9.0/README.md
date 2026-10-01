@@ -2,6 +2,8 @@
 
 **Situação:** escopo automatizável implementado e validado em 22/09/2026; assistência com modelo ONNX e homologação nativa continuam experimentais até as evidências da Fase 9.
 
+**Prioridade de entrega (01/10/2026):** esta fase assume o foco atual no lugar da Fase 7 / v0.11.0. Execute as entregas pendentes descritas na [meta de implementação](meta-de-implementacao.md) antes de retomar a Fase 7. Essa prioridade não altera o status experimental da inferência real nem transfere os gates de homologação da Fase 9.
+
 **Meta de implementação:** [plano, tarefas executadas, evidências e critérios de conclusão](meta-de-implementacao.md).
 
 A camada de IA local já participa do catálogo de localização nos quatro idiomas (`pt-BR`, `en`, `es`, `zh-CN`), com fallback em inglês. Isso encerra a meta transversal de tradução, sem alterar o status experimental.

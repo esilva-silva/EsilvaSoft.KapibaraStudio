@@ -15,11 +15,11 @@ Kapibara Studio is an open-source MongoDB desktop IDE and GUI client for Windows
 >
 > **Version 1.0.0 will receive a full review** of code, architecture, security, tests, and documentation before it is declared stable. Until then, every release is a pre-release.
 
-## Current implementation status (29 September 2026)
+## Current implementation status (1 October 2026)
 
 - **v0.5.0** is archived because its defined functional scope is implemented. Its real-environment validation is planned in **Phase 9 / v0.13.0**.
 - **v0.6.0**, **v0.7.0** and **v0.8.0** are archived by functional scope. They cover deterministic autocomplete, explicit reviewable AI suggestions, and text-file/workspace operations. Their manual and native-environment validation remains planned in **Phase 9 / v0.13.0**.
-- **v0.9.0** local AI's automated scope is implemented and tested; actual ONNX model support remains experimental pending real-model and native-environment validation in **Phase 9 / v0.13.0**. The current **v0.11.0** agent phase has limited GitHub Copilot subscription support on Windows; it is not fully homologated. MongoDB-backed Copilot tool calls, official-runtime failure/concurrency/recovery, native dialogs and screen-reader checks remain open. See the [Phase 7 status and evidence](docs/phases/phase-07-v0.11.0/README.md).
+- **Priority update (1 October 2026):** delivery work returns to **Phase 5 / v0.9.0 — Local AI and contextual productivity**. Phase 7 / v0.11.0 is deferred until the prioritized Phase 5 deliveries are complete. Phase numbers and version identifiers remain unchanged. Phase 5's automated scope is implemented; the work plan and real-model/native validation gates remain in its [implementation meta](docs/phases/phase-05-v0.9.0/meta-de-implementacao.md) and **Phase 9 / v0.13.0**. Phase 7's current code and open gates remain documented [here](docs/phases/phase-07-v0.11.0/README.md).
 - The desktop UI supports **Portuguese (Brazil), English, Spanish and Simplified Chinese**. `pt-BR` is the initial language and **English (`en`) is the deterministic fallback**. This does not translate repository documents under `docs/`, which remain in Portuguese.
 
 Latest automated evidence for this checkout (29 September 2026): Release configuration build completed with **0 warnings and 0 errors**; the solution test run had **4,197 passed, 0 failed, 63 ignored** across UnitTests (3,810/53), Infrastructure.Agents.Tests (344/10) and Benchmarks (43/0). Eleven native-environment tests were skipped because this session cannot write the OS credential vault or apply the required Codex-home ACL; the four `AgentDerived` MongoDB tests were skipped because no local MongoDB fixture is configured. The focused agent/editor regression passed **142/142**. The local release script produced all four 0.11.0 packages and verified their SHA-256 checksums; CI has not yet run against a commit containing this work. The last published tag is v0.8.0; v0.11.0 is the current development target and any release below 1.0.0 is a pre-release. Automated and Headless evidence does not replace the open real-model and native-environment gates.
@@ -46,16 +46,16 @@ Concretely: save and test connection profiles, browse databases and collections,
 | 2 | v0.6.0 | Project organisation and basic autocomplete | Feature scope completed and [archived](docs/done/release_v0.6.0/README.md); manual validation remains in Phase 9 |
 | 3 | v0.7.0 | AI-assisted autocomplete | Feature scope completed and [archived](docs/done/release_v0.7.0/README.md); suggestions remain reviewable and are never applied automatically |
 | 4 | v0.8.0 | Opening and saving text files | Feature scope completed and [archived](docs/done/release_v0.8.0/README.md); includes local single-root workspace operations |
-| 5 | v0.9.0 | Local AI and contextual productivity | Automated scope implemented; experimental for real ONNX models. Includes contextual preview, reviewable proposals, inline suggestions and multi-model selection. See [implementation meta](docs/phases/phase-05-v0.9.0/meta-de-implementacao.md) |
+| 5 | v0.9.0 | Local AI and contextual productivity | **Current delivery priority**; automated scope implemented, further deliveries follow the [implementation meta](docs/phases/phase-05-v0.9.0/meta-de-implementacao.md), real ONNX remains experimental |
 | 6 | v0.10.0 | Administration and maintenance | In development — collections, views, validation, indexes, stats, users, roles and logical export/import |
-| 7 | v0.11.0 | Claude and agent integration | GitHub Copilot subscription support has limited Windows availability; release and real-environment gates remain open — [status and limits](docs/phases/phase-07-v0.11.0/README.md) |
+| 7 | v0.11.0 | Claude and agent integration | **Deferred until prioritized Phase 5 deliveries are complete**; implementation and open gates — [status and limits](docs/phases/phase-07-v0.11.0/README.md) |
 | 8 | v0.12.0 | Simple workflow-based AI chat | Planned — a predefined flow, limited scope and controlled actions |
 | 9 | v0.13.0 | Manual validation and real-environment homologation | Planned — platforms, accessibility, MongoDB/mongosh, hardware, installation and updates in real environments |
 | 10 | v1.0.0 | Stability, full review, installation and updates | Planned — stable release after functional acceptance and Phase 9 |
 
 ### How to read this table
 
-- **Active phase** — Phase 6 / v0.10.0 is in development. Phase 5's automated scope is complete; its real-model and native-environment validation remains in Phase 9.
+- **Current delivery priority** — Phase 5 / v0.9.0. Its automated scope is complete; planned delivery work is tracked in its implementation meta. Real-model and native-environment validation remains in Phase 9. Phase 7 follows Phase 5 in the priority queue.
 - **Early implementation** — code that exists ahead of its phase. It is kept and tested, but does not close that phase or count as completed scope. A feature may be visible while still marked experimental.
 - **Backlog** — requirements with no assigned phase, postponed, or removed from the current scope. Nothing is deleted: the implementation is preserved and isolated, only its entry points are removed. See [backlog](docs/backlog/README.md).
 - **Archived release** — a version whose feature scope is closed, in [`docs/done`](docs/done/README.md). Archiving does **not** mean it has passed manual validation; those gates are consolidated in Phase 9.

@@ -1,5 +1,7 @@
 # Fase 7 — Agentes por assinatura no KapibaraStudio
 
+**Prioridade (01/10/2026):** esta fase foi adiada enquanto as entregas da Fase 5 / v0.9.0 — IA local e produtividade contextual — recebem prioridade. Retomar este trabalho após concluir o foco da Fase 5. A implementação e os gates já registrados abaixo continuam válidos; esta decisão não os declara concluídos nem os altera.
+
 **Qualidade — 01/10/2026:** [revisão de estabilidade](../../architecture/test-stability.md). CI/release executam uma lista explícita que exclui Benchmarks. Linux mantém somente as duas suítes unitárias e recebe a guarda estática de fontes, sem iniciar conexões, CLI, cofre ou runtime. Windows executa unidade e integração. Benchmarks e p95 Headless passam a instrumentos manuais. Registros anteriores de “suíte completa” que incluem Benchmarks são históricos.
 
 **Correção do release Copilot — 01/10/2026:** o single-file incorporava o runtime procurado ao lado do aplicativo, e login exigia CLI no PATH. Pacotes agora preservam runtime SDK externo e incluem CLI oficial interativa da mesma versão fixada, com SHA-256 verificado. Conta/modelos no publish Windows com PATH vazio passaram 2/2; quatro RIDs gerados. Auto update somente pelo repositório KapibaraStudio. OAuth novo e UI nativa permanecem pendentes; execução funcional Linux/ARM64 está fora do escopo desta meta. [Revisão](../../architecture/release-copilot.md).
