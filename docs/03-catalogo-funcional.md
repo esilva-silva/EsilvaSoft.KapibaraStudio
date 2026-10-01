@@ -1,5 +1,7 @@
 # Catálogo funcional
 
+**UX-03 / ADV-09 — 01/10/2026:** runtime SDK externo ao single-file e CLI oficial de login incluída nos quatro pacotes. Auto update usa exclusivamente o repositório KapibaraStudio. Conta/modelos reconhecidos no publish Windows x64 sem CLI no PATH; novo OAuth e execução Linux/ARM64 permanecem pendentes. [Evidências](architecture/release-copilot.md).
+
 **ADV-09 / P7-UX — implementado e validado automaticamente em 30/09/2026:** [P7-UX — painel Agente IA](phases/phase-07-v0.11.0/meta-ui-ux-painel-agente-ia.md). Histórico flexível, provider em menu compacto, contexto junto do envio, Anexar unificado, mensagens diferenciadas e blocos de código nativos. Preserva capacidades e permissões existentes; homologação nativa e providers reais pendentes.
 
 **ADV-09 / P7-AUTH — implementado em 30/09/2026:** [inicialização automática e contratos de conta](phases/phase-07-v0.11.0/meta-inicializacao-autenticacao-agentes.md). O provider salvo é verificado em segundo plano quando sua política permite uma checagem não interativa; teste de conexão, retry e atualização após entrar/sair compartilham o mesmo coordenador. Isso reconhece a conta oficial existente sem novo login, inferência ou acesso ao MongoDB. Homologação nativa de CLI/cofre continua específica por sistema operacional.

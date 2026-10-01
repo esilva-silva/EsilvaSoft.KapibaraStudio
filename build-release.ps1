@@ -43,7 +43,7 @@ function New-TarGz([string]$SourceDir, [string]$Destination) {
         foreach ($file in Get-ChildItem -LiteralPath $SourceDir -Recurse -File | Sort-Object FullName) {
             $name = [IO.Path]::GetRelativePath($SourceDir, $file.FullName).Replace('\', '/')
             $entry = [Formats.Tar.PaxTarEntry]::new([Formats.Tar.TarEntryType]::RegularFile, $name)
-            $entry.Mode = if ($file.Name -eq $ExecutableName -or $file.Name -eq 'createdump') { $execMode } else { $fileMode }
+            $entry.Mode = if ($file.Name -in @($ExecutableName, 'EsilvaSoft.KapibaraStudio.McpServer', 'copilot', 'copilot-runtime', 'createdump', 'rg', 'tgrep')) { $execMode } else { $fileMode }
             $entry.ModificationTime = [DateTimeOffset]$file.LastWriteTimeUtc
             $content = $file.OpenRead()
             try {
@@ -75,9 +75,18 @@ try {
     $publishRoot = Join-Path $artifacts 'publish'
     $distDir = Join-Path $artifacts "release/$Version"
 
+    function Remove-ReleaseDirectory([string]$Path) {
+        $resolved = [IO.Path]::GetFullPath($Path)
+        $allowedRoot = [IO.Path]::GetFullPath($artifacts) + [IO.Path]::DirectorySeparatorChar
+        if (-not $resolved.StartsWith($allowedRoot, [StringComparison]::OrdinalIgnoreCase)) {
+            throw "Limpeza recusada fora de artifacts: $resolved"
+        }
+        if (Test-Path -LiteralPath $resolved) { Remove-Item -LiteralPath $resolved -Recurse -Force }
+    }
+
     Write-Host "EsilvaSoft.KapibaraStudio $Version -> $($Rids -join ', ')" -ForegroundColor Green
 
-    Remove-Item $distDir -Recurse -Force -ErrorAction Ignore
+    Remove-ReleaseDirectory $distDir
     New-Item -ItemType Directory -Force $distDir | Out-Null
 
     Invoke-Step 'restore' { dotnet restore $Solution --locked-mode }
@@ -89,7 +98,7 @@ try {
     foreach ($rid in $Rids) {
         $publishDir = Join-Path $publishRoot $rid
         $packageName = "EsilvaSoft.KapibaraStudio-$Version-$rid"
-        Remove-Item $publishDir -Recurse -Force -ErrorAction Ignore
+        Remove-ReleaseDirectory $publishDir
 
         # Cada família usa seu backend ONNX e lock file (WinML no Windows, CPU no Linux), como no release.yml.
         # O restore sem -r já inclui os RIDs do Desktop; um restore implícito com -r propagaria o RID
@@ -113,6 +122,8 @@ try {
         }
 
         Remove-Item (Join-Path $publishDir '*.pdb'), (Join-Path $publishDir '*.xml'), (Join-Path $publishDir '*.lib') -ErrorAction Ignore
+
+        & (Join-Path $PSScriptRoot 'eng/Test-ReleasePackage.ps1') -PublishDirectory $publishDir -Rid $rid
 
         Write-Host "==> package $rid" -ForegroundColor Cyan
         if ($rid.StartsWith('win-')) {

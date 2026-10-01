@@ -1,5 +1,7 @@
 # Design system e revisão de UI/UX
 
+**Release/Copilot — 01/10/2026:** **Entrar/Sair** usam a CLI oficial interativa incluída no pacote, compartilhando a identidade com o runtime SDK. A apresentação e os estados existentes são preservados. Auto update consulta somente o repositório KapibaraStudio. [Evidências e limites](architecture/release-copilot.md); OAuth novo, terminal e leitor de tela ainda exigem homologação humana.
+
 **Revisão P7-UX após uso — 30/09/2026:** seletor direto de provider com lista única limitada, nomes sem repetição e chips menores; contornos removidos dos detalhes comuns, preservando destaque de bloqueios. Build em saída isolada (aplicativo aberto): 0 avisos/erros; 22/22 testes UI/hosting/conta aprovados e PNGs da lista aberta inspecionados. [Evidências e limites](phases/phase-07-v0.11.0/meta-ui-ux-painel-agente-ia.md#revisão-após-captura-do-usuário--30092026).
 
 **P7-UX — implementado em 30/09/2026:** [P7-UX — painel Agente IA](phases/phase-07-v0.11.0/meta-ui-ux-painel-agente-ia.md). Três regiões: cabeçalho compacto, histórico flexível e compositor delimitado. Contexto expansível junto da entrada; provider em menu, modelo/modo no compositor, Anexar unificado. Entrada 72–160 unidades; regiões secundárias usam rolagem local em combinações extremas, mantendo ações acessíveis e histórico mínimo de 96. Histórico ≥55% no painel de referência 380 × 820. Mensagens usam superfícies semânticas, prosa com entrelinha 20 e código monoespaçado 14/21 com rolagem local. Foco visível e nomes acessíveis preservados; homologação nativa pendente.

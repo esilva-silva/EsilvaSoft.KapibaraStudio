@@ -74,9 +74,14 @@ internal static class AppUpdateInstaller
                 var staged = target + ".new";
                 Directory.CreateDirectory(Path.GetDirectoryName(target)!);
                 File.Copy(Path.Combine(payloadDirectory, relative), staged, overwrite: true);
-                if (!OperatingSystem.IsWindows() && (string.Equals(relative, executableName, StringComparison.Ordinal)
-                    || ExecutableBaseNames.Contains(relative, StringComparer.Ordinal)))
-                    File.SetUnixFileMode(staged, ExecutableMode);
+                if (!OperatingSystem.IsWindows())
+                {
+                    // Preserve archive modes for child runtimes/proxies, including a pre-existing staging file.
+                    File.SetUnixFileMode(staged, File.GetUnixFileMode(Path.Combine(payloadDirectory, relative)));
+                    if (string.Equals(relative, executableName, StringComparison.Ordinal)
+                        || ExecutableBaseNames.Contains(relative, StringComparer.Ordinal))
+                        File.SetUnixFileMode(staged, ExecutableMode);
+                }
                 string? backup = null;
                 if (File.Exists(target))
                 {

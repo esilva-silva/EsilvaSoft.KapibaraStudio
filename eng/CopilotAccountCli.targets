@@ -1,0 +1,56 @@
+<Project>
+  <!-- The SDK supplies a headless wrapper, not the interactive login CLI. Fetch the standalone CLI
+       from the same pinned, checksum-verified official release. Never install or download on startup. -->
+  <Target Name="PrepareCopilotAccountCli" BeforeTargets="GetCopyToOutputDirectoryItems;GetCopyToPublishDirectoryItems"
+          DependsOnTargets="_DownloadCopilotCli" Condition="'$(DesignTimeBuild)' != 'true' And '$(_CopilotPlatform)' != ''">
+    <PropertyGroup>
+      <_AccountCliCache>$(IntermediateOutputPath)copilot-account-cli/$(CopilotCliVersion)/$(_CopilotPlatform)</_AccountCliCache>
+      <_AccountCliPayload>$(_AccountCliCache)/payload</_AccountCliPayload>
+      <_AccountCliExecutable>$(_AccountCliPayload)/$(_CopilotBinary)</_AccountCliExecutable>
+      <_AccountCliArchiveName Condition="$(_CopilotRid.StartsWith('win-'))">copilot-$(_CopilotPlatform).zip</_AccountCliArchiveName>
+      <_AccountCliArchiveName Condition="'$(_AccountCliArchiveName)' == ''">copilot-$(_CopilotPlatform).tar.gz</_AccountCliArchiveName>
+      <_AccountCliAssetRegex>$([System.Text.RegularExpressions.Regex]::Escape('$(_AccountCliArchiveName)'))</_AccountCliAssetRegex>
+      <_AccountCliComplete>$(_AccountCliCache)/.complete</_AccountCliComplete>
+      <_AccountCliMissing Condition="!Exists('$(_AccountCliExecutable)') Or !Exists('$(_AccountCliComplete)')">true</_AccountCliMissing>
+    </PropertyGroup>
+    <Error Condition="'$(CopilotCliVersion)' == ''" Text="A versão oficial da CLI Copilot não foi fornecida pelo SDK." />
+    <MakeDir Directories="$(_AccountCliCache);$(_AccountCliPayload)" />
+    <DownloadFile SourceUrl="https://github.com/github/copilot-cli/releases/download/v$(CopilotCliVersion)/SHA256SUMS.txt"
+                  DestinationFolder="$(_AccountCliCache)" Timeout="600000" Condition="'$(_AccountCliMissing)' == 'true'" />
+    <ReadLinesFromFile File="$(_AccountCliCache)/SHA256SUMS.txt" Condition="'$(_AccountCliMissing)' == 'true'">
+      <Output TaskParameter="Lines" ItemName="_AccountCliChecksumLine" />
+    </ReadLinesFromFile>
+    <ItemGroup Condition="'$(_AccountCliMissing)' == 'true'">
+      <_AccountCliChecksumMatch Include="@(_AccountCliChecksumLine)"
+        Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(Identity)', '^[0-9a-fA-F]{64}[\t ]+\*?$(_AccountCliAssetRegex)[\t ]*$'))" />
+    </ItemGroup>
+    <Error Condition="'$(_AccountCliMissing)' == 'true' And '@(_AccountCliChecksumMatch->Count())' != '1'"
+           Text="SHA256SUMS.txt deve conter exatamente um hash para $(_AccountCliArchiveName)." />
+    <DownloadFile SourceUrl="https://github.com/github/copilot-cli/releases/download/v$(CopilotCliVersion)/$(_AccountCliArchiveName)"
+                  DestinationFolder="$(_AccountCliCache)" Timeout="600000" Condition="'$(_AccountCliMissing)' == 'true'" />
+    <GetFileHash Files="$(_AccountCliCache)/$(_AccountCliArchiveName)" Algorithm="SHA256" Condition="'$(_AccountCliMissing)' == 'true'">
+      <Output TaskParameter="Items" ItemName="_AccountCliArchiveHash" />
+    </GetFileHash>
+    <PropertyGroup Condition="'$(_AccountCliMissing)' == 'true'">
+      <_AccountCliChecksumValue>@(_AccountCliChecksumMatch)</_AccountCliChecksumValue>
+      <_AccountCliExpectedHash>$([System.String]::Copy('$(_AccountCliChecksumValue)').Substring(0, 64).ToUpperInvariant())</_AccountCliExpectedHash>
+      <_AccountCliActualHash>@(_AccountCliArchiveHash->'%(FileHash)')</_AccountCliActualHash>
+    </PropertyGroup>
+    <Error Condition="'$(_AccountCliMissing)' == 'true' And '$(_AccountCliExpectedHash)' != '$(_AccountCliActualHash)'"
+           Text="O SHA-256 da CLI oficial Copilot não confere; empacotamento interrompido." />
+    <Unzip SourceFiles="$(_AccountCliCache)/$(_AccountCliArchiveName)" DestinationFolder="$(_AccountCliPayload)"
+           Condition="'$(_AccountCliMissing)' == 'true' And $(_CopilotRid.StartsWith('win-'))" />
+    <Exec Command="&quot;$(_TarCommand)&quot; -xzf &quot;$(_AccountCliCache)/$(_AccountCliArchiveName)&quot; -C &quot;$(_AccountCliPayload)&quot;"
+          Condition="'$(_AccountCliMissing)' == 'true' And !$(_CopilotRid.StartsWith('win-'))" />
+    <Error Condition="!Exists('$(_AccountCliExecutable)')" Text="A CLI interativa oficial Copilot não foi extraída." />
+    <WriteLinesToFile File="$(_AccountCliComplete)" Lines="$(CopilotCliVersion)" Overwrite="true"
+                      Condition="'$(_AccountCliMissing)' == 'true'" />
+    <ItemGroup>
+      <_AccountCliFile Include="$(_AccountCliPayload)/**/*" />
+      <ContentWithTargetPath Include="@(_AccountCliFile)"
+                            TargetPath="runtimes/$(_CopilotRid)/copilot-cli/%(_AccountCliFile.RecursiveDir)%(_AccountCliFile.Filename)%(_AccountCliFile.Extension)"
+                            CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"
+                            ExcludeFromSingleFile="true" />
+    </ItemGroup>
+  </Target>
+</Project>

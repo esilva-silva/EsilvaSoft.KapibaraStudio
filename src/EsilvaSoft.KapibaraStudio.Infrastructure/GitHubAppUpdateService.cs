@@ -39,12 +39,9 @@ public sealed class GitHubAppUpdateService : IAppUpdateService, IDisposable
     public async Task<AppUpdateRelease?> CheckAsync(CancellationToken cancellationToken)
     {
         if (Availability == AppUpdateAvailability.Disabled) return null;
-        var primary = await CheckFeedAsync(_options.ReleasesApi, cancellationToken);
+        var release = await CheckFeedAsync(_options.ReleasesApi, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
-        if (primary is not null) return primary;
-        return _options.FallbackReleasesApi is { } fallback && fallback != _options.ReleasesApi
-            ? await CheckFeedAsync(fallback, cancellationToken)
-            : null;
+        return release;
     }
 
     private async Task<AppUpdateRelease?> CheckFeedAsync(Uri api, CancellationToken cancellationToken)
@@ -58,7 +55,7 @@ public sealed class GitHubAppUpdateService : IAppUpdateService, IDisposable
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
             request.Headers.Add("X-GitHub-Api-Version", "2022-11-28");
             using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
-            // Missing repositories, rate limits and outages allow the legacy feed to be tried.
+            // Missing repositories, rate limits and outages never change the release source.
             if (!response.IsSuccessStatusCode) return null;
             await using var stream = await response.Content.ReadAsStreamAsync(timeout.Token);
             var releases = await JsonSerializer.DeserializeAsync<GitHubRelease[]>(stream, ApiJson, timeout.Token) ?? [];

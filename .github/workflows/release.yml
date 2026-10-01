@@ -82,11 +82,14 @@ jobs:
         shell: pwsh
         run: |
           Remove-Item publish/*.pdb, publish/*.xml, publish/*.lib -ErrorAction Ignore
+          if (-not $IsWindows) {
+            chmod +x publish/EsilvaSoft.KapibaraStudio.Desktop publish/mcp/EsilvaSoft.KapibaraStudio.McpServer publish/runtimes/${{ matrix.rid }}/native/copilot publish/runtimes/${{ matrix.rid }}/copilot-cli/copilot
+          }
+          ./eng/Test-ReleasePackage.ps1 -PublishDirectory publish -Rid '${{ matrix.rid }}'
           New-Item -ItemType Directory -Force dist | Out-Null
           if ($IsWindows) {
             Compress-Archive -Path publish/* -DestinationPath "dist/$env:PACKAGE.zip"
           } else {
-            chmod +x publish/EsilvaSoft.KapibaraStudio.Desktop
             tar -czf "dist/$env:PACKAGE.tar.gz" -C publish .
           }
       - uses: actions/upload-artifact@v4
@@ -97,7 +100,7 @@ jobs:
 
   release:
     needs: [version, test, package]
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.repository == 'esilva-silva/EsilvaSoft.KapibaraStudio'
     runs-on: ubuntu-latest
     permissions:
       contents: write

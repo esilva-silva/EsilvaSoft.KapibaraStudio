@@ -1,5 +1,9 @@
 # Acompanhamento da implementação
 
+**Validação final desta revisão:** reexecução integral de IntegrationTests: **885 aprovados, 0 falhas, 4 ignorados**; as duas falhas de cleanup anteriores não se repetiram. UnitTests 3.343/20 ignorados, Agents 198 e Benchmarks 41 já haviam passado. ZIP final Windows extraído: 2/2 testes de runtime/conta oficial com PATH vazio. Quatro SHA-256 e modos de execução Linux conferidos. [Resultados e limites](architecture/release-copilot.md).
+
+**Release/Copilot — 01/10/2026:** causa reproduzida no publish, correção implementada e quatro pacotes locais gerados. Auto update sem fallback ao repositório antigo. Build Release 0 avisos/erros; testes do publish com conta oficial e PATH vazio 2/2; regressão focada 39 aprovados/1 ignorado. Integral com duas falhas de cleanup, aprovadas na reexecução focada; não declarada verde. [Resultados e gates](architecture/release-copilot.md).
+
 **Revisão P7-UX após uso — 30/09/2026:** seletor direto de provider com lista única limitada, nomes sem repetição e chips menores; contornos removidos dos detalhes comuns, preservando destaque de bloqueios. Build em saída isolada (aplicativo aberto): 0 avisos/erros; 22/22 testes UI/hosting/conta aprovados e PNGs da lista aberta inspecionados. [Evidências e limites](phases/phase-07-v0.11.0/meta-ui-ux-painel-agente-ia.md#revisão-após-captura-do-usuário--30092026).
 
 **P7-UX — 30/09/2026:** [P7-UX — painel Agente IA](phases/phase-07-v0.11.0/meta-ui-ux-painel-agente-ia.md) implementado diretamente em `F:\source\esilva-silva\EsilvaSoft.KapibaraStudio`. Restore locked e build aprovados (0 avisos/erros); suíte completa: **4.466 aprovados, 23 ignorados, 0 falhas**. Histórico de referência medido em 61,07% (provider genérico) e 55,35% (CLI oficial simulado). Matriz de 144 PNGs mais estados de overflow/streaming/persistência; amostras renderizadas inspecionadas. Homologação nativa e runtimes reais continuam pendentes.

@@ -6,7 +6,7 @@ using System.Diagnostics;
 namespace EsilvaSoft.KapibaraStudio.SystemAdapters.Copilot;
 
 /// <summary>
-/// Abre a CLI oficial instalada numa janela de terminal visível, sem shell intermediário, redirecionamento ou captura
+/// Abre a CLI oficial empacotada numa janela de terminal visível, sem shell intermediário, redirecionamento ou captura
 /// de saída. Login executa <c>copilot login</c>; sair abre o CLI para o usuário executar <c>/logout</c>.
 /// </summary>
 public sealed class LocalCopilotAccountCommands : ICopilotAccountCommands
@@ -15,7 +15,13 @@ public sealed class LocalCopilotAccountCommands : ICopilotAccountCommands
     private static readonly string[] LoginArguments = ["login"];
     private static readonly string[] LogoutArguments = [];
 
-    public bool IsCliInstalled() => FindCliExecutable(Environment.GetEnvironmentVariable("PATH")) is not null;
+    public bool IsCliInstalled() => FindBundledCliExecutable() is not null;
+
+    private static string? FindBundledCliExecutable()
+    {
+        try { return CopilotRuntimeSettings.BundledAccountCliPath(); }
+        catch (Exception exception) when (exception is FileNotFoundException or PlatformNotSupportedException) { return null; }
+    }
 
     internal static string? FindCliExecutable(string? path)
     {
@@ -36,7 +42,7 @@ public sealed class LocalCopilotAccountCommands : ICopilotAccountCommands
         if (action is not ("login" or "logout")) throw new ArgumentOutOfRangeException(nameof(action));
         cancellationToken.ThrowIfCancellationRequested();
 
-        var cli = FindCliExecutable(Environment.GetEnvironmentVariable("PATH"));
+        var cli = FindBundledCliExecutable();
         if (cli is null) return CopilotAccountCommandState.RuntimeUnavailable;
 
         var arguments = action == "login" ? LoginArguments : LogoutArguments;
@@ -69,7 +75,7 @@ public sealed class LocalCopilotAccountCommands : ICopilotAccountCommands
         }
     }
 
-    private static ProcessStartInfo? CreateStartInfo(string executable, IReadOnlyList<string> arguments)
+    internal static ProcessStartInfo? CreateStartInfo(string executable, IReadOnlyList<string> arguments)
     {
         var environment = CopilotRuntimeSettings.ChildEnvironment();
         var accountDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -106,6 +112,8 @@ public sealed class LocalCopilotAccountCommands : ICopilotAccountCommands
         // UseShellExecute=false permite substituir integralmente o ambiente; tokens e BYOK não são herdados.
         start.Environment.Clear();
         foreach (var (name, value) in environment) start.Environment[name] = value;
+        // CLI interativa e SDK compartilham o diretório oficial; nenhum token passa pelo produto.
+        start.Environment["COPILOT_HOME"] = CopilotRuntimeSettings.OfficialCliHomeDirectory();
         return start;
     }
 

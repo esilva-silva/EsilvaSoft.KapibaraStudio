@@ -10,15 +10,12 @@ public sealed record AppUpdateOptions(AppUpdateAvailability Availability, AppVer
     : AppUpdateInstallation(Availability, CurrentVersion, Rid, TargetDirectory, ExecutableName, UpdatesDirectory)
 {
     public static Uri GitHubReleasesApi { get; } = new("https://api.github.com/repos/esilva-silva/EsilvaSoft.KapibaraStudio/releases?per_page=20");
-    public static Uri LegacyGitHubReleasesApi { get; } = new("https://api.github.com/repos/esilva-silva/EsilvaSoft.SlopStudio/releases?per_page=20");
-    public Uri? FallbackReleasesApi { get; init; }
 
     public static AppUpdateOptions FromProcess(ILocalWorkspacePaths workspacePaths)
     {
         ArgumentNullException.ThrowIfNull(workspacePaths);
         var installation = LocalAppUpdateStorage.DetectInstallation(workspacePaths.GetUpdatesDirectory());
         return new(installation.Availability, installation.CurrentVersion, installation.Rid, installation.TargetDirectory,
-            installation.ExecutableName, installation.UpdatesDirectory, GitHubReleasesApi)
-        { FallbackReleasesApi = LegacyGitHubReleasesApi };
+            installation.ExecutableName, installation.UpdatesDirectory, GitHubReleasesApi);
     }
 }

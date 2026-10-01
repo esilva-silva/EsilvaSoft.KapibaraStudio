@@ -117,7 +117,7 @@ internal static class CopilotRuntimeSettings
         return Path.Combine(appData, "EsilvaSoft", "KapibaraStudio", "Copilot", "sessions");
     }
 
-    private static string OfficialCliHomeDirectory()
+    internal static string OfficialCliHomeDirectory()
     {
         var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         if (string.IsNullOrWhiteSpace(userProfile))
@@ -129,7 +129,11 @@ internal static class CopilotRuntimeSettings
         workingDirectory is { } directory && Directory.Exists(directory)
             ? Path.GetFullPath(directory) : Environment.CurrentDirectory;
 
-    public static string BundledRuntimePath()
+    public static string BundledRuntimePath() => BundledExecutablePath(AppContext.BaseDirectory, interactive: false);
+
+    internal static string BundledAccountCliPath() => BundledExecutablePath(AppContext.BaseDirectory, interactive: true);
+
+    internal static string BundledExecutablePath(string baseDirectory, bool interactive)
     {
         var architecture = RuntimeInformation.ProcessArchitecture switch
         {
@@ -140,7 +144,8 @@ internal static class CopilotRuntimeSettings
         var system = OperatingSystem.IsWindows() ? "win" : OperatingSystem.IsLinux() ? "linux" :
             throw new PlatformNotSupportedException("Sistema sem runtime Copilot homologado.");
         var executable = OperatingSystem.IsWindows() ? "copilot.exe" : "copilot";
-        var path = Path.Combine(AppContext.BaseDirectory, "runtimes", system + "-" + architecture, "native", executable);
+        var path = Path.Combine(baseDirectory, "runtimes", system + "-" + architecture,
+            interactive ? "copilot-cli" : "native", executable);
         if (!File.Exists(path)) throw new FileNotFoundException("Runtime oficial do Copilot indisponível.", path);
         return path;
     }

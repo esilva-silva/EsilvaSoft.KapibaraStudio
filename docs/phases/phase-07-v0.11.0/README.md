@@ -1,5 +1,7 @@
 # Fase 7 — Agentes por assinatura no KapibaraStudio
 
+**Correção do release Copilot — 01/10/2026:** o single-file incorporava o runtime procurado ao lado do aplicativo, e login exigia CLI no PATH. Pacotes agora preservam runtime SDK externo e incluem CLI oficial interativa da mesma versão fixada, com SHA-256 verificado. Conta/modelos no publish Windows com PATH vazio passaram 2/2; quatro RIDs gerados. Auto update somente pelo repositório KapibaraStudio. OAuth novo, UI nativa e execução Linux/ARM64 continuam pendentes. [Revisão](../../architecture/release-copilot.md).
+
 **P7-UX — implementado e validado automaticamente em 30/09/2026:** [painel Agente IA com prioridade para a conversa](meta-ui-ux-painel-agente-ia.md). Histórico ampliado, configurações compactas e compositor integrado; restore/build e 4.466 testes aprovados, PNGs reais inspecionados. Preserva contratos e gates dos providers. Homologação nativa e serviços reais continuam pendentes.
 
 **P7-AUTH implementada em 30/09/2026:** [inicialização automática e contratos de conta](meta-inicializacao-autenticacao-agentes.md). A inicialização do provider salvo, retry e **Testar conexão** compartilham o mesmo coordenador; handlers de conta ficam atrás dos contratos Application e não iniciam autenticação interativa. Build passou com 0 avisos/erros; UnitTests **3.340 aprovados, 20 ignorados**. Esta evidência automatizada não homologa CLI/cofre em cada SO nem altera os gates de P7-COP.

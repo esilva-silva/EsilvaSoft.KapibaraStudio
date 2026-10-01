@@ -28,4 +28,5 @@
     <InternalsVisibleTo Include="EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Tests" />
     <InternalsVisibleTo Include="EsilvaSoft.KapibaraStudio.IntegrationTests" />
   </ItemGroup>
+  <Import Project="../../eng/CopilotAccountCli.targets" />
 </Project>

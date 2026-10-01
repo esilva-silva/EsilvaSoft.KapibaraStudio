@@ -18,11 +18,10 @@ public sealed class AppUpdateServiceTests
     private const string LinuxExecutable = "EsilvaSoft.SlopStudio.Desktop";
 
     [Test]
-    public void ProcessDefaultsUseKapibaraRepositoryWithLegacyFallback()
+    public void ProcessDefaultsUseOnlyKapibaraRepository()
     {
         var options = AppUpdateOptions.FromProcess(new LocalWorkspacePathResolver());
         Assert.That(options.ReleasesApi.AbsoluteUri, Is.EqualTo("https://api.github.com/repos/esilva-silva/EsilvaSoft.KapibaraStudio/releases?per_page=20"));
-        Assert.That(options.FallbackReleasesApi?.AbsoluteUri, Is.EqualTo("https://api.github.com/repos/esilva-silva/EsilvaSoft.SlopStudio/releases?per_page=20"));
     }
 
     [Test]
@@ -47,7 +46,7 @@ public sealed class AppUpdateServiceTests
     [TestCase("network")]
     [TestCase("current")]
     [TestCase("incompatible")]
-    public async Task UnusablePrimaryFeedFallsBackToLegacyRepository(string failure)
+    public async Task UnusableFeedNeverRequestsAnotherRepository(string failure)
     {
         using var fixture = new UpdateFixture();
         fixture.PublishRelease("v0.6.0", "win-x64", Zip((WindowsExecutable, "new")));
@@ -61,24 +60,24 @@ public sealed class AppUpdateServiceTests
                 "timeout" => () => throw new TaskCanceledException("Simulated HTTP timeout"),
                 _ => () => throw new HttpRequestException("Simulated network failure")
             };
-        using var service = fixture.Service(fixture.Options() with { ReleasesApi = UpdateFixture.PrimaryApi, FallbackReleasesApi = UpdateFixture.Api });
-        Assert.That((await service.CheckAsync(CancellationToken.None))?.Version, Is.EqualTo(AppVersion.Parse("0.6.0")));
-        Assert.That(fixture.Requests, Is.EqualTo(new[] { UpdateFixture.PrimaryApi.AbsoluteUri, UpdateFixture.Api.AbsoluteUri }));
+        using var service = fixture.Service(fixture.Options() with { ReleasesApi = UpdateFixture.PrimaryApi });
+        Assert.That(await service.CheckAsync(CancellationToken.None), Is.Null);
+        Assert.That(fixture.Requests, Is.EqualTo(new[] { UpdateFixture.PrimaryApi.AbsoluteUri }));
     }
 
     [Test]
-    public async Task EligiblePrimaryReleaseTakesPriorityOverNewerLegacyRelease()
+    public async Task EligibleReleaseComesOnlyFromConfiguredRepository()
     {
         using var fixture = new UpdateFixture();
         fixture.PublishRelease("v0.8.0", "win-x64", Zip((WindowsExecutable, "legacy")));
         fixture.PublishRelease("v0.6.0", "win-x64", Zip((WindowsExecutable, "primary")), api: UpdateFixture.PrimaryApi, kapibara: true);
-        using var service = fixture.Service(fixture.Options() with { ReleasesApi = UpdateFixture.PrimaryApi, FallbackReleasesApi = UpdateFixture.Api });
+        using var service = fixture.Service(fixture.Options() with { ReleasesApi = UpdateFixture.PrimaryApi });
         Assert.That((await service.CheckAsync(CancellationToken.None))?.AssetName, Is.EqualTo("EsilvaSoft.KapibaraStudio-0.6.0-win-x64.zip"));
         Assert.That(fixture.Requests, Is.EqualTo(new[] { UpdateFixture.PrimaryApi.AbsoluteUri }));
     }
 
     [Test]
-    public void CallerCancellationNeverRequestsFallback()
+    public void CallerCancellationStopsFeedRequest()
     {
         using var fixture = new UpdateFixture();
         using var cancellation = new CancellationTokenSource();
@@ -87,7 +86,7 @@ public sealed class AppUpdateServiceTests
             cancellation.Cancel();
             throw new OperationCanceledException(cancellation.Token);
         };
-        using var service = fixture.Service(fixture.Options() with { ReleasesApi = UpdateFixture.PrimaryApi, FallbackReleasesApi = UpdateFixture.Api });
+        using var service = fixture.Service(fixture.Options() with { ReleasesApi = UpdateFixture.PrimaryApi });
         Assert.CatchAsync<OperationCanceledException>(() => service.CheckAsync(cancellation.Token));
         Assert.That(fixture.Requests, Is.EqualTo(new[] { UpdateFixture.PrimaryApi.AbsoluteUri }));
     }
@@ -347,6 +346,48 @@ public sealed class AppUpdateServiceTests
 
     private static AppUpdateRelease StorageRelease() => new(AppVersion.Parse("0.6.0"), "v0.6.0", "package.zip",
         new Uri("https://download.test/package.zip"), 0, null, new Uri("https://github.test/release"), null);
+
+    [Test]
+    public async Task VerifiedPackageInstallsInteractiveCliAndCompleteHeadlessRuntimeTogether()
+    {
+        using var fixture = new UpdateFixture();
+        const string runtime = "runtimes/win-x64/native/copilot.exe";
+        const string runtimeNode = "runtimes/win-x64/native/runtime.node";
+        const string accountCli = "runtimes/win-x64/copilot-cli/copilot.exe";
+        fixture.PublishRelease("v0.6.0", "win-x64", Zip((WindowsExecutable, "app"),
+            (runtime, "wrapper"), (runtimeNode, "native-runtime"), (accountCli, "interactive-cli")), kapibara: true);
+        using var service = fixture.Service(fixture.Options());
+        var release = (await service.CheckAsync(CancellationToken.None))!;
+        using (var operation = new ApplicationOperationService().Begin("Baixando"))
+            await service.DownloadAsync(release, operation);
+        Assert.That(AppUpdateInstaller.ApplyPending(fixture.Options()), Is.True);
+        Assert.Multiple(() =>
+        {
+            Assert.That(File.ReadAllText(Path.Combine(fixture.Target, runtime)), Is.EqualTo("wrapper"));
+            Assert.That(File.ReadAllText(Path.Combine(fixture.Target, runtimeNode)), Is.EqualTo("native-runtime"));
+            Assert.That(File.ReadAllText(Path.Combine(fixture.Target, accountCli)), Is.EqualTo("interactive-cli"));
+        });
+    }
+
+    [Test]
+    public void LinuxReplacementPreservesChildExecutableModes()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            Assert.Ignore("Permissões Unix exigem execução Linux no CI.");
+            return;
+        }
+        using var fixture = new UpdateFixture();
+        var payload = Path.Combine(fixture.Updates, "payload");
+        var child = Path.Combine("runtimes", "linux-x64", "copilot-cli", "copilot");
+        Directory.CreateDirectory(Path.Combine(payload, Path.GetDirectoryName(child)!));
+        File.WriteAllText(Path.Combine(payload, LinuxExecutable), "app");
+        File.WriteAllText(Path.Combine(payload, child), "cli");
+        var mode = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute | UnixFileMode.GroupRead | UnixFileMode.GroupExecute;
+        File.SetUnixFileMode(Path.Combine(payload, child), mode);
+        AppUpdateInstaller.ReplaceFiles(payload, fixture.Target, LinuxExecutable);
+        Assert.That(File.GetUnixFileMode(Path.Combine(fixture.Target, child)), Is.EqualTo(mode));
+    }
 
     private static byte[] Zip(params (string Name, string Content)[] entries)
     {
