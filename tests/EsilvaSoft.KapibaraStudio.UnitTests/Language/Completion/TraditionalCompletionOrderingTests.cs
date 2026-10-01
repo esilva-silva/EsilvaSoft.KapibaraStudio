@@ -81,7 +81,7 @@ public sealed class TraditionalCompletionOrderingTests
         public string GetText(int start, int length)
         {
             entered.TrySetResult();
-            release.Wait();
+            Assert.That(release.Wait(TimeSpan.FromSeconds(5)), Is.True, "A leitura de análise bloqueada deve ser liberada pelo teste.");
             return text.Substring(start, length);
         }
 

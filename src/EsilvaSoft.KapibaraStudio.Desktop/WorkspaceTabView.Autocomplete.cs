@@ -245,7 +245,12 @@ public partial class WorkspaceTabView
         ExplicitRequestPending = (TraditionalCompletionPanel.IsVisible && !_traditionalPresenter.IsOpen) || _aiPresenter.IsActive
     };
 
-    private async void RequestInlineCompletion()
+    /// <summary>Latest inline request, including publication or rejection of its captured result.</summary>
+    public Task InlineCompletionTask { get; private set; } = Task.CompletedTask;
+
+    private void RequestInlineCompletion() => InlineCompletionTask = RequestInlineCompletionAsync();
+
+    private async Task RequestInlineCompletionAsync()
     {
         var started = System.Diagnostics.Stopwatch.GetTimestamp();
         if (DataContext is not WorkspaceTabViewModel tab) return;

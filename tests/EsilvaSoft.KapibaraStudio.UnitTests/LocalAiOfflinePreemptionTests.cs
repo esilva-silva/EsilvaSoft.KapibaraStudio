@@ -146,12 +146,10 @@ public sealed class LocalAiOfflinePreemptionTests
 
         // O autocomplete ambiente chega depois, como Background, e entra na fila atrás do chat.
         var background = models.GenerateAsync(LocalModelRole.Autocomplete, Selected, Request, AiRequestPriority.Background, AiModelLoadPolicy.LoadedOnly);
-        await Task.Delay(10); // só deixa o agendador processar a chamada síncrona inicial; nenhum tempo do teste depende disto.
         Assert.That(background.IsCompleted, Is.False, "Ainda dentro do orçamento: o pedido de fundo continua esperando a fila.");
 
         // Pouco antes do orçamento vencer, continua esperando — a correção não descarta cedo demais.
         clock.Advance(TimeSpan.FromMilliseconds(400));
-        await Task.Delay(10);
         Assert.That(background.IsCompleted, Is.False, "Antes do orçamento vencer, o pedido de fundo não pode ter sido descartado.");
 
         // Vencido o orçamento (500 ms), o pedido de fundo desiste sozinho — o turno interativo continua pendurado.
@@ -205,7 +203,6 @@ public sealed class LocalAiOfflinePreemptionTests
         await runtime.Entered.Task.WaitAsync(Wait);
 
         var completion = provider.GetCompletionAsync(new AutocompleteRequest("db.", "", "javascript"), Selected, AiModelLoadPolicy.LoadedOnly);
-        await Task.Delay(10);
         clock.Advance(TimeSpan.FromMilliseconds(600));
         var result = await completion.WaitAsync(Wait);
 

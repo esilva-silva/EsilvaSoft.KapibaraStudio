@@ -273,7 +273,7 @@ Matriz: modelos disponíveis × hardware (CPU, DML; CUDA/NPU quando houver) × c
 
 - Resultados BenchmarkDotNet exportados em JSON como artefato; resumo em Markdown anexado à PR que altera o caminho medido.
 - Máquinas de referência: a máquina documentada (AMD Ryzen 9 7900, Radeon RX 7800 XT) e uma máquina modesta a definir na Fase 1.
-- CI executa um subconjunto curto sem bloquear (ruído de runners); gates de aceite usam as máquinas de referência.
+- Benchmarks são ferramentas manuais de desenvolvimento; não executam em CI nem release. Gates de aceite usam as máquinas de referência.
 - Regressão de p95 acima de 20% em duas execuções consecutivas exige investigação registrada.
 
 ## Limites configuráveis
@@ -375,10 +375,10 @@ medidos, com folga de pelo menos 3×. A busca de nomes, que a redação anterior
 do orçamento. **Nenhuma otimização foi aplicada ao `NameTable` porque a medição não sustentou a premissa de que havia
 o que otimizar** — mudar código que já mede bem só acrescentaria risco.
 
-As três primeiras linhas viraram teste permanente em
-`tests/EsilvaSoft.KapibaraStudio.UnitTests/NameTableAllocationTests.cs`, que falha se a alocação por consulta ultrapassar
-64 KB. A guarda é de alocação, não de latência: uma regressão de alocação não aparece como erro, só como digitação
-engasgada, e por isso é afirmada em teste e não apenas observada em benchmark.
+As três primeiras linhas são conferidas pela ferramenta manual
+`tests/EsilvaSoft.KapibaraStudio.Benchmarks/NameTableAllocationTests.cs`, que conserva a asserção de 64 KB por consulta.
+Em 01/10/2026, as medições saíram da unidade e dos gates de CI/release; executar os testes das ferramentas exige
+`-p:EnableBenchmarkTests=true`. As metas de produto permanecem; [política e comandos](../architecture/test-stability.md).
 
 ## Camada 0 do inline (5.1) — medição de 18/09/2026
 

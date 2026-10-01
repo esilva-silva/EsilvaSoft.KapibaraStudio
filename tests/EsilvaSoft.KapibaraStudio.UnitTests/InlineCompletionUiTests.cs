@@ -1,4 +1,4 @@
-﻿using Avalonia.Controls;
+using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Threading;
@@ -40,20 +40,14 @@ public sealed class InlineCompletionUiTests
             var ghost = view.FindControl<Border>("CompletionPanel")!;
             editor.Focus();
 
-            var started = System.Diagnostics.Stopwatch.GetTimestamp();
             editor.Text = "Conn"; editor.CaretIndex = editor.SelectionStart = editor.SelectionEnd = 4;
-            // Espera ativa bombeando o despachante: medir com Task.Delay somaria a resolução do temporizador do
-            // sistema (~15 ms por iteração) ao número do produto.
-            var deadline = System.Diagnostics.Stopwatch.StartNew();
-            while (!ghost.IsVisible && deadline.Elapsed < TimeSpan.FromSeconds(3)) { Dispatcher.UIThread.RunJobs(); Thread.Sleep(0); }
-            var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+            Dispatcher.UIThread.RunJobs();
+            await view.InlineCompletionTask.WaitAsync(TimeSpan.FromSeconds(5));
+            Dispatcher.UIThread.RunJobs();
             Assert.That(ghost.IsVisible, Is.True, "Sem modelo e sem conexão, a sugestão determinística ainda aparece.");
             Assert.That(service.Status.State, Is.Not.EqualTo(LocalModelState.Ready), "Nenhum modelo foi carregado por digitar.");
             Assert.That(view.FindControl<InlineCompletionTextBlock>("CompletionText")!.Suggestion, Is.EqualTo("ectionPool"));
             Assert.That(editor.Text, Is.EqualTo("Conn"), "O ghost nunca altera o documento sozinho.");
-            // O total inclui o atraso configurado (debounce), que é política e não custo: o número que mede o
-            // trabalho é o excedente sobre ele, e a granularidade da espera do teste é de 1 ms.
-            TestContext.Out.WriteLine($"edição → ghost: {elapsed:F1} ms no total, {elapsed - 50:F1} ms além do atraso de 50 ms");
 
             window.KeyPress(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, null);
             Assert.That(editor.Text, Is.EqualTo("ConnectionPool"));
@@ -63,16 +57,17 @@ public sealed class InlineCompletionUiTests
             editor.Undo();
             Assert.That(editor.Text, Is.EqualTo("Conn"), "O aceite é uma única unidade de desfazer.");
 
-            // Segunda medição, já aquecida: a primeira inclui JIT e a carga única do catálogo de linguagem.
+            // Após undo, uma nova edição deve produzir a mesma sugestão.
             editor.Text = ""; editor.CaretIndex = editor.SelectionStart = editor.SelectionEnd = 0;
-            for (var i = 0; i < 20; i++) { await Task.Delay(5); Dispatcher.UIThread.RunJobs(); }
-            var warmStarted = System.Diagnostics.Stopwatch.GetTimestamp();
+            Dispatcher.UIThread.RunJobs();
+            await view.InlineCompletionTask.WaitAsync(TimeSpan.FromSeconds(5));
+            Dispatcher.UIThread.RunJobs();
+            Assert.That(ghost.IsVisible, Is.False);
             editor.Text = "Conn"; editor.CaretIndex = editor.SelectionStart = editor.SelectionEnd = 4;
-            var warmDeadline = System.Diagnostics.Stopwatch.StartNew();
-            while (!ghost.IsVisible && warmDeadline.Elapsed < TimeSpan.FromSeconds(3)) { Dispatcher.UIThread.RunJobs(); Thread.Sleep(0); }
-            var warm = System.Diagnostics.Stopwatch.GetElapsedTime(warmStarted).TotalMilliseconds;
+            Dispatcher.UIThread.RunJobs();
+            await view.InlineCompletionTask.WaitAsync(TimeSpan.FromSeconds(5));
+            Dispatcher.UIThread.RunJobs();
             Assert.That(ghost.IsVisible, Is.True);
-            TestContext.Out.WriteLine($"edição → ghost (aquecido): {warm:F1} ms no total, {warm - 50:F1} ms além do atraso de 50 ms");
 
             typeof(MainWindow).GetField("_allowClose", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.SetValue(window, true);
             window.Close(); return true;
@@ -102,13 +97,15 @@ public sealed class InlineCompletionUiTests
             var items = view.FindControl<ListBox>("TraditionalCompletionList")!;
             bool ListHasItems() => items.ItemsSource is System.Collections.IEnumerable source && source.Cast<object>().Any();
             window.KeyPress(Key.Space, RawInputModifiers.Control, PhysicalKey.Space, " ");
-            for (var i = 0; i < 200 && !ListHasItems(); i++) { await Task.Delay(5); Dispatcher.UIThread.RunJobs(); }
+            await WaitForUiAsync(ListHasItems, "A lista explícita deve carregar sugestões.");
             Assert.That(list.IsVisible && ListHasItems(), Is.True, "Pré-condição: a lista explícita abriu com sugestões.");
 
             // Digitação real (não uma reatribuição do documento inteiro, que moveria o cursor e fecharia a lista):
             // com a lista aberta, a tecla apenas refiltra e o automático permanece calado.
             window.KeyTextInput("e");
-            for (var i = 0; i < 40; i++) { await Task.Delay(5); Dispatcher.UIThread.RunJobs(); }
+            Dispatcher.UIThread.RunJobs();
+            await view.InlineCompletionTask.WaitAsync(TimeSpan.FromSeconds(5));
+            Dispatcher.UIThread.RunJobs();
             Assert.That(editor.Text, Is.EqualTo("Conne"), "Pré-condição: a tecla foi de fato aplicada ao documento.");
             Assert.That(ListHasItems(), Is.True, "A lista explícita continua aberta e filtrada.");
             Assert.That(ghost.IsVisible, Is.False, "Com a lista aberta, o automático se abstém em vez de disputar a âncora.");
@@ -142,14 +139,18 @@ public sealed class InlineCompletionUiTests
 
             // (a) Padrão: InlineUseAi ausente significa desligado, e digitar jamais chega ao gerador de IA.
             editor.Text = "db."; editor.CaretIndex = editor.SelectionStart = editor.SelectionEnd = 3;
-            for (var i = 0; i < 60; i++) { await Task.Delay(5); Dispatcher.UIThread.RunJobs(); }
+            Dispatcher.UIThread.RunJobs();
+            await view.InlineCompletionTask.WaitAsync(TimeSpan.FromSeconds(5));
+            Dispatcher.UIThread.RunJobs();
             Assert.That(inferences, Is.Zero, "Por padrão, digitar nunca dispara inferência local.");
             Assert.That(ghost.IsVisible, Is.False);
 
             // (b) Opt-in ligado, mas modelo não carregado: LoadedOnly abstém-se em vez de carregar.
             await service.ConfigureAsync(service.Settings with { InlineUseAi = true, DelayMilliseconds = 50 });
             editor.Text = "db.x"; editor.CaretIndex = editor.SelectionStart = editor.SelectionEnd = 4;
-            for (var i = 0; i < 60; i++) { await Task.Delay(5); Dispatcher.UIThread.RunJobs(); }
+            Dispatcher.UIThread.RunJobs();
+            await view.InlineCompletionTask.WaitAsync(TimeSpan.FromSeconds(5));
+            Dispatcher.UIThread.RunJobs();
             Assert.That(inferences, Is.Zero, "LoadedOnly: sem modelo pronto não há inferência automática nem carga.");
             Assert.That(ghost.IsVisible, Is.False);
             // O pedido chegou ao serviço, e chegou pedindo LoadedOnly: a abstenção é do dono do modelo, não uma
@@ -161,7 +162,9 @@ public sealed class InlineCompletionUiTests
             // (c) Com o modelo já pronto, o opt-in passa a valer.
             service.Status = new(LocalModelState.Ready, "Pronto · cpu");
             editor.Text = "db.y"; editor.CaretIndex = editor.SelectionStart = editor.SelectionEnd = 4;
-            for (var i = 0; i < 200 && !ghost.IsVisible; i++) { await Task.Delay(5); Dispatcher.UIThread.RunJobs(); }
+            Dispatcher.UIThread.RunJobs();
+            await view.InlineCompletionTask.WaitAsync(TimeSpan.FromSeconds(5));
+            Dispatcher.UIThread.RunJobs();
             Assert.That(ghost.IsVisible, Is.True);
             Assert.That(inferences, Is.EqualTo(1));
 
@@ -193,7 +196,9 @@ public sealed class InlineCompletionUiTests
             { UseDictionary = true, InlineUseTraditional = true, InlineUseAi = false, DelayMilliseconds = 50 });
             editor.Text = "const customer = 1; cust";
             editor.CaretIndex = editor.SelectionStart = editor.SelectionEnd = editor.Text.Length;
-            for (var i = 0; i < 200 && !ghost.IsVisible; i++) { await Task.Delay(5); Dispatcher.UIThread.RunJobs(); }
+            Dispatcher.UIThread.RunJobs();
+            await view.InlineCompletionTask.WaitAsync(TimeSpan.FromSeconds(5));
+            Dispatcher.UIThread.RunJobs();
             Assert.That(ghost.IsVisible, Is.True, "Pré-condição: este texto tem resposta do dicionário lexical.");
             Assert.That(view.FindControl<InlineCompletionTextBlock>("CompletionText")!.Suggestion, Is.EqualTo("omer"));
 
@@ -202,10 +207,14 @@ public sealed class InlineCompletionUiTests
             await service.ConfigureAsync(service.Settings with
             { UseDictionary = true, InlineUseTraditional = false, InlineUseAi = true, DelayMilliseconds = 50 });
             editor.Text = ""; editor.CaretIndex = editor.SelectionStart = editor.SelectionEnd = 0;
-            for (var i = 0; i < 20; i++) { await Task.Delay(5); Dispatcher.UIThread.RunJobs(); }
+            Dispatcher.UIThread.RunJobs();
+            await view.InlineCompletionTask.WaitAsync(TimeSpan.FromSeconds(5));
+            Dispatcher.UIThread.RunJobs();
             editor.Text = "const customer = 1; cust";
             editor.CaretIndex = editor.SelectionStart = editor.SelectionEnd = editor.Text.Length;
-            for (var i = 0; i < 100; i++) { await Task.Delay(5); Dispatcher.UIThread.RunJobs(); }
+            Dispatcher.UIThread.RunJobs();
+            await view.InlineCompletionTask.WaitAsync(TimeSpan.FromSeconds(5));
+            Dispatcher.UIThread.RunJobs();
             Assert.That(ghost.IsVisible, Is.False, "Com InlineUseTraditional desligado, o dicionário não vira ghost.");
 
             typeof(MainWindow).GetField("_allowClose", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.SetValue(window, true);
@@ -234,8 +243,9 @@ public sealed class InlineCompletionUiTests
             var ghost = view.FindControl<Border>("CompletionPanel")!;
             editor.Focus();
             editor.Text = "Conn"; editor.CaretIndex = editor.SelectionStart = editor.SelectionEnd = 4;
-            for (var i = 0; i < 200 && !entered.Task.IsCompleted; i++) { await Task.Delay(5); Dispatcher.UIThread.RunJobs(); }
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
             Assert.That(entered.Task.IsCompleted, Is.True, "Pré-condição: a geração da primeira aba começou.");
+            var obsolete = view.InlineCompletionTask;
 
             workspace.NewTabCommand.Execute(null);
             var second = workspace.Tabs[^1];
@@ -243,7 +253,8 @@ public sealed class InlineCompletionUiTests
             workspace.ActiveTab = second;
             window.UpdateLayout(); Dispatcher.UIThread.RunJobs();
             release.SetResult();
-            for (var i = 0; i < 60; i++) { await Task.Delay(5); Dispatcher.UIThread.RunJobs(); }
+            await obsolete.WaitAsync(TimeSpan.FromSeconds(5));
+            Dispatcher.UIThread.RunJobs();
 
             var secondView = window.GetVisualDescendants().OfType<WorkspaceTabView>().Single(v => v.DataContext == second);
             Assert.That(second.Text, Is.EqualTo(secondText), "A aba nova continua intocada: nenhum resultado de outra aba a alcança.");
@@ -254,6 +265,17 @@ public sealed class InlineCompletionUiTests
             typeof(MainWindow).GetField("_allowClose", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.SetValue(window, true);
             window.Close(); return true;
         }, CancellationToken.None);
+    }
+    private static async Task WaitForUiAsync(Func<bool> condition, string message)
+    {
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
+        while (true)
+        {
+            Dispatcher.UIThread.RunJobs();
+            if (condition()) return;
+            if (System.Diagnostics.Stopwatch.GetElapsedTime(started) >= TimeSpan.FromSeconds(5)) Assert.Fail(message);
+            await Task.Delay(10);
+        }
     }
 }
 

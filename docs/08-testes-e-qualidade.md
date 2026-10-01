@@ -1,5 +1,7 @@
 # Testes NUnit e qualidade
 
+**Estabilidade — 01/10/2026:** [diagnóstico, correções e boas práticas](architecture/test-stability.md). Os dois sistemas executam a mesma lista explícita de suítes unitárias; a guarda estática de fontes também roda no Linux. Benchmarks e testes das ferramentas de medição exigem execução manual de desenvolvimento e ficam fora de CI/release. Prazos de produto usam relógio controlado nos testes; conclusão de tarefas substitui pausas fixas nos cenários revisados de sessão, metadados e ghost.
+
 ## Estratégia
 
 ### Isolamento do sistema operacional — meta ativa em 30/09/2026

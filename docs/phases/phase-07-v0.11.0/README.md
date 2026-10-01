@@ -1,5 +1,7 @@
 # Fase 7 — Agentes por assinatura no KapibaraStudio
 
+**Qualidade — 01/10/2026:** [revisão de estabilidade](../../architecture/test-stability.md). CI/release executam uma lista explícita que exclui Benchmarks. Linux mantém somente as duas suítes unitárias e recebe a guarda estática de fontes, sem iniciar conexões, CLI, cofre ou runtime. Windows executa unidade e integração. Benchmarks e p95 Headless passam a instrumentos manuais. Registros anteriores de “suíte completa” que incluem Benchmarks são históricos.
+
 **Correção do release Copilot — 01/10/2026:** o single-file incorporava o runtime procurado ao lado do aplicativo, e login exigia CLI no PATH. Pacotes agora preservam runtime SDK externo e incluem CLI oficial interativa da mesma versão fixada, com SHA-256 verificado. Conta/modelos no publish Windows com PATH vazio passaram 2/2; quatro RIDs gerados. Auto update somente pelo repositório KapibaraStudio. OAuth novo e UI nativa permanecem pendentes; execução funcional Linux/ARM64 está fora do escopo desta meta. [Revisão](../../architecture/release-copilot.md).
 
 **Registro anterior de P7-LINUX (30/09/2026):** os critérios de homologação funcional Linux e a proposta de execução de integrações em `ubuntu-24.04-arm` foram substituídos pelo limite descrito abaixo. Nenhuma execução nativa de integração ocorreu.

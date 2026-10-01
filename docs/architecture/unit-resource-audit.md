@@ -1,5 +1,7 @@
 # Auditoria de recursos externos nos testes — 30/09/2026
 
+**Revisão de 01/10/2026:** os logs CI identificaram dois acessos novos ao diretório atual em fixtures MCP/launcher. Foram substituídos por caminhos absolutos sintéticos; a guarda passa a executar também no Linux, somente lendo fontes. Benchmarks deixam a execução automática e suas medições exigem opt-in manual. [Diagnóstico e validação](test-stability.md). Contagens anteriores abaixo são registros históricos.
+
 Este registro acompanha a migração para testes unitários sem acesso direto a recursos do host. A guarda cobre `UnitTests`, `Infrastructure.Agents.Tests`, `TestSupport` e os arquivos `*Tests.cs` do projeto Benchmarks; não prova o comportamento de dependências transitivas nem substitui a revisão de cada composição. A meta de arquitetura continua em andamento.
 
 ## Migrações feitas

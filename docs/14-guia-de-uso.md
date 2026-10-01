@@ -1,5 +1,7 @@
 # Guia rápido de uso
 
+**Ferramentas de desenvolvimento — 01/10/2026:** benchmarks de latência/alocação são executados manualmente e não fazem parte do CI/release. [Comandos de medição e política de testes](architecture/test-stability.md#separação-de-desempenho). As metas de produto permanecem e a suíte automática verifica comportamento, falhas e isolamento.
+
 **Copilot nos releases — 01/10/2026:** os novos pacotes incluem a CLI oficial interativa; **Entrar** abre seu login em terminal visível, e conta/chat compartilham a identidade oficial. Não é necessário instalar outra CLI no PATH. A pasta `runtimes/` deve acompanhar o executável ao extrair ou mover a instalação. [Correção e limites](architecture/release-copilot.md).
 
 ## Painel Agente IA — apresentação de 30/09/2026

@@ -27,6 +27,7 @@ public sealed class MetadataCache : IMetadataCache, IDisposable
     // connection, on top of the per-connection cap in ConnectionState: a burst of distinct keys queues instead of
     // opening one call per key.
     private readonly SemaphoreSlim _globalLoadGate;
+    private int _activeLoads;
     private long _accessCounter;
     private long _revision;
     private bool _disposed;
@@ -287,10 +288,10 @@ public sealed class MetadataCache : IMetadataCache, IDisposable
             states = _connections.Values.ToArray();
             _connections.Clear();
             _entries.Clear();
+            if (_activeLoads == 0) _globalLoadGate.Dispose();
         }
         if (_invalidations is not null) _invalidations.Published -= OnInvalidationPublished;
         foreach (var state in states) state.Dispose();
-        _globalLoadGate.Dispose();
     }
 
     private void OnInvalidationPublished(object? sender, MetadataInvalidationEventArgs e) => Invalidate(e.Invalidation);
@@ -332,7 +333,21 @@ public sealed class MetadataCache : IMetadataCache, IDisposable
     private Task StartLoad(MetadataKey key, Entry entry, ConnectionState state)
     {
         var generation = entry.Generation;
-        return Task.Run(() => LoadAsync(key, entry, generation, state));
+        _activeLoads++;
+        state.RegisterLoad();
+        return Task.Run(async () =>
+        {
+            try { await LoadAsync(key, entry, generation, state).ConfigureAwait(false); }
+            finally
+            {
+                state.ReleaseLoad();
+                lock (_gate)
+                {
+                    _activeLoads--;
+                    if (_disposed && _activeLoads == 0) _globalLoadGate.Dispose();
+                }
+            }
+        });
     }
 
     private async Task LoadAsync(MetadataKey key, Entry entry, long generation, ConnectionState state)
@@ -577,14 +592,45 @@ public sealed class MetadataCache : IMetadataCache, IDisposable
     private sealed class ConnectionState(ConnectionProfile profile, int maximumConcurrentLoads) : IDisposable
     {
         private readonly CancellationTokenSource _cancellation = new();
+        private readonly object _lifetimeGate = new();
+        private int _loads;
+        private bool _disposeRequested;
+        private bool _cancellationCompleted;
         public ConnectionProfile Profile { get; } = profile;
         public CancellationToken Token => _cancellation.Token;
         /// <summary>Caps concurrent background loads of this connection; a burst of distinct keys queues past this bound.</summary>
         public SemaphoreSlim LoadGate { get; } = new(maximumConcurrentLoads);
 
+        // SemaphoreSlim.Dispose is unsafe while WaitAsync/Release are in flight. Register before Task.Run,
+        // cancel immediately on disconnect, and dispose only after every captured load has finished.
+        public void RegisterLoad() { lock (_lifetimeGate) _loads++; }
+
+        public void ReleaseLoad()
+        {
+            lock (_lifetimeGate)
+            {
+                _loads--;
+                if (_cancellationCompleted && _loads == 0) DisposeResources();
+            }
+        }
+
         public void Dispose()
         {
+            lock (_lifetimeGate)
+            {
+                if (_disposeRequested) return;
+                _disposeRequested = true;
+            }
             _cancellation.Cancel();
+            lock (_lifetimeGate)
+            {
+                _cancellationCompleted = true;
+                if (_loads == 0) DisposeResources();
+            }
+        }
+
+        private void DisposeResources()
+        {
             _cancellation.Dispose();
             LoadGate.Dispose();
         }

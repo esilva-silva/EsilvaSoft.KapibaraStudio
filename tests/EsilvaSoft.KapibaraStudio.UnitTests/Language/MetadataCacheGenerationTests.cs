@@ -166,7 +166,7 @@ public sealed class MetadataCacheGenerationTests
     }
 
     [Test]
-    public async Task PeekSchedulesNoScopeAndReportsUnloadedScopesAsUnavailable()
+    public void PeekSchedulesNoScopeAndReportsUnloadedScopesAsUnavailable()
     {
         var source = new ScopedMetadataSource();
         using var cache = new MetadataCache(source);
@@ -179,7 +179,6 @@ public sealed class MetadataCacheGenerationTests
         };
 
         var result = catalog.Query(query);
-        await Task.Delay(50);
         Assert.Multiple(() =>
         {
             Assert.That(new CatalogQuery(SymbolKinds.Field, EditorDialects.Console).Access, Is.EqualTo(MetadataAccess.LoadIfNeeded), "Existing callers keep their behavior.");
@@ -201,8 +200,9 @@ public sealed class MetadataCacheGenerationTests
     public async Task LoadIfNeededSchedulesOnlyTheScopesOfTheRequestedKinds(SymbolKinds kinds, string scopes)
     {
         var expected = Expect.Words(scopes).Select(name => Enum.Parse<MetadataScope>(name)).ToArray();
-        var source = new ScopedMetadataSource();
-        using var cache = new MetadataCache(source);
+        var source = new ScopedMetadataSource { Blocked = true };
+        // This test observes requested scopes; allow all three field scopes to reach the gate together.
+        using var cache = new MetadataCache(source, options: new() { MaximumConcurrentLoadsPerConnection = 3 });
         cache.Connect(Profile);
         cache.SetSchemaSamplingAllowed(Profile.Id, true);
         var catalog = new KnowledgeCatalog([new MetadataCatalogSource(cache)]);
@@ -210,8 +210,11 @@ public sealed class MetadataCacheGenerationTests
 
         Assert.That(catalog.Query(query).Completeness, Is.EqualTo(CatalogCompleteness.Loading));
         await MetadataCacheTests.WaitUntilAsync(() => source.Calls.Count == expected.Length);
-        await MetadataCacheTests.WaitUntilAsync(() => source.Completed == expected.Length);
-        await Task.Delay(50);
+        var pending = expected.Select(scope => cache.RefreshAsync(new(Identity, scope,
+            scope == MetadataScope.Databases ? "" : "loja",
+            scope is MetadataScope.Databases or MetadataScope.Collections ? "" : "clientes"))).ToArray();
+        source.Release();
+        await Task.WhenAll(pending).WaitAsync(TimeSpan.FromSeconds(5));
         Assert.That(source.Calls, Is.EquivalentTo(expected));
         await MetadataCacheTests.WaitUntilAsync(() => catalog.Query(query with { Access = MetadataAccess.Peek }).Completeness == CatalogCompleteness.Complete);
         Assert.That(source.Calls, Has.Count.EqualTo(expected.Length), "Fresh scopes answer later queries from memory.");

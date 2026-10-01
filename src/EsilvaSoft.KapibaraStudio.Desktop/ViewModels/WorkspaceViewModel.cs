@@ -14,6 +14,7 @@ public sealed partial class WorkspaceViewModel : ObservableObject, IDisposable
     partial void DisposeWorkspaceFiles();
     private readonly WorkspaceService _workspace;
     private readonly IWorkspaceSessionRepository _sessions;
+    private readonly TimeProvider _timeProvider;
     private readonly SemaphoreSlim _saveGate = new(1, 1);
     private CancellationTokenSource? _debounce;
     private bool _initialized;
@@ -89,9 +90,10 @@ public sealed partial class WorkspaceViewModel : ObservableObject, IDisposable
         Agents.DesktopAgentWorkspaceContextSource? agentWorkspaceContext = null,
         Agents.AgentEditProposalStore? agentEditProposals = null,
         IAgentWorkspacePathProbe? agentPaths = null, IModelDirectoryService? modelDirectories = null,
-        ILocalDirectoryLauncher? directoryLauncher = null)
+        ILocalDirectoryLauncher? directoryLauncher = null, TimeProvider? timeProvider = null)
     {
         _workspace = workspace;
+        _timeProvider = timeProvider ?? TimeProvider.System;
         // P7-L06-HOST: both optional. The chat factory is only invoked when the agent panel is opened; the credential
         // status is read once in the background after startup, through the operation coordinator.
         _agentChatServices = agentChat;
@@ -244,7 +246,7 @@ public sealed partial class WorkspaceViewModel : ObservableObject, IDisposable
     }
     private async Task SaveAfterDelayAsync(CancellationToken cancellationToken)
     {
-        try { await Task.Delay(750, cancellationToken); await SaveSessionAsync(); }
+        try { await Task.Delay(TimeSpan.FromMilliseconds(750), _timeProvider, cancellationToken); await SaveSessionAsync(); }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
         catch (Exception ex) { SessionStatus = LocalizationViewModel.Current.Format("draftNotSaved", ex.Message); }
     }

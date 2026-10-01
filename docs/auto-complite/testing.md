@@ -21,7 +21,7 @@ Herdados do [`AGENTS.md`](../../AGENTS.md) e de [08 — Testes](../08-testes-e-q
 | UI Headless | Lista, snippets, arbitragem, ghost, atalhos | Avalonia.Headless + PNG | Suíte regular |
 | IA com fakes | Provider, fallback, cancelamento, streaming | `ILocalModelRuntime`/`ITokenizer` falsos | Suíte regular |
 | IA com modelos reais | Contratos, hardware, latência | Variáveis de ambiente | `Explicit` |
-| Benchmarks | Latência e memória | BenchmarkDotNet + harness | Manual/CI não bloqueante |
+| Benchmarks | Latência e memória | BenchmarkDotNet + harness | Somente desenvolvimento manual; fora de CI/release |
 | Homologação manual | Layouts ABNT2/US, IME, leitor de tela, Linux, MongoDB real, GPU | Checklist | Registro na matriz |
 
 ## Fixtures de contexto
@@ -163,6 +163,8 @@ Cobertura: CPU; GPU quando disponível; NPU quando houver pacote e hardware; equ
 ## Benchmarks
 
 Descritos em [performance.md](performance.md#benchmarks). Resultados de aceite são anexados à PR da fase, com máquina e build.
+
+O projeto não executa no `dotnet test` padrão. Testes NUnit das ferramentas exigem `-p:EnableBenchmarkTests=true` localmente; medições Headless são `Explicit`. [Política e comandos](../architecture/test-stability.md#separação-de-desempenho).
 
 ## Homologação manual
 

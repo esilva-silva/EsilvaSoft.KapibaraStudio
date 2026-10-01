@@ -19,7 +19,7 @@ namespace EsilvaSoft.KapibaraStudio.IntegrationTests;
 [TestFixture, NonParallelizable, Category("Integration")]
 public sealed class TraditionalCompletionUiTests
 {
-    [Test]
+    [Test, Category("Benchmark"), Explicit("Medição manual de latência Headless; fora de CI/release.")]
     public async Task InlineGhostPresentationP95FromEditIsWithinTwentyMilliseconds()
     {
         var session = HeadlessUnitTestSession.GetOrStartForAssembly(typeof(IntegrationUiTestApp).Assembly);

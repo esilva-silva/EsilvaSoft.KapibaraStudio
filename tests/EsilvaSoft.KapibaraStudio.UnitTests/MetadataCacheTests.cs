@@ -133,11 +133,12 @@ public sealed class MetadataCacheTests
         using var cache = new MetadataCache(source);
         cache.Connect(Profile);
         cache.GetDatabases(Identity);
+        var pending = cache.RefreshAsync(new(Identity, MetadataScope.Databases));
         await WaitUntilAsync(() => source.Calls == 1);
         cache.Disconnect(Profile.Id);
         source.Gate.SetResult();
-        await WaitUntilAsync(() => source.Completed == 1);
-        await Task.Delay(50);
+        await pending.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.That(source.Completed, Is.EqualTo(1));
         Assert.That(cache.GetDatabases(Identity, MetadataAccess.Peek).Value, Is.Null);
         Assert.That(cache.IsConnected(Identity), Is.False);
     }
@@ -174,7 +175,6 @@ public sealed class MetadataCacheTests
         // instead of opening one call per key.
         var tasks = Enumerable.Range(0, 6).Select(index => cache.RefreshAsync(new(Identity, MetadataScope.Indexes, "loja", $"c{index}"))).ToArray();
         await WaitUntilAsync(() => source.Calls == 2);
-        await Task.Delay(50);
         Assert.Multiple(() =>
         {
             Assert.That(source.Calls, Is.EqualTo(2), "Only the configured cap reaches the source while the rest of the burst is still queued.");
@@ -192,14 +192,43 @@ public sealed class MetadataCacheTests
         using var cache = new MetadataCache(source, options: new() { MaximumConcurrentLoadsPerConnection = 1, MaximumConcurrentLoadsGlobal = 1 });
         cache.Connect(Profile);
         cache.GetDatabases(Identity);
+        var pending = cache.RefreshAsync(new(Identity, MetadataScope.Databases));
         await WaitUntilAsync(() => source.Calls == 1);
         // A second key of the same connection queues behind the per-connection gate instead of ever reaching the source.
         cache.GetCollections(Identity, "loja");
+        var queued = cache.RefreshAsync(new(Identity, MetadataScope.Collections, "loja"));
         cache.Disconnect(Profile.Id);
         source.Gate.SetResult();
-        await WaitUntilAsync(() => source.Completed >= 1);
-        await Task.Delay(50);
+        await Task.WhenAll(pending, queued).WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.That(source.Calls, Is.EqualTo(1), "A carga cancelada na fila nunca chega à origem.");
         Assert.That(cache.GetDatabases(Identity, MetadataAccess.Peek).Value, Is.Null, "Disconnection discards every result of the connection, queued or in flight.");
+    }
+
+    [Test]
+    public async Task DisposingCacheDrainsLoadsWaitingOnTheGlobalGateWithoutPublishingLateResults()
+    {
+        var source = new FakeMetadataSource { Gate = new(TaskCreationOptions.RunContinuationsAsynchronously), IgnoreCancellation = true };
+        using var cache = new MetadataCache(source, options: new() { MaximumConcurrentLoadsGlobal = 1 });
+        var other = ConnectionProfile.Create("other", "mongodb://other-host");
+        cache.Connect(Profile);
+        cache.Connect(other);
+        var first = cache.RefreshAsync(new(Identity, MetadataScope.Databases));
+        await WaitUntilAsync(() => source.Calls == 1);
+        var queued = cache.RefreshAsync(new(ConnectionIdentity.From(other), MetadataScope.Databases));
+        var changes = 0;
+        cache.Changed += (_, _) => Interlocked.Increment(ref changes);
+
+        cache.Dispose();
+        source.Gate.SetResult();
+        await Task.WhenAll(first, queued).WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(source.Calls, Is.EqualTo(1), "A carga cancelada na fila global nunca chega à origem.");
+            Assert.That(source.Completed, Is.EqualTo(1));
+            Assert.That(changes, Is.Zero, "Após descarte, nenhum resultado é publicado.");
+            Assert.That(cache.IsConnected(Identity), Is.False);
+        });
     }
 
     [Test]
@@ -247,10 +276,10 @@ public sealed class MetadataCacheTests
 
     internal static async Task WaitUntilAsync(Func<bool> condition)
     {
-        var deadline = DateTime.UtcNow.AddSeconds(5);
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
         while (!condition())
         {
-            if (DateTime.UtcNow > deadline) Assert.Fail("Condição não atingida em 5 s.");
+            if (System.Diagnostics.Stopwatch.GetElapsedTime(started) > TimeSpan.FromSeconds(5)) Assert.Fail("Condição não atingida em 5 s.");
             await Task.Delay(10);
         }
     }

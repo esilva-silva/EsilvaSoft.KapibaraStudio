@@ -432,7 +432,6 @@ public sealed class AgentChatViewModelTests
             var send = chat.SendCommand.ExecuteAsync(null);
             await AgentChatWait.UntilAsync(() => requested?.Phase == AgentApprovalPhase.Pending);
             var session = provider.Sessions.Single();
-            await Task.Delay(100);
             Assert.That(session.Decisions, Is.Empty);
             Assert.That(requested!.TargetText, Is.EqualTo("Produção › shop › orders"));
 

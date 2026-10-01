@@ -33,5 +33,6 @@
 - Em ambientes isolados que bloqueiam a telemetria de build do Avalonia, `-p:UsedAvaloniaProducts=` permite validar sem essa tarefa externa; não desabilita analisadores nem testes.
 - Alterações de sessão/contexto exigem testes de falha, concorrência e recuperação. Alterações visuais exigem inspeção dos PNGs reais gerados pelos testes de renderização.
 - Não alterar golden files ou asserções apenas para esconder regressões. Não criar testes que apenas repitam a implementação.
+- Benchmarks e medições de latência/alocação são ferramentas manuais de desenvolvimento; nunca executá-los no CI ou na release. Testes de ferramentas Benchmarks exigem opt-in local `EnableBenchmarkTests=true`.
 - Atualize design system, ADRs, plano, guia e acompanhamento quando decisões ou comportamento mudarem.
 - Declare conclusão somente com evidência proporcional. Teste Headless não substitui MongoDB real, leitor de tela ou diálogos nativos. Registre pendências com precisão.

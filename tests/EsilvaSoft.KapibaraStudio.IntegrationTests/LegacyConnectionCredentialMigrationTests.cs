@@ -321,10 +321,26 @@ public sealed class LegacyConnectionCredentialMigrationTests
             });
         }
 
-        public ValueTask DisposeAsync()
+        public async ValueTask DisposeAsync()
         {
-            if (Directory.Exists(_directory)) Directory.Delete(_directory, true);
-            return ValueTask.CompletedTask;
+            var target = System.IO.Path.GetFullPath(_directory);
+            var parent = System.IO.Path.GetFullPath(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "KapibaraStudio.Tests"));
+            if (!string.Equals(System.IO.Path.GetDirectoryName(target), parent,
+                    OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+                throw new InvalidOperationException("A limpeza deve ficar na pasta sintética do teste.");
+
+            var started = System.Diagnostics.Stopwatch.GetTimestamp();
+            while (Directory.Exists(target))
+            {
+                try { Directory.Delete(target, true); return; }
+                // Only transient Windows sharing/lock violations during artifact cleanup may be retried.
+                // Owners are already disposed; permission errors and persistent locks must still fail the test.
+                catch (IOException ex) when (OperatingSystem.IsWindows() && (ex.HResult & 0xffff) is 32 or 33
+                    && System.Diagnostics.Stopwatch.GetElapsedTime(started) < TimeSpan.FromSeconds(5))
+                {
+                    await Task.Delay(25);
+                }
+            }
         }
     }
 }

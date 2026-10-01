@@ -31,15 +31,15 @@ public sealed class AgentWriteApprovalCoordinatorTests
     {
         var coordinator = new AgentWriteApprovalCoordinator(new ScriptedWritePrompt());
         var grant = await coordinator.RequestApprovalAsync(Proposal(), CancellationToken.None);
-        using var start = new ManualResetEventSlim();
+        var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        var attempts = Enumerable.Range(0, 32).Select(_ => Task.Run(() =>
+        var attempts = Enumerable.Range(0, 32).Select(_ => Task.Run(async () =>
         {
-            start.Wait();
+            await start.Task;
             return coordinator.TryConsume(grant.Ticket, Proposal());
         })).ToArray();
-        start.Set();
-        var results = await Task.WhenAll(attempts);
+        start.SetResult();
+        var results = await Task.WhenAll(attempts).WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.That(results.Count(result => result == AgentWriteApprovalConsumption.Consumed), Is.EqualTo(1));
         Assert.That(results.Where(result => result != AgentWriteApprovalConsumption.Consumed),

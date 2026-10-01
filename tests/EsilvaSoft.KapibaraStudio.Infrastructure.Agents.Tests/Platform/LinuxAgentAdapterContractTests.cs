@@ -11,7 +11,9 @@ internal sealed class LinuxAgentAdapterContractTests
 {
     private static readonly string[] ExpectedSetsidProbes = ["/usr/bin/setsid", "/bin/setsid"];
     private static readonly byte[] ElfHeader = [0x7f, (byte)'E', (byte)'L', (byte)'F'];
-    private static string Root => Path.GetFullPath("synthetic-agent-adapter");
+    private static string Root => Path.DirectorySeparatorChar == '\\'
+        ? @"C:\kapibara-tests\synthetic-agent-adapter"
+        : "/kapibara-tests/synthetic-agent-adapter";
 
     [Test]
     public void ClaudeProcessGroupLauncherUsesOnlyExecutableSystemCandidatesAndFailsClosed()

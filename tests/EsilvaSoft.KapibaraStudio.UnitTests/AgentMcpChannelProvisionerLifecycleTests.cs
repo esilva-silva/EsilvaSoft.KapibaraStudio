@@ -93,7 +93,7 @@ public sealed class AgentMcpChannelProvisionerLifecycleTests
         bool? platformSupported = true) =>
         new(new EmptyToolRegistry(), authority, policies, new EmptyProfiles(), sessions,
             AgentToolExposureStage.Metadata, platform ?? new TestPlatform(), new ExistingPathProbe(),
-            serverExecutable: Path.GetFullPath("synthetic-mcp-server"), platformSupported: platformSupported,
+            serverExecutable: SyntheticPaths.Combine("synthetic-mcp-server"), platformSupported: platformSupported,
             brokerTransport: transport);
 
     private sealed class TestPlatform(bool isWindows = true, bool isLinux = false) : IHostPlatformSnapshot

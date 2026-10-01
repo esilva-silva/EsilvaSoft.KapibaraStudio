@@ -12,15 +12,64 @@ public sealed class WorkspaceBehaviorTests
     public async Task DebouncePersistsLatestDraftAndOnlyOptedInInput()
     {
         using var context = new WorkspaceTestContext();
-        using var vm = new WorkspaceViewModel(context.Workspace, context.Repository);
+        var clock = new ManualTimeProvider();
+        using var vm = new WorkspaceViewModel(context.Workspace, context.Repository, timeProvider: clock);
         await vm.InitializeAsync();
-        vm.ActiveTab!.Text = "first"; vm.ActiveTab.Text = "latest";
+        var saved = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        vm.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(vm.SessionStatus)) saved.TrySetResult(); };
+        var writesBefore = context.Repository.SessionWriteAttempts;
+        vm.ActiveTab!.Text = "first";
+        clock.Advance(TimeSpan.FromMilliseconds(500));
+        vm.ActiveTab.Text = "latest";
         vm.ActiveTab.InputJson = "{\"parameter\":42}"; vm.ActiveTab.PersistInput = true;
-        await Task.Delay(1100);
+        clock.Advance(TimeSpan.FromMilliseconds(749));
+        Assert.That(context.Repository.SessionWriteAttempts, Is.EqualTo(writesBefore), "A última edição reinicia o debounce.");
+        clock.Advance(TimeSpan.FromMilliseconds(1));
+        await saved.Task.WaitAsync(TimeSpan.FromSeconds(5));
         var session = await context.Repository.LoadSessionAsync();
+        Assert.That(context.Repository.SessionWriteAttempts, Is.EqualTo(writesBefore + 1));
         Assert.That(session.Tabs.Single().Text, Is.EqualTo("latest"));
         Assert.That(session.Tabs.Single().InputJson, Is.EqualTo("{\"parameter\":42}"));
     }
+    [Test]
+    public async Task DebouncedSaveFailureIsVisibleAndTheDraftCanBeRetried()
+    {
+        using var context = new WorkspaceTestContext();
+        var clock = new ManualTimeProvider();
+        var repository = new FailingSessionRepository();
+        using var vm = new WorkspaceViewModel(context.Workspace, repository, timeProvider: clock);
+        await vm.InitializeAsync();
+        var failed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        vm.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(vm.SessionStatus) && vm.SessionStatus.Contains("não salvo", StringComparison.Ordinal)) failed.TrySetResult(); };
+        vm.ActiveTab!.Text = "keep this draft";
+
+        clock.Advance(TimeSpan.FromMilliseconds(750));
+        await failed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.That(repository.SaveAttempts, Is.EqualTo(1));
+        Assert.That(vm.ActiveTab.Text, Is.EqualTo("keep this draft"));
+        repository.FailSave = false;
+        await vm.SaveSessionAsync();
+        Assert.That(repository.SaveAttempts, Is.EqualTo(2));
+        Assert.That(vm.SessionStatus, Does.Contain("atualizados"));
+    }
+
+    [Test]
+    public async Task DisposingWorkspaceCancelsPendingDebouncedSave()
+    {
+        using var context = new WorkspaceTestContext();
+        var clock = new ManualTimeProvider();
+        using var vm = new WorkspaceViewModel(context.Workspace, context.Repository, timeProvider: clock);
+        await vm.InitializeAsync();
+        var writesBefore = context.Repository.SessionWriteAttempts;
+        vm.ActiveTab!.Text = "pending draft";
+
+        vm.Dispose();
+        clock.Advance(TimeSpan.FromSeconds(1));
+
+        Assert.That(context.Repository.SessionWriteAttempts, Is.EqualTo(writesBefore));
+    }
+
     [Test]
     public async Task FailedSaveIsVisibleKeepsDraftAndCanBeRetried()
     {

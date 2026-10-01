@@ -1,13 +1,14 @@
 ﻿using EsilvaSoft.KapibaraStudio.Autocomplete.Core;
 using EsilvaSoft.KapibaraStudio.Application;
 using EsilvaSoft.KapibaraStudio.Core;
+using NUnit.Framework;
 
-namespace EsilvaSoft.KapibaraStudio.UnitTests;
+namespace EsilvaSoft.KapibaraStudio.Benchmarks;
 
 /// <summary>
 /// Guarda de alocação da busca de nomes. O orçamento de docs/auto-complite/performance.md é de 64 KB por tecla no
 /// caminho sem IA, e a busca no catálogo é paga a cada tecla: uma regressão aqui não aparece como erro, só como
-/// digitação engasgada, então é medida em teste e não apenas em benchmark.
+/// digitação engasgada. Esta medição é uma ferramenta manual, fora dos gates de CI/release.
 /// </summary>
 [TestFixture]
 public sealed class NameTableAllocationTests

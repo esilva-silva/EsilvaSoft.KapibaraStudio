@@ -1,5 +1,7 @@
 # Roadmap de evolução do Kapibara Studio
 
+**Qualidade — 01/10/2026:** benchmarks são instrumentos manuais de desenvolvimento, fora dos gates de CI/release. A matriz automatizada mantém as duas suítes unitárias em Windows/Linux, guarda estática de fontes nos dois sistemas e integração Windows. [Revisão de estabilidade e limites](architecture/test-stability.md). A leitura estrutural de fontes no Linux não amplia a meta para testes de runtime/conexões reais.
+
 **Release/Copilot — 01/10/2026:** implementados runtime SDK externo ao single-file, CLI oficial de login incluída e origem única de auto update. Quatro pacotes locais gerados; conta oficial reconhecida no publish Windows sem CLI no PATH. Publicação remota, OAuth novo pela UI e execução Linux/ARM64 permanecem pendentes. [Revisão](architecture/release-copilot.md).
 
 **P7-UX — entregas de implementação e validação automatizada concluídas em 30/09/2026:** [P7-UX — painel Agente IA](phases/phase-07-v0.11.0/meta-ui-ux-painel-agente-ia.md). Composição, conversa, compositor e estados reorganizados; build e suíte completa aprovados, PNGs Avalonia inspecionados. Homologação nativa de teclado/leitor de tela/IME e Windows/Linux permanece pendente; não fecha gates de providers.

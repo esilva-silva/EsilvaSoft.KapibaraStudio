@@ -42,7 +42,7 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           if [[ "$version" == *-* ]]; then echo "prerelease=true" >> "$GITHUB_OUTPUT"; else echo "prerelease=false" >> "$GITHUB_OUTPUT"; fi
 
-  # Linux runs unit tests only; Windows runs the complete suite. Packaging runs in parallel.
+  # Unit tests on both systems, source guard on Linux and integration on Windows; no benchmarks.
   test:
     uses: ./.github/workflows/ci.yml
 

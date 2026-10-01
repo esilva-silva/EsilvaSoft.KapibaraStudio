@@ -1,5 +1,7 @@
 # Design system e revisão de UI/UX
 
+**Estabilidade automatizada — 01/10/2026:** autosave conserva o debounce de 750 ms e recebe relógio opcional para testes; a sugestão automática expõe sua tarefa de conclusão para observar publicação/rejeição sem pausas fixas em Headless. Não muda apresentação, tema, atalhos ou navegação. A medição de p95 da UI passa a ser manual `Explicit`, fora de CI/release; os casos funcionais permanecem automáticos. [Política e evidências](architecture/test-stability.md).
+
 **Release/Copilot — 01/10/2026:** **Entrar/Sair** usam a CLI oficial interativa incluída no pacote, compartilhando a identidade com o runtime SDK. A apresentação e os estados existentes são preservados. Auto update consulta somente o repositório KapibaraStudio. [Evidências e limites](architecture/release-copilot.md); OAuth novo, terminal e leitor de tela ainda exigem homologação humana.
 
 **P7-LINUX — 30/09/2026:** [meta Copilot/Claude Linux](phases/phase-07-v0.11.0/meta-linux-copilot-claude.md). A prova do canal MCP pode ser lida pelo proxy no Secret Service sem prompt/unlock, mas o gate de ferramentas Claude Linux permanece fechado até aceite nativo. Isso não altera a política de conta Copilot: no Linux a consulta oficial continua explícita por poder envolver o cofre. Não há alteração de layout/tema/atalhos nesta rodada; teclado, diálogos e leitor de tela Linux seguem pendentes.

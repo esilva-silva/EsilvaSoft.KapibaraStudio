@@ -1,13 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!-- Measurement tool for autocomplete; not part of the product and never published. -->
-  <!-- Doubles as a test project: the AI evaluation harness in Ai/ lives here (phase 3, increment 3.6) and its own
-       correctness tests must run in the regular suite, while the report generator stays [Explicit]. GenerateProgramFile
-       is off because Program.cs already owns the entry point used by BenchmarkSwitcher. -->
+  <!-- NUnit validates the development tools only when explicitly opted in locally.
+       Program.cs owns the BenchmarkSwitcher entry point. CI/release never opt in. -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
     <IsPublishable>false</IsPublishable>
     <GenerateProgramFile>false</GenerateProgramFile>
+    <IsTestProject>false</IsTestProject>
+    <IsTestProject Condition="'$(EnableBenchmarkTests)' == 'true'">true</IsTestProject>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/EsilvaSoft.KapibaraStudio.Autocomplete.Core/EsilvaSoft.KapibaraStudio.Autocomplete.Core.csproj" />
