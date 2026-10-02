@@ -25,6 +25,10 @@ public sealed partial class LocalizationViewModel : ObservableObject
                 ["moreActions"] = "More actions",
                 ["saveAs"] = "Save as…",
                 ["preferences"] = "Preferences…",
+                ["thirdPartyLicenses"] = "Third-party licenses…",
+                ["thirdPartyLicensesTitle"] = "Third-party licenses and notices",
+                ["thirdPartyLicensesDescription"] = "Notices distributed with KapibaraStudio. Review the source links and license conditions before redistributing dependencies or derived works.",
+                ["thirdPartyLicensesMissing"] = "The third-party notices file is not available beside this application. The distribution package may be incomplete.",
                 ["databases"] = "Databases",
                 ["refreshSelectedNode"] = "Refresh selected node",
                 ["searchLoadedItems"] = "Search loaded items",
@@ -142,6 +146,10 @@ public sealed partial class LocalizationViewModel : ObservableObject
                 ["moreActions"] = "Mais ações",
                 ["saveAs"] = "Salvar como…",
                 ["preferences"] = "Preferências…",
+                ["thirdPartyLicenses"] = "Licenças de terceiros…",
+                ["thirdPartyLicensesTitle"] = "Licenças e avisos de terceiros",
+                ["thirdPartyLicensesDescription"] = "Avisos distribuídos com o KapibaraStudio. Consulte as fontes e condições das licenças antes de redistribuir dependências ou obras derivadas.",
+                ["thirdPartyLicensesMissing"] = "O arquivo de avisos de terceiros não está disponível ao lado deste aplicativo. O pacote de distribuição pode estar incompleto.",
                 ["databases"] = "Bancos",
                 ["refreshSelectedNode"] = "Atualizar nó selecionado",
                 ["searchLoadedItems"] = "Buscar nos itens carregados",
@@ -259,6 +267,10 @@ public sealed partial class LocalizationViewModel : ObservableObject
                 ["moreActions"] = "Más acciones",
                 ["saveAs"] = "Guardar como…",
                 ["preferences"] = "Preferencias…",
+                ["thirdPartyLicenses"] = "Licencias de terceros…",
+                ["thirdPartyLicensesTitle"] = "Licencias y avisos de terceros",
+                ["thirdPartyLicensesDescription"] = "Avisos distribuidos con KapibaraStudio. Revise las fuentes y condiciones de licencia antes de redistribuir dependencias u obras derivadas.",
+                ["thirdPartyLicensesMissing"] = "El archivo de avisos de terceros no está disponible junto a esta aplicación. El paquete de distribución puede estar incompleto.",
                 ["databases"] = "Bases de datos",
                 ["refreshSelectedNode"] = "Actualizar nodo seleccionado",
                 ["searchLoadedItems"] = "Buscar en los elementos cargados",
@@ -376,6 +388,10 @@ public sealed partial class LocalizationViewModel : ObservableObject
                 ["moreActions"] = "更多操作",
                 ["saveAs"] = "另存为…",
                 ["preferences"] = "首选项…",
+                ["thirdPartyLicenses"] = "第三方许可证…",
+                ["thirdPartyLicensesTitle"] = "第三方许可证和声明",
+                ["thirdPartyLicensesDescription"] = "随 KapibaraStudio 分发的声明。重新分发依赖项或衍生作品前，请查看来源链接和许可证条件。",
+                ["thirdPartyLicensesMissing"] = "此应用旁未找到第三方声明文件。分发包可能不完整。",
                 ["databases"] = "数据库",
                 ["refreshSelectedNode"] = "刷新选中的节点",
                 ["searchLoadedItems"] = "搜索已加载的项目",
@@ -1603,6 +1619,7 @@ public sealed partial class LocalizationViewModel : ObservableObject
     public string MoreActions => this["moreActions"];
     public string SaveAs => this["saveAs"];
     public string Preferences => this["preferences"];
+    public string ThirdPartyLicenses => this["thirdPartyLicenses"];
     public string Databases => this["databases"];
     public string RefreshSelectedNode => this["refreshSelectedNode"];
     public string SearchLoadedItems => this["searchLoadedItems"];

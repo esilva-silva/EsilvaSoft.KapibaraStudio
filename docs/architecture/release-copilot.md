@@ -1,6 +1,6 @@
 # Release e autenticação Copilot — revisão de 01/10/2026
 
-## Causa e correção
+## Correção anterior (histórico de 01/10/2026)
 
 O publish single-file com extração nativa incorporava `copilot.exe`, `runtime.node` e DLLs do SDK ao executável principal. O adapter procura o runtime em `AppContext.BaseDirectory/runtimes/<rid>/native`, onde esses arquivos não existiam no pacote. O publish anterior foi reproduzido em `artifacts/release-review/before`; a ausência do executável foi confirmada.
 
@@ -14,9 +14,9 @@ O download dessas dependências acontece no build. Não há instalação nem dow
 
 A única origem de releases do aplicativo é [esilva-silva/EsilvaSoft.KapibaraStudio/releases](https://github.com/esilva-silva/EsilvaSoft.KapibaraStudio/releases). A consulta usa a API pública desse mesmo repositório. O fallback para `EsilvaSoft.SlopStudio` foi removido, inclusive em falhas de rede, rate limit, JSON inválido, timeout ou falta de pacote compatível. O workflow publica somente quando o evento de tag pertence ao repositório canônico. Nomes legados de executável/pacote permanecem aceitos para preservar instalações e atalhos existentes; isso não consulta outro repositório.
 
-Os downloads oficiais de dependências Copilot no build continuam vindo de `github/copilot-cli`; não são uma origem alternativa para atualização do KapibaraStudio. Verificação SHA-256, staging, cancelamento, restauração de arquivos na falha e aplicação no fechamento permanecem. A aplicação Linux preserva os modos Unix dos arquivos filhos; o tar local marca executáveis Copilot/MCP como executáveis também quando é produzido no Windows.
+Naquela revisão, downloads oficiais de dependências Copilot vinham de `github/copilot-cli`; não eram uma origem alternativa para atualização do KapibaraStudio. A verificação SHA-256, staging, cancelamento, restauração e aplicação no fechamento pertencem ao fluxo de atualização do app e permanecem. A política atual de distribuição foi substituída pela atualização de 02/10 abaixo.
 
-## Evidências e limites
+## Evidências históricas e limites — pacote de 01/10/2026
 
 - Restore locked e build Release: aprovados, zero avisos/erros.
 - Publish Windows x64 real: wrapper e `runtime.node` externos, CLI interativa standalone presente; `--version` e `login --help` executados sem autenticação ou inferência.
@@ -29,7 +29,7 @@ Os downloads oficiais de dependências Copilot no build continuam vindo de `gith
 
 O script `build-release.ps1 0.11.0 -SkipTests` gerou os quatro pacotes locais e `SHA256SUMS.txt` em `artifacts/release/0.11.0`; a suíte foi executada separadamente. Hashes e layouts dos arquivos finais são conferidos nesta revisão. Cross-compilação não comprova execução ARM64/Linux. Login OAuth novo com aprovação no navegador, clique em **Entrar/Sair**, janela nativa e leitor de tela ainda exigem homologação humana; reconhecer a conta existente não comprova esses passos. Nenhuma release foi publicada nesta revisão.
 
-## Reproduzir
+## Reproduzir a revisão histórica de 01/10
 
 ```powershell
 dotnet restore EsilvaSoft.KapibaraStudio.slnx --locked-mode
@@ -38,9 +38,18 @@ dotnet test EsilvaSoft.KapibaraStudio.slnx --no-build --no-restore -c Release
 ./build-release.ps1 0.11.0
 ./eng/Test-ReleasePackage.ps1 -PublishDirectory artifacts/publish/win-x64 -Rid win-x64
 $env:KAPIBARA_RELEASE_TEST_DIRECTORY = (Resolve-Path artifacts/publish/win-x64).Path
-dotnet test tests/EsilvaSoft.KapibaraStudio.IntegrationTests/EsilvaSoft.KapibaraStudio.IntegrationTests.csproj --no-build --no-restore -c Release --filter FullyQualifiedName~CopilotPublishedRuntimeTests
 ```
 
-Os testes de publish são explícitos: o segundo requer uma conta oficial já autenticada no Windows; não inicia login. A verificação estrutural e de ajuda/versão é compartilhada pelo script local e pelo CI. Para ambientes que bloqueiam telemetria de build Avalonia, a opção documentada `-p:UsedAvaloniaProducts=` continua disponível.
+Os testes de publish acima pertenciam ao bundle de 01/10 e foram removidos junto ao runtime redistribuído. Não use esses resultados para validar o pacote atual. Para ambientes que bloqueiam telemetria de build Avalonia, `-p:UsedAvaloniaProducts=` continua disponível.
 
 Fontes oficiais: [targets do SDK .NET](https://github.com/github/copilot-sdk/blob/main/dotnet/src/build/GitHub.Copilot.SDK.targets), [autenticação da CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/authenticate-copilot-cli). O contrato efetivo foi conferido também nos targets locais do pacote NuGet fixado, sem atualizar dependências.
+
+## Atualização de distribuição — 02/10/2026
+
+A partir desta revisão, o KapibaraStudio **não baixa nem redistribui a CLI/runtime do GitHub Copilot**. Login, consulta de conta/modelos e sessões do SDK usam a instalação nativa oficial do usuário, descoberta como caminho absoluto no `PATH`. Isso remove do pacote o binário standalone e seus termos de redistribuição. Em Windows, instalar pelo WinGet; em Linux, usar o método/binário nativo oficial. Shims `.cmd` de instalações npm no Windows não são aceitos.
+
+O SDK .NET 1.0.14 permite `RuntimeConnection.ForStdio(path: ...)` apontando à CLI instalada e faz handshake/validação de protocolo em `StartAsync`; instalação incompatível falha visivelmente e não troca silenciosamente para outra CLI/runtime. `CopilotSkipCliDownload=true` impede aquisição pelo build. O adapter mantém autenticação da conta oficial, `COPILOT_HOME` explícito, ambiente filho filtrado e não lê tokens/credenciais. O baseline que o SDK 1.0.14 usava para download era 1.0.85; isso não declara a versão mínima da instalação externa.
+
+O release agora inclui `THIRD-PARTY-NOTICES.md` com a licença MIT do SDK; o validador exige o arquivo e confirma a atribuição. O publish Windows x64 desta revisão passou e não criou diretório `runtimes/`; o smoke do pacote confirmou aviso presente e ausência de executáveis Copilot.
+
+Build Debug/Release passaram sem avisos/erros. Os testes direcionados passaram: agentes Copilot **23/23**, descoberta/sessões/auto update **36 aprovados, 1 ignorado**, localização **30/30** e contas **22/22**. O teste manual explicitamente selecionado `SessionRuntimeReportsOfficialAuthenticationAcrossModes` passou **1/1** com a CLI oficial local 1.0.89 no `PATH`; ele iniciou clientes de conta e sessão e comparou estado de autenticação sem prompt/modelos. A primeira entrada WinGet do `PATH` não iniciou neste sandbox; o teste usou a outra instalação nativa acessível. A autenticação efetiva desta conta, os modelos e inferência não foram validados. Linux/ARM64 também ficam pendentes. Consulte [a lista de ações jurídicas e de dados](../phases/phase-07-v0.11.0/guia-termos-github-copilot.md).

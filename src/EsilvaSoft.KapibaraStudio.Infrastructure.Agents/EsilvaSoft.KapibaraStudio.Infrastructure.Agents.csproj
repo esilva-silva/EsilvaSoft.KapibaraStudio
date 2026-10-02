@@ -28,18 +28,4 @@
     <InternalsVisibleTo Include="EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Tests" />
     <InternalsVisibleTo Include="EsilvaSoft.KapibaraStudio.IntegrationTests" />
   </ItemGroup>
-  <Import Project="../../eng/CopilotAccountCli.targets" />
-
-  <!-- The pinned SDK excludes the CLI license from its runtime assets; retain the original redistribution notice. -->
-  <Target Name="RegisterCopilotRuntimeLicense" AfterTargets="_RegisterCopilotCliForCopy"
-          Condition="'$(CopilotCliBinaryPath)' == '' And '$(CopilotSkipCliDownload)' != 'true' And '$(_CopilotRid)' != ''">
-    <Error Condition="!Exists('$(_CopilotCacheDir)/LICENSE.md')" Text="A licença original do runtime Copilot está ausente; empacotamento bloqueado." />
-    <ItemGroup>
-      <ContentWithTargetPath Include="$(_CopilotCacheDir)/LICENSE.md"
-                             TargetPath="runtimes/$(_CopilotRid)/native/LICENSE.md"
-                             CopyToOutputDirectory="PreserveNewest"
-                             CopyToPublishDirectory="PreserveNewest"
-                             ExcludeFromSingleFile="true" />
-    </ItemGroup>
-  </Target>
 </Project>

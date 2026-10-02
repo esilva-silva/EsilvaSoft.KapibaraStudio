@@ -4,15 +4,16 @@ using NUnit.Framework;
 
 namespace EsilvaSoft.KapibaraStudio.IntegrationTests.Copilot;
 
-/// <summary>Reads the installed runtime and host paths without starting a client or modifying host files.</summary>
+/// <summary>Builds SDK account/session options without starting the CLI or modifying host files.</summary>
 [TestFixture, Category("Integration")]
 public sealed class CopilotRuntimeSettingsIntegrationTests
 {
     [Test]
     public void AccountDiscoveryAndProductSessionsUseOfficialCliIdentityWithExplicitSessionStorage()
     {
-        var account = CopilotRuntimeSettings.AccountClientOptions();
-        var persistentSession = CopilotRuntimeSettings.SessionClientOptions();
+        var cli = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "copilot"));
+        var account = CopilotRuntimeSettings.AccountClientOptions(cli);
+        var persistentSession = CopilotRuntimeSettings.SessionClientOptions(cliPath: cli);
 
         Assert.That(account.Mode, Is.EqualTo(CopilotClientMode.CopilotCli));
         Assert.That(account.UseLoggedInUser, Is.True);
@@ -22,5 +23,6 @@ public sealed class CopilotRuntimeSettingsIntegrationTests
         Assert.That(persistentSession.UseLoggedInUser, Is.True);
         Assert.That(persistentSession.BaseDirectory, Does.Contain(".copilot"));
         Assert.That(persistentSession.SessionFs, Is.Null);
+        Assert.That(account.Connection, Is.Not.Null);
     }
 }

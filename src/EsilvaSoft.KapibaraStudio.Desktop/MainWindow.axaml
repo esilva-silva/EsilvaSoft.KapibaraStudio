@@ -50,6 +50,8 @@
               <MenuItem Header="Abrir pasta como workspace" Click="OpenFolder" />
               <MenuItem Header="{Binding Localization.SaveAs}" Click="SaveAs" />
               <MenuItem Header="{Binding Localization.Preferences}" Click="OpenPreferences" />
+              <Separator />
+              <MenuItem Header="{Binding Localization.ThirdPartyLicenses}" Click="OpenThirdPartyLicenses" />
             </MenuFlyout>
           </Button.Flyout>
         </Button>

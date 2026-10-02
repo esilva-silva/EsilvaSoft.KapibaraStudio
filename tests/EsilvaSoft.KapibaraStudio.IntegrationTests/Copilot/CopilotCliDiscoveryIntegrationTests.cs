@@ -8,21 +8,18 @@ internal sealed class CopilotCliDiscoveryIntegrationTests
 {
     private static readonly string[] LoginArguments = ["login"];
     [Test]
-    public void PackagedAccountCliIsAvailableWithoutAnInstalledCliOnPath()
+    public void AccountCliRequiresUserInstalledNativeExecutableOnPath()
     {
         Assert.That(LocalCopilotAccountCommands.FindCliExecutable(string.Empty), Is.Null);
-        Assert.That(new LocalCopilotAccountCommands().IsCliInstalled(), Is.True);
-        var cli = CopilotRuntimeSettings.BundledAccountCliPath();
-        Assert.That(cli, Does.Contain(Path.Combine("runtimes", System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier, "copilot-cli")));
-        Assert.That(cli, Is.Not.EqualTo(CopilotRuntimeSettings.BundledRuntimePath()),
-            "O wrapper headless não é a CLI interativa de login.");
+        Assert.That(LocalCopilotAccountCommands.FindInstalledCliExecutable(), Is.EqualTo(
+            LocalCopilotAccountCommands.FindCliExecutable(Environment.GetEnvironmentVariable("PATH"))));
     }
 
     [Test]
     public void AccountProcessUsesOfficialHomeAndDoesNotInheritTokensOrRedirectLogin()
     {
         if (!OperatingSystem.IsWindows()) Assert.Ignore("A criação de terminal Linux exige homologação nativa.");
-        var cli = CopilotRuntimeSettings.BundledAccountCliPath();
+        var cli = Path.Combine(Path.GetTempPath(), OperatingSystem.IsWindows() ? "copilot-test.exe" : "copilot-test");
         var start = LocalCopilotAccountCommands.CreateStartInfo(cli, LoginArguments)!;
         Assert.Multiple(() =>
         {
@@ -31,7 +28,7 @@ internal sealed class CopilotCliDiscoveryIntegrationTests
             Assert.That(start.UseShellExecute, Is.False);
             Assert.That(start.CreateNoWindow, Is.False);
             Assert.That(start.RedirectStandardOutput || start.RedirectStandardError || start.RedirectStandardInput, Is.False);
-            Assert.That(start.Environment["COPILOT_HOME"], Is.EqualTo(CopilotRuntimeSettings.AccountClientOptions().BaseDirectory));
+            Assert.That(start.Environment["COPILOT_HOME"], Is.EqualTo(CopilotRuntimeSettings.OfficialCliHomeDirectory()));
             Assert.That(start.Environment.Keys, Does.Not.Contain("GH_TOKEN").And.Not.Contain("GITHUB_TOKEN").And.Not.Contain("COPILOT_GITHUB_TOKEN"));
         });
     }

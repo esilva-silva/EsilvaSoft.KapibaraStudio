@@ -25,6 +25,7 @@ Pesos e tokenizers Qwen não fazem parte do repositório nem da publicação. A 
 | --- | --- | --- | --- | --- |
 | `ModelContextProtocol.Core` | 2.2.0 | `EsilvaSoft.KapibaraStudio.McpServer` (direta) | Apache-2.0; LICENSE do commit `6fa3825` documenta contribuições legadas MIT e docs CC-BY-4.0 | [Spike MCP](eng/spikes/phase-07/mcp-sdk/README.md), [cópia da licença](eng/spikes/phase-07/mcp-sdk/licenses/ModelContextProtocol-2.2.0-LICENSE) |
 | `Anthropic` | 12.50.0 | `EsilvaSoft.KapibaraStudio.Infrastructure.Agents` (direta, pasta `Anthropic/`) | MIT | [Spike Anthropic](eng/spikes/phase-07/anthropic-sdk/README.md), release `Anthropic-v12.50.0`, commit `2beeb9f9b402b1cdb8030e7cdc38cc6cae5d42aa`, [cópia da licença](eng/spikes/phase-07/anthropic-sdk/licenses/Anthropic-12.50.0-LICENSE.txt) |
+| `GitHub.Copilot.SDK` | 1.0.14 | `EsilvaSoft.KapibaraStudio.Infrastructure.Agents` (direta) | MIT | [Repositório oficial](https://github.com/github/copilot-sdk), commit do pacote `e60d9037353249ef16b349eb4012e8c1d113fda5`, [texto da licença](https://github.com/github/copilot-sdk/blob/e60d9037353249ef16b349eb4012e8c1d113fda5/LICENSE) |
 | `OpenAI` | 2.14.0 | `EsilvaSoft.KapibaraStudio.Infrastructure.Agents` (direta, pasta `OpenAi/`) | MIT | [Spike OpenAI](eng/spikes/phase-07/openai-api/README.md), commit `2e77b08828145f658ec04e49aec87abb1543c553` |
 | `System.ClientModel` | 1.15.0 | Transitiva de `OpenAI` 2.14.0 | MIT | Inventário do spike OpenAI (`eng/spikes/phase-07/openai-api/*.csv`); origem `Azure/azure-sdk-for-net` |
 | `Microsoft.Extensions.AI.Abstractions` | 10.5.1 (via `Anthropic`) | Transitiva de `Anthropic` 12.50.0 | MIT | [Spike Anthropic](eng/spikes/phase-07/anthropic-sdk/README.md), [cópia da licença](eng/spikes/phase-07/anthropic-sdk/licenses/Microsoft.Extensions.AI.Abstractions-10.5.1-LICENSE.txt) |
@@ -34,6 +35,34 @@ Pesos e tokenizers Qwen não fazem parte do repositório nem da publicação. A 
 `Microsoft.Extensions.Logging.Abstractions` também recebe `VersionOverride` 10.0.10 nos dois projetos (`McpServer`, `Infrastructure.Agents`), acima do pin central 10.0.0 usado pelo restante da solução; é a mesma licença MIT já coberta pela dependência central, sem pacote adicional. Risco registrado: `Microsoft.Extensions.AI.Abstractions` 10.5.1 (via Anthropic) é superior à 9.8.0 resolvida pelo ONNX GenAI em `UnitTests`/Desktop — qualquer composição futura que junte `Infrastructure.Agents` com o runtime ONNX local unifica em 10.x e exige revalidação offline do autocomplete/ONNX (AC-16) antes de compor no Desktop. Essa revalidação não faz parte desta atualização documental.
 
 Nenhum dos pacotes acima traz binário nativo, segundo os inventários dos spikes correspondentes (mesmas versões exatas incorporadas). **Pendências de SBOM formal, ainda não fechadas por este aviso:** consulta de vulnerabilidades conectada (o spike MCP e o spike Anthropic reportaram "nenhum pacote vulnerável" em consultas datadas, não substituindo auditoria contínua; o spike OpenAI não concluiu auditoria por falha de TLS/credenciais do feed), SBOM por RID Windows/Linux, e cópia formal dos avisos Apache-2.0/MIT no instalador de distribuição. A licença do **EsilvaSoft.KapibaraStudio permanece MIT**.
+
+### GitHub Copilot SDK 1.0.14 — MIT
+
+Este SDK permanece incorporado ao aplicativo mesmo quando a CLI/runtime é instalada pelo usuário. Copyright notice e permissão MIT acompanham o release neste arquivo.
+
+```text
+MIT License
+
+Copyright GitHub, Inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
 
 ## Planejamento v0.11.0 — candidatos ainda não incorporados
 

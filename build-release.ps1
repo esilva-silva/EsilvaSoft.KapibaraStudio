@@ -105,9 +105,7 @@ try {
 
         Remove-Item (Join-Path $publishDir '*.pdb'), (Join-Path $publishDir '*.xml'), (Join-Path $publishDir '*.lib') -ErrorAction Ignore
 
-        $packageValidationArgs = @{ PublishDirectory = $publishDir; Rid = $rid }
-        if ($rid.StartsWith('linux-')) { $packageValidationArgs.SkipRuntimeExecution = $true }
-        & (Join-Path $PSScriptRoot 'eng/Test-ReleasePackage.ps1') @packageValidationArgs
+        & (Join-Path $PSScriptRoot 'eng/Test-ReleasePackage.ps1') -PublishDirectory $publishDir -Rid $rid
 
         Write-Host "==> package $rid" -ForegroundColor Cyan
         if ($rid.StartsWith('win-')) {

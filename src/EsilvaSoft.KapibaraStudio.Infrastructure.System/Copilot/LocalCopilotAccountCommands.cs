@@ -6,7 +6,7 @@ using System.Diagnostics;
 namespace EsilvaSoft.KapibaraStudio.SystemAdapters.Copilot;
 
 /// <summary>
-/// Abre a CLI oficial empacotada numa janela de terminal visível, sem shell intermediário, redirecionamento ou captura
+/// Abre a CLI oficial instalada pelo usuário numa janela de terminal visível, sem shell intermediário, redirecionamento ou captura
 /// de saída. Login executa <c>copilot login</c>; sair abre o CLI para o usuário executar <c>/logout</c>.
 /// </summary>
 public sealed class LocalCopilotAccountCommands : ICopilotAccountCommands
@@ -15,13 +15,9 @@ public sealed class LocalCopilotAccountCommands : ICopilotAccountCommands
     private static readonly string[] LoginArguments = ["login"];
     private static readonly string[] LogoutArguments = [];
 
-    public bool IsCliInstalled() => FindBundledCliExecutable() is not null;
+    public bool IsCliInstalled() => FindInstalledCliExecutable() is not null;
 
-    private static string? FindBundledCliExecutable()
-    {
-        try { return CopilotRuntimeSettings.BundledAccountCliPath(); }
-        catch (Exception exception) when (exception is FileNotFoundException or PlatformNotSupportedException) { return null; }
-    }
+    internal static string? FindInstalledCliExecutable() => FindCliExecutable(Environment.GetEnvironmentVariable("PATH"));
 
     internal static string? FindCliExecutable(string? path, bool? isWindows = null,
         Func<string, bool>? exists = null, Func<string, bool>? executableProbe = null)
@@ -55,7 +51,7 @@ public sealed class LocalCopilotAccountCommands : ICopilotAccountCommands
         if (action is not ("login" or "logout")) throw new ArgumentOutOfRangeException(nameof(action));
         cancellationToken.ThrowIfCancellationRequested();
 
-        var cli = FindBundledCliExecutable();
+        var cli = FindInstalledCliExecutable();
         if (cli is null) return CopilotAccountCommandState.RuntimeUnavailable;
 
         var arguments = action == "login" ? LoginArguments : LogoutArguments;

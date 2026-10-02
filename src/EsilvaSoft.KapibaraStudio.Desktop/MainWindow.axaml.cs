@@ -230,6 +230,15 @@ public partial class MainWindow : Window
     }
 
     private void OpenPreferences(object? sender, RoutedEventArgs e) => ShowPreferences();
+    private async void OpenThirdPartyLicenses(object? sender, RoutedEventArgs e)
+    {
+        var dialog = new ThirdPartyLicensesWindow
+        {
+            Width = Math.Min(900, Math.Max(560, ClientSize.Width - 48)),
+            Height = Math.Min(700, Math.Max(420, ClientSize.Height - 48))
+        };
+        await dialog.ShowDialog(this);
+    }
 
     private async void OnWorkspaceKeyDown(object? sender, KeyEventArgs e)
     {

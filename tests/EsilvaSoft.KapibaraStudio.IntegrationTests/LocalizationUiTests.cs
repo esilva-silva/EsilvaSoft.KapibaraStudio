@@ -187,4 +187,60 @@ public sealed class LocalizationUiTests
         preferences.Load(new AutocompleteSettings());
         return preferences;
     }
+
+    [Test]
+    public async Task ThirdPartyLicensesWindowRendersBundledNoticesAcrossLanguagesAndThemes()
+    {
+        var session = HeadlessUnitTestSession.GetOrStartForAssembly(typeof(IntegrationUiTestApp).Assembly);
+        await session.Dispatch<bool>(() =>
+        {
+            var previousLanguage = LocalizationViewModel.Current.Language;
+            var previousTheme = Avalonia.Application.Current!.RequestedThemeVariant;
+            var evidenceDirectory = Path.Combine(TestContext.CurrentContext.WorkDirectory, "ui-evidence", "third-party-licenses");
+            Directory.CreateDirectory(evidenceDirectory);
+
+            try
+            {
+                foreach (var language in ApplicationLanguages.All.Select(language => language.Code))
+                    foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+                    {
+                        LocalizationViewModel.Current.Language = language;
+                        Avalonia.Application.Current.RequestedThemeVariant = theme;
+                        var window = new ThirdPartyLicensesWindow { Width = 900, Height = 700 };
+                        window.Show();
+                        window.UpdateLayout();
+                        Dispatcher.UIThread.RunJobs();
+
+                        var noticeContent = window.FindControl<StackPanel>("NoticeContent")!;
+                        var renderedText = string.Join('\n', noticeContent.GetLogicalDescendants().OfType<SelectableTextBlock>()
+                            .Select(Avalonia.Automation.AutomationProperties.GetName));
+                        Assert.That(renderedText, Does.Contain("Dependências do Console"));
+                        Assert.That(renderedText, Does.Contain("MIT License"));
+                        Assert.That(renderedText, Does.Contain("https://github.com"));
+                        Assert.That(renderedText, Does.Not.Contain("# Dependências do Console"));
+                        Assert.That(noticeContent.GetLogicalDescendants().OfType<Border>()
+                            .Any(border => border.Classes.Contains("license-table-row")), Is.True);
+                        Assert.That(noticeContent.GetLogicalDescendants().OfType<SelectableTextBlock>()
+                            .SelectMany(block => block.Inlines ?? new Avalonia.Controls.Documents.InlineCollection())
+                            .OfType<Avalonia.Controls.Documents.Run>()
+                            .Any(run => run.Classes.Contains("markdown-link")), Is.True);
+
+                        var close = window.FindControl<Button>("CloseButton")!;
+                        Assert.That(close.Bounds.Width, Is.GreaterThan(0));
+                        Assert.That(close.Bounds.Height, Is.GreaterThan(0));
+                        using var frame = window.CaptureRenderedFrame();
+                        Assert.That(frame, Is.Not.Null, $"{language}/{theme}: frame");
+                        frame!.Save(Path.Combine(evidenceDirectory, $"third-party-licenses-{language}-{theme}.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+                        window.Close();
+                    }
+            }
+            finally
+            {
+                LocalizationViewModel.Current.Language = previousLanguage;
+                Avalonia.Application.Current.RequestedThemeVariant = previousTheme;
+            }
+
+            return true;
+        }, CancellationToken.None);
+    }
 }

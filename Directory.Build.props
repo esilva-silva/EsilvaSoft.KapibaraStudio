@@ -7,6 +7,8 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- A integração usa a instalação oficial do usuário; não baixar/redistribuir runtime Copilot. -->
+    <CopilotSkipCliDownload>true</CopilotSkipCliDownload>
     <NoWarn>$(NoWarn);1591</NoWarn>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <SlopOnnxBackend Condition="'$(SlopOnnxBackend)' == '' and ('$(RuntimeIdentifier)' == 'win-x64' or '$(RuntimeIdentifier)' == 'win-arm64' or ('$(RuntimeIdentifier)' == '' and '$(OS)' == 'Windows_NT'))">WinML</SlopOnnxBackend>

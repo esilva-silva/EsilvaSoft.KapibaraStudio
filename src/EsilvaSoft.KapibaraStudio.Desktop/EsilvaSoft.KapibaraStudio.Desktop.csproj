@@ -25,6 +25,10 @@
     <ProjectReference Include="../EsilvaSoft.KapibaraStudio.Infrastructure.Agents/EsilvaSoft.KapibaraStudio.Infrastructure.Agents.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="../../THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Always" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Avalonia" />
     <PackageReference Include="Avalonia.AvaloniaEdit" />
     <PackageReference Include="Avalonia.Desktop" />
@@ -86,24 +90,8 @@
     </ItemGroup>
     <Error Condition="'@(BundledAiModel)' != ''" Text="Modelos de IA devem ser instalados externamente; remova os pesos da publicação." />
   </Target>
-  <!-- Child processes must find the whole Copilot bundle beside the app. Single-file extraction of
-       content/native DLLs puts it elsewhere and breaks AppContext.BaseDirectory discovery. -->
-  <Target Name="KeepCopilotRuntimeOutsideSingleFile" BeforeTargets="_ComputeFilesToBundle">
-    <ItemGroup>
-      <ResolvedFileToPublish Update="@(ResolvedFileToPublish)"
-        Condition="$([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').Replace('\', '/').StartsWith('runtimes/'))">
-        <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-      </ResolvedFileToPublish>
-    </ItemGroup>
-  </Target>
-  <Target Name="VerifyPublishedCopilotRuntime" AfterTargets="Publish" Condition="'$(RuntimeIdentifier)' != ''">
-    <PropertyGroup>
-      <_PublishedCopilotExecutable Condition="$(RuntimeIdentifier.StartsWith('win-'))">copilot.exe</_PublishedCopilotExecutable>
-      <_PublishedCopilotExecutable Condition="'$(_PublishedCopilotExecutable)' == ''">copilot</_PublishedCopilotExecutable>
-    </PropertyGroup>
-    <Error Condition="!Exists('$(PublishDir)runtimes/$(RuntimeIdentifier)/native/$(_PublishedCopilotExecutable)') Or !Exists('$(PublishDir)runtimes/$(RuntimeIdentifier)/native/runtime.node')"
-           Text="O runtime headless Copilot e runtime.node precisam permanecer externos ao executável single-file." />
-    <Error Condition="!Exists('$(PublishDir)runtimes/$(RuntimeIdentifier)/copilot-cli/$(_PublishedCopilotExecutable)')"
-           Text="A CLI oficial interativa Copilot precisa acompanhar o release para autenticação." />
+  <Target Name="VerifyCopilotCliNotRedistributed" AfterTargets="Publish" Condition="'$(RuntimeIdentifier)' != ''">
+    <Error Condition="Exists('$(PublishDir)runtimes/$(RuntimeIdentifier)/native/copilot.exe') Or Exists('$(PublishDir)runtimes/$(RuntimeIdentifier)/native/copilot') Or Exists('$(PublishDir)runtimes/$(RuntimeIdentifier)/native/copilot-runtime.exe') Or Exists('$(PublishDir)runtimes/$(RuntimeIdentifier)/native/copilot-runtime') Or Exists('$(PublishDir)runtimes/$(RuntimeIdentifier)/native/runtime.node') Or Exists('$(PublishDir)runtimes/$(RuntimeIdentifier)/native/libcopilot_runtime.so') Or Exists('$(PublishDir)runtimes/$(RuntimeIdentifier)/native/copilot_runtime.dll') Or Exists('$(PublishDir)runtimes/$(RuntimeIdentifier)/copilot-cli')"
+           Text="O release não deve redistribuir a CLI/runtime Copilot; autenticação e sessões usam a instalação do usuário." />
   </Target>
 </Project>

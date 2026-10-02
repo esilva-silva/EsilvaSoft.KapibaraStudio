@@ -1,0 +1,46 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="EsilvaSoft.KapibaraStudio.Desktop.ThirdPartyLicensesWindow"
+        Width="900" Height="700" MinWidth="560" MinHeight="420"
+        WindowStartupLocation="CenterOwner"
+        Title="Licenças e avisos de terceiros">
+  <Window.Styles>
+    <Style Selector="Run.markdown-link">
+      <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+      <Setter Property="TextDecorations" Value="Underline" />
+    </Style>
+    <Style Selector="Border.license-code">
+      <Setter Property="Background" Value="{DynamicResource SecondaryBackground}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="8" />
+    </Style>
+    <Style Selector="Border.license-table-row">
+      <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="8" />
+    </Style>
+    <Style Selector="Border.markdown-rule">
+      <Setter Property="Height" Value="1" />
+      <Setter Property="Margin" Value="0,8" />
+      <Setter Property="Background" Value="{DynamicResource DividerBrush}" />
+    </Style>
+  </Window.Styles>
+  <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="20" RowSpacing="12">
+    <TextBlock x:Name="TitleText" FontSize="20" FontWeight="SemiBold" />
+    <TextBlock x:Name="DescriptionText" Grid.Row="1" TextWrapping="Wrap" Classes="metadata" />
+    <Border Grid.Row="2" Background="{DynamicResource WorkspaceBackground}"
+            BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="4">
+      <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                    AutomationProperties.Name="Avisos de licenças de terceiros">
+        <StackPanel x:Name="NoticeContent" Margin="16" Spacing="6" />
+      </ScrollViewer>
+    </Border>
+    <Button x:Name="CloseButton" Grid.Row="3" HorizontalAlignment="Right" MinWidth="100" Click="CloseClick"
+            AutomationProperties.Name="Fechar">
+      <TextBlock x:Name="CloseText" />
+    </Button>
+  </Grid>
+</Window>

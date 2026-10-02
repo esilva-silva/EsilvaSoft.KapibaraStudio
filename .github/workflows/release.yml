@@ -81,16 +81,12 @@ jobs:
           -p:Version=${{ env.VERSION }} -o publish
       - name: Package
         shell: pwsh
-        env:
-          SKIP_RUNTIME_EXECUTION: ${{ startsWith(matrix.rid, 'linux-') }}
         run: |
           Remove-Item publish/*.pdb, publish/*.xml, publish/*.lib -ErrorAction Ignore
           if (-not $IsWindows) {
-            chmod +x publish/EsilvaSoft.KapibaraStudio.Desktop publish/runtimes/${{ matrix.rid }}/native/copilot publish/runtimes/${{ matrix.rid }}/copilot-cli/copilot
+            chmod +x publish/EsilvaSoft.KapibaraStudio.Desktop
           }
-          $validationArgs = @{ PublishDirectory = 'publish'; Rid = '${{ matrix.rid }}' }
-          if ([bool]::Parse($env:SKIP_RUNTIME_EXECUTION)) { $validationArgs.SkipRuntimeExecution = $true }
-          ./eng/Test-ReleasePackage.ps1 @validationArgs
+          ./eng/Test-ReleasePackage.ps1 -PublishDirectory 'publish' -Rid '${{ matrix.rid }}'
           New-Item -ItemType Directory -Force dist | Out-Null
           if ($IsWindows) {
             Compress-Archive -Path publish/* -DestinationPath "dist/$env:PACKAGE.zip"

@@ -348,25 +348,16 @@ public sealed class AppUpdateServiceTests
         new Uri("https://download.test/package.zip"), 0, null, new Uri("https://github.test/release"), null);
 
     [Test]
-    public async Task VerifiedPackageInstallsInteractiveCliAndCompleteHeadlessRuntimeTogether()
+    public async Task VerifiedPackageUpdatesApplicationWithoutRedistributingCopilotCli()
     {
         using var fixture = new UpdateFixture();
-        const string runtime = "runtimes/win-x64/native/copilot.exe";
-        const string runtimeNode = "runtimes/win-x64/native/runtime.node";
-        const string accountCli = "runtimes/win-x64/copilot-cli/copilot.exe";
-        fixture.PublishRelease("v0.6.0", "win-x64", Zip((WindowsExecutable, "app"),
-            (runtime, "wrapper"), (runtimeNode, "native-runtime"), (accountCli, "interactive-cli")), kapibara: true);
+        fixture.PublishRelease("v0.6.0", "win-x64", Zip((WindowsExecutable, "app")), kapibara: true);
         using var service = fixture.Service(fixture.Options());
         var release = (await service.CheckAsync(CancellationToken.None))!;
         using (var operation = new ApplicationOperationService().Begin("Baixando"))
             await service.DownloadAsync(release, operation);
         Assert.That(AppUpdateInstaller.ApplyPending(fixture.Options()), Is.True);
-        Assert.Multiple(() =>
-        {
-            Assert.That(File.ReadAllText(Path.Combine(fixture.Target, runtime)), Is.EqualTo("wrapper"));
-            Assert.That(File.ReadAllText(Path.Combine(fixture.Target, runtimeNode)), Is.EqualTo("native-runtime"));
-            Assert.That(File.ReadAllText(Path.Combine(fixture.Target, accountCli)), Is.EqualTo("interactive-cli"));
-        });
+        Assert.That(File.ReadAllText(Path.Combine(fixture.Target, WindowsExecutable)), Is.EqualTo("app"));
     }
 
     [Test]
@@ -379,7 +370,7 @@ public sealed class AppUpdateServiceTests
         }
         using var fixture = new UpdateFixture();
         var payload = Path.Combine(fixture.Updates, "payload");
-        var child = Path.Combine("runtimes", "linux-x64", "copilot-cli", "copilot");
+        var child = Path.Combine("runtimes", "linux-x64", "native", "user-helper");
         Directory.CreateDirectory(Path.Combine(payload, Path.GetDirectoryName(child)!));
         File.WriteAllText(Path.Combine(payload, LinuxExecutable), "app");
         File.WriteAllText(Path.Combine(payload, child), "cli");

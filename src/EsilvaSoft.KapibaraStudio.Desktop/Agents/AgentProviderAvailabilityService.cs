@@ -44,7 +44,7 @@ public sealed class AgentProviderAvailabilityService : IDisposable
 {
     private static readonly HashSet<string> CliMissingCodes = new(StringComparer.Ordinal)
     {
-        "ExecutableNotFound", "UnsupportedExecutable", "VersionTooLow", "VersionUnreadable", "CopilotCliNotInstalled",
+        "ExecutableNotFound", "UnsupportedExecutable", "VersionTooLow", "VersionUnreadable", "CopilotCliNotInstalled", "CopilotCliProtocolIncompatible",
     };
 
     private static readonly HashSet<string> NotConnectedCodes = new(StringComparer.Ordinal)

@@ -1,10 +1,9 @@
-using System.Runtime.InteropServices;
 using EsilvaSoft.KapibaraStudio.Application;
 using GitHub.Copilot;
 
 namespace EsilvaSoft.KapibaraStudio.SystemAdapters.Copilot;
 
-/// <summary>Configuração única do runtime headless oficial do SDK para consultas e sessões.</summary>
+/// <summary>Configuração única do SDK Copilot conectado à CLI oficial instalada pelo usuário.</summary>
 internal static class CopilotRuntimeSettings
 {
     private static readonly string[] WindowsChildEnvironmentNames =
@@ -51,11 +50,11 @@ internal static class CopilotRuntimeSettings
         platform.IsWindows ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
 
     /// <summary>Client mode for explicit account/model discovery through the official CLI login.</summary>
-    public static CopilotClientOptions AccountClientOptions() => CommonClientOptions(CopilotClientMode.CopilotCli);
+    public static CopilotClientOptions AccountClientOptions(string? cliPath = null) => CommonClientOptions(CopilotClientMode.CopilotCli, cliPath: cliPath);
 
     /// <summary>Uses the logged-in user's official CLI account; each product session still supplies an explicit tool allowlist.</summary>
     public static CopilotClientOptions SessionClientOptions(string? workingDirectory = null,
-        SessionFsConfig? sessionFs = null) => CommonClientOptions(CopilotClientMode.CopilotCli, workingDirectory, sessionFs);
+        SessionFsConfig? sessionFs = null, string? cliPath = null) => CommonClientOptions(CopilotClientMode.CopilotCli, workingDirectory, sessionFs, cliPath);
 
     /// <summary>
     /// Explicitly disables ambient session features that the CLI-compatible mode otherwise inherits.
@@ -95,11 +94,12 @@ internal static class CopilotRuntimeSettings
 #pragma warning restore GHCP001
 
     private static CopilotClientOptions CommonClientOptions(CopilotClientMode mode,
-        string? workingDirectory = null, SessionFsConfig? sessionFs = null) => new()
+        string? workingDirectory = null, SessionFsConfig? sessionFs = null, string? cliPath = null) => new()
     {
         Mode = mode,
-        // Caminho explícito impede COPILOT_CLI_PATH herdado no host de substituir o runtime empacotado.
-        Connection = RuntimeConnection.ForStdio(path: BundledRuntimePath()),
+        // Ambos os fluxos usam o executável oficial instalado pelo usuário; o SDK valida a compatibilidade do protocolo.
+        Connection = RuntimeConnection.ForStdio(path: cliPath ?? LocalCopilotAccountCommands.FindInstalledCliExecutable()
+            ?? throw new FileNotFoundException("Instale a CLI oficial do GitHub Copilot e deixe 'copilot' disponível no PATH.")),
         UseLoggedInUser = true,
         SessionFs = sessionFs,
         BaseDirectory = mode == CopilotClientMode.CopilotCli
@@ -129,24 +129,4 @@ internal static class CopilotRuntimeSettings
         workingDirectory is { } directory && Directory.Exists(directory)
             ? Path.GetFullPath(directory) : Environment.CurrentDirectory;
 
-    public static string BundledRuntimePath() => BundledExecutablePath(AppContext.BaseDirectory, interactive: false);
-
-    internal static string BundledAccountCliPath() => BundledExecutablePath(AppContext.BaseDirectory, interactive: true);
-
-    internal static string BundledExecutablePath(string baseDirectory, bool interactive)
-    {
-        var architecture = RuntimeInformation.ProcessArchitecture switch
-        {
-            Architecture.X64 => "x64",
-            Architecture.Arm64 => "arm64",
-            _ => throw new PlatformNotSupportedException("Arquitetura sem runtime Copilot homologado."),
-        };
-        var system = OperatingSystem.IsWindows() ? "win" : OperatingSystem.IsLinux() ? "linux" :
-            throw new PlatformNotSupportedException("Sistema sem runtime Copilot homologado.");
-        var executable = OperatingSystem.IsWindows() ? "copilot.exe" : "copilot";
-        var path = Path.Combine(baseDirectory, "runtimes", system + "-" + architecture,
-            interactive ? "copilot-cli" : "native", executable);
-        if (!File.Exists(path)) throw new FileNotFoundException("Runtime oficial do Copilot indisponível.", path);
-        return path;
-    }
 }

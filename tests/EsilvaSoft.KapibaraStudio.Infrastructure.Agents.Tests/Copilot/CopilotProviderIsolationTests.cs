@@ -153,6 +153,7 @@ internal sealed class CopilotProviderIsolationTests
     [TestCase("start")]
     [TestCase("authentication")]
     [TestCase("catalog")]
+    [TestCase("protocol")]
     public async Task FailedAccountRefreshClearsAvailabilityAndRetryRecovers(string failurePoint)
     {
         var resources = new Resources();
@@ -163,13 +164,15 @@ internal sealed class CopilotProviderIsolationTests
             case "start": resources.Account.StartFailure = new IOException("synthetic start failure"); break;
             case "authentication": resources.Account.AuthenticationFailure = new IOException("synthetic auth failure"); break;
             case "catalog": resources.Account.ModelCatalogFailure = new IOException("synthetic catalog failure"); break;
+            case "protocol": resources.Account.StartFailure = new InvalidOperationException("SDK protocol version mismatch"); break;
             default: throw new ArgumentOutOfRangeException(nameof(failurePoint));
         }
 
         Assert.That((await provider.CheckAccountAndModelsAsync()).State, Is.EqualTo(CopilotAccountState.Unavailable));
         var unavailable = await provider.GetStatusAsync(CancellationToken.None);
         Assert.That(unavailable.IsAvailable, Is.False);
-        Assert.That(unavailable.UnavailableCode, Is.EqualTo("CopilotProviderUnavailable"));
+        Assert.That(unavailable.UnavailableCode, Is.EqualTo(failurePoint == "protocol"
+            ? "CopilotCliProtocolIncompatible" : "CopilotProviderUnavailable"));
         Assert.ThrowsAsync<InvalidOperationException>(async () => await provider.CreateSessionAsync(
             new AgentSessionOptions(provider.ProviderId, "synthetic-model"), CancellationToken.None));
         Assert.That(resources.SessionCalls, Is.Zero);

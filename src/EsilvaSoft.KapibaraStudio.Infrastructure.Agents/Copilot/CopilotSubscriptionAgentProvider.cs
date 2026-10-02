@@ -166,7 +166,7 @@ public sealed class CopilotSubscriptionAgentProvider : IAgentProvider, IAgentPro
         {
             ThrowIfDisposed();
             SetUnavailable(AgentProviderAuthState.Unknown,
-                "CopilotProviderUnavailable");
+                IsProtocolMismatch(exception) ? "CopilotCliProtocolIncompatible" : "CopilotProviderUnavailable");
             return new CopilotAccountStatus(CopilotAccountState.Unavailable);
         }
         finally
@@ -301,6 +301,9 @@ public sealed class CopilotSubscriptionAgentProvider : IAgentProvider, IAgentPro
     private static bool IsSafeModelId(string? id) => id is { Length: > 0 and <= 128 } &&
         !id.Any(char.IsControl) && id.All(static character => char.IsAsciiLetterOrDigit(character) ||
             character is '-' or '_' or '.' or ':' or '/');
+
+    private static bool IsProtocolMismatch(Exception exception) => exception is InvalidOperationException &&
+        exception.Message.Contains("SDK protocol version mismatch", StringComparison.Ordinal);
 
     public void Dispose()
     {

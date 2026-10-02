@@ -46,7 +46,7 @@ internal sealed class CopilotOfficialRuntimeManualTests
         await sessionClient.StartAsync(CancellationToken.None);
         var sessionAuth = await sessionClient.GetAuthStatusAsync(CancellationToken.None);
 
-        TestContext.Progress.WriteLine($"Autenticação reportada pelo SDK: runtime empacotado CopilotCli={accountAuth.IsAuthenticated}; Empty={emptyModeAuth.IsAuthenticated}; runtime da CLI instalada={installedCliAuth.IsAuthenticated}; cliente de sessão={sessionAuth.IsAuthenticated}.");
+        TestContext.Progress.WriteLine($"Autenticação reportada pelo SDK: cliente de conta={accountAuth.IsAuthenticated}; Empty={emptyModeAuth.IsAuthenticated}; cliente instalado explícito={installedCliAuth.IsAuthenticated}; cliente de sessão={sessionAuth.IsAuthenticated}.");
         Assert.That(sessionAuth.IsAuthenticated, Is.EqualTo(accountAuth.IsAuthenticated),
             "A sessão precisa enxergar o mesmo estado de autenticação da consulta oficial da conta.");
         if (accountAuth.IsAuthenticated)
