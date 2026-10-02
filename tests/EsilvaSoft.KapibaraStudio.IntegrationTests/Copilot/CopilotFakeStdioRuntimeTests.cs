@@ -97,7 +97,7 @@ public sealed class CopilotFakeStdioRuntimeTests
         });
     }
 
-    [Test, Explicit("Aceite manual Windows/Linux: consulta pelo provider o estado da conta oficial Copilot e os modelos elegíveis, sem enviar prompt/contexto.")]
+    [Test, Category("OfficialCli"), Explicit("Aceite manual Windows/Linux: consulta pelo provider o estado da conta oficial Copilot e os modelos elegíveis, sem enviar prompt/contexto.")]
     public async Task OfficialRuntimeReportsSanitizedAccountAndModelCatalog()
     {
         Assert.That(OperatingSystem.IsWindows() || OperatingSystem.IsLinux(), Is.True,

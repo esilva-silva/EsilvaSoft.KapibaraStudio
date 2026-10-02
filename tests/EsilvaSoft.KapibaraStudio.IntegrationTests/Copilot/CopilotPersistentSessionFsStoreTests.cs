@@ -114,7 +114,8 @@ internal sealed class CopilotPersistentSessionFsStoreTests
         {
             await using var store = new CopilotPersistentSessionFsStore(root);
             var fsConfiguration = CopilotPersistentSessionFsStore.CreateConfiguration(Environment.CurrentDirectory);
-            var clientOptions = CopilotRuntimeSettings.SessionClientOptions(Environment.CurrentDirectory, fsConfiguration);
+            var clientOptions = CopilotRuntimeSettings.SessionClientOptions(Environment.CurrentDirectory, fsConfiguration,
+                cliPath: Path.GetFullPath(Path.Combine(Path.GetTempPath(), "copilot-test")));
             var sessionConfiguration = new SessionConfig();
             store.ConfigureSession(sessionConfiguration);
 

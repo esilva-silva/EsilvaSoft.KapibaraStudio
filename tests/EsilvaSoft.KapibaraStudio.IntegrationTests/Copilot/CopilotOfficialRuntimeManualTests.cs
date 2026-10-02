@@ -15,6 +15,7 @@ namespace EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Tests.Copilot;
 #pragma warning disable GHCP001 // Homologação manual do SDK experimental pinado, em sessão isolada.
 [TestFixture]
 [Category("Integration")]
+[Category("OfficialCli")]
 internal sealed class CopilotOfficialRuntimeManualTests
 {
     [Test, Explicit("Verificação manual Windows/Linux sem inferência: compara a autenticação oficial entre modos do SDK.")]

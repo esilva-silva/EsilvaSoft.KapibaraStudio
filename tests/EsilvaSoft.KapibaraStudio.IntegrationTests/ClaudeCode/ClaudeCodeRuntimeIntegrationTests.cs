@@ -121,7 +121,7 @@ public sealed class ClaudeCodeRuntimeIntegrationTests
         {
             Assert.That(events.Last().Outcome, Is.EqualTo(AgentTurnOutcome.Failed));
             Assert.That(events.Single(static e => e.Kind == AgentEventKind.AgentError).ErrorCode,
-                Is.EqualTo(ClaudeCodeErrorCodes.NonSubscriptionAuthentication));
+                Is.EqualTo(ClaudeCodeErrorCodes.AuthenticationChanged));
             Assert.That(fixture.TurnInvocations(), Is.Empty);
         });
     }

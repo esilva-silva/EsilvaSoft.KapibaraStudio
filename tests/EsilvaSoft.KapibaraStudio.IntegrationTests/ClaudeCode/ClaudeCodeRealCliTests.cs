@@ -20,6 +20,7 @@ namespace EsilvaSoft.KapibaraStudio.IntegrationTests.ClaudeCode;
 [TestFixture]
 [Explicit("Usa o Claude Code real e a assinatura do usuário (1 chamada haiku); somente execução manual autorizada.")]
 [Category("ClaudeCodeReal")]
+[Category("OfficialCli")]
 [CancelAfter(180_000)]
 public sealed class ClaudeCodeRealCliTests
 {

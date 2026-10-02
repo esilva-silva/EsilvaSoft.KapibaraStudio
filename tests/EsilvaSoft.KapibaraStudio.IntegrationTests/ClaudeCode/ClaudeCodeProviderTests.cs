@@ -73,8 +73,8 @@ public sealed class ClaudeCodeProviderTests
 
     [TestCase(ClaudeCodeAuthKind.Subscription, true, AgentProviderAuthState.Configured, null)]
     [TestCase(ClaudeCodeAuthKind.NotLoggedIn, false, AgentProviderAuthState.NotConfigured, "NotLoggedIn")]
-    [TestCase(ClaudeCodeAuthKind.ApiKey, false, AgentProviderAuthState.Invalid, "NonSubscriptionAuthentication")]
-    [TestCase(ClaudeCodeAuthKind.EnvironmentToken, false, AgentProviderAuthState.Invalid, "NonSubscriptionAuthentication")]
+    [TestCase(ClaudeCodeAuthKind.ApiKey, true, AgentProviderAuthState.Configured, null)]
+    [TestCase(ClaudeCodeAuthKind.EnvironmentToken, true, AgentProviderAuthState.Configured, null)]
     [TestCase(ClaudeCodeAuthKind.Unreadable, false, AgentProviderAuthState.Unknown, "AuthStatusUnreadable")]
     public async Task StatusReflectsTheEffectiveMethodWithSafeCodes(ClaudeCodeAuthKind kind, bool available, AgentProviderAuthState auth, string? code)
     {
@@ -268,9 +268,9 @@ public sealed class ClaudeCodeProviderTests
         Assert.Multiple(() =>
         {
             Assert.That(descriptor.ProviderId, Is.EqualTo("claude-code").And.Not.EqualTo(ClaudeAgentProvider.Id));
-            Assert.That(descriptor.DisplayName, Is.EqualTo("Claude (assinatura)").And.Not.EqualTo(ClaudeAgentProvider.DisplayName));
+            Assert.That(descriptor.DisplayName, Is.EqualTo("Claude Code (CLI oficial)").And.Not.EqualTo(ClaudeAgentProvider.DisplayName));
             Assert.That(descriptor.AuthenticationMethods, Is.EqualTo(new[] { AgentAuthenticationMethod.OfficialCliDelegated }));
-            Assert.That(descriptor.RequiresApiKey, Is.False, "Sem fallback para API Key: o modo não aceita chave.");
+            Assert.That(descriptor.RequiresApiKey, Is.False, "O provider delega autenticação à CLI oficial; não exige uma chave própria.");
             Assert.That(((IAgentProvider)provider).IsLocal, Is.False);
             Assert.That(descriptor.Capabilities.Chat && descriptor.Capabilities.Streaming && descriptor.Capabilities.Sessions, Is.True);
             Assert.That(descriptor.Capabilities.ToolCalling, Is.False, "Leituras nativas não passam pelo registry; sem tools do produto.");

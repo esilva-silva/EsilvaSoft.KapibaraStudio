@@ -14,7 +14,7 @@ using NUnit.Framework;
 namespace EsilvaSoft.KapibaraStudio.IntegrationTests.Copilot;
 
 #pragma warning disable GHCP001 // Homologação manual do SDK experimental pinado, em sessão isolada.
-[TestFixture, Category("Integration"), Category("OfficialManual")]
+[TestFixture, Category("Integration"), Category("OfficialManual"), Category("OfficialCli")]
 internal sealed partial class CopilotProductToolManualTests
 {
     private const string ToolName = "get_workspace_context";

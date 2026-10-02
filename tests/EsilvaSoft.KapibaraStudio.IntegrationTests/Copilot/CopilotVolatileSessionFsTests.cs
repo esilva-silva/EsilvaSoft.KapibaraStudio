@@ -323,7 +323,8 @@ internal sealed class CopilotVolatileSessionFsTests
     {
         await using var store = new CopilotVolatileSessionFsStore();
         var fsConfiguration = CopilotVolatileSessionFsStore.CreateConfiguration(Environment.CurrentDirectory);
-        var clientOptions = CopilotRuntimeSettings.SessionClientOptions(Environment.CurrentDirectory, fsConfiguration);
+        var clientOptions = CopilotRuntimeSettings.SessionClientOptions(Environment.CurrentDirectory, fsConfiguration,
+            cliPath: Path.GetFullPath(Path.Combine(Path.GetTempPath(), "copilot-test")));
         var sessionConfiguration = new SessionConfig();
 
         store.ConfigureSession(sessionConfiguration);

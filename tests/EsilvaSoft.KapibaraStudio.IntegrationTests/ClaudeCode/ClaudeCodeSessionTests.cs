@@ -263,25 +263,25 @@ public sealed class ClaudeCodeSessionTests
     }
 
     [Test]
-    public async Task PreventiveAuthBlockNeverStartsATurnProcessOrWritesThePrompt()
+    public async Task AuthenticationChangeNeverStartsATurnProcessOrWritesThePrompt()
     {
         using var fixture = new ClaudeCodeFixture().Turn("basic-turn1.jsonl");
         await using var session = await SessionAsync(fixture.Provider());
-        // A chave aparece depois da criação da sessão: o bloqueio acontece no próximo turno, antes do stdin.
+        // O método efetivo muda depois da criação; o turno é bloqueado antes de iniciar a inferência.
         fixture.AuthStatus("""{"loggedIn":true,"authMethod":"claude.ai","apiProvider":"firstParty","apiKeySource":"ANTHROPIC_API_KEY","subscriptionType":null}""");
 
         var events = await ClaudeCodeFixture.RunAsync(session, "prompt-que-nao-pode-sair");
 
         Assert.Multiple(() =>
         {
-            Assert.That(ClaudeCodeFixture.Error(events), Is.EqualTo(ClaudeCodeErrorCodes.NonSubscriptionAuthentication));
+            Assert.That(ClaudeCodeFixture.Error(events), Is.EqualTo(ClaudeCodeErrorCodes.AuthenticationChanged));
             Assert.That(fixture.TurnInvocations(), Is.Empty);
             Assert.That(fixture.Log().Any(static e => e.GetProperty("event").GetString() == "stdin"), Is.False);
         });
     }
 
     [Test]
-    public async Task EnvironmentVariableThatChangesBillingBlocksTheTurnWithoutStartingTheCli()
+    public async Task CredentialEnvironmentChangeBlocksTheTurnBeforeInference()
     {
         using var fixture = new ClaudeCodeFixture().Turn("basic-turn1.jsonl");
         var blocked = false;
@@ -294,8 +294,8 @@ public sealed class ClaudeCodeSessionTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(ClaudeCodeFixture.Error(events), Is.EqualTo(ClaudeCodeErrorCodes.BlockedEnvironment));
-            Assert.That(fixture.Invocations(), Has.Count.EqualTo(before), "Nenhum processo depois do bloqueio por nome de variável.");
+            Assert.That(ClaudeCodeFixture.Error(events), Is.EqualTo(ClaudeCodeErrorCodes.AuthenticationChanged));
+            Assert.That(fixture.Invocations(), Has.Count.EqualTo(before + 1), "A CLI só revalida o método efetivo antes de bloquear o turno.");
         });
     }
 
