@@ -28,12 +28,13 @@ public sealed class AgentCliAccountUiTests
 {
     private static readonly ThemeVariant[] Themes = [ThemeVariant.Light, ThemeVariant.Dark];
     private static readonly string[] SettingsStates =
-        ["not-checked", "not-found", "unsupported", "version-low", "signed-out", "subscription", "blocked", "waiting", "no-terminal"];
+        ["not-checked", "not-found", "unsupported", "version-low", "signed-out", "subscription", "api-key", "api-key-helper",
+            "environment-token", "cloud-provider", "native-unclassified", "blocked", "waiting", "no-terminal"];
 
     private static readonly (double Width, double Height, double Scale)[] ChatSizes = [(400, 720, 1), (480, 768, 2)];
     private static readonly (Size Size, double Scale)[] HostSizes = [(new Size(960, 620), 1), (new Size(1366, 768), 1), (new Size(1366, 768), 2)];
     private static readonly string[] NarrowStates = ["subscription", "blocked"];
-    private static readonly string[] HostModes = ["subscription-folder", "subscription-no-folder", "subscription-refused", "subscription-blocked", "api"];
+    private static readonly string[] HostModes = ["subscription-folder", "subscription-no-folder", "subscription-refused", "subscription-blocked"];
 
     private static Task<bool> RunOnUiAsync(Func<Task> body)
     {
@@ -206,7 +207,7 @@ public sealed class AgentCliAccountUiTests
                         _ => null,
                     },
                 };
-                var catalog = new MutableAgentCatalog(MutableAgentCatalog.Subscription(), MutableAgentCatalog.Api());
+                var catalog = new MutableAgentCatalog(MutableAgentCatalog.Subscription());
                 var context = new WorkspaceTestContext();
                 var profile = ConnectionProfile.Create("Desenvolvimento · Loja", "mongodb://localhost:27017");
                 await context.Repository.SaveAsync(profile);
@@ -221,11 +222,6 @@ public sealed class AgentCliAccountUiTests
                 vm.IsAgentPanelOpen = true;
                 await PumpAsync(() => vm.ActiveAgentChat is not null);
                 var chat = vm.ActiveAgentChat!;
-                if (mode == "api")
-                {
-                    chat.SelectedProvider = chat.Providers.Single(p => p.ProviderId == "api-key");
-                }
-
                 await PumpAsync(() => true);
                 Assert.That(chat.IsReadScopeBlocked, Is.EqualTo(mode == "subscription-blocked"), mode);
                 var panel = window.AgentChatPanel;
@@ -244,7 +240,7 @@ public sealed class AgentCliAccountUiTests
                         Assert.Multiple(() =>
                         {
                             Assert.That(badge.IsEffectivelyVisible, Is.True, mode);
-                            Assert.That(badge.Text, Is.EqualTo(mode == "api" ? "Claude · API" : "Claude · assinatura"));
+                            Assert.That(badge.Text, Is.EqualTo("Claude Code · CLI oficial"));
                             Assert.That(destination.Text, Is.EqualTo("Externo"));
                             Assert.That(((Border)destination.Parent!).Background, Is.Not.Null.And.Not.EqualTo(Brushes.Transparent));
                             Assert.That(panel.FindControl<Border>("ReadScopeNotice")!.IsEffectivelyVisible, Is.EqualTo(mode != "api"));
@@ -270,7 +266,7 @@ public sealed class AgentCliAccountUiTests
         {
             var runtime = new ChannelAgentRuntime();
             var accounts = new FakeCliAccountManager { WorkspaceDirectory = SyntheticWorkspace };
-            var catalog = new MutableAgentCatalog(MutableAgentCatalog.Subscription(), MutableAgentCatalog.Api());
+            var catalog = new MutableAgentCatalog(MutableAgentCatalog.Subscription());
             var tab = new AgentChatTabFixture { WorkspaceFolder = SyntheticWorkspace };
             var chat = new AgentChatViewModel(new AgentChatServices(runtime, catalog, new FakeAgentContextProvider(), AccountManager: accounts)
             {
@@ -394,7 +390,7 @@ public sealed class AgentCliAccountUiTests
         };
         var auth = state switch
         {
-            "subscription" => AgentProviderAuthState.Configured,
+            "subscription" or "api-key" or "api-key-helper" or "environment-token" or "cloud-provider" or "native-unclassified" => AgentProviderAuthState.Configured,
             "blocked" => AgentProviderAuthState.Invalid,
             "signed-out" or "waiting" or "no-terminal" => AgentProviderAuthState.NotConfigured,
             _ => AgentProviderAuthState.Unknown,
@@ -405,8 +401,8 @@ public sealed class AgentCliAccountUiTests
                 [AgentAuthenticationMethod.OfficialCliDelegated], auth,
                 UnavailableReason: state == "subscription" ? "CopilotSessionNotHomologated" : reason,
                 FamilyName: "GitHub Copilot")
-            : MutableAgentCatalog.Subscription(state == "subscription", auth, reason);
-        var catalog = new MutableAgentCatalog(subscriptionProvider, MutableAgentCatalog.Api());
+            : MutableAgentCatalog.Subscription(state is "subscription" or "api-key" or "api-key-helper" or "environment-token" or "cloud-provider" or "native-unclassified", auth, reason);
+        var catalog = new MutableAgentCatalog(subscriptionProvider);
         accounts.Status = state switch
         {
             "not-found" => new AgentAccountStatus(AgentAccountInstallState.NotFound, null, AgentAccountAuthState.NotChecked),
@@ -416,6 +412,11 @@ public sealed class AgentCliAccountUiTests
             "subscription" when copilot => new AgentAccountStatus(AgentAccountInstallState.Installed, "1.0.85",
                 AgentAccountAuthState.Subscription),
             "subscription" => FakeCliAccountManager.Subscription(),
+            "api-key" => NativeAuth(AgentAccountAuthState.ApiKey),
+            "api-key-helper" => NativeAuth(AgentAccountAuthState.ApiKeyHelper),
+            "environment-token" => NativeAuth(AgentAccountAuthState.EnvironmentToken),
+            "cloud-provider" => NativeAuth(AgentAccountAuthState.CloudProvider),
+            "native-unclassified" => NativeAuth(AgentAccountAuthState.UnsupportedMethod),
             "blocked" => FakeCliAccountManager.BlockedByApiKey(),
             _ => FakeCliAccountManager.SignedOut(),
         };
@@ -450,6 +451,10 @@ public sealed class AgentCliAccountUiTests
         return (window, settings, accounts, pending);
     }
 
+    private static AgentAccountStatus NativeAuth(AgentAccountAuthState auth) =>
+        new(AgentAccountInstallState.Installed, "2.1.268", auth,
+            BlockingSource: "credential-source-canary", ExecutablePath: FakeCliAccountManager.FakeExecutablePath);
+
     private static void AssertSettingsVisuals(AgentSettingsWindow window, AgentSettingsViewModel settings, string state)
     {
         var signIn = window.FindControl<Button>("SignInButton")!;
@@ -464,7 +469,7 @@ public sealed class AgentCliAccountUiTests
             Assert.That(window.FindControl<Button>("StopWaitingButton")!.IsVisible, Is.EqualTo(state == "waiting"));
             Assert.That(window.FindControl<ProgressBar>("BusyIndicator")!.IsVisible, Is.EqualTo(state == "waiting"));
             Assert.That(window.FindControl<TextBlock>("UserRulesNotice")!.IsVisible, Is.EqualTo(state == "subscription"));
-            Assert.That(window.FindControl<Border>("CliBlockedNotice")!.IsVisible, Is.EqualTo(state is "blocked" or "signed-out" or "no-terminal" or "waiting"));
+            Assert.That(window.FindControl<Border>("CliAuthNotice")!.IsVisible, Is.EqualTo(settings.HasCliAuthExplanation));
         });
     }
 

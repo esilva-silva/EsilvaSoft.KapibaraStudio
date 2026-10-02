@@ -188,8 +188,11 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IAgentToolRegistry>(provider =>
         {
             var copilotDerivedReads = options.CopilotToolExposureStage >= AgentToolExposureStage.DerivedReads;
-            var literalQueries = Math.Max(Math.Max((int)options.ToolExposureStage,
-                (int)options.InProcessToolExposureStage), (int)options.CopilotToolExposureStage) >= (int)AgentToolExposureStage.LiteralQueries
+            var claudeDerivedReads = options.ClaudeToolExposureStage >= AgentToolExposureStage.DerivedReads;
+            var maximumSessionStage = Math.Max(
+                Math.Max((int)options.ToolExposureStage, (int)options.InProcessToolExposureStage),
+                Math.Max((int)options.CopilotToolExposureStage, (int)options.ClaudeToolExposureStage));
+            var literalQueries = maximumSessionStage >= (int)AgentToolExposureStage.LiteralQueries
                 ? provider.GetRequiredService<MongoAgentFindSource>()
                 : null;
             var sessionTools = new AgentSessionToolPorts(provider.GetRequiredService<IAgentMcpSessionScopes>())
@@ -214,9 +217,9 @@ public static class ServiceCollectionExtensions
                 schemaSamplingConsent: provider.GetRequiredService<IAgentSchemaSamplingConsentProvider>(),
                 find: literalQueries,
                 count: literalQueries,
-                distinct: copilotDerivedReads ? literalQueries : null,
-                explain: copilotDerivedReads ? provider.GetRequiredService<MongoAgentExplainSource>() : null,
-                indexes: options.ToolExposureStage >= AgentToolExposureStage.Metadata
+                distinct: copilotDerivedReads || claudeDerivedReads ? literalQueries : null,
+                explain: copilotDerivedReads || claudeDerivedReads ? provider.GetRequiredService<MongoAgentExplainSource>() : null,
+                indexes: maximumSessionStage >= (int)AgentToolExposureStage.Metadata
                     ? provider.GetRequiredService<MongoAgentIndexSource>()
                     : null,
                 exposure: AgentToolExposure.Through(options.ToolExposureStage),
@@ -225,13 +228,16 @@ public static class ServiceCollectionExtensions
                 writeApprovals: provider.GetRequiredService<IAgentWriteApprovalAuthority>(),
                 sessionTools: sessionTools,
                 inProcessExposure: AgentToolExposure.Through(options.InProcessToolExposureStage),
-                copilotExposure: AgentToolExposure.Through(options.CopilotToolExposureStage));
+                copilotExposure: AgentToolExposure.Through(options.CopilotToolExposureStage),
+                claudeExposure: AgentToolExposure.Through(options.ClaudeToolExposureStage));
         });
         services.AddSingleton<AgentMcpChannelProvisioner>(provider => new AgentMcpChannelProvisioner(
             provider.GetRequiredService<IAgentToolRegistry>(), provider.GetRequiredService<IAgentPrincipalAuthority>(),
             provider.GetRequiredService<IAgentAuthorizationPolicyRepository>(),
             provider.GetRequiredService<IConnectionProfileRepository>(),
-            provider.GetRequiredService<AgentMcpSessionRegistry>(), options.ToolExposureStage,
+            provider.GetRequiredService<AgentMcpSessionRegistry>(),
+            options.ClaudeToolExposureStage > options.ToolExposureStage
+                ? options.ClaudeToolExposureStage : options.ToolExposureStage,
             hostPlatform: provider.GetRequiredService<IHostPlatformSnapshot>(),
             executablePathProbe: provider.GetRequiredService<IAgentWorkspacePathProbe>(),
             externalBroker: provider.GetService<AgentBrokerHost>(),

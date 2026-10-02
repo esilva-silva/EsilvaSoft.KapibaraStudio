@@ -23,31 +23,38 @@ public sealed class AgentPermissionsResidualUiTests
         await session.Dispatch(async () =>
         {
             LocalizationViewModel.Current.Language = "pt-BR";
-            var repository = new PermissionsRepository
+            foreach (var (providerId, providerName, prefix) in new[]
+                     {
+                         (AgentProviderIds.GitHubCopilotSubscription, "GitHub Copilot de teste", "agent-permissions"),
+                         (AgentProviderIds.ClaudeCodeSubscription, "Claude (assinatura)", "agent-permissions-Claude"),
+                     })
             {
-                LoadResult = AgentPersistenceResult.Success(AgentProviderPermissions.Default(AgentProviderIds.GitHubCopilotSubscription)),
-            };
-            var vm = new AgentPermissionsViewModel(repository, null, AgentProviderIds.GitHubCopilotSubscription, "GitHub Copilot de teste", null,
-                [new(Guid.NewGuid(), "Produção"), new(Guid.NewGuid(), "Homologação")], productToolsAvailable: true, clock: TimeProvider.System);
-            var window = new AgentPermissionsWindow { DataContext = vm, Width = 660, Height = 760 };
-            window.Show();
-            await vm.LoadTask;
-            foreach (var (theme, name) in new[] { (ThemeVariant.Light, "Light"), (ThemeVariant.Dark, "Dark") })
-            {
-                Avalonia.Application.Current!.RequestedThemeVariant = theme;
-                foreach (var (size, suffix) in new[] { (new Size(660, 760), "660x760"), (new Size(960, 760), "960x760") })
+                var repository = new PermissionsRepository
                 {
-                    window.Width = size.Width;
-                    window.Height = size.Height;
-                    window.UpdateLayout();
-                    Dispatcher.UIThread.RunJobs();
-                    using var frame = window.CaptureRenderedFrame();
-                    var directory = UiEvidenceDirectory.Current();
-                    Directory.CreateDirectory(directory);
-                    frame!.Save(Path.Combine(directory, $"agent-permissions-{name}-{suffix}.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+                    LoadResult = AgentPersistenceResult.Success(AgentProviderPermissions.Default(providerId)),
+                };
+                var vm = new AgentPermissionsViewModel(repository, null, providerId, providerName, null,
+                    [new(Guid.NewGuid(), "Produção"), new(Guid.NewGuid(), "Homologação")], productToolsAvailable: true, clock: TimeProvider.System);
+                var window = new AgentPermissionsWindow { DataContext = vm, Width = 660, Height = 760 };
+                window.Show();
+                await vm.LoadTask;
+                foreach (var (theme, name) in new[] { (ThemeVariant.Light, "Light"), (ThemeVariant.Dark, "Dark") })
+                {
+                    Avalonia.Application.Current!.RequestedThemeVariant = theme;
+                    foreach (var (size, suffix) in new[] { (new Size(660, 760), "660x760"), (new Size(960, 760), "960x760") })
+                    {
+                        window.Width = size.Width;
+                        window.Height = size.Height;
+                        window.UpdateLayout();
+                        Dispatcher.UIThread.RunJobs();
+                        using var frame = window.CaptureRenderedFrame();
+                        var directory = UiEvidenceDirectory.Current();
+                        Directory.CreateDirectory(directory);
+                        frame!.Save(Path.Combine(directory, $"{prefix}-{name}-{suffix}.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+                    }
                 }
+                window.Close();
             }
-            window.Close();
             Avalonia.Application.Current!.RequestedThemeVariant = ThemeVariant.Default;
             return true;
         }, CancellationToken.None);
@@ -101,7 +108,7 @@ public sealed class AgentPermissionsResidualUiTests
     }
 
     [Test]
-    public async Task MongoDocumentConsentIsCopilotSpecificAndPersistedSeparately()
+    public async Task CopilotMongoDocumentConsentIsPersistedSeparately()
     {
         var repository = new PermissionsRepository
         {
@@ -125,6 +132,57 @@ public sealed class AgentPermissionsResidualUiTests
         await vm.SaveCommand.ExecuteAsync(null);
 
         Assert.That(repository.Saved!.DataSending.MongoDocuments, Is.True);
+    }
+
+    [Test]
+    public async Task ClaudeCanOptIntoMongoDocumentToolsWithItsOwnProviderPermissions()
+    {
+        var repository = new PermissionsRepository
+        {
+            LoadResult = AgentPersistenceResult.Failure<AgentProviderPermissions>(AgentPersistenceStatus.NotFound),
+        };
+        var vm = new AgentPermissionsViewModel(repository, null, AgentProviderIds.ClaudeCodeSubscription,
+            "Claude (assinatura)", null, [], productToolsAvailable: true, clock: TimeProvider.System);
+
+        await vm.LoadTask;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(vm.ShowMongoDocumentConsent, Is.True);
+            Assert.That(vm.ShowNativeToolOptions, Is.True, "A allowlist nativa do Claude continua editável.");
+            Assert.That(vm.MongoDocuments, Is.False, "Consentimento é opt-in e começa desligado.");
+            Assert.That(vm.ReadTools.Select(tool => tool.Name), Does.Contain(AgentProductToolNames.MongoFind));
+            Assert.That(vm.ReadTools.Select(tool => tool.Name), Does.Contain(AgentProductToolNames.MongoExplain));
+            Assert.That(vm.ReadTools.Select(tool => tool.Name), Does.Not.Contain(AgentProductToolNames.GetCollectionSchema),
+                "A amostragem ao vivo permanece fechada até a UI obter consentimento local delimitado.");
+        });
+
+        vm.MongoDocuments = true;
+        vm.ReadTools.Single(tool => tool.Name == AgentProductToolNames.MongoFind).IsEnabled = true;
+        await vm.SaveCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(repository.Saved!.ProviderId, Is.EqualTo(AgentProviderIds.ClaudeCodeSubscription));
+            Assert.That(repository.Saved.DataSending.MongoDocuments, Is.True);
+            Assert.That(repository.Saved.EnabledReadTools, Does.Contain(AgentProductToolNames.MongoFind));
+        });
+    }
+
+    [Test]
+    public async Task NoProviderSeesLiveSchemaSamplingWithoutItsDedicatedConsentFlow()
+    {
+        foreach (var provider in new[] { AgentProviderIds.GitHubCopilotSubscription, AgentProviderIds.ClaudeCodeSubscription, "other-provider" })
+        {
+            var repository = new PermissionsRepository
+            {
+                LoadResult = AgentPersistenceResult.Failure<AgentProviderPermissions>(AgentPersistenceStatus.NotFound),
+            };
+            var vm = new AgentPermissionsViewModel(repository, null, provider, provider, null, [],
+                productToolsAvailable: true, clock: TimeProvider.System);
+            await vm.LoadTask;
+            Assert.That(vm.ReadTools.Select(tool => tool.Name), Does.Not.Contain(AgentProductToolNames.GetCollectionSchema), provider);
+        }
     }
 
     [Test]

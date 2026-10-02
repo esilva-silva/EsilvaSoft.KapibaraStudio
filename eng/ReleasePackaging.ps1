@@ -4,7 +4,6 @@ function Assert-KapibaraLinuxPayload([string]$SourceDir, [string]$Rid) {
     $machine = if ($Rid -eq 'linux-x64') { 62 } else { 183 }
     $required = @(
         'EsilvaSoft.KapibaraStudio.Desktop',
-        'mcp/EsilvaSoft.KapibaraStudio.McpServer',
         "runtimes/$Rid/native/copilot",
         "runtimes/$Rid/native/copilot-runtime",
         "runtimes/$Rid/copilot-cli/copilot",
@@ -33,7 +32,7 @@ function Assert-KapibaraLinuxPayload([string]$SourceDir, [string]$Rid) {
 }
 
 function Test-KapibaraLinuxExecutable([string]$Name, [string]$Rid) {
-    if ($Name -in @('EsilvaSoft.KapibaraStudio.Desktop', 'mcp/EsilvaSoft.KapibaraStudio.McpServer', 'createdump',
+    if ($Name -in @('EsilvaSoft.KapibaraStudio.Desktop', 'createdump',
         "runtimes/$Rid/native/copilot", "runtimes/$Rid/native/copilot-runtime", "runtimes/$Rid/copilot-cli/copilot")) { return $true }
     # O archive oficial inclui helpers das duas arquiteturas; manter seus modos de execução originais.
     foreach ($helperRid in @('linux-x64', 'linux-arm64')) {
@@ -80,7 +79,6 @@ function Assert-KapibaraLinuxArchive([string]$Archive, [string]$Rid) {
     if ($Rid -notin @('linux-x64', 'linux-arm64')) { throw "RID Linux inválido: $Rid" }
     $requiredModes = @{
         'EsilvaSoft.KapibaraStudio.Desktop' = 493 # 0755
-        'mcp/EsilvaSoft.KapibaraStudio.McpServer' = 493
         "runtimes/$Rid/native/copilot" = 493
         "runtimes/$Rid/native/copilot-runtime" = 493
         "runtimes/$Rid/copilot-cli/copilot" = 493
@@ -101,6 +99,9 @@ function Assert-KapibaraLinuxArchive([string]$Archive, [string]$Rid) {
     $reader = [Formats.Tar.TarReader]::new($gzip, $false)
     try {
         while ($null -ne ($entry = $reader.GetNextEntry())) {
+            if ($entry.Name.StartsWith('mcp/', [StringComparison]::Ordinal)) {
+                throw "Integração Claude Code não deve estar presente no pacote Release: $($entry.Name)"
+            }
             if ((Test-KapibaraLinuxExecutable $entry.Name $Rid) -and [int]$entry.Mode -ne 493) {
                 throw "Permissão de execução inválida no pacote Linux: $($entry.Name)"
             }

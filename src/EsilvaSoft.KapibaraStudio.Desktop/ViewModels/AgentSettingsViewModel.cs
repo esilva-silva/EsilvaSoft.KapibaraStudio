@@ -89,7 +89,7 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
     /// <summary>Last explicit check of the selected CLI provider; null until "Test connection" runs.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CliInstallText), nameof(CliAuthText), nameof(CliAuthExplanation), nameof(HasCliAuthExplanation),
-        nameof(IsCliAuthBlocked), nameof(IsCliSignedIn), nameof(CliAccountTypeText), nameof(IsCliChecked), nameof(CliExecutableText),
+        nameof(IsCliAuthBlocked), nameof(IsCliSignedIn), nameof(IsCliAuthenticationConfigured), nameof(CliAccountTypeText), nameof(IsCliChecked), nameof(CliExecutableText),
         nameof(HasCliExecutable))]
     [NotifyCanExecuteChangedFor(nameof(SignInCommand), nameof(SignOutCommand))]
     private AgentAccountStatus? _cliStatus;
@@ -130,7 +130,13 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
 
     public bool IsCliSignedIn => CliStatus?.Auth == AgentAccountAuthState.Subscription;
 
-    public bool IsCliAuthBlocked => CliStatus?.IsBlockedMethod == true;
+    /// <summary>Any recognized native authentication method reported by the official CLI, without exposing credentials.</summary>
+    public bool IsCliAuthenticationConfigured => CliStatus?.Auth is AgentAccountAuthState.Subscription or
+        AgentAccountAuthState.ApiKey or AgentAccountAuthState.ApiKeyHelper or AgentAccountAuthState.EnvironmentToken or
+        AgentAccountAuthState.CloudProvider or AgentAccountAuthState.UnsupportedMethod;
+
+    /// <summary>Methods explicitly blocked by the CLI environment, not merely methods this panel does not classify.</summary>
+    public bool IsCliAuthBlocked => CliStatus?.Auth == AgentAccountAuthState.BlockedEnvironment;
 
     public string CliInstallText => CliStatus is not { } status
         ? Text.Resolve("agentCliNotChecked")
@@ -155,25 +161,30 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
         : Text.Resolve(status.Auth switch
         {
             AgentAccountAuthState.Subscription => "agentCliAuthSubscription",
+            AgentAccountAuthState.ApiKey => "agentCliAuthApiKey",
+            AgentAccountAuthState.ApiKeyHelper => "agentCliAuthApiKeyHelper",
+            AgentAccountAuthState.EnvironmentToken => "agentCliAuthEnvironmentToken",
+            AgentAccountAuthState.CloudProvider => "agentCliAuthCloudProvider",
+            AgentAccountAuthState.UnsupportedMethod => "agentCliAuthNativeUnclassified",
             AgentAccountAuthState.SignedOut => "agentCliAuthSignedOut",
             AgentAccountAuthState.NotChecked => "agentCliAuthNotChecked",
             AgentAccountAuthState.Unreadable => "agentCliAuthUnreadable",
             _ => "agentCliAuthBlocked",
         });
 
-    /// <summary>Why the subscription mode is blocked and what to do, naming only the variable/source.</summary>
+    /// <summary>Safe explanation of the effective CLI authentication, without credential values.</summary>
     public string CliAuthExplanation => CliStatus is not { } status
         ? ""
         : status.Auth switch
         {
-            AgentAccountAuthState.ApiKey or AgentAccountAuthState.BlockedEnvironment when status.BlockingSource is { Length: > 0 } source =>
+            AgentAccountAuthState.ApiKey => Text.Format("agentCliNativeAuthNotice", CliName, Text.Resolve("agentCliAuthKindApiKey")),
+            AgentAccountAuthState.ApiKeyHelper => Text.Format("agentCliNativeAuthNotice", CliName, Text.Resolve("agentCliAuthKindApiKeyHelper")),
+            AgentAccountAuthState.EnvironmentToken => Text.Format("agentCliNativeAuthNotice", CliName, Text.Resolve("agentCliAuthKindToken")),
+            AgentAccountAuthState.CloudProvider => Text.Format("agentCliNativeAuthNotice", CliName, Text.Resolve("agentCliAuthKindCloud")),
+            AgentAccountAuthState.UnsupportedMethod => Text.Format("agentCliNativeAuthUnclassifiedNotice", CliName),
+            AgentAccountAuthState.BlockedEnvironment when status.BlockingSource is { Length: > 0 } source =>
                 Text.Format("agentCliBlockedVariable", source, CliName),
-            AgentAccountAuthState.ApiKey => Text.Format("agentCliBlockedApiKey", CliName),
-            AgentAccountAuthState.ApiKeyHelper => Text.Format("agentCliBlockedApiKeyHelper", CliName),
-            AgentAccountAuthState.EnvironmentToken => Text.Format("agentCliBlockedToken", CliName),
-            AgentAccountAuthState.CloudProvider => Text.Format("agentCliBlockedCloud", CliName),
             AgentAccountAuthState.BlockedEnvironment => Text.Format("agentCliBlockedEnvironment", CliName),
-            AgentAccountAuthState.UnsupportedMethod => Text.Format("agentCliBlockedUnsupported", CliName),
             AgentAccountAuthState.SignedOut => Text.Format("agentCliSignedOutHint", SignInButtonText),
             AgentAccountAuthState.Unreadable => Text.Format("agentCliAuthUnreadableHint", CliName),
             _ => "",
@@ -182,11 +193,18 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
     public bool HasCliAuthExplanation => CliAuthExplanation.Length > 0;
 
     /// <summary>Only the tier token reported by the CLI (e.g. "Pro"); never e-mail, organization or account IDs.</summary>
-    public string CliAccountTypeText => CliStatus is { Auth: AgentAccountAuthState.Subscription } status
-        ? string.IsNullOrWhiteSpace(status.SubscriptionTier)
+    public string CliAccountTypeText => CliStatus switch
+    {
+        { Auth: AgentAccountAuthState.Subscription } status => string.IsNullOrWhiteSpace(status.SubscriptionTier)
             ? Text.Resolve("agentAccountTypeSubscription")
-            : Text.Format("agentAccountTypeSubscriptionTier", Capitalize(status.SubscriptionTier))
-        : Text.Resolve("agentAccountTypeNotReported");
+            : Text.Format("agentAccountTypeSubscriptionTier", Capitalize(status.SubscriptionTier)),
+        { Auth: AgentAccountAuthState.ApiKey } => Text.Resolve("agentCliBillingApiKey"),
+        { Auth: AgentAccountAuthState.ApiKeyHelper } => Text.Resolve("agentCliBillingApiKeyHelper"),
+        { Auth: AgentAccountAuthState.EnvironmentToken } => Text.Resolve("agentCliBillingToken"),
+        { Auth: AgentAccountAuthState.CloudProvider } => Text.Resolve("agentCliBillingCloud"),
+        { Auth: AgentAccountAuthState.UnsupportedMethod } => Text.Resolve("agentCliBillingNativeUnclassified"),
+        _ => Text.Resolve("agentAccountTypeNotReported"),
+    };
 
     private string CliName => CliProfile?.CliName ?? "";
 
@@ -340,7 +358,7 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
             }
 
             Reload(providerId);
-            Report(failed ? "agentTestConnectionFailed" : isCli ? CliOutcomeKey() : "agentTestConnectionDone", failed || (isCli && !IsCliSignedIn));
+            Report(failed ? "agentTestConnectionFailed" : isCli ? CliOutcomeKey() : "agentTestConnectionDone", failed || (isCli && !IsCliAuthenticationConfigured));
         }
         finally
         {
@@ -352,12 +370,13 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
     {
         { Install: not AgentAccountInstallState.Installed } => "agentTestConnectionCliUnavailable",
         { Auth: AgentAccountAuthState.Subscription } => CliProfile?.SubscriptionReadyMessageKey ?? "agentTestConnectionCliReady",
-        { IsBlockedMethod: true } => "agentTestConnectionCliBlocked",
+        { Auth: AgentAccountAuthState.UnsupportedMethod or AgentAccountAuthState.ApiKey or AgentAccountAuthState.ApiKeyHelper or AgentAccountAuthState.EnvironmentToken or AgentAccountAuthState.CloudProvider } => "agentTestConnectionCliNativeAuth",
+        { Auth: AgentAccountAuthState.BlockedEnvironment } => "agentTestConnectionCliBlocked",
         _ => "agentTestConnectionCliSignedOut",
     };
 
     private bool CanSignIn() => !IsBusy && IsCliProvider && CliStatus is not { Install: not AgentAccountInstallState.Installed } &&
-        CliStatus is not { Auth: AgentAccountAuthState.Subscription } && !IsEnvironmentBlocked(CliStatus);
+        !IsCliAuthenticationConfigured && !IsEnvironmentBlocked(CliStatus);
 
     /// <summary>
     /// Opens the official sign-in in a visible CLI window; the flow finishes with the vendor in the browser. The app
@@ -428,7 +447,7 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
     private void StopWaiting() => _signInWait?.Cancel();
 
     private bool CanSignOut() => !IsBusy && IsCliProvider && CliStatus is { Install: AgentAccountInstallState.Installed } status &&
-        status.Auth is not (AgentAccountAuthState.SignedOut or AgentAccountAuthState.NotChecked or AgentAccountAuthState.Unreadable);
+        status.Auth == AgentAccountAuthState.Subscription;
 
     /// <summary>
     /// Global sign-out: it ends the CLI login for the whole OS user, including terminals outside the app, so it runs
@@ -531,8 +550,8 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
 
         if (signIn)
         {
-            Report(IsCliSignedIn ? CliProfile?.SignInCompletedMessageKey ?? "agentCliSignInDone" : IsCliAuthBlocked ? "agentTestConnectionCliBlocked" : "agentCliSignInNotCompleted",
-                !IsCliSignedIn);
+            Report(IsCliAuthenticationConfigured ? CliProfile?.SignInCompletedMessageKey ?? (IsCliSignedIn ? "agentCliSignInDone" : "agentTestConnectionCliNativeAuth") : IsCliAuthBlocked ? "agentTestConnectionCliBlocked" : "agentCliSignInNotCompleted",
+                !IsCliAuthenticationConfigured);
         }
         else
         {
@@ -612,9 +631,7 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
         ProgressText = "";
     }
 
-    private static bool IsEnvironmentBlocked(AgentAccountStatus? status) => status?.Auth is AgentAccountAuthState.ApiKey or
-        AgentAccountAuthState.ApiKeyHelper or AgentAccountAuthState.EnvironmentToken or AgentAccountAuthState.CloudProvider or
-        AgentAccountAuthState.BlockedEnvironment;
+    private static bool IsEnvironmentBlocked(AgentAccountStatus? status) => status?.Auth == AgentAccountAuthState.BlockedEnvironment;
 
     private AgentCliProviderProfile? SafeDescribe(string providerId)
     {

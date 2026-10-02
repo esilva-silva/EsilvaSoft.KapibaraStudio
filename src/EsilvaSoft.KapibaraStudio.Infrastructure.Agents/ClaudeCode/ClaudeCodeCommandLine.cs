@@ -23,6 +23,9 @@ internal sealed record ClaudeCodeLaunchProfile(
     string SettingsJson,
     string Model)
 {
+    /// <summary>Authentication/costing method explicitly observed from the CLI when this session was created.</summary>
+    public ClaudeCodeAuthStatus? EffectiveAuthentication { get; init; }
+
     /// <summary>
     /// Regras <c>deny</c> fixas do app (diretório de dados, LiteDB, <c>~/.claude</c>, <c>~/.ssh</c>), somadas às do plano
     /// em cada turno. <see cref="SettingsJson"/> é a forma sem plano (consultas de estado); o turno usa a do plano.
@@ -106,6 +109,7 @@ internal static class ClaudeCodeCommandLine
         arguments.AddRange(
         [
             "--append-system-prompt", systemPrompt,
+            "--system-prompt-snapshot", "off",
             "--max-turns", maxTurns.ToString(CultureInfo.InvariantCulture),
             "--model", profile.Model,
             resume ? "--resume" : "--session-id", sessionId,

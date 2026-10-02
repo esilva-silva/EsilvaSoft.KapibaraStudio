@@ -189,6 +189,7 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
     private readonly AgentSessionToolPorts? _sessionTools;
     private readonly AgentToolExposure _inProcessExposure;
     private readonly AgentToolExposure _copilotExposure;
+    private readonly AgentToolExposure _claudeExposure;
 
     public AgentToolRegistry(
         IConnectionProfileRepository profiles,
@@ -209,7 +210,8 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
         IAgentWriteApprovalAuthority? writeApprovals = null,
         AgentSessionToolPorts? sessionTools = null,
         AgentToolExposure? inProcessExposure = null,
-        AgentToolExposure? copilotExposure = null)
+        AgentToolExposure? copilotExposure = null,
+        AgentToolExposure? claudeExposure = null)
     {
         _profiles = profiles ?? throw new ArgumentNullException(nameof(profiles));
         _policies = policies ?? throw new ArgumentNullException(nameof(policies));
@@ -235,6 +237,7 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
         // In-process providers announce only what this (narrower) gate releases; omitted = the registry exposure.
         _inProcessExposure = inProcessExposure ?? _exposure;
         _copilotExposure = copilotExposure ?? _inProcessExposure;
+        _claudeExposure = claudeExposure ?? _exposure;
         var requestedTimeout = executionTimeout ?? DefaultExecutionTimeout;
         if (requestedTimeout <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(executionTimeout));
         _executionTimeout = requestedTimeout > MaximumExecutionTimeout ? MaximumExecutionTimeout : requestedTimeout;
@@ -252,11 +255,16 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
             _inProcessExposure.Exposes(descriptor.Name) && _exposure.Exposes(descriptor.Name)).ToArray();
 
     /// <summary>
-    /// Every released tool, per-session tools included, for the MCP broker. The broker still filters the list per
-    /// authenticated channel (turn plan for session channels, no per-session tool for external clients).
+    /// Tools from the shared release stage for the MCP broker. Provider-scoped session tools are obtained through
+    /// <see cref="GetSessionChannelDescriptors"/> so they do not expand unscoped/external MCP discovery.
     /// </summary>
     public IReadOnlyList<AgentToolDescriptor> GetChannelDescriptors() =>
         Descriptors.Where(descriptor => IsAvailable(descriptor.Name)).ToArray();
+
+    public IReadOnlyList<AgentToolDescriptor> GetSessionChannelDescriptors(string providerId) =>
+        string.Equals(providerId, AgentProviderIds.ClaudeCodeSubscription, StringComparison.Ordinal)
+            ? Descriptors.Where(descriptor => IsAvailable(descriptor.Name) || IsAvailable(descriptor.Name, _claudeExposure)).ToArray()
+            : GetChannelDescriptors();
 
     /// <summary>Tools that exist only for the principal of a per-session channel.</summary>
     public static bool IsSessionTool(string? name) =>
@@ -264,6 +272,22 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
 
     public AgentToolDescriptor? FindDescriptor(string? name) =>
         IsAvailable(name)
+            ? Descriptors.FirstOrDefault(descriptor => string.Equals(name, descriptor.Name, StringComparison.Ordinal))
+            : null;
+
+    public string? GetSessionChannelInputSchemaJson(string providerId, string? name) =>
+        FindSessionChannelDescriptor(providerId, name) is { } descriptor
+            ? WithSchemaIdentity(descriptor, "input", CatalogInputSchemaJson(descriptor.Name))
+            : null;
+
+    public string? GetSessionChannelOutputSchemaJson(string providerId, string? name) =>
+        FindSessionChannelDescriptor(providerId, name) is { } descriptor
+            ? WithSchemaIdentity(descriptor, "output", CatalogOutputSchemaJson(descriptor.Name))
+            : null;
+
+    private AgentToolDescriptor? FindSessionChannelDescriptor(string providerId, string? name) =>
+        IsAvailable(name) ||
+        (string.Equals(providerId, AgentProviderIds.ClaudeCodeSubscription, StringComparison.Ordinal) && IsAvailable(name, _claudeExposure))
             ? Descriptors.FirstOrDefault(descriptor => string.Equals(name, descriptor.Name, StringComparison.Ordinal))
             : null;
 
@@ -277,6 +301,10 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
     private AgentToolDescriptor? FindDescriptorForInvocation(AgentPrincipal? principal,
         AgentInvocationContext? context, string? name)
     {
+        if (principal?.IsSessionChannel == true &&
+            SessionScopeOf(principal) is { ProviderId: AgentProviderIds.ClaudeCodeSubscription } &&
+            IsAvailable(name, _claudeExposure))
+            return Descriptors.FirstOrDefault(descriptor => string.Equals(name, descriptor.Name, StringComparison.Ordinal));
         if (IsCopilotDocumentInvocation(principal, context, name))
             return FindInProcessDescriptor(AgentProviderIds.GitHubCopilotSubscription, name);
         return FindDescriptor(name);

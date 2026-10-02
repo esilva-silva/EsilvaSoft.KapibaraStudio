@@ -60,7 +60,7 @@ public sealed class AgentProviderOption(AgentProviderPresentation presentation)
     {
         get
         {
-            var mode = UsesOfficialCli ? Text.Resolve("agentModeSubscription")
+            var mode = UsesOfficialCli ? Text.Resolve(CliModeTextKey)
                 : RequiresApiKey ? Text.Resolve("agentModeApi") : null;
             var destination = mode is null ? DestinationText
                 : Text.Format(Presentation.IsExperimental ? "agentModeChipExperimental" : "agentModeChip", DestinationText, mode);
@@ -75,12 +75,15 @@ public sealed class AgentProviderOption(AgentProviderPresentation presentation)
         Presentation.AuthenticationMethods.Contains(AgentAuthenticationMethod.OfficialAppServerDelegated);
 
     /// <summary>
-    /// Textual mode chip ("Claude · assinatura" / "Claude · API"), derived from the authentication method (capability)
-    /// and the family label of the composition root. Local providers have no mode chip: Local/Externo already says it.
+    /// Textual mode chip derived from the authentication method and family label. CLI providers are identified by
+    /// their delegated runtime, independently of the native authentication method the CLI currently uses.
+    /// Local providers have no mode chip: Local/Externo already says it.
     /// </summary>
     public string? ModeText => UsesOfficialCli
-        ? Text.Format(Presentation.IsExperimental ? "agentModeChipExperimental" : "agentModeChip", FamilyName, Text.Resolve("agentModeSubscription"))
+        ? Text.Format(Presentation.IsExperimental ? "agentModeChipExperimental" : "agentModeChip", FamilyName, Text.Resolve(CliModeTextKey))
         : RequiresApiKey ? Text.Format("agentModeChip", FamilyName, Text.Resolve("agentModeApi")) : null;
+
+    private const string CliModeTextKey = "agentModeOfficialCli";
 
     public bool HasModeText => ModeText is not null;
 
@@ -91,7 +94,7 @@ public sealed class AgentProviderOption(AgentProviderPresentation presentation)
 
     public string AuthStateText => Text.Resolve(Presentation.AuthState switch
     {
-        AgentProviderAuthState.Configured when UsesOfficialCli => "agentAuthStateCliSignedIn",
+        AgentProviderAuthState.Configured when UsesOfficialCli => "agentAuthStateCliAuthenticated",
         AgentProviderAuthState.NotConfigured when UsesOfficialCli => "agentAuthStateCliSignedOut",
         AgentProviderAuthState.Invalid when UsesOfficialCli => "agentAuthStateCliBlocked",
         AgentProviderAuthState.NotRequired => "agentAuthStateNotRequired",

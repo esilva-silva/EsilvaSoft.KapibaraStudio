@@ -288,6 +288,63 @@ public sealed class AgentToolRegistryGateTests
     }
 
     [Test]
+    public async Task ClaudeDerivedReadInvocationIsUnknownOutsideClaudeSessionProviderScope()
+    {
+        var profile = Connection();
+        var profiles = new CountingProfiles(profile);
+        var policies = new MapPolicyProvider();
+        var audit = new MemoryAudit();
+        var find = new CountingFind();
+        var sessions = new AgentMcpSessionRegistry();
+        var registry = new AgentToolRegistry(profiles, policies, new AgentPermissionEvaluator(policies), audit,
+            metadata: new NoMetadata(), find: find, count: new CountingCount(), distinct: new CountingDistinct(),
+            indexes: new NoIndexes(), explain: new NoExplain(), exposure: AgentToolExposure.None,
+            principalAuthority: new TestAgentPrincipalAuthority(), sessionTools: new AgentSessionToolPorts(sessions),
+            claudeExposure: AgentToolExposure.Through(AgentToolExposureStage.DerivedReads));
+        var claudeResult = await InvokeInSessionAsync(AgentProviderIds.ClaudeCodeSubscription);
+        var otherResult = await InvokeInSessionAsync("fixture-provider");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(claudeResult.ErrorCode, Is.EqualTo("PermissionDenied"),
+                "Claude resolves its session-scoped tool, then fails closed for the absent database grants.");
+            Assert.That(otherResult.ErrorCode, Is.EqualTo("UnknownTool"),
+                "The same session plan cannot resolve a Claude-only descriptor for another provider.");
+            Assert.That(find.Calls, Is.Zero);
+            Assert.That(profiles.Calls, Is.EqualTo(1), "Only the Claude-scoped descriptor reaches authorization.");
+            Assert.That(audit.Events.Select(item => item.Outcome),
+                Is.EqualTo(new[] { AgentAuditOutcome.Intent, AgentAuditOutcome.Denied }),
+                "Only the valid Claude session reaches audited authorization; cross-provider calls stop before it.");
+            Assert.That(audit.Events.All(item => item.ToolName == AgentToolRegistry.MongoFindToolName), Is.True);
+        });
+
+        async Task<AgentToolInvocationResult> InvokeInSessionAsync(string providerId)
+        {
+            var channelId = Guid.NewGuid();
+            var principalId = Guid.NewGuid();
+            var turnId = Guid.NewGuid();
+            var permissions = AgentProviderPermissions.Default(providerId) with
+            {
+                ExternalDestinationConsentAt = DateTimeOffset.UnixEpoch,
+                EnabledReadTools = [AgentToolRegistry.MongoFindToolName],
+                DataSending = new AgentDataSendingPermissions { MongoDocuments = true }
+            };
+            var plan = new AgentTurnPlan(AgentOperationMode.Agent, [], [], [],
+                [AgentToolRegistry.MongoFindToolName], AgentProposalHandling.Disabled, false,
+                AgentConfirmationCategories.None);
+            sessions.Register(channelId, principalId, providerId, Guid.NewGuid());
+            sessions.UpdateTurn(principalId, plan, permissions);
+            policies.Set(principalId, 1, []);
+            var principal = new AgentPrincipal(principalId, AgentPrincipalOrigin.External, 1, isSessionChannel: true);
+            var context = new AgentInvocationContext(AgentBrokerProtocol.McpProviderId, channelId, channelId, turnId);
+            var destination = AgentOutputDestination.McpExternal(AgentBrokerProtocol.McpProviderId);
+            var arguments = FindArguments(profile, "{}");
+            return await registry.InvokeAsync(principal, context, destination, AgentOutputDataScope.DocumentValues,
+                AgentToolRegistry.MongoFindToolName, arguments);
+        }
+    }
+
+    [Test]
     public async Task CopilotPlannedDocumentReadRequiresOneCallHumanApprovalAndAuditsItBeforeDispatch()
     {
         var rig = CopilotReadRig(AgentConfirmationCategories.MongoDocumentRead,

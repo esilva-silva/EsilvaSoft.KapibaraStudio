@@ -4,4 +4,5 @@ namespace EsilvaSoft.KapibaraStudio.Application.Agents;
 public static class AgentProviderIds
 {
     public const string GitHubCopilotSubscription = "github-copilot-subscription";
+    public const string ClaudeCodeSubscription = "claude-code";
 }

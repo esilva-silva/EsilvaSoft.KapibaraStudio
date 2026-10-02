@@ -74,7 +74,7 @@ O recorte básico de código da Fase 1 está presente. Isso não encerra o aceit
 
 ## Claude e agentes — revisão de 28/09/2026
 
-Claude Code, Anthropic API separada, runtime de agentes, chat, streaming, retomada e bridge MCP estão presentes no código. A integração continua em validação e ainda requer homologação Windows com assinatura Claude Pro real. Permissões, estado atual, limitações de Linux e roteiro estão em [Claude no KapibaraStudio](phases/phase-07-v0.11.0/README.md). A Fase 7 antiga foi removida da documentação de trabalho; referências abaixo deste registro são histórico do planejamento original.
+**Estado no checkout:** o painel Agente IA expõe somente a CLI oficial Claude Code, preservando seus métodos nativos de autenticação; a cobrança depende do método escolhido no CLI. Restrições de destino/transporte são independentes da autenticação. O provider HTTP Anthropic legado permanece fora da composição e do catálogo, sem fallback. A chave API legada no vault não é lida nem apagada, e conversas Claude antigas não migram automaticamente. O gate do acordo comercial Anthropic está aberto e falta homologação manual/runtime real. Permissões, limitações de Linux e roteiro estão em [Claude no KapibaraStudio](phases/phase-07-v0.11.0/README.md); referências abaixo deste registro são histórico do planejamento original.
 
 | Recorte | Destino atual | Evidência / limite |
 | --- | --- | --- |

@@ -10,7 +10,6 @@ $packageRoot = (Resolve-Path -LiteralPath $PublishDirectory).Path
 $extension = if ($Rid.StartsWith('win-')) { '.exe' } else { '' }
 $required = @(
     "EsilvaSoft.KapibaraStudio.Desktop$extension",
-    "mcp/EsilvaSoft.KapibaraStudio.McpServer$extension",
     "runtimes/$Rid/native/copilot$extension",
     "runtimes/$Rid/native/runtime.node",
     "runtimes/$Rid/copilot-cli/copilot$extension"
@@ -20,6 +19,9 @@ foreach ($relative in $required) {
     if (-not (Test-Path -LiteralPath $file -PathType Leaf) -or (Get-Item -LiteralPath $file).Length -eq 0) {
         throw "Arquivo obrigatório do release ausente ou vazio: $relative"
     }
+}
+if (Get-ChildItem -LiteralPath $packageRoot -Directory -Filter 'mcp' -ErrorAction SilentlyContinue) {
+    throw 'O proxy MCP do Claude Code não deve estar presente no pacote Release.'
 }
 # Cross-compiles are checked structurally; only execute binaries for the host RID.
 $hostRid = [Runtime.InteropServices.RuntimeInformation]::RuntimeIdentifier
@@ -48,5 +50,5 @@ if (-not $SkipRuntimeExecution -and $hostRid -eq $Rid) {
 if ($SkipRuntimeExecution) {
     Write-Host "Release $Rid verificado estruturalmente; execução de binários ignorada por política."
 } else {
-    Write-Host "Release $Rid verificado: aplicativo, proxy MCP, runtime Copilot e CLI interativa."
+    Write-Host "Release $Rid verificado: aplicativo sem integração Claude Code, runtime Copilot e CLI interativa."
 }

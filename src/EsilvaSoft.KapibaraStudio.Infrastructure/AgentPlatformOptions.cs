@@ -8,8 +8,8 @@ namespace EsilvaSoft.KapibaraStudio.Infrastructure;
 /// (ADR-056: metadata reads and the per-session tools of the integrated Claude Code agent); releasing a stage still
 /// authorizes nothing by itself, and <see cref="AgentToolExposureStage.None"/> keeps everything closed. The shared
 /// external and generic in-process stages stop at <see cref="AgentToolExposureStage.LiteralQueries"/>; the Copilot-only
-/// stage may reach <see cref="AgentToolExposureStage.DerivedReads"/> behind individual opt-ins. Releasing a stage still
-/// grants nothing: every call needs a persisted grant for its principal.
+/// native stage and Claude session-channel stage may reach <see cref="AgentToolExposureStage.DerivedReads"/> behind
+/// individual opt-ins. Releasing a stage still grants nothing: every call needs a persisted grant for its principal.
 /// Write tools stay closed independently of the stage: no <see cref="IAgentMongoWriteSource"/> is composed yet
 /// (lote 10), so the registry never exposes them even though the approval chain is wired.
 /// </summary>
@@ -29,6 +29,13 @@ public sealed record AgentPlatformOptions
     /// bounded derived reads; schema sampling remains absent until its separate local-consent UI is composed.
     /// </summary>
     public AgentToolExposureStage CopilotToolExposureStage { get; init; } = AgentToolExposureStage.DerivedReads;
+
+    /// <summary>
+    /// Additional stage available only to Claude Code's authenticated per-session MCP channel. Other providers and
+    /// unscoped/external MCP clients continue to use <see cref="ToolExposureStage"/>. Every query still needs the
+    /// provider opt-in, data consent, a turn plan, connection scope, and grants.
+    /// </summary>
+    public AgentToolExposureStage ClaudeToolExposureStage { get; init; } = AgentToolExposureStage.DerivedReads;
 
     /// <summary>Registry execution ceiling (the registry itself caps at 30 s).</summary>
     public TimeSpan ToolExecutionTimeout { get; init; } = TimeSpan.FromSeconds(30);
@@ -57,6 +64,8 @@ public sealed record AgentPlatformOptions
             throw new ArgumentException("Estágio in-process inválido.", nameof(InProcessToolExposureStage));
         if (!Enum.IsDefined(CopilotToolExposureStage) || CopilotToolExposureStage > AgentToolExposureStage.DerivedReads)
             throw new ArgumentException("Estágio Copilot inválido.", nameof(CopilotToolExposureStage));
+        if (!Enum.IsDefined(ClaudeToolExposureStage) || ClaudeToolExposureStage > AgentToolExposureStage.DerivedReads)
+            throw new ArgumentException("Estágio Claude inválido.", nameof(ClaudeToolExposureStage));
         if (ToolExecutionTimeout <= TimeSpan.Zero || ToolExecutionTimeout > TimeSpan.FromSeconds(30))
             throw new ArgumentException("Prazo de execução inválido.", nameof(ToolExecutionTimeout));
         if (Runtime is null) throw new ArgumentException("Opções do runtime ausentes.", nameof(Runtime));

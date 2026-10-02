@@ -301,7 +301,6 @@ public sealed class ClaudeCodeReviewFixTests
         });
     }
 
-    [TestCase("opus", false)]
     [TestCase("sonnet", false)]
     [TestCase("claude-sonnet-4-5", false)]
     [TestCase("haiku", true)]
@@ -323,6 +322,21 @@ public sealed class ClaudeCodeReviewFixTests
 
         Assert.That(ClaudeCodeFixture.Error(events), accepted ? Is.Null : Is.EqualTo(ClaudeCodeErrorCodes.InitMismatch),
             "O init da fixture reporta claude-haiku-4-5-20251001.");
+    }
+
+    [Test]
+    public async Task ProSubscriptionDelegatesOpusAvailabilityToTheOfficialCli()
+    {
+        using var fixture = new ClaudeCodeFixture();
+        var provider = fixture.Provider();
+
+        await using var session = await provider.CreateSessionAsync(
+            new AgentSessionOptions(ClaudeCodeAgentProvider.Id) { ModelId = "opus" }, CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(fixture.TurnInvocations(), Is.Empty, "A criação só consulta a CLI; o turno oficial decide elegibilidade.");
+        });
     }
 
     // Neto órfão -----------------------------------------------------------------------------------------------------

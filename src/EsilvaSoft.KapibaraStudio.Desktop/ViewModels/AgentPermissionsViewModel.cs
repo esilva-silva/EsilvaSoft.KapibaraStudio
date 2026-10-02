@@ -28,12 +28,12 @@ public sealed partial class AgentPermissionsViewModel : ObservableObject
         ProviderName = providerName;
         WorkspacePath = workspace ?? Text.Resolve("agentPermissionsNoWorkspace");
         ProductToolsAvailable = productToolsAvailable;
+        var supportsMongoDocumentReads = providerId is AgentProviderIds.GitHubCopilotSubscription or AgentProviderIds.ClaudeCodeSubscription;
         foreach (var connection in connections.OrderBy(static item => item.Name, StringComparer.CurrentCultureIgnoreCase))
             Connections.Add(new AgentConnectionPermissionItem(connection.Id, connection.Name, true, OnConnectionSelectionChanged));
         foreach (var tool in AgentProductToolNames.ReadTools.Where(tool =>
-                     providerId == AgentProviderIds.GitHubCopilotSubscription
-                         ? tool != AgentProductToolNames.GetCollectionSchema
-                         : !AgentProductToolNames.IsCopilotDocumentRead(tool)))
+                     tool != AgentProductToolNames.GetCollectionSchema &&
+                     (supportsMongoDocumentReads || !AgentProductToolNames.IsMongoDocumentRead(tool))))
             ReadTools.Add(new AgentProductToolPermissionItem(tool, Text.Format("agentPermissionsReadTool", tool), false, OnReadToolSelectionChanged));
         _permissions = AgentProviderPermissions.Default(providerId);
         LoadTask = LoadAsync();
@@ -44,7 +44,7 @@ public sealed partial class AgentPermissionsViewModel : ObservableObject
     public Task LoadTask { get; }
     public string ProviderName { get; }
     public string WorkspacePath { get; }
-    public bool ShowMongoDocumentConsent => _providerId == AgentProviderIds.GitHubCopilotSubscription;
+    public bool ShowMongoDocumentConsent => _providerId is AgentProviderIds.GitHubCopilotSubscription or AgentProviderIds.ClaudeCodeSubscription;
     public bool ShowNativeToolOptions => _providerId != AgentProviderIds.GitHubCopilotSubscription;
     public bool ProductToolsAvailable { get; }
     public string Status { get; private set; } = Text.Resolve("agentPermissionsLoading");

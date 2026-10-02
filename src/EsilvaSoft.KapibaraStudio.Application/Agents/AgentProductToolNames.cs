@@ -42,12 +42,15 @@ public static class AgentProductToolNames
 
     /// <summary>Product read tools in a stable order.</summary>
     public static IReadOnlyList<string> ReadTools { get; } =
-        [ListConnections, ListDatabases, ListCollections, GetIndexes, GetCachedSchema, GetWorkspaceContext,
+        [ListConnections, ListDatabases, ListCollections, GetIndexes, GetCollectionSchema, GetCachedSchema, GetWorkspaceContext,
             MongoFind, MongoCount, SampleDocuments, MongoFindOne, GetDocument, MongoDistinct, MongoExplain];
 
-    /// <summary>Document-value query tools are exposed only to Copilot with a separate data-sending opt-in.</summary>
-    public static bool IsCopilotDocumentRead(string toolName) => toolName is
+    /// <summary>MongoDB document-value query tools require provider-specific exposure and separate data-sending consent.</summary>
+    public static bool IsMongoDocumentRead(string toolName) => toolName is
         MongoFind or MongoCount or SampleDocuments or MongoFindOne or GetDocument or MongoDistinct or MongoExplain;
+
+    /// <summary>Compatibility name retained for existing Copilot policy and regression tests.</summary>
+    public static bool IsCopilotDocumentRead(string toolName) => IsMongoDocumentRead(toolName);
 
     /// <summary>Provider-native file read tools (Claude Code), in a stable order.</summary>
     public static IReadOnlyList<string> NativeFileReadTools { get; } = [NativeRead, NativeGlob, NativeGrep];
@@ -59,8 +62,8 @@ public static class AgentProductToolNames
     /// <summary>Confirmation category of a product tool; <see cref="AgentConfirmationCategories.None"/> for unknown names.</summary>
     public static AgentConfirmationCategories CategoryOf(string toolName) => toolName switch
     {
-        var name when IsCopilotDocumentRead(name) => AgentConfirmationCategories.MongoDocumentRead,
-        ListConnections or ListDatabases or ListCollections or GetIndexes or GetCachedSchema =>
+        var name when IsMongoDocumentRead(name) => AgentConfirmationCategories.MongoDocumentRead,
+        ListConnections or ListDatabases or ListCollections or GetIndexes or GetCollectionSchema or GetCachedSchema =>
             AgentConfirmationCategories.MongoMetadataRead,
         GetWorkspaceContext => AgentConfirmationCategories.WorkspaceContextRead,
         ProposeFileEdit => AgentConfirmationCategories.EditProposal,

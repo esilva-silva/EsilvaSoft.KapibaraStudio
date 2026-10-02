@@ -13,6 +13,7 @@ public static class ClaudeCodeErrorCodes
     public const string NonSubscriptionAuthentication = "ClaudeCodeNonSubscriptionAuth";
     public const string BlockedEnvironment = "ClaudeCodeBlockedEnvironment";
     public const string AuthStatusUnavailable = "ClaudeCodeAuthStatusUnavailable";
+    public const string AuthenticationChanged = "ClaudeCodeAuthenticationChanged";
     public const string StartFailed = "ClaudeCodeStartFailed";
     public const string InitMismatch = "ClaudeCodeInitMismatch";
     public const string ToolOutsideAllowlist = "ClaudeCodeToolOutsideAllowlist";
@@ -64,7 +65,7 @@ public static class ClaudeCodeErrorCodes
     public static IReadOnlyList<string> TurnErrorCodes { get; } =
     [
         EmptyMessage, InputTooLarge, ExecutableUnavailable, NotLoggedIn, NonSubscriptionAuthentication, BlockedEnvironment,
-        AuthStatusUnavailable, StartFailed, InitMismatch, ToolOutsideAllowlist, ProtocolViolation, OutputLimitExceeded,
+        AuthStatusUnavailable, AuthenticationChanged, StartFailed, InitMismatch, ToolOutsideAllowlist, ProtocolViolation, OutputLimitExceeded,
         StreamIncomplete, ProcessFailed, SessionNotFound, MaxTurnsReached, AuthenticationFailed, RateLimited,
         ProviderUnavailable, RequestRejected, ExecutionError, TurnTimeout, ProviderFailure, TurnPlanMissing, TurnBlocked,
         TurnPlanInvalid, SystemPromptInvalid, ProductToolsUnavailable,
@@ -87,6 +88,7 @@ public enum ClaudeCodeUnavailableReason
     BlockedEnvironment,
     AuthStatusUnreadable,
     ModelNotAllowed,
+    ModelUnavailableForSubscription,
     NoModelSelected,
 }
 
@@ -106,11 +108,13 @@ public sealed class ClaudeCodeUnavailableException(ClaudeCodeUnavailableReason r
         ClaudeCodeUnavailableReason.ProbeTimedOut => "Claude (assinatura) indisponível: o Claude Code não respondeu a tempo.",
         ClaudeCodeUnavailableReason.NotLoggedIn => "Claude (assinatura) indisponível: entre pelo Claude Code.",
         ClaudeCodeUnavailableReason.NonSubscriptionAuthentication =>
-            "Claude (assinatura) bloqueado: o Claude Code está usando outro método de autenticação (API Key, token ou nuvem), com cobrança diferente.",
+            "Claude Code bloqueado: o método de autenticação informado não pôde ser classificado.",
         ClaudeCodeUnavailableReason.BlockedEnvironment =>
             "Claude (assinatura) bloqueado: há variável de ambiente que muda a autenticação ou o destino do Claude Code.",
         ClaudeCodeUnavailableReason.AuthStatusUnreadable => "Claude (assinatura) indisponível: o estado de login do Claude Code não pôde ser lido.",
         ClaudeCodeUnavailableReason.ModelNotAllowed => "Claude (assinatura) indisponível: o modelo escolhido não está permitido.",
+        ClaudeCodeUnavailableReason.ModelUnavailableForSubscription =>
+            "Claude (assinatura) não conseguiu usar este modelo. Atualize o Claude Code ou escolha outro modelo da lista permitida.",
         ClaudeCodeUnavailableReason.NoModelSelected => "Claude (assinatura) indisponível: nenhum modelo selecionado.",
         ClaudeCodeUnavailableReason.InvalidConfiguration => "Claude (assinatura) indisponível: configuração inválida.",
         _ => "Claude (assinatura) indisponível.",

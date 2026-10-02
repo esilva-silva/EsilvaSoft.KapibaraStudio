@@ -139,12 +139,12 @@ internal sealed class MutableAgentCatalog(params AgentProviderPresentation[] pro
         return Task.CompletedTask;
     }
 
-    /// <summary>"Claude (assinatura)"-like entry: CLI-delegated, external, family label "Claude".</summary>
+    /// <summary>Claude Code entry: CLI-delegated and external.</summary>
     public static AgentProviderPresentation Subscription(bool available = true, AgentProviderAuthState auth = AgentProviderAuthState.Configured,
         string? reason = null) =>
-        new(FakeCliAccountManager.ProviderId, "Claude (assinatura)", AgentDataDestinationKind.External, available,
+        new(FakeCliAccountManager.ProviderId, "Claude Code (CLI oficial)", AgentDataDestinationKind.External, available,
             available ? ["sonnet", "opus", "haiku"] : [], [AgentAuthenticationMethod.OfficialCliDelegated], auth,
-            UnavailableReason: available ? null : reason, FamilyName: "Claude");
+            UnavailableReason: available ? null : reason, FamilyName: "Claude Code");
 
     /// <summary>"Claude (Anthropic API)"-like entry: API key, same family label.</summary>
     public static AgentProviderPresentation Api(AgentProviderAuthState auth = AgentProviderAuthState.Configured) =>

@@ -186,14 +186,15 @@ public static class AgentModePolicy
 
     private static bool IsReadToolPermitted(string tool, AgentProviderPermissions permissions) => tool switch
     {
-        // Copilot has no dedicated local UI for approving a live schema sample. Keep this tool out of its plan;
-        // get_cached_schema is the separately consented, local-cache-only alternative.
+        // Live schema sampling needs a scoped local approval bound to connection, namespace, sample size and policy
+        // revision. The permission panel does not yet capture that consent, so keep it out of every provider plan.
         AgentProductToolNames.GetCollectionSchema =>
-            permissions.ProviderId != AgentProviderIds.GitHubCopilotSubscription,
+            false,
         AgentProductToolNames.GetCachedSchema => permissions.DataSending.InferredSchema,
         AgentProductToolNames.GetWorkspaceContext => permissions.DataSending.TabMetadata,
-        var name when AgentProductToolNames.IsCopilotDocumentRead(name) =>
-                permissions.ProviderId == AgentProviderIds.GitHubCopilotSubscription && permissions.DataSending.MongoDocuments,
+        var name when AgentProductToolNames.IsMongoDocumentRead(name) =>
+            (permissions.ProviderId == AgentProviderIds.GitHubCopilotSubscription ||
+             permissions.ProviderId == AgentProviderIds.ClaudeCodeSubscription) && permissions.DataSending.MongoDocuments,
         _ => true,
     };
 }

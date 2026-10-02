@@ -8,8 +8,9 @@ using EsilvaSoft.KapibaraStudio.Desktop.Agents;
 using EsilvaSoft.KapibaraStudio.Desktop.ViewModels;
 using EsilvaSoft.KapibaraStudio.Infrastructure;
 using EsilvaSoft.KapibaraStudio.Infrastructure.Agents;
-using EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Anthropic;
+#if ENABLE_CLAUDE_CODE_PANEL
 using EsilvaSoft.KapibaraStudio.Infrastructure.Agents.ClaudeCode;
+#endif
 using EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Codex;
 using EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Copilot;
 using EsilvaSoft.KapibaraStudio.Infrastructure.Agents.OpenAi;
@@ -22,9 +23,15 @@ namespace EsilvaSoft.KapibaraStudio.Desktop;
 
 public partial class App : Avalonia.Application
 {
+#if ENABLE_CLAUDE_CODE_PANEL
+    public static bool IsClaudeCodeIntegrationEnabled => true;
+#else
+    public static bool IsClaudeCodeIntegrationEnabled => false;
+#endif
+
     /// <summary>
-    /// Opaque OS-vault slot of the user's Claude API key (P7-L06-HOST). Like the OpenAI default slot, it contains no
-    /// credential material; per-account references persisted by the LiteDB owner remain a pending contract.
+    /// Legacy opaque OS-vault slot from the former direct Anthropic API provider. Retained so previously stored
+    /// credentials are not deleted or reassigned; the Claude panel no longer reads or writes this slot.
     /// </summary>
     public static SecretReference ClaudeApiKeySlot { get; } = new(Guid.ParseExact("c3a1d0e6b7f24f0e9a5c8d21e4b7f613", "N"));
 
@@ -81,8 +88,9 @@ public partial class App : Avalonia.Application
         ArgumentNullException.ThrowIfNull(workspacePaths);
         services.TryAddSingleton<IExternalUriLauncher, LocalExternalUriLauncher>();
         services.AddKapibaraStudioOpenAiAgentProvider();
-        services.AddKapibaraStudioClaudeAgentProvider(new ClaudeAgentProviderOptions { ApiKeyReference = ClaudeApiKeySlot });
-        // "Claude (assinatura)": the user's own Claude Code binary (ADR-053), a separate provider from the API mode above.
+#if ENABLE_CLAUDE_CODE_PANEL
+        // All Claude panel traffic uses the user's own official Claude Code binary (ADR-053). Its built-in
+        // authentication methods and billing are managed by Claude Code; this composition never reads the legacy key.
         // Lazy: nothing is located, started or authenticated until the user checks the status or opens a session.
         // No WorkspaceDirectory delegate: the provider never reads UI state later; the folder arrives only as the
         // per-session snapshot in AgentSessionOptions.WorkingDirectory (null = dedicated folder, reads ask approval).
@@ -95,33 +103,41 @@ public partial class App : Avalonia.Application
                 DebugLogDirectory = debugLogDirectory,
             },
             static provider => provider.GetService<IAgentMcpChannelProvisioner>());
+#endif
         services.AddKapibaraStudioCodexSubscriptionAgentProvider(new CodexSubscriptionAgentProviderOptions(
             Path.Combine(Path.GetDirectoryName(workspacePaths.GetDatabasePath())!, "codex-subscription")));
         // Copilot shares the official CLI account and its explicitly refreshed eligible-model catalog.
         services.AddKapibaraStudioCopilotSubscriptionAgentProvider();
         // Production, provider-neutral view for the chat UI (AC-04/AC-09): built only from the shared
         // AgentProviderCatalog/capabilities, with no branch by provider brand.
-        // The family map is display data only (mode chip "Claude · assinatura" / "Claude · API"); nothing branches on it.
+        // The family map is display data only; nothing branches on provider brand.
         services.AddSingleton<IAgentProviderCatalog>(
             provider => new DesktopAgentProviderCatalog(provider.GetRequiredService<AgentProviderCatalog>(),
                 new Dictionary<string, string>(StringComparer.Ordinal)
                 {
                     [OpenAiAgentProvider.Id] = "OpenAI",
-                    [ClaudeAgentProvider.Id] = "Claude",
+#if ENABLE_CLAUDE_CODE_PANEL
                     [ClaudeCodeAgentProvider.Id] = "Claude",
+#endif
                     ["codex-subscription"] = "OpenAI",
                     [CopilotSubscriptionAgentProvider.Id] = "GitHub Copilot",
                 },
                 new HashSet<string>(StringComparer.Ordinal) { "codex-subscription" }));
         // Official account handlers declare policy and operations individually. The dispatcher is provider-neutral;
         // startup, Testar conexão and retry share it without a brand switch or a second authentication flow.
+#if ENABLE_CLAUDE_CODE_PANEL
         services.AddSingleton<ClaudeCodeAccountHandler>();
+#endif
         services.AddSingleton<CopilotAccountHandler>();
         services.AddSingleton<CodexAccountHandler>();
+#if ENABLE_CLAUDE_CODE_PANEL
         services.AddSingleton<IAgentAccountHandler>(provider => provider.GetRequiredService<ClaudeCodeAccountHandler>());
+#endif
         services.AddSingleton<IAgentAccountHandler>(provider => provider.GetRequiredService<CopilotAccountHandler>());
         services.AddSingleton<IAgentAccountHandler>(provider => provider.GetRequiredService<CodexAccountHandler>());
+#if ENABLE_CLAUDE_CODE_PANEL
         services.AddSingleton<IAgentCliAccountPresentationHandler>(provider => provider.GetRequiredService<ClaudeCodeAccountHandler>());
+#endif
         services.AddSingleton<IAgentCliAccountPresentationHandler>(provider => provider.GetRequiredService<CopilotAccountHandler>());
         services.AddSingleton<IAgentCliAccountPresentationHandler>(provider => provider.GetRequiredService<CodexAccountHandler>());
         services.AddSingleton<DesktopAgentAccountManager>();
@@ -134,7 +150,6 @@ public partial class App : Avalonia.Application
             new Dictionary<string, SecretReference>(StringComparer.Ordinal)
             {
                 [OpenAiAgentProvider.Id] = OpenAiAgentProviderOptions.DefaultCredentialReference,
-                [ClaudeAgentProvider.Id] = ClaudeApiKeySlot,
             }));
         services.AddSingleton<DesktopAgentWorkspaceContextSource>();
         services.AddSingleton<IAgentWorkspaceContextSource>(provider => provider.GetRequiredService<DesktopAgentWorkspaceContextSource>());

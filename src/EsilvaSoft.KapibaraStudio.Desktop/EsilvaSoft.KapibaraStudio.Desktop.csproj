@@ -4,7 +4,15 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets/kapibara-studio.ico</ApplicationIcon>
     <RuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64</RuntimeIdentifiers>
+    <!-- Claude Code is a development-only panel until its product terms are approved. Release must omit it. -->
+    <EnableClaudeCodeIntegration Condition="'$(EnableClaudeCodeIntegration)' == '' and '$(Configuration)' == 'Release'">false</EnableClaudeCodeIntegration>
+    <EnableClaudeCodeIntegration Condition="'$(EnableClaudeCodeIntegration)' == ''">true</EnableClaudeCodeIntegration>
+    <DefineConstants Condition="'$(EnableClaudeCodeIntegration)' == 'true'">$(DefineConstants);ENABLE_CLAUDE_CODE_PANEL</DefineConstants>
   </PropertyGroup>
+  <Target Name="ValidateClaudeCodeReleaseConfiguration" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(Configuration)' == 'Release' and '$(EnableClaudeCodeIntegration)' == 'true'"
+           Text="Claude Code panel integration must stay disabled in Release until commercial approval is documented." />
+  </Target>
   <ItemGroup>
     <InternalsVisibleTo Include="EsilvaSoft.KapibaraStudio.UnitTests" />
     <InternalsVisibleTo Include="EsilvaSoft.KapibaraStudio.IntegrationTests" />
@@ -32,22 +40,20 @@
     <AvaloniaResource Include="Assets/**/*.png" />
     <AvaloniaResource Include="Assets/*.ico" />
   </ItemGroup>
-  <!-- P7-CLP-3 (ADR-056): the per-session MCP proxy of the Claude Code provider is launched from "mcp/" next to the
-       app. It is built/published by its own project into a subfolder (no ProjectReference: its MCP package stays out of
-       the Desktop dependency graph and lock files, and its assemblies never overwrite the app's). When the Desktop was
-       restored alone (release job), the proxy is restored here in locked mode, RID-less like the Desktop itself; its
-       lock files carry the RID sections (RuntimeIdentifiers in the proxy project). -->
+  <!-- P7-CLP-3 (ADR-056): development builds launch Claude Code's per-session MCP proxy from "mcp/" beside the app.
+       It is copied/published from its own project (no ProjectReference). Release deliberately skips these targets until
+       Claude Code product approval is complete. When the Desktop is restored alone, the proxy is restored in locked mode. -->
   <PropertyGroup>
     <_McpServerProject>$(MSBuildThisFileDirectory)../EsilvaSoft.KapibaraStudio.McpServer/EsilvaSoft.KapibaraStudio.McpServer.csproj</_McpServerProject>
     <_McpServerRidProperties>RuntimeIdentifier;SelfContained;PublishSingleFile;IncludeNativeLibrariesForSelfExtract;PublishDir;_CommandLineDefinedOutputPath;PublishReadyToRun;PublishTrimmed</_McpServerRidProperties>
   </PropertyGroup>
-  <Target Name="RestoreMcpServerProxy" Condition="!Exists('$(MSBuildThisFileDirectory)../EsilvaSoft.KapibaraStudio.McpServer/obj/project.assets.json')">
+  <Target Name="RestoreMcpServerProxy" Condition="'$(EnableClaudeCodeIntegration)' == 'true' and !Exists('$(MSBuildThisFileDirectory)../EsilvaSoft.KapibaraStudio.McpServer/obj/project.assets.json')">
     <MSBuild Projects="$(_McpServerProject)" Targets="Restore"
              Properties="MSBuildRestoreSessionId=$([System.Guid]::NewGuid());RestoreLockedMode=true"
              RemoveProperties="$(_McpServerRidProperties)" />
   </Target>
   <Target Name="CopyMcpServerProxy" AfterTargets="Build" DependsOnTargets="RestoreMcpServerProxy"
-          Condition="'$(DesignTimeBuild)' != 'true'">
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(EnableClaudeCodeIntegration)' == 'true'">
     <MSBuild Projects="$(_McpServerProject)" Targets="Build" BuildInParallel="$(BuildInParallel)"
              RemoveProperties="$(_McpServerRidProperties)">
       <Output TaskParameter="TargetOutputs" ItemName="_McpServerTargetPath" />
@@ -64,7 +70,7 @@
   <!-- Publish: the proxy goes to <PublishDir>/mcp for the same RID and self-contained mode as the Desktop (it must run
        on a machine without a shared .NET runtime). Single-file/native-extraction settings of the release flow through. -->
   <Target Name="PublishMcpServerProxy" AfterTargets="Publish" DependsOnTargets="RestoreMcpServerProxy"
-          Condition="'$(DesignTimeBuild)' != 'true'">
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(EnableClaudeCodeIntegration)' == 'true'">
     <PropertyGroup>
       <_McpServerPublishDir>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(PublishDir)', 'mcp'))</_McpServerPublishDir>
     </PropertyGroup>

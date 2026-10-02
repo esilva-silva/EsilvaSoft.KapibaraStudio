@@ -30,7 +30,8 @@ public sealed class ClaudeCodeMcpSessionTests
             TabId: "tab-1", DocumentVersion: 1, BufferText: "unsaved-buffer"),
     };
 
-    private static async Task<ClaudeCodeAgentSession> SessionAsync(MemoryClaudeCodeSystem system, IAgentMcpChannelProvisioner? mcp)
+    private static async Task<ClaudeCodeAgentSession> SessionAsync(
+        MemoryClaudeCodeSystem system, IAgentMcpChannelProvisioner? mcp, bool persistProviderSession = true)
     {
         var provider = new ClaudeCodeAgentProvider(new ClaudeCodeAgentProviderOptions
         {
@@ -40,7 +41,11 @@ public sealed class ClaudeCodeMcpSessionTests
             DefaultModel = "haiku",
         }, system, mcp);
         return (ClaudeCodeAgentSession)await provider.CreateSessionAsync(
-            new AgentSessionOptions(ClaudeCodeAgentProvider.Id) { ConversationId = Conversation }, CancellationToken.None);
+            new AgentSessionOptions(ClaudeCodeAgentProvider.Id)
+            {
+                ConversationId = Conversation,
+                PersistProviderSession = persistProviderSession,
+            }, CancellationToken.None);
     }
 
     private static async Task<List<AgentProviderEvent>> RunAsync(ClaudeCodeAgentSession session, AgentTurnRequest? request = null)
@@ -137,6 +142,101 @@ public sealed class ClaudeCodeMcpSessionTests
         Assert.That(mcp.Closed, Is.EqualTo(new[] { mcp.Handle }), "Descarte idempotente revoga o canal uma vez.");
         Assert.That(session.McpChannel, Is.Null);
         Assert.That(mcp.CloseTokens.All(token => !token.CanBeCanceled), Is.True, "Revogação não herda o cancelamento do turno.");
+    }
+
+    [Test]
+    public async Task LocalHistoryOptOutKeepsClaudeOfficialTranscriptAndResumeBehavior()
+    {
+        var system = new MemoryClaudeCodeSystem();
+        await using var session = await SessionAsync(system, null, persistProviderSession: false);
+
+        var first = await RunAsync(session, Request(productTools: false));
+        var second = await RunAsync(session, Request(productTools: false));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(first.Concat(second).Any(item => item.Kind == AgentEventKind.AgentError), Is.False);
+            Assert.That(system.Processes, Has.Count.EqualTo(2));
+            Assert.That(system.Processes[0].Arguments, Does.Contain("--session-id"));
+            Assert.That(system.Processes[1].Arguments, Does.Contain("--resume"));
+            Assert.That(system.Processes.SelectMany(process => process.Arguments),
+                Does.Not.Contain("--no-session-persistence"),
+                "KeepHistory=false desativa o histórico local do produto; a transcrição oficial Claude continua ativa.");
+        });
+    }
+
+    [Test]
+    public async Task CompleteProductToolPlanKeepsNativeAllowlistAndRoutesConfirmedCallsThroughApproval()
+    {
+        var productTools = AgentProductToolNames.ReadTools
+            .Append(AgentProductToolNames.ProposeFileEdit)
+            .ToArray();
+        var system = new MemoryClaudeCodeSystem { ProductTools = productTools };
+        var mcp = new MemoryChannelProvisioner();
+        var permissions = Permissions with
+        {
+            EnabledReadTools = AgentProductToolNames.ReadTools,
+            DataSending = new AgentDataSendingPermissions
+            {
+                InferredSchema = true,
+                MongoDocuments = true,
+            },
+            NativeCommandExecution = true,
+            NativeNetwork = true,
+        };
+        var nativeTools = ClaudeCodeAgentProviderOptions.NativeToolAllowlist;
+        var nativeAskRules = new[] { "Bash", "WebSearch", "WebFetch" };
+        var confirmations = productTools.Aggregate(
+            AgentConfirmationCategories.NativeCommand | AgentConfirmationCategories.NativeNetwork,
+            static (categories, tool) => categories | AgentProductToolNames.CategoryOf(tool));
+        var plan = new AgentTurnPlan(AgentOperationMode.Agent, nativeTools, nativeAskRules, [], productTools,
+            AgentProposalHandling.ReviewRequired, true, confirmations);
+        var request = Request() with { Plan = plan, Permissions = permissions };
+        await using var session = await SessionAsync(system, mcp);
+
+        var events = await RunAsync(session, request);
+
+        var arguments = system.Processes.Single().Arguments;
+        var settingsIndex = Array.IndexOf(arguments, "--settings");
+        using var settings = JsonDocument.Parse(arguments[settingsIndex + 1]);
+        var permissionRules = settings.RootElement.GetProperty("permissions");
+        var askRules = permissionRules.GetProperty("ask").EnumerateArray().Select(item => item.GetString()).ToArray();
+        var nativeIndex = Array.IndexOf(arguments, "--tools");
+        Assert.Multiple(() =>
+        {
+            Assert.That(events.Any(item => item.Kind == AgentEventKind.AgentError), Is.False);
+            Assert.That(arguments[nativeIndex + 1].Split(','), Is.EqualTo(nativeTools),
+                "O Claude recebe somente a allowlist nativa configurada.");
+            Assert.That(arguments, Does.Contain("--permission-prompt-tool"));
+            Assert.That(arguments[Array.IndexOf(arguments, "--permission-prompt-tool") + 1],
+                Is.EqualTo(ClaudeCodeCommandLine.PermissionPromptToolName));
+            Assert.That(askRules, Does.Contain("Bash").And.Contain("WebSearch").And.Contain("WebFetch"));
+            Assert.That(askRules, Does.Contain(McpServerLaunchSpec.ToolName(AgentToolRegistry.ListConnectionsToolName)));
+            Assert.That(askRules, Does.Contain(McpServerLaunchSpec.ToolName(AgentProductToolNames.ProposeFileEdit)));
+            Assert.That(mcp.Updates.Single().Plan.ProductTools, Is.EqualTo(productTools));
+        });
+    }
+
+    [TestCase("mongo_insert")]
+    [TestCase("approve")]
+    public async Task UnregisteredOrApprovalProductNamesAreRejectedBeforeStartingTheProcess(string toolName)
+    {
+        var system = new MemoryClaudeCodeSystem();
+        var mcp = new MemoryChannelProvisioner();
+        var plan = new AgentTurnPlan(AgentOperationMode.Agent, [], [], [], [toolName],
+            AgentProposalHandling.Disabled, true, AgentConfirmationCategories.MongoMetadataRead);
+        var request = Request() with { Plan = plan };
+        await using var session = await SessionAsync(system, mcp);
+
+        var events = await RunAsync(session, request);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(events.Single(item => item.Kind == AgentEventKind.AgentError).Text,
+                Is.EqualTo(ClaudeCodeErrorCodes.TurnPlanInvalid));
+            Assert.That(system.Processes, Is.Empty);
+            Assert.That(mcp.OpenCalls, Is.Zero);
+        });
     }
 
     [TestCase(true)]

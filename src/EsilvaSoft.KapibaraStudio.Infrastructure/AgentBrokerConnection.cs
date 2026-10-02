@@ -255,8 +255,10 @@ internal sealed class AgentBrokerConnection : IDisposable
     {
         var scope = _sessionScopes?.FindByChannel(_channelId);
         return scope is null
-            ? [.. _tools.Where(static tool => !AgentToolRegistry.IsSessionTool(tool.Name))]
-            : [.. _tools.Where(tool => scope.Exposes(tool.Name))];
+            ? [.. _tools.Where(tool => !AgentToolRegistry.IsSessionTool(tool.Name) &&
+                _registry.FindDescriptor(tool.Name) is not null)]
+            : [.. _tools.Where(tool => scope.Exposes(tool.Name) &&
+                (scope.ProviderId == AgentProviderIds.ClaudeCodeSubscription || _registry.FindDescriptor(tool.Name) is not null))];
     }
 
     // Ids must increase strictly, so a repeated or replayed request id is a protocol violation, not a new call.

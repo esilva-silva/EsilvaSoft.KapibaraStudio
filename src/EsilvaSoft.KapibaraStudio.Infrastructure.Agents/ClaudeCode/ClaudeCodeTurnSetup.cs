@@ -62,7 +62,7 @@ internal sealed record ClaudeCodeTurnSetup
         }
     }
 
-    public IReadOnlySet<string> OptionalInitTools => RequiresMcpChannel
+    public IReadOnlySet<string> OptionalInitTools => RequiresMcpChannel || NativeTools.Count > 0
         ? new HashSet<string>(RequiresPermissionPromptTool
             ? [ClaudeCodeCommandLine.PermissionPromptToolName, "EndConversation"]
             : ["EndConversation"], StringComparer.Ordinal)

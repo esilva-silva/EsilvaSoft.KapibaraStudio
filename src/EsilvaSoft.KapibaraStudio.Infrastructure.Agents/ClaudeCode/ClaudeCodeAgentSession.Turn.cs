@@ -148,9 +148,10 @@ internal sealed partial class ClaudeCodeAgentSession
 
     private ClaudeCodeStreamTranslator NewTranslator(TurnContext turn, ClaudeCodeTurnSetup setup) =>
 #if DEBUG
-        new(turn.CliSessionId, _options.MinimumVersion, _profile.Model, setup, _provider.System, _options.DebugLogDirectory);
+        new(turn.CliSessionId, _options.MinimumVersion, _profile.Model, setup, _provider.System, _options.DebugLogDirectory,
+            effectiveAuthentication: _profile.EffectiveAuthentication);
 #else
-        new(turn.CliSessionId, _options.MinimumVersion, _profile.Model, setup);
+        new(turn.CliSessionId, _options.MinimumVersion, _profile.Model, setup, effectiveAuthentication: _profile.EffectiveAuthentication);
 #endif
 
     /// <summary>Validação sem processo: plano, prompt de sistema, mensagem e tamanho (mensagem + contexto + anexos).</summary>
@@ -385,6 +386,14 @@ internal sealed partial class ClaudeCodeAgentSession
             // Associado antes de escrever: um cancelamento concorrente encerra a árvore sem esperar o stdin.
             turn.Attach(process);
             turn.WorkToken.ThrowIfCancellationRequested();
+            // O provisionamento MCP e a criação do filho podem ter levado tempo. Revalidar imediatamente antes do
+            // stdin evita enviar sob um método que mudou depois da primeira consulta, sem tocar na credencial.
+            var authenticationError = await _provider.CheckTurnPreconditionsAsync(turnProfile, turn.WorkToken).ConfigureAwait(false);
+            if (authenticationError is not null)
+            {
+                process.KillTree();
+                return (authenticationError, false, 0, process.ExitCode);
+            }
             turn.PromptSent = true;
             try
             {

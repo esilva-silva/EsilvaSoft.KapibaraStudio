@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace EsilvaSoft.KapibaraStudio.Infrastructure.Agents.ClaudeCode;
 
-/// <summary>Método efetivo de autenticação observado. Só <see cref="Subscription"/> libera o modo assinatura.</summary>
+/// <summary>Método efetivo de autenticação observado na CLI oficial, que controla a credencial e a cobrança.</summary>
 public enum ClaudeCodeAuthKind
 {
     /// <summary>Conta claude.ai com assinatura, sem chave de API em uso.</summary>
@@ -46,9 +46,36 @@ public sealed record ClaudeCodeAuthStatus(
 {
     public bool IsSubscription => Kind == ClaudeCodeAuthKind.Subscription;
 
+    /// <summary>Somente nomes conhecidos de variáveis de autenticação presentes; nunca seus valores.</summary>
+    public string CredentialEnvironment { get; init; } = string.Empty;
+
+    internal static string CaptureCredentialEnvironment(Func<string, bool> isSet) =>
+        string.Join(',', CredentialEnvironmentVariables.Where(isSet));
+
+    private static readonly string[] CredentialEnvironmentVariables =
+    [
+        "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN",
+        "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX", "CLAUDE_CODE_USE_FOUNDRY",
+        "ANTHROPIC_PROFILE", "ANTHROPIC_FEDERATION_RULE_ID", "ANTHROPIC_ORGANIZATION_ID",
+    ];
+
+    private static readonly string[] AuthenticationFields = ["authMethod", "apiProvider", "apiKeySource", "subscriptionType"];
+
+    /// <summary>CLI reports an authenticated native method; the product does not choose or emulate its billing mode.</summary>
+    public bool IsAuthenticated => Kind is not (ClaudeCodeAuthKind.NotLoggedIn or ClaudeCodeAuthKind.BlockedEnvironment or ClaudeCodeAuthKind.Unreadable);
+
+    /// <summary>Opaque, allowlisted effective auth identity for a session; never contains secret material.</summary>
+    public bool SameEffectiveAuthentication(ClaudeCodeAuthStatus? other) => other is not null &&
+        Kind == other.Kind &&
+        string.Equals(AuthMethod, other.AuthMethod, StringComparison.Ordinal) &&
+        string.Equals(ApiProvider, other.ApiProvider, StringComparison.Ordinal) &&
+        string.Equals(ApiKeySource, other.ApiKeySource, StringComparison.Ordinal) &&
+        string.Equals(SubscriptionType, other.SubscriptionType, StringComparison.Ordinal) &&
+        string.Equals(CredentialEnvironment, other.CredentialEnvironment, StringComparison.Ordinal);
+
     /// <summary>
-    /// Variáveis bloqueadas por NOME (o app não as remove, não injeta nem lê o valor; presença com valor vazio conta):
-    /// cobrança/credencial (precedência documentada em Authentication), destino e transporte (endpoint, cabeçalhos,
+    /// Variáveis bloqueadas por NOME (o app não as remove, injeta nem lê o valor; presença com valor vazio conta):
+    /// destino e transporte (endpoint, cabeçalhos,
     /// proxy, CAs/TLS do runtime Node), troca silenciosa de modelo, diretório de configuração alternativo e sessão
     /// Claude Code hospedeira (risco R-CL-02). <c>http_proxy</c>/<c>https_proxy</c> minúsculas contam no Linux.
     /// Limitação registrada: o bloco <c>env</c> do <c>~/.claude/settings.json</c> do usuário (fonte <c>user</c>) não é
@@ -59,12 +86,6 @@ public sealed record ClaudeCodeAuthStatus(
     /// </summary>
     public static IReadOnlyList<string> BlockingEnvironmentVariables { get; } =
     [
-        "ANTHROPIC_API_KEY",
-        "ANTHROPIC_AUTH_TOKEN",
-        "CLAUDE_CODE_OAUTH_TOKEN",
-        "CLAUDE_CODE_USE_BEDROCK",
-        "CLAUDE_CODE_USE_VERTEX",
-        "CLAUDE_CODE_USE_FOUNDRY",
         "ANTHROPIC_BASE_URL",
         "ANTHROPIC_CUSTOM_HEADERS",
         "ANTHROPIC_MODEL",
@@ -93,9 +114,8 @@ public sealed record ClaudeCodeAuthStatus(
     internal static bool IsPresent(string? value) => value is not null;
 
     /// <summary>
-    /// Classifica a saída JSON. Regra (spike P7-CL0-01): assinatura somente se <c>loggedIn</c> e
-    /// <c>authMethod == "claude.ai"</c> e <c>apiKeySource</c> ausente e <c>subscriptionType</c> não nulo;
-    /// <c>authMethod</c> sozinho não distingue (continua <c>claude.ai</c> com <c>ANTHROPIC_API_KEY</c>).
+    /// Classifica apenas os campos allowlistados de status. Todos os métodos suportados pela CLI oficial são delegados;
+    /// o painel não infere tier nem substitui a decisão de autenticação/cobrança do processo.
     /// </summary>
     public static ClaudeCodeAuthStatus Parse(string? output)
     {
@@ -120,11 +140,21 @@ public sealed record ClaudeCodeAuthStatus(
             var apiKeySource = root.TryGetProperty("apiKeySource", out var source) && source.ValueKind != JsonValueKind.Null
                 ? SafeToken(root, "apiKeySource") ?? "unknown"
                 : null;
+            if (string.Equals(apiKeySource, "none", StringComparison.Ordinal)) apiKeySource = null;
             var subscriptionType = SafeToken(root, "subscriptionType");
 
             if (!loggedIn.GetBoolean())
             {
                 return new(ClaudeCodeAuthKind.NotLoggedIn, authMethod, apiProvider);
+            }
+
+            // loggedIn sozinho não identifica o método ou a cobrança. Métodos futuros são delegados quando a CLI
+            // informa um identificador público válido; campos quebrados não podem virar uma autenticação genérica.
+            if (AuthenticationFields.Any(name =>
+                    root.TryGetProperty(name, out var value) && value.ValueKind != JsonValueKind.Null && SafeToken(root, name) is null) ||
+                (authMethod is null && apiKeySource is null && apiProvider is null or "firstParty"))
+            {
+                return new(ClaudeCodeAuthKind.Unreadable);
             }
 
             var kind = Classify(authMethod, apiProvider, apiKeySource, subscriptionType);

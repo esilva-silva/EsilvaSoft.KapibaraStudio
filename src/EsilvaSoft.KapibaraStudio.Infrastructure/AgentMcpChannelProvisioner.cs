@@ -188,7 +188,9 @@ public sealed class AgentMcpChannelProvisioner : IAgentMcpChannelProvisioner, IA
 
             // Narrow first: the scope is the intersection with the grants, so a transient mismatch never widens access.
             _sessions.UpdateTurn(session.PrincipalId, plan, permissions, workspaceContext);
-            var published = _registry.GetChannelDescriptors()
+            var providerId = _sessions.FindByChannel(handle.ChannelId)?.ProviderId;
+            if (providerId is null) return AgentMcpChannelStatus.UnknownSession;
+            var published = _registry.GetSessionChannelDescriptors(providerId)
                 .Where(static descriptor => descriptor.Risk == AgentToolRisk.ReadOnly)
                 .Select(static descriptor => descriptor.Name)
                 .ToHashSet(StringComparer.Ordinal);

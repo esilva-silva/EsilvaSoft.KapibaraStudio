@@ -9,7 +9,6 @@ using EsilvaSoft.KapibaraStudio.Desktop;
 using EsilvaSoft.KapibaraStudio.Desktop.Agents;
 using EsilvaSoft.KapibaraStudio.Desktop.ViewModels;
 using EsilvaSoft.KapibaraStudio.Infrastructure;
-using EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Anthropic;
 using EsilvaSoft.KapibaraStudio.Infrastructure.Agents.ClaudeCode;
 using EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Codex;
 using EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Copilot;
@@ -52,9 +51,12 @@ public sealed class AgentChatHostTests
             services.AddKapibaraStudioLocalAiInfrastructure();
             services.AddSingleton<ISecretStore>(vault);
             App.AddDesktopAgentServices(services, new LocalWorkspacePaths(workspace.Path));
-            // A disponibilidade Claude é controlada pelo adapter em memória, sem CLI/arquivos do usuário.
-            services.Remove(services.Single(static d => d.ServiceType == typeof(ClaudeCodeAgentProvider)));
-            services.AddSingleton(new ClaudeCodeAgentProvider(new ClaudeCodeAgentProviderOptions(), new MissingClaudeCodeSystem()));
+            // Debug substitutes an in-memory Claude adapter; Release must not compose this integration at all.
+            if (App.IsClaudeCodeIntegrationEnabled)
+            {
+                services.Remove(services.Single(static d => d.ServiceType == typeof(ClaudeCodeAgentProvider)));
+                services.AddSingleton(new ClaudeCodeAgentProvider(new ClaudeCodeAgentProviderOptions(), new MissingClaudeCodeSystem()));
+            }
             services.AddSingleton<WorkspaceService>();
             services.AddSingleton<WorkspaceViewModel>();
             await using var provider = services.BuildServiceProvider();
@@ -103,9 +105,15 @@ public sealed class AgentChatHostTests
                 Assert.That(provider.GetRequiredService<IAgentToolRegistry>().GetChannelDescriptors().Select(item => item.Name),
                     Is.SupersetOf(new[] { AgentToolRegistry.GetWorkspaceContextToolName,
                         AgentToolRegistry.ProposeFileEditToolName, AgentToolRegistry.ApproveToolName }));
-                Assert.That(chat.Providers.Select(option => option.ProviderId),
-                    Is.EquivalentTo(new[] { LocalAgentProvider.Id, OpenAiAgentProvider.Id, ClaudeAgentProvider.Id,
-                        ClaudeCodeAgentProvider.Id, CodexSubscriptionAgentProvider.Id, CopilotSubscriptionAgentProvider.Id }));
+                var expectedProviders = new List<string>
+                {
+                    LocalAgentProvider.Id, OpenAiAgentProvider.Id, CodexSubscriptionAgentProvider.Id,
+                    CopilotSubscriptionAgentProvider.Id,
+                };
+                if (App.IsClaudeCodeIntegrationEnabled) expectedProviders.Add(ClaudeCodeAgentProvider.Id);
+                Assert.That(chat.Providers.Select(option => option.ProviderId), Is.EquivalentTo(expectedProviders));
+                Assert.That(chat.Providers.Select(option => option.ProviderId), Does.Not.Contain("claude"),
+                    "O painel Claude não expõe mais o transporte HTTP direto.");
                 Assert.That(chat.Providers.All(option => option.IsNotChecked), Is.True, "Listing is cache-only before a check.");
                 Assert.That(chat.ShowAvailabilityRetry, Is.True);
                 Assert.That(AgentSlotReads(), Is.Zero, "Opening the panel lists without reading the vault.");
@@ -114,33 +122,37 @@ public sealed class AgentChatHostTests
             await chat.RefreshProvidersCommand.ExecuteAsync(null);
             Assert.That(AgentSlotReads(), Is.GreaterThan(0), "The explicit check reads vault presence.");
             var openAi = chat.Providers.Single(option => option.ProviderId == OpenAiAgentProvider.Id);
-            var claude = chat.Providers.Single(option => option.ProviderId == ClaudeAgentProvider.Id);
-            var claudeCode = chat.Providers.Single(option => option.ProviderId == ClaudeCodeAgentProvider.Id);
             Assert.Multiple(() =>
             {
-                Assert.That(claudeCode.Presentation.IsAvailable, Is.False);
-                // BlockedEnvironment when the suite itself runs inside a Claude Code session (CLAUDECODE is checked first).
-                Assert.That(claudeCode.Presentation.UnavailableReason, Is.AnyOf("ExecutableNotFound", "BlockedEnvironment"));
-                Assert.That(claudeCode.RequiresApiKey, Is.False, "Subscription mode never offers an API key (no silent fallback).");
                 Assert.That(openAi.Presentation.AuthState, Is.EqualTo(AgentProviderAuthState.NotConfigured));
-                Assert.That(claude.Presentation.AuthState, Is.EqualTo(AgentProviderAuthState.NotConfigured),
-                    "Claude now has a vault slot in the composition root; without a key it reports the missing key.");
             });
-
-            // Saving a key through the production store lands in the slot the adapter resolves and is not echoed.
-            const string canary = "sk-host-CANARY-5d1c";
-            var settings = chat.CreateSettingsViewModel();
-            settings.SelectedProvider = settings.Providers.Single(option => option.ProviderId == ClaudeAgentProvider.Id);
-            settings.ApiKey = canary;
-            await settings.SaveApiKeyCommand.ExecuteAsync(null);
-            Assert.Multiple(() =>
+            if (App.IsClaudeCodeIntegrationEnabled)
             {
-                Assert.That(vault.Values[App.ClaudeApiKeySlot], Is.EqualTo(canary));
-                Assert.That(settings.ApiKey, Is.Empty);
-                Assert.That(settings.StatusText, Does.Not.Contain(canary));
-                Assert.That(settings.SelectedProvider!.Presentation.AuthState, Is.EqualTo(AgentProviderAuthState.Configured),
-                    "Saving re-checks the status, so the settings reflect the stored key.");
-            });
+                var claudeCode = chat.Providers.Single(option => option.ProviderId == ClaudeCodeAgentProvider.Id);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(claudeCode.Presentation.IsAvailable, Is.False);
+                    // BlockedEnvironment when the suite itself runs inside a Claude Code session (CLAUDECODE is checked first).
+                    Assert.That(claudeCode.Presentation.UnavailableReason, Is.AnyOf("ExecutableNotFound", "BlockedEnvironment"));
+                    Assert.That(claudeCode.RequiresApiKey, Is.False, "A autenticação é configurada pelo Claude Code oficial.");
+                    Assert.That(vault.Values.ContainsKey(App.ClaudeApiKeySlot), Is.False,
+                        "A composição não lê nem apaga a credencial legada do cofre.");
+                });
+                var settings = chat.CreateSettingsViewModel();
+                settings.SelectedProvider = settings.Providers.Single(option => option.ProviderId == ClaudeCodeAgentProvider.Id);
+                Assert.That(settings.SelectedProvider.RequiresApiKey, Is.False,
+                    "Claude Code receives no key from the KapibaraStudio vault.");
+            }
+            else
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(chat.Providers.Select(option => option.ProviderId), Does.Not.Contain(ClaudeCodeAgentProvider.Id));
+                    Assert.That(provider.GetServices<IAgentProvider>().OfType<ClaudeCodeAgentProvider>(), Is.Empty);
+                    Assert.That(provider.GetServices<IAgentAccountHandler>().OfType<App.ClaudeCodeAccountHandler>(), Is.Empty);
+                    Assert.That(provider.GetServices<IAgentCliAccountPresentationHandler>().OfType<App.ClaudeCodeAccountHandler>(), Is.Empty);
+                });
+            }
 
             vm.Dispose();
         });

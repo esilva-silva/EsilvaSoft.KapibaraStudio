@@ -61,6 +61,15 @@ public sealed class AgentPlatformCompositionTests
             Assert.That(registry.GetDescriptors(), Is.Empty, "Providers in-process não recebem grant implícito.");
             Assert.That(registry.GetChannelDescriptors().Select(descriptor => descriptor.Name), Is.SupersetOf(
                 DefaultMetadataTools), "O canal autenticado pode anunciar as tools de metadados liberadas.");
+            var claudeSessionTools = registry.GetSessionChannelDescriptors(AgentProviderIds.ClaudeCodeSubscription)
+                .Select(descriptor => descriptor.Name).ToArray();
+            Assert.That(claudeSessionTools, Does.Contain(AgentToolRegistry.MongoFindToolName),
+                "Claude recebe DerivedReads apenas no canal de sessão, com consentimento/grants ainda obrigatórios.");
+            Assert.That(registry.GetSessionChannelDescriptors(ExternalProviderId).Select(descriptor => descriptor.Name),
+                Does.Not.Contain(AgentToolRegistry.MongoFindToolName),
+                "Outro provider segue limitado ao estágio global.");
+            Assert.That(registry.GetSessionChannelInputSchemaJson(AgentProviderIds.ClaudeCodeSubscription,
+                AgentToolRegistry.MongoFindToolName), Is.Not.Null);
             Assert.That(registry.FindDescriptor(AgentToolRegistry.MongoFindToolName), Is.Null);
             Assert.That(registry.FindInProcessDescriptor(AgentProviderIds.GitHubCopilotSubscription,
                 AgentToolRegistry.MongoFindToolName), Is.Not.Null,
@@ -79,6 +88,8 @@ public sealed class AgentPlatformCompositionTests
             Assert.That(registry.GetChannelDescriptors().Select(descriptor => descriptor.Name),
                 Does.Not.Contain(AgentToolRegistry.MongoFindToolName),
                 "A exposição interna não libera a consulta para o broker externo.");
+            Assert.That(claudeSessionTools.Any(name => AgentToolExposure.WriteReleaseOf(name) != AgentWriteToolRelease.None),
+                Is.False, "Claude recebe apenas ferramentas de leitura.");
             // write:null: no write tool exists at any ingress, per-session tools included.
             Assert.That(registry.GetChannelDescriptors().Select(descriptor => descriptor.Risk), Is.All.EqualTo(AgentToolRisk.ReadOnly));
             Assert.That(registry.FindDescriptor(AgentToolRegistry.InsertOneToolName), Is.Null);

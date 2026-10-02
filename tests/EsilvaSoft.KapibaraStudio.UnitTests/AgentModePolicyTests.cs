@@ -14,7 +14,7 @@ public sealed class AgentModePolicyTests
         ["list_connections", "list_databases", "list_collections", "get_indexes", "get_workspace_context"];
 
     private static AgentProviderPermissions Consented() =>
-        AgentProviderPermissions.Default("claude-code") with { ExternalDestinationConsentAt = DateTimeOffset.UnixEpoch };
+        AgentProviderPermissions.Default("other-provider") with { ExternalDestinationConsentAt = DateTimeOffset.UnixEpoch };
 
     [Test]
     public void DefaultPermissionsHaveNoConsentAndConservativeData()
@@ -34,12 +34,20 @@ public sealed class AgentModePolicyTests
     }
 
     [Test]
-    public void MongoDocumentToolsRequireCopilotOptInAndAreNeverEnabledByDefault()
+    public void MongoDocumentToolsRequireCopilotOrClaudeOptInAndAreNeverEnabledByDefault()
     {
         var tools = AgentProductToolNames.ReadTools.Where(AgentProductToolNames.IsCopilotDocumentRead).ToArray();
         var permissions = Consented() with { EnabledReadTools = tools };
+        var claudeDefault = AgentModePolicy.Plan(AgentOperationMode.Agent,
+            AgentProviderPermissions.Default(AgentProviderIds.ClaudeCodeSubscription) with
+            { ExternalDestinationConsentAt = DateTimeOffset.UnixEpoch }, Windows);
         var denied = AgentModePolicy.Plan(AgentOperationMode.Agent, permissions, Windows);
-        Assert.That(denied.ProductTools.Intersect(tools), Is.Empty);
+        Assert.Multiple(() =>
+        {
+            Assert.That(denied.ProductTools.Intersect(tools), Is.Empty);
+            Assert.That(claudeDefault.ProductTools.Intersect(tools), Is.Empty,
+                "Opt-in MongoDocuments e seleção de ferramenta começam desligados para Claude.");
+        });
 
         var allowed = AgentModePolicy.Plan(AgentOperationMode.Agent,
             permissions with { ProviderId = AgentProviderIds.GitHubCopilotSubscription,
@@ -47,12 +55,20 @@ public sealed class AgentModePolicyTests
         Assert.That(allowed.ProductTools, Is.SupersetOf(tools));
 
         var otherProvider = AgentModePolicy.Plan(AgentOperationMode.Agent,
-            permissions with { DataSending = permissions.DataSending with { MongoDocuments = true } }, Windows);
-        Assert.That(otherProvider.ProductTools.Intersect(tools), Is.Empty, "The new capability is scoped to Copilot.");
+            permissions with { ProviderId = "other-provider", DataSending = permissions.DataSending with { MongoDocuments = true } }, Windows);
+        var claude = AgentModePolicy.Plan(AgentOperationMode.Agent,
+            permissions with { ProviderId = AgentProviderIds.ClaudeCodeSubscription,
+                DataSending = permissions.DataSending with { MongoDocuments = true } }, Windows);
+        Assert.Multiple(() =>
+        {
+            Assert.That(otherProvider.ProductTools.Intersect(tools), Is.Empty, "Outros providers não herdam a capacidade.");
+            Assert.That(claude.ProductTools, Is.SupersetOf(tools), "Claude precisa do opt-in persistente de documentos.");
+            Assert.That(claude.ProductTools.Any(name => AgentToolExposure.WriteReleaseOf(name) != AgentWriteToolRelease.None), Is.False);
+        });
     }
 
     [Test]
-    public void CopilotDoesNotPlanLiveCollectionSchemaSamplingWithoutDedicatedConsentUi()
+    public void LiveCollectionSchemaSamplingStaysClosedUntilDedicatedLocalConsentExists()
     {
         var permissions = Consented() with
         {
@@ -61,13 +77,13 @@ public sealed class AgentModePolicyTests
             DataSending = new AgentDataSendingPermissions { InferredSchema = true }
         };
 
-        var plan = AgentModePolicy.Plan(AgentOperationMode.Agent, permissions, Windows);
-
-        Assert.Multiple(() =>
+        foreach (var provider in new[] { AgentProviderIds.GitHubCopilotSubscription, AgentProviderIds.ClaudeCodeSubscription, "other-provider" })
         {
-            Assert.That(plan.ProductTools, Does.Not.Contain(AgentProductToolNames.GetCollectionSchema));
-            Assert.That(plan.ProductTools, Does.Contain(AgentProductToolNames.GetCachedSchema));
-        });
+            var plan = AgentModePolicy.Plan(AgentOperationMode.Agent,
+                permissions with { ProviderId = provider }, Windows);
+            Assert.That(plan.ProductTools, Does.Not.Contain(AgentProductToolNames.GetCollectionSchema), provider);
+            Assert.That(plan.ProductTools, Does.Contain(AgentProductToolNames.GetCachedSchema), provider);
+        }
     }
 
     [TestCase(AgentOperationMode.Agent)]

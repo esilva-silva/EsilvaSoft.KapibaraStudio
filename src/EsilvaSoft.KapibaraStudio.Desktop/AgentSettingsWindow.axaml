@@ -82,7 +82,7 @@
             <TextBlock Grid.Row="1" Text="{local:Loc Key=agentSettingsAuth}" Classes="metadata" />
             <StackPanel Grid.Row="1" Grid.Column="1" Spacing="4">
               <TextBlock x:Name="CliAuthText" Text="{Binding CliAuthText}" FontWeight="SemiBold" TextWrapping="Wrap" Classes.error="{Binding IsCliAuthBlocked}" />
-              <Border x:Name="CliBlockedNotice" Classes="blocked-notice" IsVisible="{Binding HasCliAuthExplanation}">
+              <Border x:Name="CliAuthNotice" Classes="blocked-notice" IsVisible="{Binding HasCliAuthExplanation}">
                 <TextBlock Text="{Binding CliAuthExplanation}" Classes="metadata" Foreground="{DynamicResource PrimaryText}" TextWrapping="Wrap" />
               </Border>
             </StackPanel>

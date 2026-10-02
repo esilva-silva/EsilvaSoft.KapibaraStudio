@@ -5,19 +5,19 @@ using EsilvaSoft.KapibaraStudio.Core.Agents;
 namespace EsilvaSoft.KapibaraStudio.Infrastructure.Agents.ClaudeCode;
 
 /// <summary>
-/// Modo "Claude (assinatura)": conversa com o Claude pelo binário oficial do Claude Code instalado pelo usuário,
+/// Conversa Claude pelo binário oficial do Claude Code instalado pelo usuário,
 /// executado como subprocesso (ADR-053). A autenticação é 100% do processo oficial: o app não lê <c>~/.claude</c>,
-/// arquivos de credencial nem tokens, não usa <c>--bare</c> e nunca cai silenciosamente para API Key — qualquer método
-/// efetivo que não seja a assinatura bloqueia o envio. Cada turno obedece ao <see cref="AgentTurnPlan"/> da
+/// arquivos de credencial nem tokens, e não usa <c>--bare</c>. A CLI oficial controla seus métodos de autenticação e
+/// cobrança. Cada turno obedece ao <see cref="AgentTurnPlan"/> da
 /// <c>AgentModePolicy</c> (ADR-056): ferramentas nativas no máximo Read/Glob/Grep, tools do produto e a ferramenta de
 /// aprovação somente pelo canal MCP local da sessão (<see cref="IAgentMcpChannelProvisioner"/>), mesmo registry.
-/// Separado do provider "Claude (Anthropic API)".
+/// O painel não registra transporte HTTP Anthropic direto.
 /// </summary>
 public sealed class ClaudeCodeAgentProvider : IAgentProvider
 {
     public const string Id = "claude-code";
 
-    public const string DisplayName = "Claude (assinatura)";
+    public const string DisplayName = "Claude Code (CLI oficial)";
 
     private readonly Func<ClaudeCodeAgentProviderOptions> _options;
     internal IClaudeCodeSystem System { get; }
@@ -120,16 +120,21 @@ public sealed class ClaudeCodeAgentProvider : IAgentProvider
             return Unavailable(ClaudeCodeUnavailableReason.InvalidConfiguration, AgentProviderAuthState.Unknown);
         }
 
-        var availability = await CheckAvailabilityAsync(options, null, null, cancellationToken).ConfigureAwait(false);
+        var statusModel = options.DefaultModel ?? options.AllowedModelIds[0];
+        var availability = await CheckAvailabilityAsync(options, statusModel, null, cancellationToken).ConfigureAwait(false);
         if (availability.Reason != ClaudeCodeUnavailableReason.None)
         {
             return Unavailable(availability.Reason, AuthStateOf(availability.Reason));
         }
 
+        // Keep the configured allowlist; the official CLI owns plan-specific model availability and billing rules.
+        var models = options.AllowedModelIds.ToArray();
+        var defaultModel = options.DefaultModel ?? models[0];
+
         return new AgentProviderStatus(true, AgentProviderAuthState.Configured, Capabilities with
         {
-            ModelSelection = options.AllowedModelIds.Count > 1,
-        }, options.AllowedModelIds, options.DefaultModel);
+            ModelSelection = models.Length > 1,
+        }, models, defaultModel);
     }
 
     /// <summary>Detecção do executável nativo e da versão, sem autenticação.</summary>
@@ -200,7 +205,7 @@ public sealed class ClaudeCodeAgentProvider : IAgentProvider
         ArgumentNullException.ThrowIfNull(options);
         if (!string.Equals(options.ProviderId, Id, StringComparison.Ordinal))
         {
-            throw new ArgumentException("A sessão não pertence ao provider Claude (assinatura).", nameof(options));
+            throw new ArgumentException("A sessão não pertence ao provider Claude Code.", nameof(options));
         }
 
         // Snapshot antes de qualquer await: configuração, modelo e workspace ficam fixos para esta sessão. A pasta de
@@ -249,17 +254,17 @@ public sealed class ClaudeCodeAgentProvider : IAgentProvider
         }
 
         var status = await QueryAuthStatusAsync(options, profile, cancellationToken).ConfigureAwait(false);
-        return status.Kind switch
-        {
-            ClaudeCodeAuthKind.Subscription => null,
-            ClaudeCodeAuthKind.NotLoggedIn => ClaudeCodeErrorCodes.NotLoggedIn,
-            ClaudeCodeAuthKind.BlockedEnvironment => ClaudeCodeErrorCodes.BlockedEnvironment,
-            ClaudeCodeAuthKind.Unreadable => ClaudeCodeErrorCodes.AuthStatusUnavailable,
-            _ => ClaudeCodeErrorCodes.NonSubscriptionAuthentication,
-        };
+        if (status.Kind == ClaudeCodeAuthKind.NotLoggedIn) return ClaudeCodeErrorCodes.NotLoggedIn;
+        if (status.Kind == ClaudeCodeAuthKind.BlockedEnvironment) return ClaudeCodeErrorCodes.BlockedEnvironment;
+        if (!status.IsAuthenticated) return ClaudeCodeErrorCodes.AuthStatusUnavailable;
+        return profile.EffectiveAuthentication is { } expected && !expected.SameEffectiveAuthentication(status)
+            ? ClaudeCodeErrorCodes.AuthenticationChanged
+            : null;
     }
 
-    private sealed record Availability(ClaudeCodeUnavailableReason Reason, ClaudeCodeLaunchProfile? Profile = null);
+    private sealed record Availability(
+        ClaudeCodeUnavailableReason Reason,
+        ClaudeCodeLaunchProfile? Profile = null);
 
     /// <summary>Pasta de workspace já capturada para uma sessão; ausente (null) em consultas de estado.</summary>
     private sealed record WorkspaceRequest(string? Directory);
@@ -300,14 +305,10 @@ public sealed class ClaudeCodeAgentProvider : IAgentProvider
         }
 
         var status = await QueryAuthStatusAsync(options, profile, cancellationToken).ConfigureAwait(false);
-        return status.Kind switch
-        {
-            ClaudeCodeAuthKind.Subscription => new(ClaudeCodeUnavailableReason.None, profile),
-            ClaudeCodeAuthKind.NotLoggedIn => new(ClaudeCodeUnavailableReason.NotLoggedIn),
-            ClaudeCodeAuthKind.BlockedEnvironment => new(ClaudeCodeUnavailableReason.BlockedEnvironment),
-            ClaudeCodeAuthKind.Unreadable => new(ClaudeCodeUnavailableReason.AuthStatusUnreadable),
-            _ => new(ClaudeCodeUnavailableReason.NonSubscriptionAuthentication),
-        };
+        if (status.Kind == ClaudeCodeAuthKind.NotLoggedIn) return new(ClaudeCodeUnavailableReason.NotLoggedIn);
+        if (status.Kind == ClaudeCodeAuthKind.BlockedEnvironment) return new(ClaudeCodeUnavailableReason.BlockedEnvironment);
+        if (!status.IsAuthenticated) return new(ClaudeCodeUnavailableReason.AuthStatusUnreadable);
+        return new(ClaudeCodeUnavailableReason.None, profile with { EffectiveAuthentication = status });
     }
 
     private async Task<ClaudeCodeInstallation> DetectAsync(ClaudeCodeAgentProviderOptions options, CancellationToken cancellationToken)
@@ -382,6 +383,8 @@ public sealed class ClaudeCodeAgentProvider : IAgentProvider
     private async Task<ClaudeCodeAuthStatus> QueryAuthStatusAsync(
         ClaudeCodeAgentProviderOptions options, ClaudeCodeLaunchProfile profile, CancellationToken cancellationToken)
     {
+        var credentialEnvironment = ClaudeCodeAuthStatus.CaptureCredentialEnvironment(
+            options.IsEnvironmentVariableSet ?? System.IsEnvironmentVariableSet);
         if (ClaudeCodeAuthStatus.FindBlockingEnvironmentVariable(options.IsEnvironmentVariableSet ?? System.IsEnvironmentVariableSet) is { } variable)
         {
             return new ClaudeCodeAuthStatus(ClaudeCodeAuthKind.BlockedEnvironment, EnvironmentVariableName: variable);
@@ -399,8 +402,21 @@ public sealed class ClaudeCodeAgentProvider : IAgentProvider
             return new ClaudeCodeAuthStatus(ClaudeCodeAuthKind.Unreadable);
         }
 
-        // Exit 1 com loggedIn=false é "não autenticado"; qualquer saída é filtrada pela allowlist de campos.
-        return probe.TimedOut || probe.Overflow ? new ClaudeCodeAuthStatus(ClaudeCodeAuthKind.Unreadable) : ClaudeCodeAuthStatus.Parse(probe.Output);
+        // Só campos públicos e nomes de variáveis: os dois tokens de ambiente podem produzir o mesmo auth status,
+        // apesar de terem cobrança diferente. Não consultar seus valores nem os arquivos de credenciais.
+        var status = probe.TimedOut || probe.Overflow
+            ? new ClaudeCodeAuthStatus(ClaudeCodeAuthKind.Unreadable)
+            : ClaudeCodeAuthStatus.Parse(probe.Output);
+        var currentEnvironment = ClaudeCodeAuthStatus.CaptureCredentialEnvironment(
+            options.IsEnvironmentVariableSet ?? System.IsEnvironmentVariableSet);
+        if (!string.Equals(credentialEnvironment, currentEnvironment, StringComparison.Ordinal))
+            return new ClaudeCodeAuthStatus(ClaudeCodeAuthKind.Unreadable);
+        if (probe.ExitCode != 0 && status.IsAuthenticated)
+            return new ClaudeCodeAuthStatus(ClaudeCodeAuthKind.Unreadable);
+        return status with
+        {
+            CredentialEnvironment = credentialEnvironment,
+        };
     }
 
     private async Task<ClaudeCodeAccountCommandResult> RunAccountCommandAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken)

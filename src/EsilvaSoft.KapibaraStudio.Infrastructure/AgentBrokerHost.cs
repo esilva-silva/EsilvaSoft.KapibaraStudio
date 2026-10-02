@@ -263,6 +263,8 @@ public sealed class AgentBrokerHost : IAsyncDisposable
 
     private static AgentBrokerToolDescriptor[] BuildDescriptors(IAgentToolRegistry registry) =>
         registry.GetChannelDescriptors()
+            .Concat(registry.GetSessionChannelDescriptors(AgentProviderIds.ClaudeCodeSubscription))
+            .DistinctBy(static descriptor => descriptor.Name, StringComparer.Ordinal)
             .Where(descriptor => descriptor.Risk == AgentToolRisk.ReadOnly)
             .Select(descriptor => new AgentBrokerToolDescriptor
             {
@@ -270,8 +272,10 @@ public sealed class AgentBrokerHost : IAsyncDisposable
                 Version = descriptor.Version,
                 ReadOnly = true,
                 Destructive = false,
-                InputSchema = ParseSchema(registry.GetInputSchemaJson(descriptor.Name)),
-                OutputSchema = ParseSchema(registry.GetOutputSchemaJson(descriptor.Name))
+                InputSchema = ParseSchema(registry.GetSessionChannelInputSchemaJson(
+                    AgentProviderIds.ClaudeCodeSubscription, descriptor.Name)),
+                OutputSchema = ParseSchema(registry.GetSessionChannelOutputSchemaJson(
+                    AgentProviderIds.ClaudeCodeSubscription, descriptor.Name))
             })
             .ToArray();
 

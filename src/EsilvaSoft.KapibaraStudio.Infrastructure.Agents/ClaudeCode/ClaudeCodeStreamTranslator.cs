@@ -52,6 +52,7 @@ internal sealed class ClaudeCodeStreamTranslator(
 #if DEBUG
     , IClaudeCodeSystem? system = null, string? debugLogDirectory = null
 #endif
+    , ClaudeCodeAuthStatus? effectiveAuthentication = null
     )
 {
     private readonly IReadOnlySet<string> _expectedTools = setup.ExpectedInitTools;
@@ -188,7 +189,7 @@ internal sealed class ClaudeCodeStreamTranslator(
 
     /// <summary>
     /// Validação do <c>system/init</c> contra o plano do turno: sessão esperada, <c>permissionMode</c> default, nenhuma
-    /// chave de API, <c>tools</c> exatamente nativas do plano ∪ <c>mcp__kapibarastudio__</c>(tools do produto ∪ aprovação
+    /// mudança da fonte de API Key observada, <c>tools</c> exatamente nativas do plano ∪ <c>mcp__kapibarastudio__</c>(tools do produto ∪ aprovação
     /// quando exigida), <c>mcp_servers</c> exatamente <c>[{kapibarastudio, connected}]</c> quando o plano usa o canal (senão
     /// vazio) e versão mínima. Divergência aborta o turno fail-closed (a requisição ao modelo já saiu: o <c>init</c> só
     /// chega depois da primeira mensagem, H-21).
@@ -204,7 +205,8 @@ internal sealed class ClaudeCodeStreamTranslator(
         var permissionMode = String(root, "permissionMode");
         if (!string.Equals(permissionMode, "default", StringComparison.Ordinal)) reasons.Add("PermissionMode");
         var apiKeySource = String(root, "apiKeySource");
-        if (!string.Equals(apiKeySource, "none", StringComparison.Ordinal)) reasons.Add("ApiKeySource");
+        var expectedKeySource = effectiveAuthentication?.ApiKeySource ?? "none";
+        if (!string.Equals(apiKeySource, expectedKeySource, StringComparison.Ordinal)) reasons.Add("ApiKeySource");
 
         var names = new HashSet<string>(StringComparer.Ordinal);
         if (!root.TryGetProperty("tools", out var tools) || tools.ValueKind != JsonValueKind.Array)
@@ -545,7 +547,7 @@ internal sealed class ClaudeCodeStreamTranslator(
         return true;
     }
 
-    private bool IsHostControlTool(string? name) => _expectsMcpServer &&
+    private bool IsHostControlTool(string? name) => (_expectsMcpServer || setup.NativeTools.Count > 0) &&
         string.Equals(name, "EndConversation", StringComparison.Ordinal);
 
     /// <summary>Chamadas de tools do produto via MCP observadas neste turno (diagnóstico; nomes nunca persistidos).</summary>

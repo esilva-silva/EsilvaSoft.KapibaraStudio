@@ -165,7 +165,7 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
 
     public string DestinationHint => SelectedProvider?.DestinationHint ?? "";
 
-    /// <summary>Mode chip next to Local/Externo ("Claude · assinatura" / "Claude · API"); derived from capabilities.</summary>
+    /// <summary>Mode chip next to Local/Externo; CLI providers are labeled by their delegated runtime, API providers by billing mode.</summary>
     public string ProviderSummary => SelectedProvider?.ModeText ?? SelectedProvider?.Label ?? Text.Resolve("agentProvider");
 
     public bool ShowStatusLine => State != AgentChatState.Generating ||

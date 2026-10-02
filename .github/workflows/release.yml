@@ -76,6 +76,7 @@ jobs:
         run: >-
           dotnet publish ${{ env.DESKTOP_PROJECT }} --no-restore -c Release -r ${{ matrix.rid }} --self-contained true
           -p:SlopOnnxBackend=${{ matrix.backend }} -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableClaudeCodeIntegration=false
           -p:DebugType=none -p:PublishDocumentationFiles=false -p:PublishReferencesDocumentationFiles=false
           -p:Version=${{ env.VERSION }} -o publish
       - name: Package
@@ -85,7 +86,7 @@ jobs:
         run: |
           Remove-Item publish/*.pdb, publish/*.xml, publish/*.lib -ErrorAction Ignore
           if (-not $IsWindows) {
-            chmod +x publish/EsilvaSoft.KapibaraStudio.Desktop publish/mcp/EsilvaSoft.KapibaraStudio.McpServer publish/runtimes/${{ matrix.rid }}/native/copilot publish/runtimes/${{ matrix.rid }}/copilot-cli/copilot
+            chmod +x publish/EsilvaSoft.KapibaraStudio.Desktop publish/runtimes/${{ matrix.rid }}/native/copilot publish/runtimes/${{ matrix.rid }}/copilot-cli/copilot
           }
           $validationArgs = @{ PublishDirectory = 'publish'; Rid = '${{ matrix.rid }}' }
           if ([bool]::Parse($env:SKIP_RUNTIME_EXECUTION)) { $validationArgs.SkipRuntimeExecution = $true }

@@ -21,7 +21,7 @@ public sealed class AgentCliAccountViewModelTests
     [
         "ExecutableNotFound", "UnsupportedExecutable", "VersionTooLow", "VersionUnreadable", "ProbeTimedOut",
         "ProbeFailed", "NotLoggedIn", "NonSubscriptionAuthentication", "BlockedEnvironment", "AuthStatusUnreadable",
-        "InvalidConfiguration", "ModelNotAllowed", "NoModelSelected",
+        "InvalidConfiguration", "ModelNotAllowed", "ModelUnavailableForSubscription", "NoModelSelected",
     ];
 
     private static Task<bool> RunOnUiAsync(Func<Task> body)
@@ -45,7 +45,7 @@ public sealed class AgentCliAccountViewModelTests
         });
 
     [Test]
-    public async Task ExperimentalSubscriptionIsExplicitInTheProviderModeChip()
+    public async Task ExperimentalOfficialCliIsExplicitInTheProviderModeChip()
     {
         await RunOnUiAsync(() =>
         {
@@ -54,7 +54,7 @@ public sealed class AgentCliAccountViewModelTests
                 AgentProviderAuthState.Unknown, FamilyName: "OpenAI", IsExperimental: true);
             var option = new AgentProviderOption(presentation);
 
-            Assert.That(option.ModeText, Is.EqualTo("OpenAI · assinatura · EXPERIMENTAL"));
+            Assert.That(option.ModeText, Is.EqualTo("OpenAI · CLI oficial · EXPERIMENTAL"));
             return Task.CompletedTask;
         });
     }
@@ -81,10 +81,10 @@ public sealed class AgentCliAccountViewModelTests
                 Assert.That(settings.SignInHint, Does.Contain("terminal visível").And.Contain("Anthropic").And.Contain("não recebe"));
                 Assert.That(settings.SignOutHint, Does.Contain("global"));
                 Assert.That(settings.SignOutCommand.CanExecute(null), Is.False, "Sem verificação não há logout.");
-                Assert.That(settings.SelectedModeText, Is.EqualTo("Claude · assinatura"));
+                Assert.That(settings.SelectedModeText, Is.EqualTo("Claude Code · CLI oficial"));
                 Assert.That(settings.TranscriptNotice, Does.Contain("~/.claude/projects"));
                 Assert.That(settings.CredentialNotice, Does.Contain("~/.claude/.credentials.json").And.Contain("nunca abre"));
-                Assert.That(settings.EnvironmentNotice, Does.Contain("ANTHROPIC_API_KEY"));
+                Assert.That(settings.EnvironmentNotice, Does.Contain("destino").And.Contain("Claude Code"));
             });
             return Task.CompletedTask;
         });
@@ -176,12 +176,74 @@ public sealed class AgentCliAccountViewModelTests
             {
                 Assert.That(settings.IsCliAuthBlocked, Is.True);
                 Assert.That(settings.CliAuthText, Does.Contain("Bloqueado"));
-                Assert.That(settings.CliAuthExplanation, Does.Contain("ANTHROPIC_API_KEY").And.Contain("modo API").And.Contain("não a remove"));
+                Assert.That(settings.CliAuthExplanation, Does.Contain("ANTHROPIC_API_KEY").And.Contain("CLI oficial").And.Contain("não lê nem remove"));
                 Assert.That(settings.CliAccountTypeText, Does.StartWith("Não informado"));
                 Assert.That(settings.SignInCommand.CanExecute(null), Is.False, "Login não resolve variável no ambiente.");
                 Assert.That(settings.StatusText, Does.Contain("Bloqueado"));
                 Assert.That(settings.IsStatusError, Is.True);
             });
+        });
+    }
+
+    [TestCase(AgentAccountAuthState.ApiKey, "Autenticado com API key", "Cobrança da API pelo Claude Code")]
+    [TestCase(AgentAccountAuthState.ApiKeyHelper, "Autenticado por um auxiliar de API key", "auxiliar de API key configurado no Claude Code")]
+    [TestCase(AgentAccountAuthState.EnvironmentToken, "Autenticado com token do ambiente", "token configurado no Claude Code")]
+    [TestCase(AgentAccountAuthState.CloudProvider, "Autenticado por um provedor de nuvem configurado", "provedor de nuvem configurado no Claude Code")]
+    [TestCase(AgentAccountAuthState.UnsupportedMethod, "Autenticado pelo Claude Code com um método nativo não classificado pelo painel", "login Console sem chave usa a cobrança da API Console")]
+    public async Task NativeCliAuthenticationShowsMethodAndBillingWithoutShowingCredentialValues(
+        AgentAccountAuthState auth, string expectedAuthText, string expectedBillingText)
+    {
+        await RunOnUiAsync(async () =>
+        {
+            var catalog = new MutableAgentCatalog(MutableAgentCatalog.Subscription());
+            var accounts = new FakeCliAccountManager
+            {
+                Status = new AgentAccountStatus(AgentAccountInstallState.Installed, "2.1.268", auth,
+                    BlockingSource: "sk-ant-secret-canary", ExecutablePath: FakeCliAccountManager.FakeExecutablePath),
+            };
+            using var settings = Settings(catalog, accounts);
+            await settings.TestConnectionCommand.ExecuteAsync(null);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(settings.CliAuthText, Is.EqualTo(expectedAuthText));
+                Assert.That(settings.CliAccountTypeText, Does.Contain(expectedBillingText));
+                Assert.That(settings.CliAuthExplanation.ToLowerInvariant(), Does.Contain("claude code").And.Contain("o app não lê"));
+                Assert.That(settings.IsCliAuthenticationConfigured, Is.True);
+                Assert.That(settings.IsCliAuthBlocked, Is.False);
+                Assert.That(settings.IsCliSignedIn, Is.False, "Métodos nativos sem assinatura não devem ser rotulados como login por assinatura.");
+                Assert.That(settings.SignInCommand.CanExecute(null), Is.False, "Não abrir login de assinatura sobre método nativo já configurado.");
+                Assert.That(settings.SignOutCommand.CanExecute(null), Is.False, "Não oferecer logout global da conta de assinatura para outras credenciais.");
+                Assert.That(settings.StatusText, Does.Contain("Autenticação nativa configurada"));
+                Assert.That(settings.StatusText, Does.Not.Contain("Bloqueado"));
+                Assert.That(settings.IsStatusError, Is.False);
+            });
+            if (auth == AgentAccountAuthState.UnsupportedMethod)
+            {
+                Assert.That(settings.CliAuthExplanation, Does.Contain("Console sem API key").And.Contain("/status"),
+                    "O login keyless do Console é perfil OAuth nativo e continua sob billing configurado na CLI.");
+            }
+
+            var texts = typeof(AgentSettingsViewModel).GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(static p => p.PropertyType == typeof(string) && p.GetIndexParameters().Length == 0)
+                .Select(p => (string?)p.GetValue(settings) ?? "")
+                .ToArray();
+            Assert.That(texts.Any(t => t.Contains("sk-ant-secret-canary", StringComparison.Ordinal)), Is.False,
+                "A origem/valor de credencial recebido da CLI nunca é exibido.");
+        });
+    }
+
+    [Test]
+    public async Task ClaudeCodeModeChipNamesTheOfficialCliInsteadOfAssumingSubscriptionBilling()
+    {
+        await RunOnUiAsync(() =>
+        {
+            var option = new AgentProviderOption(new AgentProviderPresentation("claude-code", "Claude Code (CLI oficial)",
+                AgentDataDestinationKind.External, true, [], [AgentAuthenticationMethod.OfficialCliDelegated],
+                AgentProviderAuthState.Configured, FamilyName: "Claude Code"));
+
+                Assert.That(option.ModeText, Is.EqualTo("Claude Code · CLI oficial"));
+            return Task.CompletedTask;
         });
     }
 
@@ -328,10 +390,10 @@ public sealed class AgentCliAccountViewModelTests
 
             Assert.Multiple(() =>
             {
-                Assert.That(chat.ModeText, Is.EqualTo("Claude · assinatura"));
+                Assert.That(chat.ModeText, Is.EqualTo("Claude Code · CLI oficial"));
                 Assert.That(chat.ReadScopeText, Does.Contain("Sem pasta de workspace").And.Contain("toda leitura pedirá aprovação").And.Contain("Anthropic"));
                 Assert.That(chat.State, Is.EqualTo(AgentChatState.CredentialExpired));
-                Assert.That(chat.StatusText, Does.Contain("bloqueado, envio desabilitado").And.Contain("ANTHROPIC_API_KEY").And.Contain("modo Anthropic API"));
+                Assert.That(chat.StatusText, Does.Contain("bloqueado, envio desabilitado").And.Contain("destino").And.Contain("reinicie"));
                 Assert.That(chat.IsStatusError, Is.True);
                 Assert.That(chat.SendCommand.CanExecute(null), Is.False, "Bloqueado: sem fallback e sem envio.");
             });
@@ -526,7 +588,7 @@ public sealed class AgentCliAccountViewModelTests
             {
                 LocalizationViewModel.Current.Language = language;
                 Assert.That(new AgentProviderOption(MutableAgentCatalog.Subscription(false, AgentProviderAuthState.Unknown, "BlockedEnvironment"))
-                    .UnavailableText, Does.Contain("ANTHROPIC_API_KEY"), language);
+                    .UnavailableText, Does.Not.Contain("ANTHROPIC_API_KEY"), language);
             }
 
             LocalizationViewModel.Current.Language = "pt-BR";

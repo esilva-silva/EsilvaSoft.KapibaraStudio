@@ -10,6 +10,7 @@ namespace EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Tests.ClaudeCode;
 public sealed class ClaudeCodeSystemBoundaryTests
 {
     private static readonly string[] AuthStatusSuffix = ["auth", "status"];
+    private static readonly string[] ConfiguredModels = ["opus", "opusplan", "claude-opus-4-1-20250805", "sonnet", "haiku"];
 
     private static ClaudeCodeAgentProvider Provider(MemoryClaudeCodeSystem system) => new(new ClaudeCodeAgentProviderOptions
     {
@@ -103,8 +104,6 @@ public sealed class ClaudeCodeSystemBoundaryTests
         Assert.That(system.Processes, Is.Empty);
     }
 
-    [TestCase("ANTHROPIC_API_KEY")]
-    [TestCase("CLAUDE_CODE_OAUTH_TOKEN")]
     [TestCase("ANTHROPIC_BASE_URL")]
     [TestCase("CLAUDECODE")]
     public async Task EnvironmentOverrideBlocksBeforeAnyCliCall(string variable)
@@ -117,7 +116,7 @@ public sealed class ClaudeCodeSystemBoundaryTests
     }
 
     [TestCase("""{"loggedIn":false}""", "NotLoggedIn")]
-    [TestCase("""{"loggedIn":true,"authMethod":"api_key","apiKeySource":"ANTHROPIC_API_KEY"}""", "NonSubscriptionAuthentication")]
+    [TestCase("""{"loggedIn":true}""", "AuthStatusUnreadable")]
     [TestCase("saída ilegível", "AuthStatusUnreadable")]
     public async Task AuthenticationFailureNeverFallsBackOrCreatesATurn(string output, string reason)
     {
@@ -128,6 +127,79 @@ public sealed class ClaudeCodeSystemBoundaryTests
         Assert.ThrowsAsync<ClaudeCodeUnavailableException>(() => provider.CreateSessionAsync(
             new AgentSessionOptions(ClaudeCodeAgentProvider.Id), CancellationToken.None));
         Assert.That(system.Processes, Is.Empty);
+    }
+
+    [Test]
+    public async Task ProPlanStatusPreservesTheConfiguredAllowlistAndDefault()
+    {
+        var system = new MemoryClaudeCodeSystem
+        {
+            AuthOutput = """{"loggedIn":true,"authMethod":"claude.ai","apiProvider":"firstParty","subscriptionType":"pro"}""",
+        };
+        var provider = new ClaudeCodeAgentProvider(new ClaudeCodeAgentProviderOptions
+        {
+            AllowedModelIds = ["opus", "opusplan", "claude-opus-4-1-20250805", "sonnet", "haiku"],
+            DefaultModel = "opus",
+            DedicatedWorkingDirectory = Path.Combine(MemoryClaudeCodeSystem.Root, "empty"),
+            AppDataDirectory = Path.Combine(MemoryClaudeCodeSystem.Root, "appdata"),
+            DatabasePath = system.DefaultDatabasePath,
+        }, system);
+
+        var status = await provider.GetStatusAsync(CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(status.IsAvailable, Is.True);
+            Assert.That(status.Models, Is.EqualTo(ConfiguredModels));
+            Assert.That(status.DefaultModel, Is.EqualTo("opus"));
+            Assert.That(status.UnavailableCode, Is.Null);
+        });
+    }
+
+    [TestCase("max")]
+    [TestCase("team")]
+    [TestCase("enterprise")]
+    public async Task NonProSubscriptionKeepsConfiguredModelAllowlist(string subscriptionType)
+    {
+        var system = new MemoryClaudeCodeSystem
+        {
+            AuthOutput = $$"""{"loggedIn":true,"authMethod":"claude.ai","apiProvider":"firstParty","subscriptionType":"{{subscriptionType}}"}""",
+        };
+        var provider = new ClaudeCodeAgentProvider(new ClaudeCodeAgentProviderOptions
+        {
+            AllowedModelIds = ["opus", "sonnet", "haiku"],
+            DefaultModel = "opus",
+            DedicatedWorkingDirectory = Path.Combine(MemoryClaudeCodeSystem.Root, "empty"),
+            AppDataDirectory = Path.Combine(MemoryClaudeCodeSystem.Root, "appdata"),
+            DatabasePath = system.DefaultDatabasePath,
+        }, system);
+
+        var status = await provider.GetStatusAsync(CancellationToken.None);
+
+        Assert.That(status.Models, Is.EqualTo(["opus", "sonnet", "haiku"]));
+        Assert.That(status.DefaultModel, Is.EqualTo("opus"));
+    }
+
+    [Test]
+    public async Task ProAndMaxDelegateOpusAvailabilityToTheOfficialCli()
+    {
+        var proSystem = new MemoryClaudeCodeSystem
+        {
+            AuthOutput = """{"loggedIn":true,"authMethod":"claude.ai","apiProvider":"firstParty","subscriptionType":"pro"}""",
+        };
+        var proProvider = Provider(proSystem);
+        await using var proSession = await proProvider.CreateSessionAsync(
+            new AgentSessionOptions(ClaudeCodeAgentProvider.Id) { ModelId = "opus" }, CancellationToken.None);
+        Assert.That(proSystem.Processes, Is.Empty);
+
+        var maxSystem = new MemoryClaudeCodeSystem
+        {
+            AuthOutput = """{"loggedIn":true,"authMethod":"claude.ai","apiProvider":"firstParty","subscriptionType":"max"}""",
+        };
+        var maxProvider = Provider(maxSystem);
+        await using var session = await maxProvider.CreateSessionAsync(
+            new AgentSessionOptions(ClaudeCodeAgentProvider.Id) { ModelId = "opus" }, CancellationToken.None);
+        Assert.That(maxSystem.Processes, Is.Empty);
     }
 
     [TestCase(false, ClaudeCodeAccountCommandState.Completed)]
@@ -218,7 +290,7 @@ public sealed class ClaudeCodeSystemBoundaryTests
     [TestCase("""{"loggedIn":true,"authMethod":"claude.ai","apiProvider":"bedrock","subscriptionType":"pro"}""", ClaudeCodeAuthKind.CloudProvider)]
     [TestCase("""{"loggedIn":true,"authMethod":"claude.ai"}""", ClaudeCodeAuthKind.UnsupportedMethod)]
     [TestCase("""{"loggedIn":false,"authMethod":"claude.ai","subscriptionType":"pro"}""", ClaudeCodeAuthKind.NotLoggedIn)]
-    public void AuthenticationStatusAcceptsOnlyAnExplicitFirstPartySubscription(string output, ClaudeCodeAuthKind expected)
+    public void AuthenticationStatusClassifiesPublicCliFieldsWithoutChangingItsMethod(string output, ClaudeCodeAuthKind expected)
     {
         var status = ClaudeCodeAuthStatus.Parse(output);
 

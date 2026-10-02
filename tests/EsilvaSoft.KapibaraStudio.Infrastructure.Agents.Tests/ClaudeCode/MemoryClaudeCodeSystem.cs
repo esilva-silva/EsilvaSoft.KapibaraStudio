@@ -16,6 +16,7 @@ internal sealed class MemoryClaudeCodeSystem : IClaudeCodeSystem
     public string AuthOutput { get; set; } = """{"loggedIn":true,"authMethod":"claude.ai","apiProvider":"firstParty","subscriptionType":"pro"}""";
     public string VersionOutput { get; set; } = "2.1.268 (Claude Code)";
     public string? BlockingVariable { get; set; }
+    public string InitApiKeySource { get; set; } = "none";
     public bool Missing { get; set; }
     public bool Unsupported { get; set; }
     public bool VersionTimedOut { get; set; }
@@ -104,7 +105,7 @@ internal sealed class MemoryClaudeCodeSystem : IClaudeCodeSystem
         {
             JsonSerializer.Serialize(new { type = "system", subtype = "init", session_id = id, tools,
                 mcp_servers = hasMcp ? new object[] { new { name = McpServerLaunchSpec.DefaultServerName, status = "connected" } }
-                    : Array.Empty<object>(), model = observedModel, permissionMode = "default", apiKeySource = "none", claude_code_version = "2.1.268" }),
+                    : Array.Empty<object>(), model = observedModel, permissionMode = "default", apiKeySource = InitApiKeySource, claude_code_version = "2.1.268" }),
             JsonSerializer.Serialize(new { type = "assistant", session_id = id,
                 message = new { id = "msg-memory", role = "assistant", content = new[] { new { type = "text", text = "ok" } } } }),
         };
@@ -137,6 +138,7 @@ internal sealed class MemoryClaudeCodeProcess(string[] arguments, Stream output,
     public int KillRequests { get; private set; }
     public string StderrSnapshot => string.Empty;
     public bool Disposed { get; private set; }
+    public long InputBytesWritten { get; private set; }
     public void KillTree()
     {
         KillRequests++;
@@ -153,6 +155,7 @@ internal sealed class MemoryClaudeCodeProcess(string[] arguments, Stream output,
     public ValueTask DisposeAsync()
     {
         Disposed = true;
+        InputBytesWritten = ((MemoryStream)StandardInput.BaseStream).ToArray().LongLength;
         StandardInput.Dispose();
         output.Dispose();
         _input.Dispose();

@@ -114,6 +114,7 @@ public sealed class ClaudeCodePlanTests
             }
 
             Assert.That(ValueAfter(turn, "--append-system-prompt"), Is.EqualTo(ClaudeCodeFixture.SystemPrompt));
+            Assert.That(ValueAfter(turn, "--system-prompt-snapshot"), Is.EqualTo("off"));
             Assert.That(Strings(permissions, "allow"), Is.EquivalentTo(unconfirmed));
             Assert.That(Strings(permissions, "allow"), Has.None.EqualTo("mcp__kapibarastudio__approve"), "approve nunca vai para allow.");
             Assert.That(Strings(permissions, "ask"), Is.SupersetOf(confirmed).And.SupersetOf(plan.NativeAskRules));
@@ -417,26 +418,34 @@ public sealed class ClaudeCodePlanTests
     }
 
     [Test]
-    public async Task EndConversationInInitWithoutMcpIsAMismatch()
+    public async Task EndConversationInInitWithoutMcpIsAllowedWhenNativeToolsAreAvailable()
     {
         using var fixture = new ClaudeCodeFixture().Turn("plan-turn.jsonl").ExtraInitTools("EndConversation");
         await using var session = await SessionAsync(fixture, null, workspace: null);
 
         var events = await ClaudeCodeFixture.RunAsync(session);
 
-        Assert.That(ClaudeCodeFixture.Error(events), Is.EqualTo(ClaudeCodeErrorCodes.InitMismatch));
+        Assert.That(ClaudeCodeFixture.Error(events), Is.Null);
     }
 
     // tool_use MCP ---------------------------------------------------------------------------------------------------------
 
     [Test]
-    public async Task OfficialEndConversationControlIsAllowedWithMcpAndIsNotDispatchedAsProductTool()
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task OfficialEndConversationControlIsAllowedWithAnyToolsAndNeverDispatched(bool useMcp)
     {
         using var fixture = new ClaudeCodeFixture().Turn("end-conversation.jsonl");
-        var plan = PlanFor(AgentOperationMode.Agent);
-        fixture.McpTools(McpToolsOf(plan));
-        var workspace = Workspace(fixture);
-        await using var session = await SessionAsync(fixture, new FakeMcpChannel(fixture.Root), workspace);
+        var plan = PlanFor(AgentOperationMode.Agent, productTools: useMcp);
+        IAgentMcpChannelProvisioner? mcp = null;
+        string? workspace = null;
+        if (useMcp)
+        {
+            fixture.McpTools(McpToolsOf(plan));
+            workspace = Workspace(fixture);
+            mcp = new FakeMcpChannel(fixture.Root);
+        }
+        await using var session = await SessionAsync(fixture, mcp, workspace);
 
         var events = await ClaudeCodeFixture.RunAsync(session, Request(plan));
 
@@ -645,6 +654,7 @@ public sealed class ClaudeCodePlanTests
             Assert.That(session.LastTurn!.Outcome, Is.EqualTo(AgentTurnOutcome.Completed));
             Assert.That(ValueAfter(turns[1], "--resume"), Is.EqualTo(firstId), "O init já tinha sido validado: retoma.");
             Assert.That(ValueAfter(turns[1], "--append-system-prompt"), Is.EqualTo(ClaudeCodeFixture.SystemPrompt));
+            Assert.That(ValueAfter(turns[1], "--system-prompt-snapshot"), Is.EqualTo("off"));
             Assert.That(ClaudeCodeFixture.Text(next), Is.EqualTo("ok"));
             Assert.That(mcp.Closed, Is.Empty, "Cancelar o turno não revoga o canal da sessão.");
             Assert.That(mcp.Opened, Is.EqualTo(1));
@@ -675,6 +685,8 @@ public sealed class ClaudeCodePlanTests
             Assert.That(turns, Has.All.Not.Contain("--session-id"));
             Assert.That(turns.Select(t => ValueAfter(t, "--append-system-prompt")), Is.All.EqualTo(ClaudeCodeFixture.SystemPrompt),
                 "O modo atual vale mesmo com --resume (GCL-13).");
+            Assert.That(turns.Select(t => ValueAfter(t, "--system-prompt-snapshot")), Is.All.EqualTo("off"),
+                "Claude Code deve reconstruir o prompt dinâmico em cada retomada.");
             Assert.That(updates.ToArray(), Is.EqualTo(new[]
             {
                 new AgentProviderSessionUpdate(Conversation, AgentProviderSessionChange.Established, persisted),
@@ -702,6 +714,7 @@ public sealed class ClaudeCodePlanTests
             Assert.That(ValueAfter(turns[0], "--resume"), Is.EqualTo(persisted));
             Assert.That(fresh, Is.Not.EqualTo(persisted));
             Assert.That(ValueAfter(turns[1], "--append-system-prompt"), Is.EqualTo(ClaudeCodeFixture.SystemPrompt));
+            Assert.That(ValueAfter(turns[1], "--system-prompt-snapshot"), Is.EqualTo("off"));
             Assert.That(updates.ToArray(), Is.EqualTo(new[]
             {
                 new AgentProviderSessionUpdate(Conversation, AgentProviderSessionChange.ResumeFallback, null,

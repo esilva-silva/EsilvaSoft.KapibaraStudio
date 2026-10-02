@@ -15,6 +15,11 @@ public interface IAgentToolRegistry
     /// Defaults to <see cref="GetDescriptors"/> for registries without per-session tools.
     /// </summary>
     IReadOnlyList<AgentToolDescriptor> GetChannelDescriptors() => GetDescriptors();
+    /// <summary>Tools available to an authenticated session channel for a provider and its active plan.</summary>
+    IReadOnlyList<AgentToolDescriptor> GetSessionChannelDescriptors(string providerId) => GetChannelDescriptors();
+    /// <summary>Schema for the session-channel catalog of an integrated provider.</summary>
+    string? GetSessionChannelInputSchemaJson(string providerId, string? name) => GetInputSchemaJson(name);
+    string? GetSessionChannelOutputSchemaJson(string providerId, string? name) => GetOutputSchemaJson(name);
     AgentToolDescriptor? FindDescriptor(string? name);
     AgentToolDescriptor? FindInProcessDescriptor(string providerId, string? name) => null;
     string? GetInputSchemaJson(string? name);
