@@ -81,6 +81,7 @@ public sealed partial class AgentChatViewModel
         OnPropertyChanged(nameof(CanAttachExternal));
         AttachWorkspaceFileCommand.NotifyCanExecuteChanged();
         AttachExternalFileCommand.NotifyCanExecuteChanged();
+        ScheduleContextMeasurement();
     }
 
     private static string ActiveFileLabel(AgentWorkspaceContext context) =>

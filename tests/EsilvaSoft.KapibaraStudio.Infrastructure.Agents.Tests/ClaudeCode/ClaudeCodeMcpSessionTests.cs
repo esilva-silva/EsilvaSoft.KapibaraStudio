@@ -55,6 +55,31 @@ public sealed class ClaudeCodeMcpSessionTests
         return events;
     }
 
+    [Test]
+    public async Task OfficialResultUsageIsForwardedAsTurnTotalWithCacheAndReportedUsdCost()
+    {
+        var system = new MemoryClaudeCodeSystem
+        {
+            ProductTools = ["list_connections"],
+            ReportedUsage = new { input_tokens = 120, output_tokens = 0, cache_read_input_tokens = 30, cache_creation_input_tokens = 5 },
+            ReportedCostUsd = 0.12m,
+        };
+        await using var session = await SessionAsync(system, new MemoryChannelProvisioner());
+        var events = await RunAsync(session);
+        var usage = events.Single(static item => item.Kind == AgentEventKind.UsageUpdated).Usage!;
+        Assert.Multiple(() =>
+        {
+            Assert.That(usage.InputTokens, Is.EqualTo(120));
+            Assert.That(usage.OutputTokens, Is.Zero);
+            Assert.That(usage.CacheReadTokens, Is.EqualTo(30));
+            Assert.That(usage.CacheWriteTokens, Is.EqualTo(5));
+            Assert.That(usage.Cost, Is.EqualTo(0.12m));
+            Assert.That(usage.Currency, Is.EqualTo("USD"));
+            Assert.That(usage.Scope, Is.EqualTo(AgentUsageScope.TurnTotal));
+            Assert.That(usage.IsWellFormed, Is.True);
+        });
+    }
+
     [TestCase("no-provisioner", AgentMcpChannelStatus.UnavailableOnPlatform)]
     [TestCase("platform", AgentMcpChannelStatus.UnavailableOnPlatform)]
     [TestCase("open", AgentMcpChannelStatus.BrokerUnavailable)]

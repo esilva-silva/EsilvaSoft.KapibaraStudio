@@ -106,6 +106,7 @@ public sealed partial class AgentChatViewModel
         conversation.ProviderId = provider.ProviderId;
         conversation.ModelId = modelId;
         conversation.Mode = mode;
+        conversation.UsageTurns[turnId] = new AgentUsageAccumulator();
         ComposerText = "";
         StatusDetail = null;
         State = AgentChatState.Connecting;
@@ -130,8 +131,6 @@ public sealed partial class AgentChatViewModel
                 Finish(run, AgentTurnOutcome.Failed);
                 return;
             }
-            run.Conversation.Items.Add(new AgentChatMessageItem(AgentChatRole.User, message,
-                attachments: resolution.Attachments.Select(static attachment => attachment.ToDescriptor()).ToArray()));
             foreach (var chip in Chips.Where(static chip => !chip.IsAutomatic).ToArray()) Chips.Remove(chip);
             OnPropertyChanged(nameof(HasChips));
             OnPropertyChanged(nameof(ContextSummary));
@@ -142,6 +141,11 @@ public sealed partial class AgentChatViewModel
                 Plan = plan, SystemPrompt = systemPrompt, Attachments = resolution.Attachments,
                 ConversationId = run.Conversation.Id, Permissions = permissions, WorkspaceContext = context,
             };
+            run.Conversation.Items.Add(new AgentChatMessageItem(AgentChatRole.User, message,
+                attachments: resolution.Attachments.Select(static attachment => attachment.ToDescriptor()).ToArray())
+            {
+                ContextMeasurement = AgentContextMeasurement.Capture(request),
+            });
             var newCopilotReservation = false;
             if (string.Equals(providerId, AgentProviderIds.GitHubCopilotSubscription, StringComparison.Ordinal))
             {
@@ -308,6 +312,11 @@ public sealed partial class AgentChatViewModel
     {
         switch (item.Kind)
         {
+            case AgentEventKind.UsageUpdated when item.Usage is { } usage:
+                if (run.Conversation.UsageTurns.TryGetValue(run.TurnId, out var accumulator))
+                    accumulator.Observe(usage, item.TimestampUtc);
+                if (ReferenceEquals(ActiveConversation, run.Conversation)) OnPropertyChanged(nameof(UsageDetails));
+                break;
             case AgentEventKind.TaskStarted:
             case AgentEventKind.TaskProgress:
                 RefreshRunningState(run);
@@ -462,6 +471,8 @@ public sealed partial class AgentChatViewModel
 
     private void Finish(TurnRun run, AgentTurnOutcome outcome)
     {
+        if (run.Conversation.UsageTurns.TryGetValue(run.TurnId, out var usage)) usage.Finish(outcome);
+        if (ReferenceEquals(ActiveConversation, run.Conversation)) OnPropertyChanged(nameof(UsageDetails));
         foreach (var message in run.Messages.Values)
         {
             message.IsStreaming = false;

@@ -13,4 +13,7 @@ public sealed record AgentProviderEvent(
     AgentApprovalId? ApprovalId = null,
     AgentMessageId? MessageId = null,
     string? ToolName = null,
-    string? ArgumentsJson = null);
+    string? ArgumentsJson = null)
+{
+    public AgentUsageMetrics? Usage { get; init; }
+}

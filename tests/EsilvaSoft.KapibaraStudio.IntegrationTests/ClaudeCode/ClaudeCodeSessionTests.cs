@@ -40,10 +40,12 @@ public sealed class ClaudeCodeSessionTests
         using var message = JsonDocument.Parse(stdin[0].GetProperty("line").GetString()!);
         Assert.Multiple(() =>
         {
-            Assert.That(events.Select(static e => e.Kind), Is.EqualTo(new[]
+            Assert.That(events.Where(static e => e.Kind != AgentEventKind.UsageUpdated).Select(static e => e.Kind), Is.EqualTo(new[]
             {
                 AgentEventKind.MessageStarted, AgentEventKind.MessageDelta, AgentEventKind.MessageCompleted,
             }));
+            Assert.That(events.Single(static e => e.Kind == AgentEventKind.UsageUpdated).Usage?.Scope,
+                Is.EqualTo(AgentUsageScope.TurnTotal));
             Assert.That(ClaudeCodeFixture.Text(events), Is.EqualTo("ok"));
             Assert.That(turn[..3], Is.EqualTo(TurnPrefix));
             Assert.That(ValueAfter(turn, "--output-format"), Is.EqualTo("stream-json"));

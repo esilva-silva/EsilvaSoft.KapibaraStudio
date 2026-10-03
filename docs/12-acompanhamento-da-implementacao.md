@@ -1,5 +1,7 @@
 # Acompanhamento da implementação
 
+**P7-UX2 — código e gates automatizados concluídos em 03/10/2026:** [meta e limites](phases/phase-07-v0.11.0/meta-autoscroll-contexto-consumo-agente.md). Restore locked e build da solução passaram sem avisos/erros; Windows: UnitTests **3.380 aprovados/20 ignorados**, Infrastructure.Agents.Tests **288/288**, IntegrationTests **903 aprovados/16 ignorados**, zero falhas. Capturas Headless em claro/escuro, idiomas e escalas foram geradas; amostras pt-BR e flyouts foram inspecionados. Amplitude de inspeção visual, clique/teclado fora do Headless, leitor de tela, Windows nativo, Linux e CLI/contas oficiais seguem pendentes. Não mede tokenizer, ocupação de janela ou cota.
+
 **Configuração do executável Copilot — implementada em 03/10/2026:** preferência aditiva e singleton Application unificam conta, login e sessões; override inválido falha sem fallback e detecção automática percorre perfil local antes de PATH. Restore/build Release, focos corrigidos e teste manual sem prompt passaram. Duas falhas na execução integral inicial foram corrigidas/cobertas por filtros focalizados, sem nova execução integral. [Resultados e limites](architecture/release-copilot.md#configuração-do-executável--revisão-de-03102026).
 
 ## Repriorização de entregas — Fase 5 antes da Fase 7 — 01/10/2026

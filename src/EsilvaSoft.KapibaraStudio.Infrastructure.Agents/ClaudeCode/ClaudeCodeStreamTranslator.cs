@@ -39,7 +39,11 @@ internal sealed record ClaudeCodeResultInfo(
     int PermissionDenials,
     string? TerminalReason,
     int? ApiErrorStatus,
-    bool SessionNotFound);
+    bool SessionNotFound)
+{
+    public long? CacheReadTokens { get; init; }
+    public long? CacheWriteTokens { get; init; }
+}
 
 /// <summary>
 /// Tradução de uma linha stream-json do Claude Code (formato observado no spike P7-CL0-01, 2.1.268) para
@@ -531,6 +535,19 @@ internal sealed class ClaudeCodeStreamTranslator(
             SafeToken(String(root, "terminal_reason")),
             Int32(root, "api_error_status"),
             sessionNotFound);
+        if (root.TryGetProperty("usage", out var cacheUsage) && cacheUsage.ValueKind == JsonValueKind.Object)
+            Result = Result with { CacheReadTokens = Int64(cacheUsage, "cache_read_input_tokens"),
+                CacheWriteTokens = Int64(cacheUsage, "cache_creation_input_tokens") };
+        decimal? reportedCost = root.TryGetProperty("total_cost_usd", out var decimalCost) &&
+            decimalCost.ValueKind == JsonValueKind.Number && decimalCost.TryGetDecimal(out var amount) && amount >= 0 ? amount : null;
+        if (Result.InputTokens is not null || Result.OutputTokens is not null || Result.CacheReadTokens is not null ||
+            Result.CacheWriteTokens is not null || reportedCost is not null)
+            output.Add(new AgentProviderEvent(AgentEventKind.UsageUpdated)
+        {
+            Usage = new AgentUsageMetrics("result", AgentUsageScope.TurnTotal, 0, "claude-code.result.usage",
+                Result.InputTokens, Result.OutputTokens, Result.CacheReadTokens, Result.CacheWriteTokens,
+                reportedCost, reportedCost is null ? null : "USD", ObservedModel, Result.IsError),
+        });
         return new TranslationStep(TranslationKind.Result);
     }
 

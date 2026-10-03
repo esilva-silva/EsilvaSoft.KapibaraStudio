@@ -26,6 +26,8 @@ internal sealed class MemoryClaudeCodeSystem : IClaudeCodeSystem
     public bool HangTurn { get; set; }
     public bool PersistedResumeMissingOnce { get; set; }
     public bool OmitResultFrame { get; set; }
+    public object? ReportedUsage { get; set; }
+    public decimal? ReportedCostUsd { get; set; }
     public int ProcessExitCode { get; set; }
     public string? UnexpectedTool { get; set; }
     public IReadOnlyList<string> ProductTools { get; set; } = [];
@@ -110,7 +112,8 @@ internal sealed class MemoryClaudeCodeSystem : IClaudeCodeSystem
                 message = new { id = "msg-memory", role = "assistant", content = new[] { new { type = "text", text = "ok" } } } }),
         };
         if (!OmitResultFrame)
-            frames.Add(JsonSerializer.Serialize(new { type = "result", subtype = "success", session_id = id, is_error = false, num_turns = 1, result = "ok" }));
+            frames.Add(JsonSerializer.Serialize(new { type = "result", subtype = "success", session_id = id, is_error = false,
+                num_turns = 1, result = "ok", usage = ReportedUsage, total_cost_usd = ReportedCostUsd }));
         var bytes = Encoding.UTF8.GetBytes(string.Join('\n', frames) + "\n");
         var process = new MemoryClaudeCodeProcess(args, HangTurn ? new PendingOutputStream(bytes)
             : new MemoryStream(bytes), ProcessExitCode);

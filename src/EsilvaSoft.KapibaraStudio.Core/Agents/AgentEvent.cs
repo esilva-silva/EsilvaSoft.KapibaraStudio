@@ -20,6 +20,7 @@ public enum AgentEventKind
     TaskCompleted,
     AgentError,
     SessionCompleted,
+    UsageUpdated,
 }
 
 /// <summary>Turn terminal state. Cancellation never implies rollback of an operation already dispatched.</summary>
@@ -55,6 +56,8 @@ public sealed record AgentEvent(
     string? ToolName = null,
     AgentToolResultStatus? ToolStatus = null)
 {
+    public AgentUsageMetrics? Usage { get; init; }
+
     /// <summary>
     /// Sanitized destination of a tool call's output (Local/External only, no provider or client identifier), set by
     /// the runtime on tool events from the session's destination, which derives from the provider's <c>IsLocal</c>.

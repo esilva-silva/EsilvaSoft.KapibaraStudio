@@ -166,10 +166,28 @@ public sealed class AgentChatUiTests
                 await PumpAsync(() => true);
                 Assert.That(panel.FindControl<ItemsControl>("ContextChips")!.IsEffectivelyVisible, Is.True);
                 Save(window, $"agent-ux-context-expanded-{officialCli}.png");
+                var contextMetricsButton = panel.FindControl<Button>("ContextMetricsButton")!;
+                var usageButton = panel.FindControl<Button>("UsageButton")!;
+                foreach (var theme in Themes)
+                {
+                    Avalonia.Application.Current!.RequestedThemeVariant = theme;
+                    await PumpAsync(() => true);
+                    contextMetricsButton.Flyout!.ShowAt(contextMetricsButton);
+                    await PumpAsync(() => true);
+                    Save(window, $"agent-ux-context-details-{officialCli}-{theme}.png");
+                    contextMetricsButton.Flyout.Hide();
+                    usageButton.Flyout!.ShowAt(usageButton);
+                    await PumpAsync(() => true);
+                    Save(window, $"agent-ux-usage-details-{officialCli}-{theme}.png");
+                    usageButton.Flyout.Hide();
+                }
+                var contextSummaryBeforeRemoval = chat.ContextMetricsSummary;
                 var active = chat.Chips.Single(chip => chip.Kind == AgentAttachmentKind.ActiveFile);
                 chat.RemoveChipCommand.Execute(active);
                 await PumpAsync(() => chat.Chips.Count == 1);
-                Assert.That(((TextBlock)details.Header!).Text, Is.EqualTo(chat.ContextSummary), "Removal updates the context summary.");
+                Assert.That(((TextBlock)((Grid)details.Header!).Children[0]).Text, Is.EqualTo(chat.ContextMetricsSummary),
+                    "The compact context summary stays current after chips change.");
+                Assert.That(chat.ContextMetricsSummary, Is.Not.EqualTo(contextSummaryBeforeRemoval));
                 Assert.That(runtime.LastRequest, Is.Null, "Reviewing or removing context must not send a message.");
                 for (var index = 0; index < 12; index++)
                     chat.Chips.Add(new AgentContextChipViewModel(AgentAttachmentKind.WorkspaceFile,
@@ -221,6 +239,9 @@ public sealed class AgentChatUiTests
                 Assert.That(chat.ShowStatusLine, Is.False, "The active reply carries progress instead of a duplicated status card.");
                 var scroll = panel.FindControl<ListBox>("History")!.GetVisualDescendants().OfType<ScrollViewer>().First();
                 await PumpAsync(() => scroll.Extent.Height > scroll.Viewport.Height);
+                await PumpAsync(() => scroll.Offset.Y + scroll.Viewport.Height >= scroll.Extent.Height - 8);
+                Assert.That(panel.FindControl<Button>("LatestMessageButton")!.IsVisible, Is.False,
+                    "A newly created long response follows the end after the item has been measured.");
                 scroll.Offset = new Vector(0, 0);
                 panel.ComposerBox.Focus();
                 await PumpAsync(() => panel.FindControl<Button>("LatestMessageButton")!.IsVisible);
@@ -234,10 +255,96 @@ public sealed class AgentChatUiTests
                     await PumpAsync(() => true);
                     Save(window, $"agent-ux-code-reading-{theme}.png");
                 }
-                panel.FindControl<Button>("LatestMessageButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                await PumpAsync(() => !panel.FindControl<Button>("LatestMessageButton")!.IsVisible);
+                var nextMessage = AgentMessageId.New();
+                runtime.Push(turn, AgentEventKind.MessageStarted, message: nextMessage);
+                runtime.Push(turn, AgentEventKind.MessageDelta, "Nova resposta enquanto a leitura está acima.", message: nextMessage);
+                await PumpAsync(() => chat.Items.OfType<AgentChatMessageItem>().Last().MessageId == nextMessage);
+                var latest = panel.FindControl<Button>("LatestMessageButton")!;
+                await PumpAsync(() => latest.IsVisible && latest.Content?.ToString()?.Contains("1 nova", StringComparison.Ordinal) == true);
+                latest.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await PumpAsync(() => !latest.IsVisible);
                 Assert.That(scroll.Offset.Y + scroll.Viewport.Height, Is.GreaterThanOrEqualTo(scroll.Extent.Height - 8));
                 Assert.That(window.FocusManager!.GetFocusedElement(), Is.SameAs(panel.ComposerBox));
+                runtime.Push(turn, AgentEventKind.MessageDelta,
+                    "\n" + string.Join("\n", Enumerable.Range(0, 40).Select(index => $"Nova continuação {index}.")), message: message);
+                await PumpAsync(() => chat.Items.OfType<AgentChatMessageItem>().Single(item => item.MessageId == message).Content.Contains("Nova continuação 39.", StringComparison.Ordinal));
+                await PumpAsync(() => scroll.Offset.Y + scroll.Viewport.Height >= scroll.Extent.Height - 8);
+                Assert.That(panel.FindControl<Button>("LatestMessageButton")!.IsVisible, Is.False,
+                    "Streaming continues following after explicit return to the end.");
+            }
+            finally { await CloseAsync(window, chat, runtime); }
+        });
+    }
+
+    [Test]
+    public async Task ConversationSwitchRestoresItsHistoryPosition()
+    {
+        await RunOnUiAsync(async () =>
+        {
+            var (window, chat, runtime) = await BuildAsync("ready", 380, 820);
+            var panel = (AgentChatPanel)window.Content!;
+            try
+            {
+                var first = chat.ActiveConversation;
+                for (var index = 0; index < 24; index++)
+                    first.Items.Add(new AgentChatMessageItem(AgentChatRole.Agent,
+                        string.Join("\n", Enumerable.Repeat($"Conversa original, bloco {index}.", 8))));
+
+                var scroll = panel.FindControl<ListBox>("History")!.GetVisualDescendants().OfType<ScrollViewer>().First();
+                await PumpAsync(() => scroll.Extent.Height > scroll.Viewport.Height);
+                scroll.Offset = new Vector(0, Math.Min(30, scroll.Extent.Height));
+                await PumpAsync(() => scroll.Offset.Y > 0 && panel.FindControl<Button>("LatestMessageButton")!.IsVisible);
+                var firstOffset = scroll.Offset.Y;
+
+                chat.NewConversationCommand.Execute(null);
+                await PumpAsync(() => !ReferenceEquals(chat.ActiveConversation, first));
+                var second = chat.ActiveConversation;
+                for (var index = 0; index < 24; index++)
+                    second.Items.Add(new AgentChatMessageItem(AgentChatRole.Agent,
+                        string.Join("\n", Enumerable.Repeat($"Segunda conversa, bloco {index}.", 8))));
+                await PumpAsync(() => scroll.Extent.Height > scroll.Viewport.Height);
+                scroll.Offset = new Vector(0, Math.Min(70, scroll.Extent.Height));
+                await PumpAsync(() => scroll.Offset.Y > 30);
+                var secondOffset = scroll.Offset.Y;
+
+                chat.ActiveConversation = first;
+                await PumpAsync(() => ReferenceEquals(chat.ActiveConversation, first) && Math.Abs(scroll.Offset.Y - firstOffset) <= 1);
+                Assert.That(scroll.Offset.Y, Is.EqualTo(firstOffset).Within(1), "Returning to a conversation restores its reading position.");
+                Assert.That(panel.FindControl<Button>("LatestMessageButton")!.IsVisible, Is.True);
+
+                chat.ActiveConversation = second;
+                await PumpAsync(() => ReferenceEquals(chat.ActiveConversation, second) && Math.Abs(scroll.Offset.Y - secondOffset) <= 1);
+                Assert.That(scroll.Offset.Y, Is.EqualTo(secondOffset).Within(1), "Each conversation keeps its own position.");
+            }
+            finally { await CloseAsync(window, chat, runtime); }
+        });
+    }
+
+    [Test]
+    public async Task ProposalCountsRenderAsSeparateSignedLocalizedBadges()
+    {
+        await RunOnUiAsync(async () =>
+        {
+            var (window, chat, runtime) = await BuildAsync("ready", 380, 820);
+            var panel = (AgentChatPanel)window.Content!;
+            try
+            {
+                chat.ActiveConversation.Items.Add(new AgentEditProposalCardItem(Guid.NewGuid(), "clientes.json", 5, 4, null));
+                await PumpAsync(() => panel.GetVisualDescendants().OfType<TextBlock>().Any(block => block.Text == "+5 linhas") &&
+                    panel.GetVisualDescendants().OfType<TextBlock>().Any(block => block.Text == "−4 linhas"));
+
+                var labels = panel.GetVisualDescendants().OfType<TextBlock>().ToArray();
+                Assert.That(labels.Any(block => block.Text == "+5 linhas"), Is.True);
+                Assert.That(labels.Any(block => block.Text == "−4 linhas"), Is.True);
+                Assert.That(panel.GetVisualDescendants().OfType<StackPanel>().Any(stack =>
+                    Avalonia.Automation.AutomationProperties.GetName(stack) == "5 linhas adicionadas, 4 removidas"), Is.True,
+                    "The separate colored values retain one complete accessible summary.");
+                foreach (var theme in Themes)
+                {
+                    Avalonia.Application.Current!.RequestedThemeVariant = theme;
+                    await PumpAsync(() => true);
+                    Save(window, $"agent-ux-proposal-{theme}.png");
+                }
             }
             finally { await CloseAsync(window, chat, runtime); }
         });

@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using EsilvaSoft.KapibaraStudio.Core.Agents;
+using EsilvaSoft.KapibaraStudio.Application.Agents;
 
 namespace EsilvaSoft.KapibaraStudio.Desktop.ViewModels;
 
@@ -37,6 +38,9 @@ public sealed partial class AgentChatConversation : ObservableObject
     public long Revision { get; internal set; }
 
     public ObservableCollection<AgentChatItemViewModel> Items { get; } = [];
+
+    /// <summary>Observed usage for this execution only; excluded from ToRecord and LiteDB.</summary>
+    public Dictionary<AgentTurnId, AgentUsageAccumulator> UsageTurns { get; } = [];
 
     public bool IsEmpty => Items.Count == 0;
 

@@ -547,6 +547,15 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
     {
         switch (evt)
         {
+            case AssistantUsageEvent usageEvent when usageEvent.Data is { ApiCallId: { Length: > 0 } } usage:
+                // SDK 1.0.14: official assistant.usage is a per-call total. Cost is a model multiplier,
+                // not a monetary amount; maxPromptTokens is a request limit, not window occupancy.
+                turn.Emit(new AgentProviderEvent(AgentEventKind.UsageUpdated)
+                {
+                    Usage = new AgentUsageMetrics(usage.ApiCallId, AgentUsageScope.CallTotal, 0, "copilot.assistant.usage",
+                        usage.InputTokens, usage.OutputTokens, usage.CacheReadTokens, usage.CacheWriteTokens, Model: usage.Model),
+                });
+                break;
             case AssistantMessageStartEvent started:
                 turn.StartMessage(started.Data?.MessageId);
                 break;

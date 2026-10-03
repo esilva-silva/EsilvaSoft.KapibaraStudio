@@ -73,6 +73,7 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
         Modes = AgentModeOption.All();
         _selectedMode = Modes.FirstOrDefault(option => option.Mode == preferences?.SelectedMode) ?? Modes[0];
         _activeConversation = CreateConversation(preferences?.SelectedProviderId ?? "", null);
+        Chips.CollectionChanged += (_, _) => ScheduleContextMeasurement();
         LocalizationViewModel.Current.PropertyChanged += OnLocalizationChanged;
         AttachPorts();
         LoadProviders(preferences?.SelectedProviderId, preferences?.SelectedModelId);
@@ -559,10 +560,12 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
 
         StartAutomaticAvailabilityCheck();
         _host.OnPanelPreferencesChanged();
+        OnPropertyChanged(nameof(UsageDetails));
     }
 
     partial void OnSelectedModelChanged(string? value)
     {
+        ScheduleContextMeasurement();
         if (!ActiveConversation.IsBusy)
         {
             ActiveConversation.ModelId = value;
@@ -576,6 +579,7 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
 
     partial void OnSelectedModeChanged(AgentModeOption value)
     {
+        ScheduleContextMeasurement();
         if (!ActiveConversation.IsBusy)
         {
             ActiveConversation.Mode = value.Mode;
@@ -587,6 +591,7 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
 
     partial void OnComposerTextChanged(string value)
     {
+        ScheduleContextMeasurement();
         // Typing again clears the terminal state of the previous turn (the rows stay).
         if (ActiveConversation is { IsBusy: false, TurnState: { } terminal } conversation && terminal is not AgentChatState.Connecting)
         {
@@ -602,6 +607,7 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
 
     partial void OnActiveConversationChanged(AgentChatConversation? oldValue, AgentChatConversation newValue)
     {
+        ScheduleContextMeasurement();
         _readScopeCache = null;
         OnPropertyChanged(nameof(IsBusy));
         OnPropertyChanged(nameof(IsIdle));
@@ -610,6 +616,7 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
         OnPropertyChanged(nameof(HasReadScope));
         OnPropertyChanged(nameof(ReadScopeSummary));
         OnPropertyChanged(nameof(IsReadScopeCritical));
+        OnPropertyChanged(nameof(UsageDetails));
         UpdateIdleState();
         NotifyCommands();
         RefreshHistoryActiveFlags();
@@ -728,6 +735,7 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
         void RefreshLocalizedState()
         {
             if (_disposed) return;
+            NotifyMetricProperties();
             OnPropertyChanged(nameof(StatusText));
             OnPropertyChanged(nameof(DestinationText));
             OnPropertyChanged(nameof(DestinationHint));

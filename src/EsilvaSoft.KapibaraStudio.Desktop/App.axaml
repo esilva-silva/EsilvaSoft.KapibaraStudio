@@ -54,6 +54,18 @@
           <SolidColorBrush x:Key="HoverBrush">#E6EEF8</SolidColorBrush>
           <SolidColorBrush x:Key="AccentHoverBrush">#155EC4</SolidColorBrush>
           <SolidColorBrush x:Key="AccentPressedBrush">#124FA6</SolidColorBrush>
+          <SolidColorBrush x:Key="AgentAddedBackgroundBrush">#ECFDF3</SolidColorBrush>
+          <SolidColorBrush x:Key="AgentAddedHoverBrush">#DCFCE7</SolidColorBrush>
+          <SolidColorBrush x:Key="AgentAddedPressedBrush">#BBF7D0</SolidColorBrush>
+          <SolidColorBrush x:Key="AgentRemovedBackgroundBrush">#FEF2F2</SolidColorBrush>
+          <SolidColorBrush x:Key="AgentRemovedHoverBrush">#FEE2E2</SolidColorBrush>
+          <SolidColorBrush x:Key="AgentRemovedPressedBrush">#FED8D8</SolidColorBrush>
+          <SolidColorBrush x:Key="AgentApplyBackgroundBrush">#ECFDF3</SolidColorBrush>
+          <SolidColorBrush x:Key="AgentApplyHoverBrush">#DCFCE7</SolidColorBrush>
+          <SolidColorBrush x:Key="AgentApplyPressedBrush">#BBF7D0</SolidColorBrush>
+          <SolidColorBrush x:Key="AgentReviewBackgroundBrush">#F7FAFF</SolidColorBrush>
+          <SolidColorBrush x:Key="AgentReviewHoverBrush">#F4F9FF</SolidColorBrush>
+          <SolidColorBrush x:Key="AgentReviewPressedBrush">#F3F8FF</SolidColorBrush>
         </ResourceDictionary>
         <ResourceDictionary x:Key="Dark">
           <imaging:Bitmap x:Key="BrandLogo">avares://EsilvaSoft.KapibaraStudio.Desktop/Assets/Branding/kapibara-logo-dark.png</imaging:Bitmap>
@@ -104,6 +116,18 @@
           <SolidColorBrush x:Key="HoverBrush">#26334A</SolidColorBrush>
           <SolidColorBrush x:Key="AccentHoverBrush">#60B9FF</SolidColorBrush>
           <SolidColorBrush x:Key="AccentPressedBrush">#2589E8</SolidColorBrush>
+          <SolidColorBrush x:Key="AgentAddedBackgroundBrush">#123222</SolidColorBrush>
+          <SolidColorBrush x:Key="AgentAddedHoverBrush">#19432D</SolidColorBrush>
+          <SolidColorBrush x:Key="AgentAddedPressedBrush">#205539</SolidColorBrush>
+          <SolidColorBrush x:Key="AgentRemovedBackgroundBrush">#3A1B24</SolidColorBrush>
+          <SolidColorBrush x:Key="AgentRemovedHoverBrush">#4B202B</SolidColorBrush>
+          <SolidColorBrush x:Key="AgentRemovedPressedBrush">#44202B</SolidColorBrush>
+          <SolidColorBrush x:Key="AgentApplyBackgroundBrush">#123222</SolidColorBrush>
+          <SolidColorBrush x:Key="AgentApplyHoverBrush">#19432D</SolidColorBrush>
+          <SolidColorBrush x:Key="AgentApplyPressedBrush">#205539</SolidColorBrush>
+          <SolidColorBrush x:Key="AgentReviewBackgroundBrush">#122842</SolidColorBrush>
+          <SolidColorBrush x:Key="AgentReviewHoverBrush">#173451</SolidColorBrush>
+          <SolidColorBrush x:Key="AgentReviewPressedBrush">#16314E</SolidColorBrush>
         </ResourceDictionary>
       </ResourceDictionary.ThemeDictionaries>
       <FontFamily x:Key="InterfaceFont">avares://Avalonia.Fonts.Inter/Assets#Inter</FontFamily>
@@ -164,6 +188,35 @@
     <Style Selector="Button.primary:disabled /template/ ContentPresenter#PART_ContentPresenter">
       <Setter Property="Background" Value="{DynamicResource SecondaryBackground}" />
       <Setter Property="Foreground" Value="{DynamicResource SecondaryText}" />
+    </Style>
+    <Style Selector="Button.agent-apply">
+      <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
+      <Setter Property="Background" Value="{DynamicResource AgentApplyBackgroundBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Button.agent-apply:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource AgentApplyHoverBrush}" />
+    </Style>
+    <Style Selector="Button.agent-apply:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource AgentApplyPressedBrush}" />
+    </Style>
+    <Style Selector="Button.agent-apply:disabled">
+      <Setter Property="Foreground" Value="{DynamicResource SecondaryText}" />
+      <Setter Property="Background" Value="{DynamicResource SecondaryBackground}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
+      <Setter Property="FontWeight" Value="Normal" />
+    </Style>
+    <Style Selector="Button.agent-review">
+      <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+      <Setter Property="Background" Value="{DynamicResource AgentReviewBackgroundBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    </Style>
+    <Style Selector="Button.agent-review:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource AgentReviewHoverBrush}" />
+    </Style>
+    <Style Selector="Button.agent-review:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource AgentReviewPressedBrush}" />
     </Style>
     <!-- Narrow windows keep the icon; tooltip and accessible name still carry the text. -->
     <Style Selector="Button.compact TextBlock.command-label">

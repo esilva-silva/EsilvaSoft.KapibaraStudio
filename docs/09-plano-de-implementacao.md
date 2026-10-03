@@ -1,5 +1,7 @@
 # Roadmap de evolução do Kapibara Studio
 
+**P7-UX2 — implementação no checkout em 03/10/2026:** [meta de autoscroll, diferenças e métricas](phases/phase-07-v0.11.0/meta-autoscroll-contexto-consumo-agente.md). Autoscroll, cores, medição UTF-8 do snapshot e métricas tipadas oficiais para Claude Code, OpenAI e Copilot estão implementados. Gates automatizados Windows passaram; inspeção visual foi feita em capturas representativas. Homologação nativa, leitor de tela, conta oficial, amplitude de estados/capturas e tokenizer permanecem pendentes.
+
 **Qualidade — 01/10/2026:** benchmarks são instrumentos manuais de desenvolvimento, fora dos gates de CI/release. A matriz automatizada mantém as duas suítes unitárias em Windows/Linux, guarda estática de fontes nos dois sistemas e integração Windows. [Revisão de estabilidade e limites](architecture/test-stability.md). A leitura estrutural de fontes no Linux não amplia a meta para testes de runtime/conexões reais.
 
 **Release/Copilot — 01/10/2026:** implementados runtime SDK externo ao single-file, CLI oficial de login incluída e origem única de auto update. Quatro pacotes locais gerados; conta oficial reconhecida no publish Windows sem CLI no PATH. Publicação remota, OAuth novo pela UI e execução Linux/ARM64 permanecem pendentes. [Revisão](architecture/release-copilot.md).

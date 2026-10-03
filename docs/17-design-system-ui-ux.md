@@ -1,5 +1,7 @@
 # Design system e revisão de UI/UX
 
+**P7-UX2 — implementado e validado automaticamente em 03/10/2026:** [meta de autoscroll, diferenças e métricas](phases/phase-07-v0.11.0/meta-autoscroll-contexto-consumo-agente.md). A conversa acompanha o fim após layout e preserva posição/estado por conversa; +/− têm papéis verdes/vermelhos e Aplicar/Revisar têm recursos dinâmicos semânticos. Resumos compactos e flyouts complementam os detalhes por mensagem. Build/testes Windows passaram; PNGs representativos claro/escuro e flyouts foram inspecionados. Inspeção extensa de combinações/contraste e homologação nativa ainda pendentes.
+
 **Estabilidade automatizada — 01/10/2026:** autosave conserva o debounce de 750 ms e recebe relógio opcional para testes; a sugestão automática expõe sua tarefa de conclusão para observar publicação/rejeição sem pausas fixas em Headless. Não muda apresentação, tema, atalhos ou navegação. A medição de p95 da UI passa a ser manual `Explicit`, fora de CI/release; os casos funcionais permanecem automáticos. [Política e evidências](architecture/test-stability.md).
 
 **Release/Copilot — 01/10/2026 (histórico):** **Entrar/Sair** usavam a CLI oficial interativa incluída no pacote. Este modelo foi substituído em 02/10 pelo CLI instalado pelo usuário para autenticação e sessões. A apresentação e os estados existentes são preservados. Auto update consulta somente o repositório KapibaraStudio. [Evidências e limites](architecture/release-copilot.md).

@@ -196,6 +196,16 @@
                     </ItemsControl.ItemTemplate>
                   </ItemsControl>
                   <TextBlock Text="{Binding AttachmentsText}" Classes="metadata" TextWrapping="Wrap" IsVisible="{Binding HasAttachments}" />
+                  <Button Content="{local:Loc Key=agentContextDetails}" IsVisible="{Binding HasContextMetrics}"
+                          AutomationProperties.Name="{local:Loc Key=agentContextDetails}">
+                    <Button.Flyout>
+                      <Flyout><Border MaxWidth="360" MaxHeight="280" Padding="10" Background="{DynamicResource PanelBackground}">
+                        <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                          <TextBlock Text="{Binding ContextMetricsDetails}" TextWrapping="Wrap" MaxWidth="340" />
+                        </ScrollViewer>
+                      </Border></Flyout>
+                    </Button.Flyout>
+                  </Button>
                 </StackPanel>
               </Border>
             </DataTemplate>
@@ -241,12 +251,22 @@
               <Border Classes="card" Padding="8" Margin="2">
                 <StackPanel Spacing="5">
                   <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
-                  <TextBlock Text="{Binding CountsText}" Classes="metadata" AutomationProperties.Name="{Binding CountsAccessibleText}" />
+                  <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding !HasPersistedCounts}"
+                              AutomationProperties.Name="{Binding CountsAccessibleText}">
+                    <Border Background="{DynamicResource AgentAddedBackgroundBrush}" BorderBrush="{DynamicResource SuccessBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                      <TextBlock Text="{Binding AddedCountText}" Foreground="{DynamicResource SuccessBrush}" />
+                    </Border>
+                    <Border Background="{DynamicResource AgentRemovedBackgroundBrush}" BorderBrush="{DynamicResource ErrorBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                      <TextBlock Text="{Binding RemovedCountText}" Foreground="{DynamicResource ErrorBrush}" />
+                    </Border>
+                  </StackPanel>
+                  <TextBlock Text="{Binding PersistedCounts}" Classes="metadata" IsVisible="{Binding HasPersistedCounts}"
+                             AutomationProperties.Name="{Binding CountsAccessibleText}" />
                   <TextBlock Text="{Binding StatusText}" Classes="metadata" TextWrapping="Wrap" />
                   <TextBlock Text="{Binding ErrorText}" Classes="metadata" Classes.error="{Binding HasError}" TextWrapping="Wrap" IsVisible="{Binding HasError}" />
                   <WrapPanel>
-                    <Button Content="{local:Loc Key=agentProposalReview}" Command="{Binding ReviewCommand}" IsEnabled="{Binding IsAvailable}" Margin="0,0,6,0" />
-                    <Button Content="{local:Loc Key=agentProposalApplyAll}" Command="{Binding ApplyAllCommand}" IsVisible="{Binding ShowApplyDiscard}" IsEnabled="{Binding CanApply}" Margin="0,0,6,0" />
+                    <Button Content="{local:Loc Key=agentProposalReview}" Classes="agent-review" Command="{Binding ReviewCommand}" IsEnabled="{Binding IsAvailable}" Margin="0,0,6,0" />
+                    <Button Content="{local:Loc Key=agentProposalApplyAll}" Classes="agent-apply" Command="{Binding ApplyAllCommand}" IsVisible="{Binding ShowApplyDiscard}" IsEnabled="{Binding CanApply}" Margin="0,0,6,0" />
                     <Button Content="{local:Loc Key=agentProposalDiscard}" Command="{Binding DiscardCommand}" IsVisible="{Binding ShowApplyDiscard}" IsEnabled="{Binding CanDiscard}" />
                     <Button Content="{local:Loc Key=agentProposalKeep}" Command="{Binding KeepCommand}" IsVisible="{Binding ShowKeepRevert}" Margin="0,0,6,0" />
                     <Button Content="{local:Loc Key=agentProposalRevert}" Command="{Binding RevertCommand}" IsVisible="{Binding ShowKeepRevert}" />
@@ -280,8 +300,20 @@
         <Border Classes="card" Padding="8" IsVisible="{Binding IsSendBlocked}">
           <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8"><TextBlock Text="{Binding SendBlockText}" TextWrapping="Wrap"/><Button Grid.Column="1" Content="{Binding SendBlockActionText}" Command="{Binding ResolveSendBlockCommand}" IsVisible="{Binding HasSendBlockAction}"/></Grid>
         </Border>
-        <Expander Theme="{StaticResource CompactAgentExpander}" x:Name="ContextDetails" IsVisible="{Binding HasChips}" HorizontalAlignment="Stretch" AutomationProperties.Name="{Binding ContextSummary}">
-          <Expander.Header><TextBlock Text="{Binding ContextSummary}" Classes="metadata" TextTrimming="CharacterEllipsis" /></Expander.Header>
+        <Expander Theme="{StaticResource CompactAgentExpander}" x:Name="ContextDetails" HorizontalAlignment="Stretch" AutomationProperties.Name="{Binding ContextMetricsSummary}">
+          <Expander.Header>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="4">
+              <TextBlock Text="{Binding ContextMetricsSummary}" Classes="metadata" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+              <Button Grid.Column="1" x:Name="ContextMetricsButton" Content="{local:Loc Key=agentContextDetails}" Padding="6,3" MinHeight="28" ToolTip.Tip="{Binding ContextMetricsSummary}"
+                      AutomationProperties.Name="{local:Loc Key=agentContextDetails}">
+                <Button.Flyout><Flyout><Border Width="300" MaxHeight="280" Padding="10" Background="{DynamicResource PanelBackground}">
+                  <ScrollViewer Width="280" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                    <TextBlock Text="{Binding ContextMetricsDetails}" TextWrapping="Wrap" Width="280" />
+                  </ScrollViewer>
+                </Border></Flyout></Button.Flyout>
+              </Button>
+            </Grid>
+          </Expander.Header>
           <ScrollViewer MaxHeight="120" HorizontalScrollBarVisibility="Disabled">
         <ItemsControl x:Name="ContextChips" ItemsSource="{Binding Chips}" IsVisible="{Binding HasChips}">
           <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
@@ -301,11 +333,19 @@
         </ItemsControl>
           </ScrollViewer>
         </Expander>
-        <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+        <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="8">
         <ComboBox HorizontalAlignment="Stretch" x:Name="ModeSelector" ItemsSource="{Binding Modes}" SelectedItem="{Binding SelectedMode}" IsEnabled="{Binding IsIdle}" AutomationProperties.Name="{local:Loc Key=agentModeOperation}" ToolTip.Tip="{Binding SelectedModeHint}">
           <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:AgentModeOption"><TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Hint}"/></DataTemplate></ComboBox.ItemTemplate>
         </ComboBox>
           <ComboBox Grid.Column="1" x:Name="ModelSelector" ItemsSource="{Binding Models}" SelectedItem="{Binding SelectedModel}" IsVisible="{Binding HasModels}" IsEnabled="{Binding CanChangeProvider}" AutomationProperties.Name="{local:Loc Key=agentModel}" AutomationProperties.HelpText="{Binding SelectedModel}" ToolTip.Tip="{Binding SelectedModel}" />
+          <Button Grid.Column="2" x:Name="UsageButton" Content="{local:Loc Key=agentUsage}" Padding="8,3" MinHeight="28" ToolTip.Tip="{local:Loc Key=agentUsage}"
+                  AutomationProperties.Name="{local:Loc Key=agentUsage}">
+            <Button.Flyout><Flyout><Border Width="300" MaxHeight="320" Padding="10" Background="{DynamicResource PanelBackground}">
+              <ScrollViewer Width="280" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                <TextBlock Text="{Binding UsageDetails}" TextWrapping="Wrap" Width="280" />
+              </ScrollViewer>
+            </Border></Flyout></Button.Flyout>
+          </Button>
         </Grid>
         <TextBox x:Name="Composer" Text="{Binding ComposerText}" IsEnabled="{Binding IsComposerEnabled}" AcceptsReturn="True" AcceptsTab="False" TextWrapping="Wrap" MinHeight="72" MaxHeight="160" PlaceholderText="{local:Loc Key=agentComposerPlaceholder}" AutomationProperties.Name="{local:Loc Key=agentComposer}" ToolTip.Tip="{local:Loc Key=agentComposerShortcut}" ScrollViewer.VerticalScrollBarVisibility="Auto" />
         </StackPanel>

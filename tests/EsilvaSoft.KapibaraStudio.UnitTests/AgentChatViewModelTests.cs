@@ -546,6 +546,48 @@ public sealed class AgentChatViewModelTests
         }
     }
 
+    [Test]
+    public async Task ContextAndUsageReachTheOriginatingMessageAndDoNotPersistWithConversation()
+    {
+        await RunOnUiAsync(async () =>
+        {
+            var provider = new ScriptedAgentProvider("metrics") { Script = (_, _, _) => UsageScript() };
+            await using var runtime = new AgentRuntime([provider]);
+            var catalog = new FakeAgentCatalog(FakeAgentCatalog.External("metrics", "Métricas") with { SupportsTurnPlan = true });
+            var permissions = AgentProviderPermissions.Default("metrics") with { ExternalDestinationConsentAt = DateTimeOffset.UtcNow };
+            var tab = new AgentChatTabFixture { Selection = "ação 中文 não salva" };
+            await using var chat = new AgentChatViewModel(Services(runtime, catalog, permissions: [permissions]), tab.Capture);
+            await chat.Initialization;
+            chat.ComposerText = "Olá 世界";
+            await chat.ContextMeasurementCompletion;
+            Assert.That(chat.ContextMeasurement!.Items.Any(item => item.Kind == AgentAttachmentKind.ActiveFile), Is.True);
+            await chat.SendCommand.ExecuteAsync(null);
+            var sent = chat.Items.OfType<AgentChatMessageItem>().Single(static item => item.IsUser);
+            var snapshot = sent.ContextMeasurement!;
+            Assert.That(sent.HasContextMetrics, Is.True);
+            Assert.That(snapshot.MessageBytes, Is.EqualTo(System.Text.Encoding.UTF8.GetByteCount("Olá 世界")));
+            Assert.That(chat.UsageDetails, Does.Contain("Métricas").And.Contain("12").And.Contain("fixture.usage"));
+            Assert.That(chat.ActiveConversation.UsageTurns.Single().Value.Total!.InputTokens, Is.EqualTo(12));
+            tab.Selection = "modified buffer";
+            chat.ComposerText = "outra mensagem";
+            chat.OnWorkspaceContextChanged();
+            await chat.ContextMeasurementCompletion;
+            Assert.That(sent.ContextMeasurement, Is.SameAs(snapshot));
+            Assert.That(chat.ContextMeasurement!.MessageBytes, Is.EqualTo(System.Text.Encoding.UTF8.GetByteCount("outra mensagem")));
+            var restored = AgentChatConversation.FromRecord(chat.ActiveConversation.ToRecord(DateTimeOffset.UtcNow), _ => null);
+            Assert.That(restored.UsageTurns, Is.Empty);
+            Assert.That(restored.Items.OfType<AgentChatMessageItem>().Single(static item => item.IsUser).HasContextMetrics, Is.False);
+        });
+
+        static async IAsyncEnumerable<AgentProviderEvent> UsageScript()
+        {
+            await Task.Yield();
+            var usage = new AgentUsageMetrics("fixture", AgentUsageScope.TurnTotal, 0, "fixture.usage", 12, 0);
+            yield return new(AgentEventKind.UsageUpdated) { Usage = usage };
+            yield return new(AgentEventKind.UsageUpdated) { Usage = usage };
+        }
+    }
+
     private static AgentApprovalDetails Details(DateTimeOffset expires, AgentToolRisk risk) =>
         new("mongo_update_one", "Produção", "shop", "orders", "{ \"_id\": ObjectId(\"65a1f0c2e4b0a1b2c3d4e5f6\") }",
             "{ \"$set\": { \"status\": \"shipped\" } }", 1, risk, expires);

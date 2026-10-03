@@ -414,6 +414,15 @@ public sealed partial class AgentRuntime
 
         switch (item.Kind)
         {
+            case AgentEventKind.UsageUpdated:
+                // Display-only data. Invalid, duplicate and older observations neither end a turn nor grant access.
+                if (item.Usage is not { IsWellFormed: true } usage) return true;
+                var usageKey = $"{usage.Scope}:{usage.ObservationId}";
+                if (turn.UsageRevisions.TryGetValue(usageKey, out var revision) && revision >= usage.Revision) return true;
+                if (turn.UsageRevisions.Count >= 1024 && !turn.UsageRevisions.ContainsKey(usageKey)) return true;
+                turn.UsageRevisions[usageKey] = usage.Revision;
+                return await PublishFlowAsync(turn, sequence => turn.Create(sequence, AgentEventKind.UsageUpdated) with { Usage = usage },
+                    null, null).ConfigureAwait(false);
             case AgentEventKind.MessageStarted:
                 return await StartMessageAsync(turn, item).ConfigureAwait(false);
             case AgentEventKind.MessageDelta:

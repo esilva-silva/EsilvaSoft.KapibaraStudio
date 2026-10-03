@@ -182,6 +182,8 @@ internal sealed partial class OpenAiAgentSession
         long? tokens = null;
         AgentMessageId? messageId = null;
         var received = 0;
+        var usageObservationId = Guid.NewGuid().ToString("N");
+        long usageRevision = 0;
         string? failure = null;
 
         IAsyncEnumerator<StreamingChatCompletionUpdate>? stream = null;
@@ -297,6 +299,12 @@ internal sealed partial class OpenAiAgentSession
                 if (update.Usage is { } usage)
                 {
                     tokens = usage.TotalTokenCount;
+                    await EmitAsync(turn, new AgentProviderEvent(AgentEventKind.UsageUpdated)
+                    {
+                        Usage = new AgentUsageMetrics(usageObservationId, AgentUsageScope.CallTotal, usageRevision++,
+                            "openai.chat.completion.usage", usage.InputTokenCount, usage.OutputTokenCount,
+                            Model: update.Model),
+                    }).ConfigureAwait(false);
                 }
             }
         }

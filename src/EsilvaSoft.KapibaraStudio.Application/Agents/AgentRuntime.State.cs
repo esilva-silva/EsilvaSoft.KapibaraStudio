@@ -272,6 +272,8 @@ public sealed partial class AgentRuntime
 
         public Dictionary<AgentApprovalId, ApprovalState> Approvals { get; } = [];
 
+        public Dictionary<string, long> UsageRevisions { get; } = new(StringComparer.Ordinal);
+
         /// <summary>Keyed by the adapter's call ID; guarded by <see cref="Gate"/>.</summary>
         public Dictionary<AgentToolCallId, ObservedToolState> ObservedTools { get; } = [];
 

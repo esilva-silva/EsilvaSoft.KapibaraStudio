@@ -1,5 +1,7 @@
 # Guia rápido de uso
 
+**Agente IA — contexto e uso (03/10/2026):** a [meta P7-UX2](phases/phase-07-v0.11.0/meta-autoscroll-contexto-consumo-agente.md) entrega contagem compacta em UTF-8 e **Detalhes do contexto** para consultar bytes, itens, pendências e limites. A mensagem enviada mantém seu snapshot imutável. **Uso** mostra os tokens e cache oficiais observados por Claude Code, OpenAI e Copilot, quando disponíveis; não representa ocupação da janela nem cobrança final. Providers sem dados mostram **Não informado pelo provider**. Ações de proposta usam cores suaves sem substituir rótulos e estados.
+
 **Ferramentas de desenvolvimento — 01/10/2026:** benchmarks de latência/alocação são executados manualmente e não fazem parte do CI/release. [Comandos de medição e política de testes](architecture/test-stability.md#separação-de-desempenho). As metas de produto permanecem e a suíte automática verifica comportamento, falhas e isolamento.
 
 **Copilot nos releases — 01/10/2026:** os novos pacotes incluem a CLI oficial interativa; **Entrar** abre seu login em terminal visível, e conta/chat compartilham a identidade oficial. Não é necessário instalar outra CLI no PATH. A pasta `runtimes/` deve acompanhar o executável ao extrair ou mover a instalação. [Correção e limites](architecture/release-copilot.md).

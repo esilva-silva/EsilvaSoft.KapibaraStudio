@@ -21,6 +21,25 @@ public sealed class OpenAiAgentProviderTests
     private static readonly string[] SecondTurnRoles = ["system", "user", "assistant", "user"];
 
     [Test]
+    public async Task OfficialStreamUsageIsForwardedWithReportedModelAndMissingCost()
+    {
+        var stream = Sse.Stream(Sse.Delta(new { content = "ok" }), Sse.Finish("stop"), Sse.Usage(12));
+        var provider = OpenAiTestFactory.Provider(new OpenAiOfflineHandler().Sse(stream));
+        await using var session = await provider.CreateSessionAsync(new(OpenAiAgentProvider.Id, OpenAiTestFactory.Model), CancellationToken.None);
+        var events = await OpenAiTestFactory.CollectAsync(session.RunTurnAsync(OpenAiTestFactory.Turn(), CancellationToken.None));
+        var usage = events.Single(static item => item.Kind == AgentEventKind.UsageUpdated).Usage!;
+        Assert.Multiple(() =>
+        {
+            Assert.That(usage.InputTokens, Is.EqualTo(6));
+            Assert.That(usage.OutputTokens, Is.EqualTo(6));
+            Assert.That(usage.Model, Is.EqualTo("fixture-model"));
+            Assert.That(usage.Cost, Is.Null);
+            Assert.That(usage.Scope, Is.EqualTo(AgentUsageScope.CallTotal));
+            Assert.That(usage.IsWellFormed, Is.True);
+        });
+    }
+
+    [Test]
     public async Task FragmentedUtf8StreamIsTranslatedIntoOneOrderedMessage()
     {
         var handler = new OpenAiOfflineHandler().Sse(Sse.Text("Olá, a", "ção concluí", "da."));

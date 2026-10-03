@@ -4,7 +4,10 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using EsilvaSoft.KapibaraStudio.Desktop.ViewModels;
+using System.Collections.Specialized;
+using System.ComponentModel;
 
 namespace EsilvaSoft.KapibaraStudio.Desktop;
 
@@ -19,6 +22,11 @@ public partial class AgentChatPanel : UserControl
     private AgentChatViewModel? _viewModel;
     private ScrollViewer? _historyScroll;
     private bool _stickToBottom = true;
+    private AgentChatConversation? _observedConversation;
+    private readonly Dictionary<Guid, HistoryScrollState> _conversationScrollStates = [];
+    private int _scrollRequestVersion;
+    private bool _isAttached;
+    private int _unreadMessageCount;
 
     public AgentChatPanel()
     {
@@ -88,10 +96,37 @@ public partial class AgentChatPanel : UserControl
 
     public TextBox ComposerBox => Composer;
 
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        _isAttached = true;
+        LocalizationViewModel.Current.PropertyChanged += OnLocalizationPropertyChanged;
+        Attach(DataContext as AgentChatViewModel);
+        UpdateLatestMessageButton();
+        AttachHistoryScroll();
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        _isAttached = false;
+        LocalizationViewModel.Current.PropertyChanged -= OnLocalizationPropertyChanged;
+        _scrollRequestVersion++;
+        SaveCurrentScrollState();
+        if (_historyScroll is not null)
+        {
+            _historyScroll.ScrollChanged -= OnHistoryScrollChanged;
+            _historyScroll = null;
+        }
+
+        Attach(null);
+        base.OnDetachedFromVisualTree(e);
+    }
+
     private void Attach(AgentChatViewModel? viewModel)
     {
         if (_viewModel is not null)
         {
+            _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
             _viewModel.ApprovalRequested -= OnApprovalRequested;
             _viewModel.SettingsRequested -= OnSettingsRequested;
             _viewModel.PermissionsRequested -= OnPermissionsRequested;
@@ -103,12 +138,83 @@ public partial class AgentChatPanel : UserControl
         _viewModel = viewModel;
         if (viewModel is not null)
         {
+            viewModel.PropertyChanged += OnViewModelPropertyChanged;
             viewModel.ApprovalRequested += OnApprovalRequested;
             viewModel.SettingsRequested += OnSettingsRequested;
             viewModel.PermissionsRequested += OnPermissionsRequested;
             viewModel.ComposerFocusRequested += OnComposerFocusRequested;
             viewModel.ExternalFilePickRequested += OnExternalFilePickRequested;
             viewModel.ProposalReviewRequested += OnProposalReviewRequested;
+        }
+
+        ObserveConversation(viewModel?.ActiveConversation);
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(AgentChatViewModel.ActiveConversation))
+        {
+            ObserveConversation(_viewModel?.ActiveConversation);
+        }
+    }
+
+    private void ObserveConversation(AgentChatConversation? conversation)
+    {
+        if (ReferenceEquals(conversation, _observedConversation))
+        {
+            if (conversation is not null && _isAttached)
+            {
+                conversation.Items.CollectionChanged -= OnConversationItemsChanged;
+                conversation.Items.CollectionChanged += OnConversationItemsChanged;
+            }
+
+            return;
+        }
+        SaveCurrentScrollState();
+        if (_observedConversation is not null)
+            _observedConversation.Items.CollectionChanged -= OnConversationItemsChanged;
+
+        _observedConversation = conversation;
+        if (conversation is not null && _isAttached)
+            conversation.Items.CollectionChanged += OnConversationItemsChanged;
+
+        _scrollRequestVersion++;
+        if (conversation is null || !_isAttached) return;
+        if (_conversationScrollStates.TryGetValue(conversation.Id, out var state))
+        {
+            _stickToBottom = state.StickToBottom;
+            _unreadMessageCount = state.UnreadMessageCount;
+            UpdateLatestMessageButton();
+            QueueRestore(state.OffsetY, state.StickToBottom);
+        }
+        else
+        {
+            _stickToBottom = true;
+            _unreadMessageCount = 0;
+            UpdateLatestMessageButton();
+            QueueRestore(null, stickToBottom: true);
+        }
+    }
+
+    private void OnConversationItemsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (!_isAttached || _observedConversation is null) return;
+        var messages = e.NewItems?.OfType<AgentChatMessageItem>().ToArray() ?? [];
+        if (messages.Any(static item => item.IsUser))
+        {
+            _stickToBottom = true;
+            _unreadMessageCount = 0;
+            QueueRestore(null, stickToBottom: true);
+        }
+        else if (_stickToBottom)
+        {
+            QueueRestore(null, stickToBottom: true);
+        }
+        else if (messages.Any(static item => !item.IsUser))
+        {
+            _unreadMessageCount += messages.Count(static item => !item.IsUser);
+            UpdateLatestMessageButton();
+            SaveCurrentScrollState();
         }
     }
 
@@ -209,24 +315,52 @@ public partial class AgentChatPanel : UserControl
 
     private void AttachHistoryScroll()
     {
-        if (_historyScroll is not null)
-        {
-            return;
-        }
-
-        _historyScroll = History.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
+        if (!_isAttached) return;
+        var current = History.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
+        if (ReferenceEquals(current, _historyScroll)) return;
+        SaveCurrentScrollState();
+        if (_historyScroll is not null) _historyScroll.ScrollChanged -= OnHistoryScrollChanged;
+        _historyScroll = current;
         if (_historyScroll is not null)
         {
             _historyScroll.ScrollChanged += OnHistoryScrollChanged;
+            if (_observedConversation is { } conversation && _conversationScrollStates.TryGetValue(conversation.Id, out var state))
+                QueueRestore(state.OffsetY, state.StickToBottom);
+            else
+                QueueRestore(null, stickToBottom: true);
         }
+    }
+
+    private void QueueRestore(double? offsetY, bool stickToBottom)
+    {
+        if (!_isAttached || _historyScroll is null) return;
+        var version = ++_scrollRequestVersion;
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (!_isAttached || version != _scrollRequestVersion || _historyScroll is not { } scroll) return;
+            var target = stickToBottom
+                ? Math.Max(0, scroll.Extent.Height - scroll.Viewport.Height)
+                : Math.Clamp(offsetY ?? scroll.Offset.Y, 0, Math.Max(0, scroll.Extent.Height - scroll.Viewport.Height));
+            scroll.Offset = new Vector(scroll.Offset.X, target);
+            _stickToBottom = stickToBottom;
+            if (stickToBottom) _unreadMessageCount = 0;
+            UpdateLatestMessageButton();
+            SaveCurrentScrollState();
+        }, DispatcherPriority.Background);
+    }
+
+    private void SaveCurrentScrollState()
+    {
+        if (_observedConversation is not { } conversation || _historyScroll is not { } scroll) return;
+        _conversationScrollStates[conversation.Id] = new HistoryScrollState(scroll.Offset.Y, _stickToBottom, _unreadMessageCount);
     }
 
     private void OnLatestMessageClick(object? sender, RoutedEventArgs e)
     {
         if (_historyScroll is not { } scroll) return;
         _stickToBottom = true;
-        scroll.Offset = new Vector(scroll.Offset.X, Math.Max(0, scroll.Extent.Height - scroll.Viewport.Height));
-        LatestMessageButton.IsVisible = false;
+        _unreadMessageCount = 0;
+        QueueRestore(null, stickToBottom: true);
     }
 
     private void OnHistoryScrollChanged(object? sender, ScrollChangedEventArgs e)
@@ -236,20 +370,65 @@ public partial class AgentChatPanel : UserControl
             return;
         }
 
-        if (e.ExtentDelta.Y != 0 && e.OffsetDelta.Y == 0)
+        var geometryChanged = e.ExtentDelta.Y != 0 || e.ViewportDelta.Y != 0;
+        if (geometryChanged)
         {
-            // New content: follow the stream only if the reader was already at the end.
-            if (_stickToBottom)
+            // Decide from the gap before layout changed; the layout itself may also adjust Offset.
+            var oldOffset = scroll.Offset.Y - e.OffsetDelta.Y;
+            var oldExtent = scroll.Extent.Height - e.ExtentDelta.Y;
+            var oldViewport = scroll.Viewport.Height - e.ViewportDelta.Y;
+            var wasAtEnd = oldOffset + oldViewport >= oldExtent - StickThreshold;
+            if (wasAtEnd)
             {
-                scroll.Offset = new Vector(scroll.Offset.X, Math.Max(0, scroll.Extent.Height - scroll.Viewport.Height));
+                _stickToBottom = true;
+                QueueRestore(null, stickToBottom: true);
             }
+            else
+            {
+                _stickToBottom = IsAtEnd(scroll);
+                if (_stickToBottom) _unreadMessageCount = 0;
+                UpdateLatestMessageButton();
+            }
+        }
+        else if (Math.Abs(e.OffsetDelta.Y) > 0)
+        {
+            // With no geometry change, offset movement is a user scroll (or an explicit restore).
+            _stickToBottom = IsAtEnd(scroll);
+            if (_stickToBottom) _unreadMessageCount = 0;
+            UpdateLatestMessageButton();
+        }
+        SaveCurrentScrollState();
+    }
 
+    private static bool IsAtEnd(ScrollViewer scroll) =>
+        scroll.Offset.Y + scroll.Viewport.Height >= scroll.Extent.Height - StickThreshold;
+
+    private void OnLocalizationPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            UpdateLatestMessageButton();
             return;
         }
 
-        _stickToBottom = scroll.Offset.Y + scroll.Viewport.Height >= scroll.Extent.Height - StickThreshold;
-        LatestMessageButton.IsVisible = !_stickToBottom;
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_isAttached) UpdateLatestMessageButton();
+        });
     }
+
+    private void UpdateLatestMessageButton()
+    {
+        if (LatestMessageButton is null) return;
+        var text = _unreadMessageCount > 0
+            ? LocalizationViewModel.Current.Format("agentLatestMessageCount", _unreadMessageCount)
+            : LocalizationViewModel.Current.Resolve("agentLatestMessage");
+        LatestMessageButton.Content = text;
+        LatestMessageButton.IsVisible = !_stickToBottom;
+        Avalonia.Automation.AutomationProperties.SetName(LatestMessageButton, text);
+    }
+
+    private sealed record HistoryScrollState(double OffsetY, bool StickToBottom, int UnreadMessageCount);
 
     private void OnApprovalRequested(object? sender, AgentApprovalViewModel approval) => _ = ShowApprovalAsync(approval);
 

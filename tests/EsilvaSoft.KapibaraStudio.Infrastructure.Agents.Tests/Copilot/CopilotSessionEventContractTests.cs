@@ -32,6 +32,28 @@ public sealed class CopilotSessionEventContractTests
     }
 
     [Test]
+    public void OfficialUsageIsMappedAsCallTotalWithoutInventingMonetaryCostOrClosingTurn()
+    {
+        var turn = CreateTurn();
+        Dispatch(turn, new AssistantUsageEvent { Data = new AssistantUsageData
+        {
+            ApiCallId = "call-one", Model = "fixture-model", InputTokens = 100, OutputTokens = 0,
+            CacheReadTokens = 40, CacheWriteTokens = 5,
+        } });
+        var metric = ReadEvents(turn).Single();
+        Assert.Multiple(() =>
+        {
+            Assert.That(metric.Kind, Is.EqualTo(AgentEventKind.UsageUpdated));
+            Assert.That(metric.Usage!.Scope, Is.EqualTo(AgentUsageScope.CallTotal));
+            Assert.That(metric.Usage.InputTokens, Is.EqualTo(100));
+            Assert.That(metric.Usage.OutputTokens, Is.Zero);
+            Assert.That(metric.Usage.CacheReadTokens, Is.EqualTo(40));
+            Assert.That(metric.Usage.Cost, Is.Null, "SDK Cost is a model multiplier, not currency.");
+            Assert.That(GetDone(turn).IsCompleted, Is.False);
+        });
+    }
+
+    [Test]
     public void AutopilotIdleDoesNotCompleteTurnWhileOrdinaryIdleDoes()
     {
         var autopilot = CreateTurn();

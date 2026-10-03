@@ -51,6 +51,11 @@ public sealed partial class AgentChatMessageItem : AgentChatItemViewModel
 
     public bool HasAttachments => Attachments.Count > 0;
 
+    /// <summary>Memory-only measurement of the authorized request used by this originating message.</summary>
+    public AgentContextMeasurement? ContextMeasurement { get; init; }
+    public bool HasContextMetrics => ContextMeasurement is not null;
+    public string ContextMetricsDetails => AgentMetricText.Context(ContextMeasurement, sent: true);
+
     /// <summary>"Anexos: clientes.json (1,2 KB) · developercluster › CakeShop" — identity only.</summary>
     public string AttachmentsText => HasAttachments
         ? Text.Format("agentMessageAttachments", string.Join(" · ", Attachments.Select(AgentContextChipViewModel.DescribeDescriptor)))
@@ -455,8 +460,14 @@ public sealed partial class AgentEditProposalCardItem : AgentChatItemViewModel
 
     public string CountsText => PersistedCounts ?? Text.Format("agentProposalCounts", AddedLines, RemovedLines);
 
+    public string AddedCountText => Text.Format("agentProposalAddedCount", AddedLines);
+
+    public string RemovedCountText => Text.Format("agentProposalRemovedCount", RemovedLines);
+
     /// <summary>Counts restored from the persisted summary when the proposal is no longer in memory.</summary>
     public string? PersistedCounts { get; init; }
+
+    public bool HasPersistedCounts => PersistedCounts is not null;
 
     /// <summary>Accessible summary of the counts ("3 linhas adicionadas, 1 removida").</summary>
     public string CountsAccessibleText => Text.Format("agentProposalCountsAccessible", AddedLines, RemovedLines);
