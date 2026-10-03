@@ -1,0 +1,61 @@
+package,license_type,license,project_url,notices,cache_present,matched_records
+Acornima/1.7.0,expression,BSD-3-Clause,https://github.com/adams85/acornima,,True,2
+Anthropic/12.50.0,expression,MIT,https://docs.anthropic.com/claude/reference/,,True,2
+Avalonia.Angle.Windows.Natives/2.1.27548.20260419,file,LICENSE,https://avaloniaui.net/,LICENSE,True,2
+Avalonia.AvaloniaEdit/12.0.0,expression,MIT,,,True,4
+Avalonia.Desktop/12.1.2,expression,MIT,https://avaloniaui.net/?utm_source=nuget&utm_medium=referral&utm_content=project_homepage_link,,True,2
+Avalonia.Fonts.Inter/12.1.2,expression,MIT,https://avaloniaui.net/?utm_source=nuget&utm_medium=referral&utm_content=project_homepage_link,,True,2
+Avalonia.FreeDesktop.AtSpi/12.1.2,expression,MIT,https://avaloniaui.net/?utm_source=nuget&utm_medium=referral&utm_content=project_homepage_link,,True,2
+Avalonia.FreeDesktop/12.1.2,expression,MIT,https://avaloniaui.net/?utm_source=nuget&utm_medium=referral&utm_content=project_homepage_link,,True,2
+Avalonia.HarfBuzz/12.1.2,expression,MIT,https://avaloniaui.net/?utm_source=nuget&utm_medium=referral&utm_content=project_homepage_link,,True,2
+Avalonia.Native/12.1.2,expression,MIT,https://avaloniaui.net/?utm_source=nuget&utm_medium=referral&utm_content=project_homepage_link,,True,2
+Avalonia.Remote.Protocol/12.1.2,expression,MIT,https://avaloniaui.net/?utm_source=nuget&utm_medium=referral&utm_content=project_homepage_link,,True,2
+Avalonia.Skia/12.1.2,expression,MIT,https://avaloniaui.net/?utm_source=nuget&utm_medium=referral&utm_content=project_homepage_link,,True,2
+Avalonia.Themes.Fluent/12.1.2,expression,MIT,https://avaloniaui.net/?utm_source=nuget&utm_medium=referral&utm_content=project_homepage_link,,True,2
+Avalonia.Win32/12.1.2,expression,MIT,https://avaloniaui.net/?utm_source=nuget&utm_medium=referral&utm_content=project_homepage_link,,True,4
+Avalonia.X11/12.1.2,expression,MIT,https://avaloniaui.net/?utm_source=nuget&utm_medium=referral&utm_content=project_homepage_link,,True,2
+Avalonia/12.1.2,expression,MIT,https://avaloniaui.net/?utm_source=nuget&utm_medium=referral&utm_content=project_homepage_link,,True,22
+CommunityToolkit.Mvvm/8.4.0,expression,MIT,https://github.com/CommunityToolkit/dotnet,License.md; ThirdPartyNotices.txt,True,2
+DnsClient/1.6.1,expression,Apache-2.0,http://dnsclient.michaco.net/,,True,2
+GitHub.Copilot.SDK/1.0.14,expression,MIT,https://github.com/github/copilot-sdk,,True,2
+HarfBuzzSharp.NativeAssets.Win32/8.3.1.3,expression,MIT,https://go.microsoft.com/fwlink/?linkid=868515,LICENSE.txt; THIRD-PARTY-NOTICES.txt,True,2
+HarfBuzzSharp/8.3.1.3,expression,MIT,https://go.microsoft.com/fwlink/?linkid=868515,LICENSE.txt,True,2
+Jint/4.16.0,expression,BSD-2-Clause,https://github.com/sebastienros/jint,,True,2
+LiteDB/5.0.21,expression,MIT,https://www.litedb.org/,LICENSE,True,2
+MicroCom.Runtime/0.11.6,expression,MIT,,,True,2
+Microsoft.Data.Sqlite.Core/10.0.12,expression,MIT,https://docs.microsoft.com/dotnet/standard/data/sqlite/,,True,2
+Microsoft.Data.Sqlite/10.0.12,expression,MIT,https://docs.microsoft.com/dotnet/standard/data/sqlite/,,True,0
+Microsoft.Extensions.AI.Abstractions/10.5.1,expression,MIT,https://dot.net/,,True,2
+Microsoft.Extensions.AI.Abstractions/10.8.3,expression,MIT,https://dot.net/,,True,2
+Microsoft.Extensions.Configuration.Abstractions/10.0.9,expression,MIT,https://dot.net/,THIRD-PARTY-NOTICES.TXT,True,2
+Microsoft.Extensions.DependencyInjection.Abstractions/10.0.10,expression,MIT,https://dot.net/,THIRD-PARTY-NOTICES.TXT,True,4
+Microsoft.Extensions.DependencyInjection/10.0.0,expression,MIT,https://dot.net/,THIRD-PARTY-NOTICES.TXT,True,2
+Microsoft.Extensions.Diagnostics.Abstractions/10.0.9,expression,MIT,https://dot.net/,THIRD-PARTY-NOTICES.TXT,True,2
+Microsoft.Extensions.FileProviders.Abstractions/10.0.9,expression,MIT,https://dot.net/,THIRD-PARTY-NOTICES.TXT,True,2
+Microsoft.Extensions.Hosting.Abstractions/10.0.9,expression,MIT,https://dot.net/,THIRD-PARTY-NOTICES.TXT,True,2
+Microsoft.Extensions.Logging.Abstractions/10.0.10,expression,MIT,https://dot.net/,THIRD-PARTY-NOTICES.TXT,True,4
+Microsoft.Extensions.Options/10.0.9,expression,MIT,https://dot.net/,THIRD-PARTY-NOTICES.TXT,True,2
+Microsoft.Extensions.Primitives/10.0.9,expression,MIT,https://dot.net/,THIRD-PARTY-NOTICES.TXT,True,2
+Microsoft.ML.OnnxRuntime.Managed/1.28.0,file,LICENSE.txt,https://github.com/Microsoft/onnxruntime,LICENSE.txt; ThirdPartyNotices.txt,True,2
+Microsoft.ML.OnnxRuntimeGenAI.Managed/0.15.2,file,LICENSE,https://github.com/microsoft/onnxruntime-genai/,LICENSE; ThirdPartyNotices.txt,True,2
+Microsoft.ML.OnnxRuntimeGenAI.WinML/0.15.2,file,LICENSE,https://github.com/microsoft/onnxruntime-genai,LICENSE; ThirdPartyNotices.txt,True,4
+Microsoft.NETCore.App.Runtime.win-arm64/10.0.12,expression,MIT,https://dot.net/,LICENSE.TXT; THIRD-PARTY-NOTICES.TXT,True,344
+Microsoft.NETCore.App.Runtime.win-x64/10.0.12,expression,MIT,https://dot.net/,LICENSE.TXT; THIRD-PARTY-NOTICES.TXT,True,344
+Microsoft.Windows.AI.MachineLearning/2.1.1,file,license.txt,https://github.com/microsoft/windowsappsdk,license.txt; ThirdPartyNotices.txt,True,6
+ModelContextProtocol.Core/2.2.0,expression,Apache-2.0,https://csharp.sdk.modelcontextprotocol.io/,,True,2
+MongoDB.Bson/3.11.1,expression,Apache-2.0,https://www.mongodb.com/docs/drivers/csharp/,,True,2
+MongoDB.Driver/3.11.1,expression,Apache-2.0,https://www.mongodb.com/docs/drivers/csharp/,,True,2
+OpenAI/2.14.0,expression,MIT,https://github.com/openai/openai-dotnet/tree/OpenAI_2.14.0,,True,2
+SQLitePCLRaw.bundle_e_sqlite3/2.1.12,expression,Apache-2.0,,,True,2
+SQLitePCLRaw.core/2.1.12,expression,Apache-2.0,,,True,2
+SQLitePCLRaw.lib.e_sqlite3/2.1.12,expression,Apache-2.0,,,True,2
+SQLitePCLRaw.provider.e_sqlite3/2.1.12,expression,Apache-2.0,,,True,2
+SharpCompress/0.48.1,expression,MIT,https://github.com/adamhathcock/sharpcompress,,True,2
+SkiaSharp.NativeAssets.Win32/3.119.4,expression,MIT,https://go.microsoft.com/fwlink/?linkid=868515,LICENSE.txt; THIRD-PARTY-NOTICES.txt,True,2
+SkiaSharp/3.119.4,expression,MIT,https://go.microsoft.com/fwlink/?linkid=868515,LICENSE.txt,True,2
+Snappier/1.3.1,expression,BSD-3-Clause,https://brantburnett.github.io/Snappier/,,True,2
+System.ClientModel/1.15.0,expression,MIT,https://github.com/Azure/azure-sdk-for-net/blob/System.ClientModel_1.15.0/sdk/core/System.ClientModel/README.md,,True,2
+System.Memory.Data/10.0.9,expression,MIT,https://dot.net/,THIRD-PARTY-NOTICES.TXT,True,2
+System.Numerics.Tensors/9.0.0,expression,MIT,https://dot.net/,LICENSE.TXT; THIRD-PARTY-NOTICES.TXT,True,2
+Tmds.DBus.Protocol/0.94.1,expression,MIT,,,True,2
+ZstdSharp.Port/0.7.3,expression,MIT,https://github.com/oleg-st/ZstdSharp,,True,2

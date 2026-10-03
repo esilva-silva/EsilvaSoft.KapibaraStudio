@@ -1,5 +1,7 @@
 # Release e autenticação Copilot — revisão de 01/10/2026
 
+**Auditoria dos arquivos locais — 03/10/2026:** os ZIPs em `artifacts/release/0.11.0/` ainda são do empacotamento anterior: incluem runtime Copilot e proxy MCP, inclusive binários dentro do single-file, e não contêm `THIRD-PARTY-NOTICES.md`. As correções do checkout descritas abaixo não atualizam esses arquivos. A [revisão de licenças](windows-license-review-2026-10-03.md) cobre ambos os RIDs e registra também termos proprietários Windows ML, fontes OFL e avisos faltantes. Reconstrução e reauditoria dos pacotes permanecem pendentes.
+
 ## Correção anterior (histórico de 01/10/2026)
 
 O publish single-file com extração nativa incorporava `copilot.exe`, `runtime.node` e DLLs do SDK ao executável principal. O adapter procura o runtime em `AppContext.BaseDirectory/runtimes/<rid>/native`, onde esses arquivos não existiam no pacote. O publish anterior foi reproduzido em `artifacts/release-review/before`; a ausência do executável foi confirmada.

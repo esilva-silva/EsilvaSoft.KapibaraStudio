@@ -13,6 +13,8 @@ Esta relação documenta o incremento Console; o inventário completo do produto
 
 ## Autocomplete local
 
+**Revisão de distribuição Windows — 03/10/2026:** a MIT dos pacotes principais ONNX não cobre automaticamente todos os binários transitivos. `Microsoft.Windows.AI.MachineLearning` **2.1.1**, que fornece `DirectML.dll`, `Microsoft.Windows.AI.MachineLearning.dll` e `onnxruntime.dll` no backend WinML, usa **Microsoft Software License Terms — Windows ML Runtime**, com condições próprias de redistribuição. `Avalonia.Fonts.Inter` tem wrapper MIT, mas suas fontes Inter incorporadas são **OFL-1.1**. Avisos dos runtimes .NET, ONNX, Skia/HarfBuzz e demais componentes também devem acompanhar o download. A [revisão dos dois ZIPs locais v0.11.0](docs/architecture/windows-license-review-2026-10-03.md) registra hashes, inventário integral e lacunas; esses ZIPs antigos ainda incluem CLI/runtime Copilot e não incluem este arquivo. A revisão não declara aprovação jurídica nem elegibilidade ao SignPath.
+
 Microsoft.ML.OnnxRuntimeGenAI/Managed **0.15.2** e Microsoft.ML.OnnxRuntime/Managed **1.28.0**, Microsoft, licença MIT. [ONNX Runtime GenAI](https://github.com/microsoft/onnxruntime-genai/tree/v0.15.2), [ONNX Runtime](https://github.com/microsoft/onnxruntime). Os pacotes incluem avisos de componentes nativos transitivos que devem acompanhar distribuições derivadas. Os lockfiles fixam versões e hashes.
 
 Pesos e tokenizers Qwen não fazem parte do repositório nem da publicação. A licença de cada modelo/exportação deve ser consultada na origem escolhida pelo usuário; a MIT do Kapibara Studio não relicencia modelos externos.

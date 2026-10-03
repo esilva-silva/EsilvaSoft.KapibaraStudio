@@ -1,0 +1,39 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>GitHub.Copilot.SDK</id>
+    <version>1.0.14</version>
+    <authors>GitHub</authors>
+    <license type="expression">MIT</license>
+    <licenseUrl>https://licenses.nuget.org/MIT</licenseUrl>
+    <icon>copilot.png</icon>
+    <readme>README.md</readme>
+    <projectUrl>https://github.com/github/copilot-sdk</projectUrl>
+    <description>SDK for programmatic control of GitHub Copilot CLI</description>
+    <copyright>Copyright (c) Microsoft Corporation. All rights reserved.</copyright>
+    <tags>github copilot sdk jsonrpc agent</tags>
+    <repository type="git" url="https://github.com/github/copilot-sdk" branch="refs/heads/main" commit="e60d9037353249ef16b349eb4012e8c1d113fda5" />
+    <dependencies>
+      <group targetFramework="net8.0">
+        <dependency id="Microsoft.Extensions.AI.Abstractions" version="10.2.0" exclude="Build,Analyzers" />
+        <dependency id="Microsoft.Extensions.Logging.Abstractions" version="10.0.2" exclude="Build,Analyzers" />
+        <dependency id="System.Text.Json" version="10.0.2" exclude="Build,Analyzers" />
+      </group>
+      <group targetFramework="net10.0">
+        <dependency id="Microsoft.Extensions.AI.Abstractions" version="10.2.0" exclude="Build,Analyzers" />
+        <dependency id="Microsoft.Extensions.Logging.Abstractions" version="10.0.2" exclude="Build,Analyzers" />
+      </group>
+      <group targetFramework=".NETStandard2.0">
+        <dependency id="Microsoft.Bcl.AsyncInterfaces" version="10.0.2" exclude="Build,Analyzers" />
+        <dependency id="Microsoft.Extensions.AI.Abstractions" version="10.2.0" exclude="Build,Analyzers" />
+        <dependency id="Microsoft.Extensions.Logging.Abstractions" version="10.0.2" exclude="Build,Analyzers" />
+        <dependency id="System.Collections.Immutable" version="10.0.2" exclude="Build,Analyzers" />
+        <dependency id="System.ComponentModel.Annotations" version="5.0.0" exclude="Build,Analyzers" />
+        <dependency id="System.Memory" version="4.6.3" exclude="Build,Analyzers" />
+        <dependency id="System.Text.Json" version="10.0.2" exclude="Build,Analyzers" />
+        <dependency id="System.Threading.Channels" version="10.0.2" exclude="Build,Analyzers" />
+        <dependency id="System.Threading.Tasks.Extensions" version="4.6.3" exclude="Build,Analyzers" />
+      </group>
+    </dependencies>
+  </metadata>
+</package>

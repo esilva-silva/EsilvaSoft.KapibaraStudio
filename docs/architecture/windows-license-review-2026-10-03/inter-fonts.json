@@ -1,0 +1,155 @@
+{
+  "assembly_sha256": "332d53aa406bcecec75f498fb8c0a91eb3ac1dcddd34a0a1fbeba0b5ddf87585",
+  "fonts": [
+    {
+      "offset": 12303,
+      "names": [
+        [
+          0,
+          "Copyright 2020 The Inter Project Authors (https://github.com/rsms/inter)"
+        ],
+        [
+          1,
+          "Inter"
+        ],
+        [
+          5,
+          "Version 3.019;git-0a5106e0b"
+        ],
+        [
+          13,
+          "This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: http://scripts.sil.org/OFL"
+        ],
+        [
+          14,
+          "http://scripts.sil.org/OFL"
+        ]
+      ]
+    },
+    {
+      "offset": 328403,
+      "names": [
+        [
+          0,
+          "Copyright 2020 The Inter Project Authors (https://github.com/rsms/inter)"
+        ],
+        [
+          1,
+          "Inter Light"
+        ],
+        [
+          5,
+          "Version 3.019;git-0a5106e0b"
+        ],
+        [
+          13,
+          "This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: http://scripts.sil.org/OFL"
+        ],
+        [
+          14,
+          "http://scripts.sil.org/OFL"
+        ]
+      ]
+    },
+    {
+      "offset": 638823,
+      "names": [
+        [
+          0,
+          "Copyright 2020 The Inter Project Authors (https://github.com/rsms/inter)"
+        ],
+        [
+          1,
+          "Inter Medium"
+        ],
+        [
+          5,
+          "Version 3.019;git-0a5106e0b"
+        ],
+        [
+          13,
+          "This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: http://scripts.sil.org/OFL"
+        ],
+        [
+          14,
+          "http://scripts.sil.org/OFL"
+        ]
+      ]
+    },
+    {
+      "offset": 953535,
+      "names": [
+        [
+          0,
+          "Copyright 2020 The Inter Project Authors (https://github.com/rsms/inter)"
+        ],
+        [
+          1,
+          "Inter"
+        ],
+        [
+          5,
+          "Version 3.019;git-0a5106e0b"
+        ],
+        [
+          13,
+          "This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: http://scripts.sil.org/OFL"
+        ],
+        [
+          14,
+          "http://scripts.sil.org/OFL"
+        ]
+      ]
+    },
+    {
+      "offset": 1263363,
+      "names": [
+        [
+          0,
+          "Copyright 2020 The Inter Project Authors (https://github.com/rsms/inter)"
+        ],
+        [
+          1,
+          "Inter SemiBold"
+        ],
+        [
+          5,
+          "Version 3.019;git-0a5106e0b"
+        ],
+        [
+          13,
+          "This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: http://scripts.sil.org/OFL"
+        ],
+        [
+          14,
+          "http://scripts.sil.org/OFL"
+        ]
+      ]
+    },
+    {
+      "offset": 1579119,
+      "names": [
+        [
+          0,
+          "Copyright 2020 The Inter Project Authors (https://github.com/rsms/inter)"
+        ],
+        [
+          1,
+          "Inter Thin"
+        ],
+        [
+          5,
+          "Version 3.019;git-0a5106e0b"
+        ],
+        [
+          13,
+          "This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: http://scripts.sil.org/OFL"
+        ],
+        [
+          14,
+          "http://scripts.sil.org/OFL"
+        ]
+      ]
+    }
+  ]
+}

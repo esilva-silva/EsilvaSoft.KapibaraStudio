@@ -1,0 +1,10 @@
+[
+  {
+    "archive": "EsilvaSoft.KapibaraStudio-0.11.0-win-x64.zip",
+    "sha256": "f7e0be5910b2000316329cf4f102d59d14e92f7064a25bd6a7298e2ebdef1e83"
+  },
+  {
+    "archive": "EsilvaSoft.KapibaraStudio-0.11.0-win-arm64.zip",
+    "sha256": "de58bdbc77fbad35b8dc4830251931722703cf01c1158091a3601ad4fee143d9"
+  }
+]
