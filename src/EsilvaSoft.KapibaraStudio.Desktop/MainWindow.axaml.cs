@@ -312,6 +312,7 @@ public partial class MainWindow : Window
                 await Launcher.LaunchUriAsync(release.PageUrl);
                 break;
             case AppUpdateUiState.Ready:
+            case AppUpdateUiState.InstallFailed:
                 var choice = await Dialogs.ChooseAsync(this, T("updateRestart"), F("updateReadyPrompt", updates.ReadyVersion), T("restartNow"), T("later"));
                 if (choice == T("restartNow")) RestartForUpdate();
                 break;

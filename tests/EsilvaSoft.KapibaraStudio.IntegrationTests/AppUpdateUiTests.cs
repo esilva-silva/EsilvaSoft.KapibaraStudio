@@ -73,7 +73,8 @@ public sealed class AppUpdateUiTests
             }
             using (var ready = new AppUpdateViewModel(new ControlledAppUpdates { Staged = new(AppVersion.Parse("0.6.0"), "Arquivo em uso") }, operations))
             {
-                Assert.That(ready.State, Is.EqualTo(AppUpdateUiState.Ready), "A package downloaded in a previous session is still installed on exit.");
+                Assert.That(ready.State, Is.EqualTo(AppUpdateUiState.InstallFailed), "The prior apply failed, so the UI must not claim a normal restart.");
+                Assert.That(ready.Label, Is.EqualTo("Tentar instalar"));
                 Assert.That(ready.ToolTip, Does.Contain("Arquivo em uso"));
             }
 

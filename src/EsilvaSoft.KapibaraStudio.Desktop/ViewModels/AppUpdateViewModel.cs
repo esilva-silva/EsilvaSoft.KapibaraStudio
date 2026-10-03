@@ -38,6 +38,7 @@ public sealed partial class AppUpdateViewModel : ObservableObject, IDisposable
     {
         AppUpdateUiState.Downloading => F("updateDownloading", Progress.ToString("F0", System.Globalization.CultureInfo.InvariantCulture)),
         AppUpdateUiState.Ready => T("updateRestart"),
+        AppUpdateUiState.InstallFailed => T("updateRetryInstallLabel"),
         _ => T("update")
     };
 
@@ -94,7 +95,7 @@ public sealed partial class AppUpdateViewModel : ObservableObject, IDisposable
     private void SetReady(StagedAppUpdate staged)
     {
         ReadyVersion = staged.Version;
-        State = AppUpdateUiState.Ready;
+        State = staged.LastApplyError is null ? AppUpdateUiState.Ready : AppUpdateUiState.InstallFailed;
         Progress = 100;
         ToolTip = staged.LastApplyError is { } error
             ? F("updateInstallFailed", staged.Version, error)

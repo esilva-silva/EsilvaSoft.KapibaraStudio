@@ -16,6 +16,8 @@ A única origem de releases do aplicativo é [esilva-silva/EsilvaSoft.KapibaraSt
 
 Naquela revisão, downloads oficiais de dependências Copilot vinham de `github/copilot-cli`; não eram uma origem alternativa para atualização do KapibaraStudio. A verificação SHA-256, staging, cancelamento, restauração e aplicação no fechamento pertencem ao fluxo de atualização do app e permanecem. A política atual de distribuição foi substituída pela atualização de 02/10 abaixo.
 
+Se a substituição dos arquivos falhar ao fechar, o processo inicia novamente a cópia antiga para manter o app acessível e grava a falha junto ao update pendente. Na próxima abertura, a barra identifica o estado como **Tentar instalar** e o tooltip informa o erro salvo; o próximo reinício tenta aplicar o pacote novamente. Isso distingue claramente a tentativa de instalação malsucedida de uma atualização concluída.
+
 ## Evidências históricas e limites — pacote de 01/10/2026
 
 - Restore locked e build Release: aprovados, zero avisos/erros.
