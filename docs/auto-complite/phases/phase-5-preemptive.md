@@ -25,7 +25,7 @@ Aceite verificado: funcional com IA/modelo ausente; ambiguidade e catálogo trun
 - **PNGs reais nos dois temas e 18 combinações**: não produzidos nesta entrega.
 - **IME**: o editor agora propaga begin/update/end de preedit pela API de texto do Avalonia; Headless confirma o ciclo, mas entrada IME nativa permanece pendente de homologação.
 - **UI de configuração**: os bindings de `InlineEnabled`, `InlineUseTraditional` e `InlineUseAi` já têm controles no `AutocompleteSettingsWindow`; a matriz anterior estava desatualizada.
-- **PNGs/layouts nativos, ABNT2/US, leitor de tela, Linux gráfico e IME nativo**: pendentes para homologação da Fase 9; não são cobertos pelo Headless.
+- **PNGs/layouts nativos, ABNT2/US, leitor de tela, Linux gráfico e IME nativo**: pendentes para homologação da Fase 10; não são cobertos pelo Headless.
 - Correções antes do cursor continuam só pela lista; prévia de substituição não foi implementada nesta entrega.
 
 ## 5.2 AI Preemptive Completion — funcional com fakes; modelo real fora da meta

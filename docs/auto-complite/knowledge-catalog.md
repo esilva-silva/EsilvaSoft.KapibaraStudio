@@ -86,7 +86,7 @@ Hoje ConnectionIdentity usa Id, TargetHost e hash truncado da URI salva; MongoCl
 
 | Dialeto | Modo da aba | Superfície |
 | --- | --- | --- |
-| `Console` | Console | Proxies de [`ConsoleBootstrap.js`](../../src/EsilvaSoft.KapibaraStudio.Infrastructure/ConsoleBootstrap.js) |
+| `Console` | Console | Proxies de [`ConsoleBootstrap.js`](../../src/EsilvaSoft.KapibaraStudio.Infrastructure/ConsoleBootstrap.cs) |
 | `MongoshScript` | Script | API do mongosh suportada pelo runner (`getSiblingDB`, `print`, `printjson`, cursores) |
 | `AggregationJson` | Agregação | Array de stages como literal JavaScript |
 | `Mql` | Contexto embutido | Filtros, updates, projeções e pipelines dentro de qualquer dialeto |

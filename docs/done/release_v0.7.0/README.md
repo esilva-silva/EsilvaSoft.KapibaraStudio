@@ -1,6 +1,6 @@
 # Release v0.7.0 — autocomplete com IA explícita
 
-**Arquivada em 22/09/2026 por escopo funcional.** A homologação de modelo, hardware, teclado físico, acessibilidade e interface nativa não está concluída; as pendências estão em [pendencias-de-homologacao.md](pendencias-de-homologacao.md) e continuam abertas na [Fase 9 / v0.13.0](../../phases/phase-09-v0.13.0/README.md).
+**Arquivada em 22/09/2026 por escopo funcional.** A homologação de modelo, hardware, teclado físico, acessibilidade e interface nativa não está concluída; as pendências estão em [pendencias-de-homologacao.md](pendencias-de-homologacao.md) e continuam abertas na [Fase 10 / v0.14.0](../../phases/phase-10-v0.14.0/README.md).
 
 Esta pasta corresponde à [Fase 3](../../phases/phase-03-v0.7.0/README.md) do [roadmap](../../09-plano-de-implementacao.md).
 
@@ -35,4 +35,4 @@ Na máquina documentada (Ryzen 9 7900, Radeon RX 7800 XT, Windows 11, .NET 10.0.
 
 ## O que esta release não afirma
 
-Não afirma homologação em Windows e Linux, execução de ONNX real dentro da interface, acessibilidade por leitor de tela, layout físico de teclado, qualidade linguística de domínio, nem cobertura de todos os modelos e provedores. Ghost text preemptivo, chat, catálogo multimodelo e seleção de CPU/GPU/NPU são escopo da [Fase 5 / v0.9.0](../../phases/phase-05-v0.9.0/README.md).
+Não afirma homologação em Windows e Linux, execução de ONNX real dentro da interface, acessibilidade por leitor de tela, layout físico de teclado, qualidade linguística de domínio, nem cobertura de todos os modelos e provedores. Ghost text preemptivo, chat, catálogo multimodelo e seleção de CPU/GPU/NPU são escopo da [Fase 8 / v0.12.0](../../phases/phase-08-v0.12.0/README.md).

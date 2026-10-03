@@ -1,6 +1,6 @@
 # Release v0.8.0 — arquivos de texto e workspace local
 
-**Arquivada em 22/09/2026 por escopo funcional.** A homologação nativa de diálogos, lixeira, permissões e acessibilidade não está concluída; as pendências estão em [pendencias-de-homologacao.md](pendencias-de-homologacao.md) e continuam abertas na [Fase 9 / v0.13.0](../../phases/phase-09-v0.13.0/README.md).
+**Arquivada em 22/09/2026 por escopo funcional.** A homologação nativa de diálogos, lixeira, permissões e acessibilidade não está concluída; as pendências estão em [pendencias-de-homologacao.md](pendencias-de-homologacao.md) e continuam abertas na [Fase 10 / v0.14.0](../../phases/phase-10-v0.14.0/README.md).
 
 Esta pasta corresponde à [Fase 4](../../phases/phase-04-v0.8.0/README.md) do [roadmap](../../09-plano-de-implementacao.md).
 

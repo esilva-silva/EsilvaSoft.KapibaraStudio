@@ -69,7 +69,7 @@ O caminho ativo já possui `CompletionContextEngine` e `ShapeWalker` compartilha
 
 [LanguageDefinition](../../src/EsilvaSoft.KapibaraStudio.Autocomplete.Core/LanguageDefinition.cs) carrega [mongodb-language.v1.json](../../src/EsilvaSoft.KapibaraStudio.Autocomplete.Core/mongodb-language.v1.json); `MongoSyntaxVocabulary` já projeta os dados. Operadores MQL, keywords básicas, métodos Console e comandos do cabeçalho IA ainda têm listas próprias. Preservar o contrato de treino v1 ao consolidar as demais.
 
-`LanguageDefinitionTests` compara a superfície Console com o bootstrap. Shapes, snippets, tipos, Since e flags Search presentes no catálogo não significam providers integrados. Console permanece limitado por [ConsoleBootstrap.js](../../src/EsilvaSoft.KapibaraStudio.Infrastructure/ConsoleBootstrap.js), Script por mongosh e Agregação por pipeline.
+`LanguageDefinitionTests` compara a superfície Console com o bootstrap. Shapes, snippets, tipos, Since e flags Search presentes no catálogo não significam providers integrados. Console permanece limitado por [ConsoleBootstrap.js](../../src/EsilvaSoft.KapibaraStudio.Infrastructure/ConsoleBootstrap.cs), Script por mongosh e Agregação por pipeline.
 
 ## 6. Metadados MongoDB
 
@@ -91,11 +91,11 @@ Catálogo, metadata e schema learning já alimentam o caminho ativo; alguns gera
 
 [LocalAiModelService](../../src/EsilvaSoft.KapibaraStudio.Application/LocalAiModelService.cs) possui modelo único, fila, carga desacoplada, troca, cooldown e cancelamento. GenerateAsync chama EnsureLoadedAsync: checar Ready antes do await não garante que inline nunca carregue. Propor LoadedOnly verificado sob a fila e revisão do modelo.
 
-[OnnxLocalModelRuntime](../../src/EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi/OnnxLocalModelRuntime.cs) reutiliza modelo/tokenizer, cria GeneratorParams/Generator por geração, roda em Task.Run, cancela via terminate_session e faz fallback CPU automático quando permitido. Não usa diretamente OrtValue, pooling de tensores, streaming público ou KV entre pedidos. Não criar backend paralelo para cumprir nomes conceituais.
+[OnnxLocalModelRuntime](../../src/EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi.OnnxAdapter/OnnxLocalModelRuntime.cs) reutiliza modelo/tokenizer, cria GeneratorParams/Generator por geração, roda em Task.Run, cancela via terminate_session e faz fallback CPU automático quando permitido. Não usa diretamente OrtValue, pooling de tensores, streaming público ou KV entre pedidos. Não criar backend paralelo para cumprir nomes conceituais.
 
-[ModelAdapters](../../src/EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi/ModelAdapters.cs) e [DeepSeekModelTokenizer](../../src/EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi/DeepSeekModelTokenizer.cs) isolam famílias. Builders FIM tokenizam prefixo/sufixo antes de cortar; Qwen recodifica marcadores; RequireFullContext pode repetir encode. A detecção de eco decodifica saída acumulada por token. TTFT medido começa **depois** da tokenização/criação do gerador, não equivale a tecla → ghost.
+[ModelAdapters](../../src/EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi.OnnxAdapter/ModelAdapters.cs) e [DeepSeekModelTokenizer](../../src/EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi.OnnxAdapter/DeepSeekModelTokenizer.cs) isolam famílias. Builders FIM tokenizam prefixo/sufixo antes de cortar; Qwen recodifica marcadores; RequireFullContext pode repetir encode. A detecção de eco decodifica saída acumulada por token. TTFT medido começa **depois** da tokenização/criação do gerador, não equivale a tecla → ghost.
 
-[AiProviderSelector](../../src/EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi/AiProviderSelector.cs) ordena NPU/GPU/CPU compatíveis; explícito não faz fallback silencioso. [OnnxHardwareProbe](../../src/EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi/OnnxHardwareProbe.cs) detecta disponibilidade, não homologa exportações. NPU depende de pacote/build/hardware e não foi validada nesta revisão.
+[AiProviderSelector](../../src/EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi.OnnxAdapter/AiProviderSelector.cs) ordena NPU/GPU/CPU compatíveis; explícito não faz fallback silencioso. [OnnxHardwareProbe](../../src/EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi.OnnxAdapter/OnnxHardwareProbe.cs) detecta disponibilidade, não homologa exportações. NPU depende de pacote/build/hardware e não foi validada nesta revisão.
 
 ## 8. Caches e riscos de fundo
 

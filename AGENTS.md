@@ -9,8 +9,8 @@
 
 ## Integração Claude
 
-- A Fase 7 foi retomada com escopo focado em Claude; os antigos documentos de planejamento e agentes especializados foram removidos.
-- Estado, limitações, permissões e homologação estão em `docs/phases/phase-07-v0.11.0/README.md`; use o código e os ADRs vigentes como referência para contratos existentes.
+- A integração de agentes pertence à Fase 5 / v0.9.0; IA local na Fase 8 / v0.12.0 é a prioridade atual. O trabalho Claude já existente mantém seu escopo; os antigos documentos de planejamento e agentes especializados foram removidos.
+- Estado, limitações, permissões e homologação estão em `docs/phases/phase-05-v0.9.0/README.md`; use o código e os ADRs vigentes como referência para contratos existentes.
 - Não criar providers ou fluxos de autenticação paralelos quando as abstrações atuais puderem ser concluídas.
 - Claude Code mantém autenticação oficial. Nunca ler arquivos de credenciais, capturar/reutilizar tokens, acessar endpoints privados ou fazer fallback silencioso para Anthropic API.
 

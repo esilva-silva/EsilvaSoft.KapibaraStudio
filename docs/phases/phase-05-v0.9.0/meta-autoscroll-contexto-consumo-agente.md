@@ -28,7 +28,7 @@ O cálculo das cores semânticas de texto/fundo em base/hover/pressed resultou e
 | Consumo | `AgentProviderEvent` e `AgentEvent` não têm payload tipado de uso; Claude mantém tokens de entrada/saída e custo em `ClaudeCodeTurnSummary` interno | Criar extensão aditiva dos contratos e encaminhamento pelo runtime; não acessar tipos de infraestrutura diretamente na UI |
 | Copilot | `CopilotSubscriptionAgentSession` não encaminha métricas de uso para o contrato comum atual | Verificar eventos e campos oficiais da versão instalada/fixada antes de prometer tokens, janela ou cota |
 
-Referências: [design system](../../17-design-system-ui-ux.md), [catálogo funcional](../../03-catalogo-funcional.md), [ADRs vigentes](../../10-decisoes-arquiteturais.md), [matriz de validação](../../15-matriz-de-validacao.md), [P7-UX](meta-ui-ux-painel-agente-ia.md) e [estado da Fase 7](README.md). A ADR-056 rege conversas globais ao workspace e snapshot por turno; registros anteriores de hospedagem por aba são históricos.
+Referências: [design system](../../17-design-system-ui-ux.md), [catálogo funcional](../../03-catalogo-funcional.md), [ADRs vigentes](../../10-decisoes-arquiteturais.md), [matriz de validação](../../15-matriz-de-validacao.md), [P7-UX](meta-ui-ux-painel-agente-ia.md) e [estado da Fase 5](README.md). A ADR-056 rege conversas globais ao workspace e snapshot por turno; registros anteriores de hospedagem por aba são históricos.
 
 ## Comportamento proposto
 

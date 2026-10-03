@@ -1,6 +1,6 @@
 # Fase 4 — v0.8.0: abertura e salvamento de arquivos de texto
 
-**Situação:** arquivada por escopo funcional em 22/09/2026. A homologação nativa permanece na [Fase 9 / v0.13.0](../phase-09-v0.13.0/README.md).
+**Situação:** arquivada por escopo funcional em 22/09/2026. A homologação nativa permanece na [Fase 10 / v0.14.0](../phase-10-v0.14.0/README.md).
 
 O aceite, as evidências automatizadas e as pendências de ambiente estão em [Release v0.8.0](../../done/release_v0.8.0/README.md). Esta página é mantida para preservar links históricos.
 

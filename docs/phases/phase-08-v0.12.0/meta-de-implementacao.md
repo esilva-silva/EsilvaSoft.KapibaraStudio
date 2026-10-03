@@ -1,26 +1,28 @@
-# Meta de implementação — Fase 5 / v0.9.0
+# Meta de implementação — Fase 8 / v0.12.0
+
+**Reorganização de 03/10/2026:** esta meta pertence agora à Fase 8 / v0.12.0, prioridade atual. IDs `F5-*` e tarefas/contagens de 22/09 permanecem históricos. O assistente por aba foi removido posteriormente (ADRs 055/056); este plano não autoriza recriá-lo. Novas entregas devem conciliar o aceite original com os contratos e a composição vigentes; homologação real pertence à Fase 10 / v0.14.0.
 
 **Título:** IA local e produtividade contextual (Local AI and contextual productivity).
-**Estado:** escopo automatizável implementado e validado em 22/09/2026; inferência com pacotes ONNX reais e homologação nativa permanecem experimentais e rastreadas na Fase 9.
+**Estado:** escopo automatizável implementado e validado em 22/09/2026; inferência com pacotes ONNX reais e homologação nativa permanecem experimentais e rastreadas na Fase 10.
 **Data:** 22/09/2026.
-**Coordenação:** registro histórico; os nomes de agentes especializados abaixo descrevem o plano original e não são instruções de delegação atuais. Os contratos de `/agents/` citados na época foram removidos. Para o trabalho atual de Claude, use [documentação Claude](../phase-07-v0.11.0/README.md).
+**Coordenação:** registro histórico; os nomes de agentes especializados abaixo descrevem o plano original e não são instruções de delegação atuais. Os contratos de `/agents/` citados na época foram removidos. Para o trabalho atual de Claude, use [documentação Claude](../phase-05-v0.9.0/README.md).
 
 ## Resultado esperado
 
-Concluir o escopo funcional automatizável de ADV-09 e da extensão preemptiva de EDT-02 no EsilvaSoft.KapibaraStudio: assistência local opcional, catálogo multimodelo, seleção de hardware disponível, sugestões inline e propostas revisáveis com diff. Preservar o autocomplete determinístico, a privacidade, o contexto por aba e a operação sem modelo instalado. Encerrar a fase somente com evidência rastreável e pendências de homologação real registradas na Fase 9.
+Concluir o escopo funcional automatizável de ADV-09 e da extensão preemptiva de EDT-02 no EsilvaSoft.KapibaraStudio: assistência local opcional, catálogo multimodelo, seleção de hardware disponível, sugestões inline e propostas revisáveis com diff. Preservar o autocomplete determinístico, a privacidade, o contexto por aba e a operação sem modelo instalado. Encerrar a fase somente com evidência rastreável e pendências de homologação real registradas na Fase 10.
 
 ## Ponto de partida e limites
 
 - A [Fase 4](../phase-04-v0.8.0/README.md) está arquivada por escopo funcional. Seu aceite automatizado é a dependência já documentada; homologação nativa continua pendente.
-- A [Fase 5](README.md) permanece experimental. Há runtime ONNX, catálogo, serviço compartilhado, chat com propostas e ghost text. Existência de código não equivale a aceite.
-- A [subfase 5 de autocomplete](../../auto-complite/phases/phase-5-preemptive.md) já está implementada no escopo automatizado. Reutilizar e verificar essa entrega; sua numeração não significa que a versão v0.9.0 esteja concluída.
+- A [Fase 8](README.md) permanece experimental. Há runtime ONNX, catálogo, serviço compartilhado, chat com propostas e ghost text. Existência de código não equivale a aceite.
+- A [subfase 5 de autocomplete](../../auto-complite/phases/phase-5-preemptive.md) já está implementada no escopo automatizado. Reutilizar e verificar essa entrega; sua numeração não significa que a versão v0.12.0 esteja concluída.
 - O catálogo `ADV-09` inclui prévia da informação enviada. O consentimento configurado não substitui tornar o contexto exato visível antes da inferência.
 - As evidências de modelos reais são específicas de pacote, provider e ambiente. Os documentos registram alterações extras não solicitadas em propostas de modelos FIM; tratar isso como risco conhecido de fidelidade, sem anunciar correção ainda não demonstrada.
 - O trabalho consultou a documentação, auditou as trilhas existentes e executou build/testes após as alterações. Evidências históricas estão separadas da validação final abaixo.
 
 F5-01 deve conciliar pendências históricas com o estado atual: a matriz de 18/09 registra flags inline sem controles, mas `AutocompleteSettingsWindow.axaml` já contém os bindings correspondentes e o design system descreve sua entrega. Verificar a cobertura e atualizar a rastreabilidade, sem reimplementar controles existentes. A mesma matriz registra composição IME não publicada pelo editor e o gate edição → ghost p95 ≤ 20 ms não atendido; auditar sua situação atual, corrigir a integração em F5-04 quando necessário e envolver `performance-agent` (reasoning) para medir e resolver o gate. Não confundir custo do provider com latência até apresentação, nem contabilizar validação da integração IME como homologação nativa.
 
-Ficam fora desta meta: MCP e agentes externos da Fase 7, chat por workflow da Fase 8, chatbot genérico, execução automática de sugestões, treinamento/distribuição de pesos, obrigatoriedade de GPU, embeddings/RAG e novos backends NPU. Não ampliar o escopo para controles ou capacidades apenas porque existem campos preparados no código.
+Ficam fora desta meta: MCP e agentes externos da Fase 5, chat por workflow da Fase 7, chatbot genérico, execução automática de sugestões, treinamento/distribuição de pesos, obrigatoriedade de GPU, embeddings/RAG e novos backends NPU. Não ampliar o escopo para controles ou capacidades apenas porque existem campos preparados no código.
 
 ## Entregas e dependências
 
@@ -36,7 +38,7 @@ Os responsáveis e capacidades na matriz abaixo foram registrados no plano origi
 | F5-06 | Revisar UI e estados de modelo ausente, carga, falha, fallback, cancelamento, prévia e proposta; teclado/foco e textos nos quatro idiomas; gerar e inspecionar PNGs reais claro/escuro das jornadas alteradas. | ui-ux-agent / balanced | F5-04, F5-05 |
 | F5-07 | Fechar matriz automatizada: todas as ações × quatro idiomas, isolamento entre abas e entre chat/autocomplete, falhas/recuperação, privacidade e integridade BSON; distinguir fakes de inferência real. | qa-testing-agent / reasoning | F5-03 a F5-06 |
 | F5-08 | Revisar diffs, invariantes e riscos; corrigir achados; executar restore/build/test oficiais e registrar resultados. | code-review-agent / advanced-reasoning | F5-07 |
-| F5-09 | Atualizar catálogo, plano, guia, acompanhamento e matriz; ADR/design system somente onde houver mudança de decisão/comportamento; registrar aceite funcional e pendências precisas da Fase 9, atualizar índice offline. | documentation-agent / balanced | F5-08 |
+| F5-09 | Atualizar catálogo, plano, guia, acompanhamento e matriz; ADR/design system somente onde houver mudança de decisão/comportamento; registrar aceite funcional e pendências precisas da Fase 10, atualizar índice offline. | documentation-agent / balanced | F5-08 |
 
 A revisão avançada de F5-08 se justifica por concorrência, privacidade e propostas que modificam consultas. F5-04 e F5-05 podem avançar em paralelo após estabilizar os contratos e o serviço compartilhado. QA acompanha desde F5-01; F5-07 é o fechamento da cobertura, não seu início.
 
@@ -64,7 +66,7 @@ Build integrado com `-p:UsedAvaloniaProducts=`: 0 avisos, 0 erros. Suíte da sol
 
 O restore locked-mode foi concluído usando um `NuGet.Config` temporário apontado ao cache hierárquico local, pois o sandbox bloqueia leitura do `C:\Users\chuke\AppData\Roaming\NuGet\NuGet.Config` e a conexão TLS com NuGet.org não está disponível. Comandos: `dotnet restore EsilvaSoft.KapibaraStudio.slnx --locked-mode --configfile <config-temporário> -p:UsedAvaloniaProducts= -p:NuGetAudit=false -p:RestoreIgnoreFailedSources=true`; isso preservou o lockfile e usou dependências já em cache, mas não verificou auditoria online de vulnerabilidades. PNGs reais Headless/Skia de chat/proposta e prévia foram gerados nos quatro idiomas × dois temas em `tests/EsilvaSoft.KapibaraStudio.UnitTests/bin/Debug/net10.0/ui-evidence/ai-chat-localization/`; amostras de cada idioma/tema foram inspecionadas. Nenhum modelo externo real foi carregado.
 
-Testes com modelo externo são separados da suíte determinística e executados quando o ambiente estiver disponível; registrar pacote, hash, provider efetivo e limites. A [Fase 9](../phase-09-v0.13.0/README.md) mantém GPU/NPU, fidelidade de todas as ações em modelos reais, revisão linguística de domínio, latência/memória reais, Linux gráfico, leitores de tela e diálogos nativos. Não transformar ausência dessas evidências em alegação de suporte. Não transferir para a Fase 9 falhas dos critérios automatizados acima.
+Testes com modelo externo são separados da suíte determinística e executados quando o ambiente estiver disponível; registrar pacote, hash, provider efetivo e limites. A [Fase 10](../phase-10-v0.14.0/README.md) mantém GPU/NPU, fidelidade de todas as ações em modelos reais, revisão linguística de domínio, latência/memória reais, Linux gráfico, leitores de tela e diálogos nativos. Não transformar ausência dessas evidências em alegação de suporte. Não transferir para a Fase 10 falhas dos critérios automatizados acima.
 
 ## Registro de execução e aceite automatizado
 
@@ -76,22 +78,22 @@ Testes com modelo externo são separados da suíte determinística e executados 
 - **F5-08:** revisão independente não encontrou outro defeito confirmado após corrigir os rótulos da prévia. Regressão global de troca de modelos foi corrigida e testada.
 - **F5-09:** matriz, catálogo, roadmap, guia multimodelo, subfase de autocomplete, ADR-052 e acompanhamento atualizados; índice offline atualizado após validação.
 
-Permanecem para Fase 9: pesos/modelos reais por pacote e provider, fidelidade das ações, GPU/NPU, teclado/IME nativos, leitor de tela, Linux gráfico, MongoDB/mongosh reais e latência/memória em hardware real. A implementação automatizada está aceita; não se declara a IA local como suporte estável.
+Permanecem para Fase 10: pesos/modelos reais por pacote e provider, fidelidade das ações, GPU/NPU, teclado/IME nativos, leitor de tela, Linux gráfico, MongoDB/mongosh reais e latência/memória em hardware real. A implementação automatizada está aceita; não se declara a IA local como suporte estável.
 
 ## Acompanhamento inicial e histórico
 
 - Concluído: todos os itens automatizáveis F5-01 a F5-09 conforme registro de execução acima.
-- Limites transferidos: apenas homologações reais enumeradas para a Fase 9; não são falhas automatizáveis pendentes.
+- Limites transferidos: apenas homologações reais enumeradas para a Fase 10; não são falhas automatizáveis pendentes.
 - Validação inicial: `dotnet restore EsilvaSoft.KapibaraStudio.slnx --locked-mode` não iniciou porque o sandbox negou leitura de `C:\Users\chuke\AppData\Roaming\NuGet\NuGet.Config`. Os assets locais de restore estão presentes; build/testes sem restore e nova tentativa do restore serão registrados quando viáveis.
 - Baseline do binário já compilado (`dotnet test EsilvaSoft.KapibaraStudio.slnx --no-build --no-restore`): 2.674 aprovados, 0 falhas e 20 ignorados em 1m27s. Isso é baseline anterior às alterações, não valida código novo.
 - Build incremental inicial bloqueou em `MongoTextEditor.cs` com dois CS8765; a frente F5-04 corrigiu as assinaturas anuláveis e confirmou compilação da camada Desktop. Build integrado ainda pendente.
 - Bloqueios confirmados: restore por perfil do usuário depende de acesso externo ao workspace; sem evidência de falha de dependência ainda.
 - Descobertas, falhas e escalonamentos: registrar durante a execução.
 
-**Estado:** recorte automatizável aceito; a fase continua experimental até validação real aplicável na Fase 9.
+**Estado:** recorte automatizável aceito; a fase continua experimental até validação real aplicável na Fase 10.
 
 ## Referências
 
 - [Catálogo funcional](../../03-catalogo-funcional.md), [roadmap](../../09-plano-de-implementacao.md), [ADRs](../../10-decisoes-arquiteturais.md) e [matriz de validação](../../15-matriz-de-validacao.md).
 - [ONNX/chat](../../23-onnx-slopcoder.md), [IA multimodelo](../../26-ia-local-multimodelo.md), [preemptivo](../../auto-complite/preemptive-autocomplete.md) e [design system](../../17-design-system-ui-ux.md).
-- ADR-027/030/033/037/039/040/043/044 e ADR-052 orientam as decisões existentes; propostas de agentes externos das ADR-046 a ADR-051 pertencem à Fase 7.
+- ADR-027/030/033/037/039/040/043/044 e ADR-052 orientam as decisões existentes; propostas de agentes externos das ADR-046 a ADR-051 pertencem à Fase 5.

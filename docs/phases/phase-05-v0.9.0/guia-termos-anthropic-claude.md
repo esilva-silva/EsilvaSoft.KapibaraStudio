@@ -109,6 +109,6 @@ Guardar a resposta, termos aceitos, data, entidade contratante, escopo, país e 
 - [ ] Auditoria técnica comprova binário oficial íntegro, nenhum método de autenticação nativo restringido, nenhuma credencial/token coletado e cobrança direta do usuário.
 - [ ] UX, privacidade, retenção, créditos, marca e suporte refletem os termos confirmados.
 - [ ] Testes de regressão de billing/modo sem fallback; evidência de runtime oficial e política de desligamento/atualização.
-- [ ] README da Fase 7, ADR-057, meta Claude, guia e material de release registram a mesma decisão e sua data de revisão.
+- [ ] README da Fase 5, ADR-057, meta Claude, guia e material de release registram a mesma decisão e sua data de revisão.
 
 Até todos os itens aplicáveis serem aprovados, o estado permanece **não homologado para distribuição comercial da integração Claude Code no painel**.

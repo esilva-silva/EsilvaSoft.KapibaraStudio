@@ -7,13 +7,13 @@
 
 A direção de UX parte das jornadas do Kapibara Studio e do [design system](17-design-system-ui-ux.md). Referências comparativas de produtos externos foram retiradas. Não se reproduzem identidade, textos ou telas de outro produto. Dependências técnicas e avisos de terceiros permanecem documentados em seus arquivos próprios.
 
-✅ Implementado no recorte atual: Explorer, abas com destino fixo, consulta explícita, resultados abaixo do editor, menus contextuais e temas. 🚧 Em desenvolvimento: revisão produtiva das jornadas na v0.6.0; a homologação integral pertence à Fase 9 / v0.13.0. As jornadas abaixo descrevem a experiência alvo; disponibilidade específica está no [inventário](24-inventario-roadmap.md).
+✅ Implementado no recorte atual: Explorer, abas com destino fixo, consulta explícita, resultados abaixo do editor, menus contextuais e temas. 🚧 Em desenvolvimento: revisão produtiva das jornadas na v0.6.0; a homologação integral pertence à Fase 10 / v0.14.0. As jornadas abaixo descrevem a experiência alvo; disponibilidade específica está no [inventário](24-inventario-roadmap.md).
 
 ## Direção escolhida
 
 Combinar exploração visual com precisão BSON e profundidade administrativa. As jornadas do produto exigem que conexão, consulta, edição, índices e exportação precisam estar a poucos passos; recursos raros podem estar em painéis específicos e na paleta de comandos. Essa é uma conclusão de projeto, não uma pesquisa quantitativa com usuários.
 
-Na Fase 9 / v0.13.0, validar protótipos com pelo menos três pessoas representando desenvolvimento, operação e análise. Medir conclusão das jornadas, erros de destino, descoberta de funções e clareza das mensagens. Registrar amostra e limitações da avaliação.
+Na Fase 10 / v0.14.0, validar protótipos com pelo menos três pessoas representando desenvolvimento, operação e análise. Medir conclusão das jornadas, erros de destino, descoberta de funções e clareza das mensagens. Registrar amostra e limitações da avaliação.
 
 ## Organização da janela
 

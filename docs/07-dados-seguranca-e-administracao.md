@@ -90,4 +90,4 @@ Alterar URI ou política de um perfil invalida sua árvore aberta e exige reaber
 
 ## Claude e operações externas
 
-O fluxo Claude Code mantém a autenticação no processo oficial e o KapibaraStudio não lê nem armazena credenciais da conta. A aprovação de comandos, escrita e rede não fornece isolamento: o processo executa com os privilégios do usuário. Chamadas bloqueiam por padrão quando a auditoria ou a ponte de aprovação falha. Detalhes em [Claude no KapibaraStudio](phases/phase-07-v0.11.0/README.md).
+O fluxo Claude Code mantém a autenticação no processo oficial e o KapibaraStudio não lê nem armazena credenciais da conta. A aprovação de comandos, escrita e rede não fornece isolamento: o processo executa com os privilégios do usuário. Chamadas bloqueiam por padrão quando a auditoria ou a ponte de aprovação falha. Detalhes em [Claude no KapibaraStudio](phases/phase-05-v0.9.0/README.md).

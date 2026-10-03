@@ -1,6 +1,6 @@
 # Autocomplete preemptivo (inline)
 
-Revisão de 22/09/2026. **5.1 (Traditional Preemptive), 5.2 (AI Preemptive) e 5.3 (estratégia híbrida) implementados no escopo automatizado**. Preemptivo descreve o disparo automático, não a tecnologia de geração. O gate de edição→ghost p95 ≤ 20 ms passou em Headless; modelo ONNX real e homologação nativa permanecem na Fase 9.
+Revisão de 22/09/2026. **5.1 (Traditional Preemptive), 5.2 (AI Preemptive) e 5.3 (estratégia híbrida) implementados no escopo automatizado**. Preemptivo descreve o disparo automático, não a tecnologia de geração. O gate de edição→ghost p95 ≤ 20 ms passou em Headless; modelo ONNX real e homologação nativa permanecem na Fase 10.
 
 **Ordem de fonte efetiva do ghost, implementada em 5.1:** determinístico (`TraditionalPreemptiveCompletionProvider`) → dicionário lexical local → IA. A IA automática só entra com `InlineUseAi = true` **e** modelo já em `Ready` (LoadedOnly); nenhum caminho de digitação carrega, troca ou inicializa modelo. Detalhe e evidência em [phase-5-preemptive](phases/phase-5-preemptive.md#51-traditional-preemptive-completion--concluído-em-18092026-com-pendências-abertas).
 
@@ -92,7 +92,7 @@ Experimento futuro de extensão: só após 5.1/5.2, no máximo uma extensão, me
 
 Só edição elegível: ponto em receptor, prefixo de campo, abertura de objeto, dois-pontos, vírgula, parêntese e nova linha são categorias a avaliar. Cursor sem edição, seleção, perda de foco, IME, lista/snippet ativos, comentário/regex/número, sufixo conflitante e contexto desconhecido suspendem. Lookup dinâmico não herda última coleção.
 
-**IME — integração automatizada concluída; homologação nativa pendente.** O editor envolve o cliente de texto do Avalonia, publica início/atualização/fim de preedit e limpa o estado ao perder foco/desanexar; testes Headless verificam que a composição suprime o ghost. A digitação IME em Windows/Linux nativos permanece pendente da Fase 9.
+**IME — integração automatizada concluída; homologação nativa pendente.** O editor envolve o cliente de texto do Avalonia, publica início/atualização/fim de preedit e limpa o estado ao perder foco/desanexar; testes Headless verificam que a composição suprime o ghost. A digitação IME em Windows/Linux nativos permanece pendente da Fase 10.
 
 Esc suprime a âncora atual; refresh/resposta tardia não ressuscita ghost. Nova edição pode criar pedido. Trocar aba/destino/modo/preferências invalida tudo.
 

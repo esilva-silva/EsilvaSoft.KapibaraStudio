@@ -1,6 +1,6 @@
 # Release v0.6.0 — organização dos projetos e autocomplete básico
 
-**Arquivada em 22/09/2026 por escopo funcional.** A homologação manual, a validação multiplataforma e os gates externos permanecem abertos na [Fase 9 / v0.13.0](../../phases/phase-09-v0.13.0/README.md). Este arquivamento registra o recorte implementado e revisado; não afirma publicação remota nem encerramento dos requisitos amplos do catálogo.
+**Arquivada em 22/09/2026 por escopo funcional.** A homologação manual, a validação multiplataforma e os gates externos permanecem abertos na [Fase 10 / v0.14.0](../../phases/phase-10-v0.14.0/README.md). Este arquivamento registra o recorte implementado e revisado; não afirma publicação remota nem encerramento dos requisitos amplos do catálogo.
 
 Esta pasta corresponde à [Fase 2](../../phases/phase-02-v0.6.0/README.md) do [roadmap](../../09-plano-de-implementacao.md). A [Fase 1 / v0.5.0](../release_v0.5.0/README.md) permanece preservada.
 

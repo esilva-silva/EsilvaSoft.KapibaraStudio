@@ -128,4 +128,4 @@ falhar após a troca, reinicie a aplicação. NPU e CUDA seguem não homologados
 
 ## Enquadramento de versão — 13/09/2026
 
-🧪 Experimental no roadmap v0.9.0: integração local disponível, mas fidelidade conversacional, cobertura pt-BR/en das ações e GPU continuam gates próprios. O MVP v0.5.0 usa autocomplete determinístico sem exigir modelo. Consolidação de release v1.0.0 não deve depender de experimentos não aprovados. [Roadmap](09-plano-de-implementacao.md) e [inventário](24-inventario-roadmap.md).
+🧪 Experimental no roadmap v0.12.0: integração local disponível, mas fidelidade conversacional, cobertura pt-BR/en das ações e GPU continuam gates próprios. O MVP v0.5.0 usa autocomplete determinístico sem exigir modelo. Consolidação de release v1.0.0 não deve depender de experimentos não aprovados. [Roadmap](09-plano-de-implementacao.md) e [inventário](24-inventario-roadmap.md).

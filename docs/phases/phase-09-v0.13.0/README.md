@@ -1,35 +1,38 @@
-# Fase 9 — v0.13.0: homologação manual e validação em ambientes reais
+# Fase 9 — v0.13.0: polimento de código, arquitetura e UI/UX
 
-**Situação:** Planejada.
+**Situação:** Planejada. Escopo introduzido na reorganização de **03/10/2026**; nenhuma revisão ou homologação é declarada concluída por este documento.
 
 ## Objetivo
 
-Concentrar a validação manual antes distribuída nas fases funcionais, sem adicionar funcionalidades de produto nem reabrir seus critérios automatizados.
+Consolidar as entregas funcionais com revisão de código, arquitetura e experiência desktop antes da homologação em ambientes reais.
 
 ## Escopo incluído
 
-- Homologação em Windows e Linux gráficos: gerenciadores de janela, teclado, IME, clipboard, diálogos nativos de arquivo/pasta e lixeira.
-- Acessibilidade com leitor de tela, foco e navegação por teclado nas jornadas alteradas.
-- MongoDB e `mongosh` reais: autenticação, TLS/X.509, permissões, somente leitura, topologias, operações destrutivas, edição concorrente e metadados.
-- Modelos e hardware reais: CPU/GPU/NPU, fidelidade de ações, revisão linguística de domínio, latência e memória.
-- Avaliação presencial das jornadas com representantes de desenvolvimento, operação e análise, registrando amostra e limitações.
-- Instalação, atualização e recuperação em máquinas limpas; integridade dos artefatos e evidência sem credenciais ou payloads sensíveis.
-- Registro datado dos ambientes e resultados na [matriz de validação](../../15-matriz-de-validacao.md) e no [checklist](../../16-checklist-homologacao.md).
+- Código: corrigir defeitos, remover duplicações e caminhos obsoletos comprovados, revisar tratamento de erros, cancelamento e concorrência.
+- Arquitetura: revisar fronteiras entre projetos, contratos e adapters, composição DI, propriedade do LiteDB e persistência aditiva/versionada.
+- UI/UX (UX-01/02): revisar consistência com o design system, navegação, foco, atalhos, estados vazios/erro/carregamento, temas e localização.
+- Qualidade: revisar cobertura de regressões relevantes, documentação e rastreabilidade entre catálogo, implementação e critérios de aceite.
 
 ## Fora de escopo
 
-Implementar recursos novos, alterar critérios automatizados já aceitos, reescrever o histórico de evidências ou declarar suporte para ambiente não exercitado.
+Novos providers, autenticações paralelas, funcionalidades do backlog, transformação do desktop em site e reimplementação de escopos já aceitos. Homologação com MongoDB/mongosh, modelos, hardware, acessibilidade e diálogos nativos pertence à Fase 10.
+
+## Antecipações técnicas presentes
+
+Há revisões de [adapters do SO](../../architecture/system-adapters.md), [estabilidade dos testes](../../architecture/test-stability.md) e metas visuais do [Agente IA](../phase-05-v0.9.0/README.md). Reutilizar suas evidências e pendências; elas não comprovam uma revisão completa desta fase.
 
 ## Critério de aceite
 
-Executar e registrar os cenários aplicáveis do checklist em seus ambientes reais, com sistema operacional, versões relevantes, configuração sem segredos e resultado observável. Cada alegação de suporte em plataforma, hardware, acessibilidade, instalação ou topologia deve apontar para essa evidência.
+Registrar os achados e as correções com escopo e evidência proporcionais. Os invariantes de navegação, contexto por aba/turno, cancelamento, BSON/UUID, confirmações, auditoria, limites mongosh e recuperação de sessão devem permanecer preservados. Alterações de sessão/contexto exigem testes de falha, concorrência e recuperação; alterações visuais exigem inspeção dos PNGs reais, sem mudar golden files para ocultar regressões.
+
+Restore em modo locked, build e testes aplicáveis devem passar conforme as regras do projeto; benchmarks e medições de latência/alocação permanecem manuais, fora de CI/release. Atualizar ADRs, design system, guia, plano, inventário e acompanhamento quando decisões ou comportamento mudarem. Cada pendência real deve ter destino explícito na Fase 10; falhas automatizáveis permanecem nesta fase.
 
 ## Dependências
 
-Critérios funcionais automatizáveis das Fases 1 a 8, artefatos de distribuição e ambientes de teste disponíveis.
+Consolidação dos escopos funcionais das Fases 1 a 8. A prioridade de entrega continua na Fase 8 e depois na Fase 5; a numeração não determina sozinha a ordem de implementação.
 
 ## Documentos relacionados
 
-- [Checklist de homologação](../../16-checklist-homologacao.md) · [Matriz de validação](../../15-matriz-de-validacao.md)
-- [Claude e integração de agentes](../phase-07-v0.11.0/README.md): homologação Windows com Claude Pro real, MCP e MongoDB, sem credenciais em CI. Linux continua indisponível para MCP/aprovações nesta entrega.
-- [Fase 1](../phase-01-v0.5.0/README.md) · [Fase 2](../phase-02-v0.6.0/README.md) · [Fase 3](../phase-03-v0.7.0/README.md) · [Fase 4](../phase-04-v0.8.0/README.md) · [Fase 5](../phase-05-v0.9.0/README.md) · [Fase 6](../phase-06-v0.10.0/README.md) · [Fase 8](../phase-08-v0.12.0/README.md)
+- [Design system](../../17-design-system-ui-ux.md) · [Arquitetura](../../05-arquitetura.md) · [ADRs](../../10-decisoes-arquiteturais.md)
+- [Testes e qualidade](../../08-testes-e-qualidade.md) · [Matriz de validação](../../15-matriz-de-validacao.md) · [Acompanhamento](../../12-acompanhamento-da-implementacao.md)
+- [Fase 10 — homologação](../phase-10-v0.14.0/README.md) · [Fase 11 — estabilidade](../phase-11-v1.0.0/README.md)

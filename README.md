@@ -15,14 +15,14 @@ Kapibara Studio is an open-source MongoDB desktop IDE and GUI client for Windows
 >
 > **Version 1.0.0 will receive a full review** of code, architecture, security, tests, and documentation before it is declared stable. Until then, every release is a pre-release.
 
-## Current implementation status (1 October 2026)
+## Current implementation status (3 October 2026)
 
-- **v0.5.0** is archived because its defined functional scope is implemented. Its real-environment validation is planned in **Phase 9 / v0.13.0**.
-- **v0.6.0**, **v0.7.0** and **v0.8.0** are archived by functional scope. They cover deterministic autocomplete, explicit reviewable AI suggestions, and text-file/workspace operations. Their manual and native-environment validation remains planned in **Phase 9 / v0.13.0**.
-- **Priority update (1 October 2026):** delivery work returns to **Phase 5 / v0.9.0 — Local AI and contextual productivity**. Phase 7 / v0.11.0 is deferred until the prioritized Phase 5 deliveries are complete. Phase numbers and version identifiers remain unchanged. Phase 5's automated scope is implemented; the work plan and real-model/native validation gates remain in its [implementation meta](docs/phases/phase-05-v0.9.0/meta-de-implementacao.md) and **Phase 9 / v0.13.0**. Phase 7's current code and open gates remain documented [here](docs/phases/phase-07-v0.11.0/README.md).
+- **v0.5.0** is archived because its defined functional scope is implemented. Its real-environment validation is planned in **Phase 10 / v0.14.0**.
+- **v0.6.0**, **v0.7.0** and **v0.8.0** are archived by functional scope. They cover deterministic autocomplete, explicit reviewable AI suggestions, and text-file/workspace operations. Their manual and native-environment validation remains planned in **Phase 10 / v0.14.0**.
+- **Priority update (3 October 2026):** Phase 8 / v0.12.0 — Local AI and contextual productivity is the current delivery priority. Phase 5 / v0.9.0 — GitHub Copilot and agent integration follows that focus. The workflow moves to Phase 7 / v0.11.0, Phase 9 / v0.13.0 covers polishing, Phase 10 / v0.14.0 covers manual homologation, and Phase 11 / v1.0.0 closes the stable release. Existing code, evidence and open gates are preserved; historical tags and package versions are unchanged. See the [migration map](docs/phases/README.md#reorganização-de-03102026).
 - The desktop UI supports **Portuguese (Brazil), English, Spanish and Simplified Chinese**. `pt-BR` is the initial language and **English (`en`) is the deterministic fallback**. This does not translate repository documents under `docs/`, which remain in Portuguese.
 
-Latest automated evidence for this checkout (29 September 2026): Release configuration build completed with **0 warnings and 0 errors**; the solution test run had **4,197 passed, 0 failed, 63 ignored** across UnitTests (3,810/53), Infrastructure.Agents.Tests (344/10) and Benchmarks (43/0). Eleven native-environment tests were skipped because this session cannot write the OS credential vault or apply the required Codex-home ACL; the four `AgentDerived` MongoDB tests were skipped because no local MongoDB fixture is configured. The focused agent/editor regression passed **142/142**. The local release script produced all four 0.11.0 packages and verified their SHA-256 checksums; CI has not yet run against a commit containing this work. The last published tag is v0.8.0; v0.11.0 is the current development target and any release below 1.0.0 is a pre-release. Automated and Headless evidence does not replace the open real-model and native-environment gates.
+Latest automated evidence for this checkout (29 September 2026): Release configuration build completed with **0 warnings and 0 errors**; the solution test run had **4,197 passed, 0 failed, 63 ignored** across UnitTests (3,810/53), Infrastructure.Agents.Tests (344/10) and Benchmarks (43/0). Eleven native-environment tests were skipped because this session cannot write the OS credential vault or apply the required Codex-home ACL; the four `AgentDerived` MongoDB tests were skipped because no local MongoDB fixture is configured. The focused agent/editor regression passed **142/142**. The local release script produced all four 0.11.0 packages and verified their SHA-256 checksums; CI has not yet run against a commit containing this work. The last published tag is v0.8.0; v0.11.0 was the development target recorded in that validation and any release below 1.0.0 is a pre-release. Automated and Headless evidence does not replace the open real-model and native-environment gates.
 
 ## Support the project
 
@@ -42,29 +42,30 @@ Concretely: save and test connection profiles, browse databases and collections,
 
 | Phase | Version | Goal | Status |
 | --- | --- | --- | --- |
-| 1 | v0.5.0 | **MVP**: connect → navigate → query → view → edit → export | Feature scope completed and [archived](docs/done/release_v0.5.0/README.md). Manual validation is planned in [Phase 9 / v0.13.0](docs/phases/phase-09-v0.13.0/README.md) |
-| 2 | v0.6.0 | Project organisation and basic autocomplete | Feature scope completed and [archived](docs/done/release_v0.6.0/README.md); manual validation remains in Phase 9 |
-| 3 | v0.7.0 | AI-assisted autocomplete | Feature scope completed and [archived](docs/done/release_v0.7.0/README.md); suggestions remain reviewable and are never applied automatically |
+| 1 | v0.5.0 | **MVP**: connect → navigate → query → view → edit → export | Feature scope completed and [archived](docs/done/release_v0.5.0/README.md); manual validation in Phase 10 / v0.14.0 |
+| 2 | v0.6.0 | Project organisation and basic autocomplete | Feature scope completed and [archived](docs/done/release_v0.6.0/README.md); manual validation remains in Phase 10 |
+| 3 | v0.7.0 | AI-assisted autocomplete | Feature scope completed and [archived](docs/done/release_v0.7.0/README.md); reviewable suggestions, never applied automatically |
 | 4 | v0.8.0 | Opening and saving text files | Feature scope completed and [archived](docs/done/release_v0.8.0/README.md); includes local single-root workspace operations |
-| 5 | v0.9.0 | Local AI and contextual productivity | **Current delivery priority**; automated scope implemented, further deliveries follow the [implementation meta](docs/phases/phase-05-v0.9.0/meta-de-implementacao.md), real ONNX remains experimental |
-| 6 | v0.10.0 | Administration and maintenance | In development — collections, views, validation, indexes, stats, users, roles and logical export/import |
-| 7 | v0.11.0 | Claude and agent integration | **Deferred until prioritized Phase 5 deliveries are complete**; implementation and open gates — [status and limits](docs/phases/phase-07-v0.11.0/README.md) |
-| 8 | v0.12.0 | Simple workflow-based AI chat | Planned — a predefined flow, limited scope and controlled actions |
-| 9 | v0.13.0 | Manual validation and real-environment homologation | Planned — platforms, accessibility, MongoDB/mongosh, hardware, installation and updates in real environments |
-| 10 | v1.0.0 | Stability, full review, installation and updates | Planned — stable release after functional acceptance and Phase 9 |
+| 5 | v0.9.0 | GitHub Copilot and agent integration | Deferred until prioritized Phase 8 deliveries are complete; [implementation, status and open gates](docs/phases/phase-05-v0.9.0/README.md) |
+| 6 | v0.10.0 | Administration and maintenance | [In development](docs/phases/phase-06-v0.10.0/README.md) — collections, views, validation, indexes, stats, users, roles and logical export/import |
+| 7 | v0.11.0 | Simple workflow-based AI chat | [Planned](docs/phases/phase-07-v0.11.0/README.md) — predefined flow, limited scope and controlled actions |
+| 8 | v0.12.0 | Local AI and contextual productivity | **Current delivery priority**; automated scope implemented, further deliveries follow the [implementation meta](docs/phases/phase-08-v0.12.0/meta-de-implementacao.md), real ONNX remains experimental |
+| 9 | v0.13.0 | Code, architecture and UI/UX polishing | [Planned](docs/phases/phase-09-v0.13.0/README.md) — cross-cutting review and corrections preserving existing contracts |
+| 10 | v0.14.0 | Manual validation and real-environment homologation | [Planned](docs/phases/phase-10-v0.14.0/README.md) — platforms, accessibility, MongoDB/mongosh, hardware, installation and updates in real environments |
+| 11 | v1.0.0 | Stability, full review, installation and updates | [Planned](docs/phases/phase-11-v1.0.0/README.md) — stable release after functional acceptance, Phase 9 polishing and Phase 10 homologation |
 
 ### How to read this table
 
-- **Current delivery priority** — Phase 5 / v0.9.0. Its automated scope is complete; planned delivery work is tracked in its implementation meta. Real-model and native-environment validation remains in Phase 9. Phase 7 follows Phase 5 in the priority queue.
+- **Current delivery priority** — Phase 8 / v0.12.0. Its automated scope is complete; planned delivery work is tracked in its implementation meta. Real-model and native-environment validation remains in Phase 10. Phase 5 follows Phase 8 in the priority queue.
 - **Early implementation** — code that exists ahead of its phase. It is kept and tested, but does not close that phase or count as completed scope. A feature may be visible while still marked experimental.
 - **Backlog** — requirements with no assigned phase, postponed, or removed from the current scope. Nothing is deleted: the implementation is preserved and isolated, only its entry points are removed. See [backlog](docs/backlog/README.md).
-- **Archived release** — a version whose feature scope is closed, in [`docs/done`](docs/done/README.md). Archiving does **not** mean it has passed manual validation; those gates are consolidated in Phase 9.
+- **Archived release** — a version whose feature scope is closed, in [`docs/done`](docs/done/README.md). Archiving does **not** mean it has passed manual validation; those gates are consolidated in Phase 10.
 
 ### Archived v0.6.0–v0.8.0 milestones
 
 The archived releases include isolated autocomplete cores, a tolerant parser and context engine, contextual ranking, snippets, explicit reviewable AI suggestions with fallback and cancellation, and safe text-file/workspace persistence. The deterministic language corpus reports 675 fixtures plus one ranking gate (MRR 1.000; top-1/top-5 44/44). Detailed evidence and open manual gates are tracked in the [release archive](docs/done/README.md), [autocomplete execution plan](docs/auto-complite/execution-plan.md), and [implementation tracking](docs/12-acompanhamento-da-implementacao.md).
 
-Automated tests (including headless UI rendering) do not replace validation against real MongoDB servers, both operating systems, screen readers, and native dialogs. Those manual gates are consolidated in [Phase 9 / v0.13.0](docs/phases/phase-09-v0.13.0/README.md). See the [phase index](docs/phases/README.md), [roadmap](docs/09-plano-de-implementacao.md), [validation matrix](docs/15-matriz-de-validacao.md), and [implementation inventory](docs/24-inventario-roadmap.md) (Portuguese).
+Automated tests (including headless UI rendering) do not replace validation against real MongoDB servers, both operating systems, screen readers, and native dialogs. Those manual gates are consolidated in [Phase 10 / v0.14.0](docs/phases/phase-10-v0.14.0/README.md). See the [phase index](docs/phases/README.md), [roadmap](docs/09-plano-de-implementacao.md), [validation matrix](docs/15-matriz-de-validacao.md), and [implementation inventory](docs/24-inventario-roadmap.md) (Portuguese).
 
 ## Requirements
 
@@ -141,7 +142,7 @@ The editor mode selector is therefore no longer shown: **Console** is the only a
 
 Without a model, autocomplete keeps working with deterministic suggestions. Nothing is sent to external AI services. AI output is a proposal: always review the diff before applying it. See [local multi-model AI](docs/26-ia-local-multimodelo.md) (Portuguese).
 
-The local AI assistant's tab context is opt-in globally and per connection. Input JSON has a separate opt-in. Before a manual request reaches the local model, the app shows the context snapshot for review; changing the instruction, editor, target or policy invalidates that preview. Applying a proposal edits the current tab as an undoable action and never runs the query. Real-model fidelity and hardware performance have not yet been homologated; see [Phase 5 evidence and limits](docs/phases/phase-05-v0.9.0/meta-de-implementacao.md).
+The local AI assistant's tab context is opt-in globally and per connection. Input JSON has a separate opt-in. Before a manual request reaches the local model, the app shows the context snapshot for review; changing the instruction, editor, target or policy invalidates that preview. Applying a proposal edits the current tab as an undoable action and never runs the query. Real-model fidelity and hardware performance have not yet been homologated; see [Phase 8 evidence and limits](docs/phases/phase-08-v0.12.0/meta-de-implementacao.md).
 
 ## Commands
 

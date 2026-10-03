@@ -1,6 +1,6 @@
 # Registro de transferência de homologação — v0.7.0
 
-A release [v0.7.0](README.md) foi arquivada por escopo funcional. As verificações que precisam de ambiente real foram transferidas para a [Fase 9 / v0.13.0](../../phases/phase-09-v0.13.0/README.md); a transferência não as encerra.
+A release [v0.7.0](README.md) foi arquivada por escopo funcional. As verificações que precisam de ambiente real foram transferidas para a [Fase 10 / v0.14.0](../../phases/phase-10-v0.14.0/README.md); a transferência não as encerra.
 
 - Executar `Ctrl+;`, fallback sem modelo e cancelamento em Windows e Linux gráficos, com layouts ABNT2/US e IME reais.
 - Exercitar leitor de tela, foco, atalhos e prévia/indicador com tecnologia assistiva real.

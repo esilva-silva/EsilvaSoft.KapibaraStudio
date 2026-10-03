@@ -109,13 +109,13 @@ Reaproveitar `AgentChatUiTests`, `AgentChatHostUiTests` e `AgentCliAccountUiTest
 
 ## Contratos e limites
 
-Referências: [design system](../../17-design-system-ui-ux.md), [catálogo funcional](../../03-catalogo-funcional.md), [ADRs vigentes](../../10-decisoes-arquiteturais.md), [matriz de validação](../../15-matriz-de-validacao.md), [Fase 7](README.md) e [P7-AUTH](meta-inicializacao-autenticacao-agentes.md).
+Referências: [design system](../../17-design-system-ui-ux.md), [catálogo funcional](../../03-catalogo-funcional.md), [ADRs vigentes](../../10-decisoes-arquiteturais.md), [matriz de validação](../../15-matriz-de-validacao.md), [Fase 5](README.md) e [P7-AUTH](meta-inicializacao-autenticacao-agentes.md).
 
 Aplicar ADR-056 com revisões vigentes, ADR-057/059 para providers/permissões e ADR-060 para fronteiras de sistema. Esta proposta altera apresentação; não cria provider, autenticação, acesso nativo, autorização ou persistência paralelos. Login oficial permanece oficial; sem leitura de credenciais, tokens, endpoint privado ou fallback silencioso para API.
 
 Explorer apenas navega; capturar contexto antes de awaits; resultado só atualiza sua origem; preservar cancelamento isolado, auditoria, Extended JSON/BSON, UUIDs, confirmações, grants e limites do runtime. Não abrir outra conexão LiteDB. Opt-outs e proteção de sessão ilegível continuam obrigatórios. Cancelamento não promete rollback.
 
-Design system, guia, catálogo, plano, acompanhamento, matriz e Fase 7 foram atualizados. A nota na ADR-056 registra o refinamento de apresentação sem mudar contratos. Esta meta conclui a melhoria e sua validação automatizada; não encerra gates de providers da Fase 7 nem declara homologação nativa.
+Design system, guia, catálogo, plano, acompanhamento, matriz e Fase 5 foram atualizados. A nota na ADR-056 registra o refinamento de apresentação sem mudar contratos. Esta meta conclui a melhoria e sua validação automatizada; não encerra gates de providers da Fase 5 nem declara homologação nativa.
 
 ## Entrega e evidências — 30/09/2026
 

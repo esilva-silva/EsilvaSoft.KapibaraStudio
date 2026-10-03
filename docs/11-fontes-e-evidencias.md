@@ -74,4 +74,4 @@ A escolha da paleta e das dimensões é decisão de produto fundamentada nessas 
 
 ## MCP e agentes externos — pesquisa de 22/09/2026
 
-O [registro específico de fontes/licenças](phases/phase-07-v0.11.0/README.md) documenta páginas oficiais consultadas para Codex App Server/SDK/API, Claude API/Agent SDK, autenticação de terceiros, MCP 2026-07-28 e compatibilidade 2025-11-25, Credential Manager e Secret Service. Versões móveis e licenças de candidatos não são homologação de pacote ou integração; fixação de artefatos/transitivas permanece gate da implementação.
+O [registro específico de fontes/licenças](phases/phase-05-v0.9.0/README.md) documenta páginas oficiais consultadas para Codex App Server/SDK/API, Claude API/Agent SDK, autenticação de terceiros, MCP 2026-07-28 e compatibilidade 2025-11-25, Credential Manager e Secret Service. Versões móveis e licenças de candidatos não são homologação de pacote ou integração; fixação de artefatos/transitivas permanece gate da implementação.

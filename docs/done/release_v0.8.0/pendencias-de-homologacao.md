@@ -1,6 +1,6 @@
 # Registro de transferência de homologação — v0.8.0
 
-A release [v0.8.0](README.md) foi arquivada por escopo funcional. As verificações que dependem do sistema operacional foram transferidas para a [Fase 9 / v0.13.0](../../phases/phase-09-v0.13.0/README.md); a transferência não as encerra.
+A release [v0.8.0](README.md) foi arquivada por escopo funcional. As verificações que dependem do sistema operacional foram transferidas para a [Fase 10 / v0.14.0](../../phases/phase-10-v0.14.0/README.md); a transferência não as encerra.
 
 - Homologar Abrir, Salvar e Salvar como nos diálogos nativos de Windows e Linux, inclusive caminhos Unicode, extensões digitadas, arquivos bloqueados e permissões recusadas.
 - Confirmar a lixeira real disponível e indisponível nos dois sistemas, para arquivos e diretórios, sem perda do buffer aberto.

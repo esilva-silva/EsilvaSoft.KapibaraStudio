@@ -841,7 +841,7 @@ lista mesmo com a flag falsa (`traditional.manual = Enabled && TraditionalEnable
 fallback da IA), e a flag continua sem controle visual em `AutocompleteSettingsWindow`, exatamente como as três
 flags inline de 5.1.
 
-## Fase 7 — chat de agentes local e concorrência com autocomplete (lote 9, P7-L09-ONNX, 25/09/2026)
+## Fase 5 — chat de agentes local e concorrência com autocomplete (lote 9, P7-L09-ONNX, 25/09/2026)
 
 ### DEC-P9-QUEUEBUDGET
 

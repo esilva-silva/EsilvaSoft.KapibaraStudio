@@ -18,9 +18,9 @@ Requisitos fixos: nome `EsilvaSoft.KapibaraStudio`, C#/.NET 10, Avalonia, persis
 
 ## Produto mínimo utilizável
 
-O MVP é a **Fase 1 / v0.5.0**: conectar → navegar → consultar → visualizar → editar → exportar. Inclui Explorer, find/findOne/filtro/sort/limit/skip, CRUD BSON protegido, autocomplete simples, formatação JSON/query/script e exportação JSON/CSV. CSV da página, formatação explícita e status global concorrente têm implementação e evidências na [auditoria de polimento](done/release_v0.5.0/25-auditoria-mvp-performance.md). A homologação Windows/Linux é acompanhada na Fase 9 / v0.13.0.
+O MVP é a **Fase 1 / v0.5.0**: conectar → navegar → consultar → visualizar → editar → exportar. Inclui Explorer, find/findOne/filtro/sort/limit/skip, CRUD BSON protegido, autocomplete simples, formatação JSON/query/script e exportação JSON/CSV. CSV da página, formatação explícita e status global concorrente têm implementação e evidências na [auditoria de polimento](done/release_v0.5.0/25-auditoria-mvp-performance.md). A homologação Windows/Linux é acompanhada na Fase 10 / v0.14.0.
 
-A **v0.6.0** consolida organização e autocomplete determinístico; a **v0.7.0**, autocomplete com IA; a **v0.8.0**, arquivos de texto e workspace local; a **v0.9.0**, IA local; a **v0.10.0**, administração e manutenção; e a **v0.11.0**, Claude e agentes. A integração Claude usa Claude Code oficial, mantém API separada e está em validação no Windows; veja [Claude no KapibaraStudio](phases/phase-07-v0.11.0/README.md). A **v0.12.0** trata de chat por workflow. A **v0.13.0** concentra homologação manual; a **v1.0.0** fecha estabilidade, instalação e atualização. IA local continua independente.
+A **v0.6.0** consolida organização e autocomplete determinístico; a **v0.7.0**, autocomplete com IA; a **v0.8.0**, arquivos e workspace local; a **v0.9.0**, GitHub Copilot e integração com agentes; a **v0.10.0**, administração e manutenção; a **v0.11.0**, chat por workflow; e a **v0.12.0**, IA local e produtividade contextual, prioridade atual. O polimento de código, arquitetura e UI/UX pertence à **v0.13.0**; a homologação manual, à **v0.14.0**. A **v1.0.0** fecha estabilidade, instalação e atualização após os aceites anteriores. [Estado e limites dos agentes](phases/phase-05-v0.9.0/README.md).
 
 Versão identificável no repositório: tag alpha local **v0.1.1-alpha**, seguida de desenvolvimento; não se afirma publicação remota. Consulte o [roadmap](09-plano-de-implementacao.md) para dependências/exclusões/aceite e o [inventário](24-inventario-roadmap.md) para evidência e backlog sem versão comprometida.
 
@@ -41,7 +41,7 @@ A abstração de provedores permitirá outros bancos no futuro, mas o primeiro p
 
 Operações como instalar servidores, configurar discos, fazer snapshots do volume, editar `mongod.conf`, iniciar serviços ou administrar Kubernetes exigem conectores próprios ou execução externa. A primeira cobertura será inventário, diagnóstico e runbooks. O aplicativo não prometerá executar essas ações via driver C#.
 
-SQL, integrações Git e conectores permanecem no backlog sem versão comprometida. IA local tem implementação experimental, consolidada na v0.9.0; não é dependência do autocomplete determinístico. Serviços externos não se tornam dependências comerciais sem decisão específica.
+SQL, integrações Git e conectores permanecem no backlog sem versão comprometida. IA local tem implementação experimental, consolidada na v0.12.0; não é dependência do autocomplete determinístico. Serviços externos não se tornam dependências comerciais sem decisão específica.
 
 ## Base tecnológica e versões
 
