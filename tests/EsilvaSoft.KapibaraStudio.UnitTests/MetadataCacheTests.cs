@@ -232,6 +232,55 @@ public sealed class MetadataCacheTests
     }
 
     [Test]
+    public async Task DisposalRejectsQueuedLoadsBeforeTheirConnectionTokenIsCancelled()
+    {
+        var source = new FakeMetadataSource { Gate = new(TaskCreationOptions.RunContinuationsAsynchronously), IgnoreCancellation = true };
+        using var cache = new MetadataCache(source, options: new() { MaximumConcurrentLoadsGlobal = 1 });
+        var other = ConnectionProfile.Create("other", "mongodb://other-host");
+        cache.Connect(Profile);
+        cache.Connect(other);
+        var registered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task queued = Task.CompletedTask;
+        CancellationTokenRegistration registration = default;
+        source.CallStarted = token =>
+        {
+            // Only the first connection installs this callback. Dispose cancels it before the other connection.
+            if (source.Calls != 1) return;
+            registration = token.Register(() =>
+            {
+                source.Gate.SetResult();
+                // Keep Dispose inside the first cancellation callback until the other load has drained:
+                // its connection token is still live, even though the cache has already been disposed.
+                queued.WaitAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
+            });
+            registered.SetResult();
+        };
+        var first = cache.RefreshAsync(new(Identity, MetadataScope.Databases));
+        var changes = 0;
+        try
+        {
+            await registered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            queued = cache.RefreshAsync(new(ConnectionIdentity.From(other), MetadataScope.Databases));
+            cache.Changed += (_, _) => Interlocked.Increment(ref changes);
+            cache.Dispose();
+            await Task.WhenAll(first, queued).WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Multiple(() =>
+            {
+                Assert.That(source.Calls, Is.EqualTo(1), "Descartar o cache impede a carga mesmo antes de cancelar o token da segunda conexão.");
+                Assert.That(source.Completed, Is.EqualTo(1));
+                Assert.That(changes, Is.Zero);
+                Assert.That(cache.GetDatabases(ConnectionIdentity.From(other), MetadataAccess.Peek).Value, Is.Null);
+            });
+        }
+        finally
+        {
+            source.Gate.TrySetResult();
+            try { await Task.WhenAll(first, queued).WaitAsync(TimeSpan.FromSeconds(5)); }
+            finally { registration.Dispose(); }
+        }
+    }
+
+    [Test]
     public async Task DefinitionsLoadPerCollectionWithValidatorAndKind()
     {
         var source = new FakeMetadataSource

@@ -382,8 +382,21 @@ public sealed class MetadataCache : IMetadataCache, IDisposable
                 }
                 if (acquired)
                 {
-                    value = await FetchAsync(key, state.Profile, token).ConfigureAwait(false);
-                    operation?.Complete(ApplicationOperationStatus.Success, F("metadataUpdated", "Metadados atualizados — {0}", state.Profile.Name));
+                    // A released slot can win the race with cancellation. Dispose also removes every connection
+                    // before cancelling their tokens one by one, so the token alone cannot admit a queued load.
+                    token.ThrowIfCancellationRequested();
+                    bool connected;
+                    lock (_gate) connected = !_disposed && IsCurrent(key.Connection, state);
+                    if (connected)
+                    {
+                        value = await FetchAsync(key, state.Profile, token).ConfigureAwait(false);
+                        operation?.Complete(ApplicationOperationStatus.Success, F("metadataUpdated", "Metadados atualizados — {0}", state.Profile.Name));
+                    }
+                    else
+                    {
+                        outcome = "cancelled";
+                        operation?.Complete(ApplicationOperationStatus.Cancelled, L("metadataUpdateCancelled", "Atualização de metadados cancelada"));
+                    }
                 }
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)

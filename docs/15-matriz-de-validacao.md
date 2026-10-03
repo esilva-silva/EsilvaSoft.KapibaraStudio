@@ -191,6 +191,7 @@ Build `dotnet build EsilvaSoft.KapibaraStudio.slnx --no-restore`: **0 avisos, 0 
 | --- | --- |
 | K12 — cancelamento no scan de substring | Teste dedicado de `NameTable.Collect` com cancelamento |
 | K13 — limite de cargas simultâneas do `MetadataCache` | Teste de concorrência com 2/conexão e 4 globais |
+| Descarte do `MetadataCache` com carga na fila global (03/10/2026) | Teste original preservado e regressão determinística com token da segunda conexão ainda ativo; foco 27/27 no Windows, reprodução anterior com duas chamadas à origem. Reexecução nativa Ubuntu pendente. [Evidências](architecture/test-stability.md#continuação-descarte-do-cache-no-ubuntu--03102026) |
 | K14 — LRU de 8 entradas na memoização de mescla | Teste de `MetadataCatalogSource` com estouro do LRU |
 | K15 — teto de profundidade/nós em `CollectionSchema.Merge` | Teste com schema que excede `SchemaMaximumDepth`/`SchemaMaximumNodes` |
 | K16-b — cota por fonte em `KnowledgeCatalog.Query` | Teste com duas fontes do mesmo `kind` disputando `MaximumCandidates` |

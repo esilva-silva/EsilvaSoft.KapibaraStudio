@@ -16,6 +16,7 @@ internal sealed class FakeMetadataSource : IMongoMetadataSource
     /// <summary>Highest number of calls observed in flight at the same time, to assert concurrency caps.</summary>
     public int MaxConcurrent => Volatile.Read(ref _maxConcurrent);
     public TaskCompletionSource? Gate { get; set; }
+    public Action<CancellationToken>? CallStarted { get; set; }
     public bool IgnoreCancellation { get; set; }
     public Exception? Failure { get; set; }
     public Func<string, IReadOnlyList<string>> Databases { get; set; } = _ => ["loja", "auditoria"];
@@ -52,6 +53,7 @@ internal sealed class FakeMetadataSource : IMongoMetadataSource
         InterlockedMax(ref _maxConcurrent, concurrent);
         try
         {
+            CallStarted?.Invoke(cancellationToken);
             if (Gate is { } gate) await (IgnoreCancellation ? gate.Task : gate.Task.WaitAsync(cancellationToken));
             if (Failure is { } failure) throw failure;
             return value();

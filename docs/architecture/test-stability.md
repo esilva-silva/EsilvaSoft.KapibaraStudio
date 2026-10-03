@@ -1,5 +1,15 @@
 # Estabilidade dos testes e benchmarks manuais — 01/10/2026
 
+## Continuação: descarte do cache no Ubuntu — 03/10/2026
+
+O ZIP `logs_100615514147.zip` mostra **3.379 aprovados, uma falha e 20 ignorados** no Ubuntu. `DisposingCacheDrainsLoadsWaitingOnTheGlobalGateWithoutPublishingLateResults` observou duas chamadas à origem em vez de uma. As etapas seguintes não executaram após a falha unitária.
+
+O descarte remove as conexões sob o lock, mas cancela seus tokens sequencialmente fora dele. Ao terminar a carga da primeira conexão, uma carga de outra conexão pode adquirir a vaga global antes do cancelamento do próprio token. Além disso, adquirir uma vaga não garante que o cancelamento ainda não tenha ocorrido. Agora, após adquirir os dois semáforos, a carga verifica o token e se o cache ainda mantém exatamente a conexão capturada, antes de acessar a origem. A liberação dos semáforos e a rejeição de resultados antigos permanecem.
+
+`DisposalRejectsQueuedLoadsBeforeTheirConnectionTokenIsCancelled` controla a ordem com um callback de cancelamento: libera a origem da primeira conexão e aguarda a segunda carga terminar antes de permitir o cancelamento da segunda conexão. O teste reproduziu as duas chamadas incorretas no Windows antes da correção e passou depois. Nenhuma asserção ou timeout do teste original foi relaxado.
+
+Restore locked e build Release com `UsedAvaloniaProducts=` passaram; build com zero avisos/erros. Os testes focados de metadados passaram **27/27**. A solução completa no Windows passou com **4.569 aprovados, zero falhas e 36 ignorados reportados**: UnitTests 3.381/20 ignorados, Agents 288/0 e IntegrationTests 900/16. Benchmarks não executaram. Após reforçar apenas o cleanup do novo teste, build e foco 27/27 foram reconferidos. Evidências em `TestResults/LinuxCache/{Before,Focused,FocusedFinal,Final}` e `TestResults/linux-cache-*.log`. A reexecução nativa no Ubuntu permanece pendente; a reprodução local não homologa Linux, MongoDB ou providers reais.
+
 ## Continuação: CI 36931654539
 
 O ZIP `logs_100037908780.zip`, da [execução 36931654539](https://github.com/esilva-silva/EsilvaSoft.KapibaraStudio/actions/runs/36931654539), mostra Windows aprovado e Ubuntu com **3.358 aprovados, 2 falhas e 20 ignorados** na unidade. As etapas seguintes no Ubuntu foram puladas após a falha; esse run não comprova Agents ou a guarda de fontes no Linux.
