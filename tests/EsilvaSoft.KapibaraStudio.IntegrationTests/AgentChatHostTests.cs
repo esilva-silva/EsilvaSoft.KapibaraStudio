@@ -91,6 +91,9 @@ public sealed class AgentChatHostTests
                 Assert.That(chatServices.ApprovalDetails, Is.SameAs(provider.GetRequiredService<AgentWriteApprovalCoordinator>()),
                     "P7-L10-WIRE: approval details come only from the composed write approval coordinator.");
                 Assert.That(chatServices.Credentials, Is.InstanceOf<DesktopAgentApiKeyStore>());
+                Assert.That(factory.CopilotCliConfiguration, Is.SameAs(provider.GetRequiredService<ICopilotCliConfiguration>()));
+                Assert.That(chatServices.CopilotCliConfiguration, Is.SameAs(factory.CopilotCliConfiguration),
+                    "Startup restore and settings must configure the same Copilot executable source.");
                 var liteDbOwner = provider.GetRequiredService<LiteDbConnectionProfileRepository>();
                 Assert.That(chatServices.Permissions, Is.SameAs(liteDbOwner),
                     "The chat permission port must use the existing LiteDB owner; otherwise every external send is blocked.");

@@ -33,10 +33,13 @@ internal sealed class CopilotPersistentSessionFsStore : ICopilotSessionFsStore
 
     public static SessionFsConfig CreateConfiguration(string initialWorkingDirectory) => new()
     {
-        InitialWorkingDirectory = Path.GetFullPath(initialWorkingDirectory),
-        SessionStatePath = "session-state",
-        Conventions = OperatingSystem.IsWindows()
-            ? SessionFsSetProviderConventions.Windows : SessionFsSetProviderConventions.Posix,
+        // The process working directory is captured independently in CopilotClientOptions.
+        // This virtual filesystem never mounts or opens that host directory.
+        InitialWorkingDirectory = "/workspace",
+        // This namespace is virtual on every host. A relative Windows state path is expanded by
+        // the runtime to a drive-rooted host-shaped path, which this contained store must reject.
+        SessionStatePath = "/session-state",
+        Conventions = SessionFsSetProviderConventions.Posix,
         Capabilities = new SessionFsSetProviderCapabilities { Sqlite = true },
     };
 

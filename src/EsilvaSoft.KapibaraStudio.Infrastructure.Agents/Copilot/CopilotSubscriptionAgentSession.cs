@@ -17,7 +17,10 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
         ["CopilotNotLoggedIn", "CopilotNonSubscriptionAuth", "CopilotInvalidPlan", "CopilotTurnPlanMissing",
             "CopilotTurnPlanBlocked", "CopilotNativeToolsUnsupported", "CopilotPromptEmpty", "CopilotToolNotAvailable",
             "CopilotToolSchemaUnavailable", "CopilotToolRequestInvalid", "CopilotToolNotPlanned",
-            "CopilotSessionUnavailable", "CopilotProviderFailure"];
+            "CopilotSessionUnavailable", "CopilotProviderFailure", "CopilotRuntimeStartFailed",
+            "CopilotAuthenticationCheckFailed", "CopilotSessionConfigurationFailed", "CopilotSessionLookupFailed",
+            "CopilotSessionResumeFailed", "CopilotSessionCreateFailed", "CopilotSessionPolicyFailed",
+            "CopilotSessionSendFailed", "CopilotSessionStreamFailed"];
 
     private readonly IAgentToolRegistry _registry;
     private readonly AgentSessionOptions _options;
@@ -219,6 +222,7 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
 
     private async Task ProduceAsync(ActiveTurn turn, AgentTurnRequest request, AgentTurnPlan plan, CancellationToken cancellationToken)
     {
+        var failureCode = "CopilotRuntimeStartFailed";
         try
         {
             if (!_started)
@@ -228,6 +232,7 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
             }
 
             // Um token de ambiente não pode substituir silenciosamente a assinatura: apenas authType=user é aceito.
+            failureCode = "CopilotAuthenticationCheckFailed";
             var auth = await _client.GetAuthStatusAsync(cancellationToken).ConfigureAwait(false);
             if (!auth.IsAuthenticated || !string.Equals(auth.AuthType, "user", StringComparison.Ordinal))
             {
@@ -236,6 +241,7 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
                 return;
             }
 
+            failureCode = "CopilotSessionConfigurationFailed";
             var names = plan.ProductTools.Distinct(StringComparer.Ordinal).ToArray();
             var declared = new List<AIFunctionDeclaration>(names.Length);
             var available = new ToolSet();
@@ -279,12 +285,14 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
                 // metadata distinguishes a missing session from one that can be resumed. Ambiguous resume errors
                 // fail closed rather than creating an untracked second native session.
                 var needsResume = _hasEstablishedReservedSession || _options.ResumeProviderSessionId is not null;
+                failureCode = "CopilotSessionLookupFailed";
                 var sessionExists = needsResume &&
                     await _client.HasSessionAsync(reservedId, cancellationToken).ConfigureAwait(false);
                 if (sessionExists)
                 {
                     var config = new ResumeSessionConfig { ContinuePendingWork = false };
                     Configure(config, request, _options.ModelId, declared, available, allowed);
+                    failureCode = "CopilotSessionResumeFailed";
                     _sdkSession = await _client.ResumeSessionAsync(reservedId, config, cancellationToken).ConfigureAwait(false);
                 }
                 else
@@ -302,6 +310,7 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
 
                     var config = new SessionConfig { SessionId = reservedId };
                     Configure(config, request, _options.ModelId, declared, available, allowed);
+                    failureCode = "CopilotSessionCreateFailed";
                     _sdkSession = await _client.CreateSessionAsync(config, cancellationToken).ConfigureAwait(false);
                 }
 
@@ -321,6 +330,7 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
                 Configure(config, request, _options.ModelId, declared, available, allowed);
                 try
                 {
+                    failureCode = "CopilotSessionResumeFailed";
                     _sdkSession = await _client.ResumeSessionAsync(previousId, config, cancellationToken).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || turn.Cancelled)
@@ -338,6 +348,7 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
                     }
                     catch (Exception) { /* Observador de UI não controla o provider. */ }
 
+                    failureCode = "CopilotSessionCreateFailed";
                     _sdkSession = _options.PersistProviderSession
                         ? await CreateSessionAsync(request, declared, available, allowed, cancellationToken).ConfigureAwait(false)
                         : await CreateVolatileSessionAsync(request, declared, available, allowed, cancellationToken).ConfigureAwait(false);
@@ -345,6 +356,7 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
             }
             else
             {
+                failureCode = "CopilotSessionCreateFailed";
                 _sdkSession = _options.PersistProviderSession
                     ? await CreateSessionAsync(request, declared, available, allowed, cancellationToken).ConfigureAwait(false)
                     : await CreateVolatileSessionAsync(request, declared, available, allowed, cancellationToken).ConfigureAwait(false);
@@ -354,6 +366,7 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
             cancellationToken.ThrowIfCancellationRequested();
             // SessionConfig has no built-in-agent allowlist, but the pinned SDK exposes this mutable option.
             // Apply an empty allowlist and require acknowledgement before any prompt can reach the runtime.
+            failureCode = "CopilotSessionPolicyFailed";
             var builtInAgentsRestricted = await session.RestrictBuiltInAgentsAsync(cancellationToken).ConfigureAwait(false);
             if (!builtInAgentsRestricted)
             {
@@ -370,11 +383,14 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
 
             using var subscription = session.Subscribe(evt => OnEventSafely(turn, evt, allowed));
             turn.Session = session;
+            failureCode = "CopilotSessionConfigurationFailed";
             var prompt = BuildPrompt(request);
             cancellationToken.ThrowIfCancellationRequested();
             // The RPC may take effect before SendAsync returns (including when its wait is cancelled).
             turn.Sent = true;
+            failureCode = "CopilotSessionSendFailed";
             await session.SendAsync(new MessageOptions { Prompt = prompt }, cancellationToken).ConfigureAwait(false);
+            failureCode = "CopilotSessionStreamFailed";
             await turn.Done.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || turn.Cancelled)
@@ -383,8 +399,9 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
         }
         catch (Exception)
         {
-            turn.Emit(new AgentProviderEvent(AgentEventKind.AgentError,
-                _providerSessionId is null ? "CopilotProviderFailure" : "CopilotSessionUnavailable"));
+            // A reserved identifier is not proof of an established native session. Report the failed operation,
+            // never the exception message: RPC failures may contain user paths, prompts or authentication details.
+            turn.Emit(new AgentProviderEvent(AgentEventKind.AgentError, failureCode));
         }
         finally
         {

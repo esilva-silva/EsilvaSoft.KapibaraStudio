@@ -99,6 +99,7 @@ public interface IAgentProviderCatalog
 /// </summary>
 public sealed class AgentChatServicesFactory(Func<AgentChatServices> create, AgentProviderAvailabilityService? startupAvailability = null)
 {
+    public ICopilotCliConfiguration? CopilotCliConfiguration { get; init; }
     private readonly Func<AgentChatServices> _create = create ?? throw new ArgumentNullException(nameof(create));
     private readonly AgentProviderAvailabilityService? _startupAvailability = startupAvailability;
     private readonly object _gate = new();
@@ -173,6 +174,7 @@ public sealed record AgentChatServices(
     TimeProvider? Time = null,
     IAgentAccountManager? AccountManager = null)
 {
+    public ICopilotCliConfiguration? CopilotCliConfiguration { get; init; }
     public static AgentChatServices Unavailable { get; } = new(null, null, null);
 
     public IAgentBoundedFileReader? FileReader { get; init; }

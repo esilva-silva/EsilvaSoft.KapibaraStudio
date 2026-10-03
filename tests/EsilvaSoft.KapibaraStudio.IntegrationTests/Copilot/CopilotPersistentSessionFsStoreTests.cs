@@ -101,7 +101,40 @@ internal sealed class CopilotPersistentSessionFsStoreTests
             store.ConfigureSession(config);
             Assert.That(config.CreateSessionFsProvider, Is.Not.Null);
             Assert.That(CopilotPersistentSessionFsStore.CreateConfiguration(Environment.CurrentDirectory).Capabilities?.Sqlite, Is.True);
+            var virtualNamespace = CopilotPersistentSessionFsStore.CreateConfiguration(Environment.CurrentDirectory);
+            Assert.That(virtualNamespace.SessionStatePath, Is.EqualTo("/session-state"));
+            Assert.That(virtualNamespace.InitialWorkingDirectory, Is.EqualTo("/workspace"));
+            Assert.That(virtualNamespace.Conventions, Is.EqualTo(SessionFsSetProviderConventions.Posix),
+                "The contained storage namespace must not expand to a Windows host drive.");
             Assert.That(Directory.Exists(root), Is.False, "Constructing the provider for account checks must not touch AppData.");
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, recursive: true); }
+    }
+
+    [Test]
+    public async Task AbsoluteVirtualRuntimeStateSurvivesReconstructionInsideConfiguredStore()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "kapibara-copilot-state-" + Guid.NewGuid().ToString("N"));
+        const string id = "reserved-state-id";
+        const string virtualFile = "/session-state/reserved-state-id/events.jsonl";
+        try
+        {
+            await using (var first = new CopilotPersistentSessionFsStore(root))
+            {
+                var provider = first.CreateProvider(id);
+                var handler = (ISessionFsHandler)provider;
+                var result = await handler.WriteFileAsync(new SessionFsWriteFileRequest
+                { SessionId = id, Path = virtualFile, Content = "synthetic persisted event" }, CancellationToken.None);
+                Assert.That(result, Is.Null, "An absolute path in the virtual state namespace must remain contained and writable.");
+                var sessionDirectory = Directory.GetDirectories(root).Single(directory => Path.GetFileName(directory) != ".locks");
+                Assert.That(File.Exists(Path.Combine(sessionDirectory, "files", "session-state", id, "events.jsonl")), Is.True);
+            }
+            await using var reconstructed = new CopilotPersistentSessionFsStore(root);
+            var resumed = (ISessionFsHandler)reconstructed.CreateProvider(id);
+            var read = await resumed.ReadFileAsync(new SessionFsReadFileRequest
+            { SessionId = id, Path = virtualFile }, CancellationToken.None);
+            Assert.That(read.Error, Is.Null);
+            Assert.That(read.Content, Is.EqualTo("synthetic persisted event"));
         }
         finally { if (Directory.Exists(root)) Directory.Delete(root, recursive: true); }
     }
@@ -125,6 +158,9 @@ internal sealed class CopilotPersistentSessionFsStoreTests
                 Assert.That(clientOptions.UseLoggedInUser, Is.True);
                 Assert.That(clientOptions.BaseDirectory, Does.Contain(".copilot"));
                 Assert.That(clientOptions.SessionFs, Is.SameAs(fsConfiguration));
+                Assert.That(clientOptions.WorkingDirectory, Is.EqualTo(Path.GetFullPath(Environment.CurrentDirectory)),
+                    "The captured host process directory remains separate from the virtual storage namespace.");
+                Assert.That(fsConfiguration.InitialWorkingDirectory, Is.EqualTo("/workspace"));
                 Assert.That(sessionConfiguration.CreateSessionFsProvider, Is.Not.Null);
                 Assert.That(fsConfiguration.Capabilities?.Sqlite, Is.True);
                 Assert.That(Directory.Exists(root), Is.False,

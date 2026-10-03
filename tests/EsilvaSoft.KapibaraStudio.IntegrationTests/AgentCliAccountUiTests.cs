@@ -26,6 +26,77 @@ namespace EsilvaSoft.KapibaraStudio.IntegrationTests;
 [TestFixture, NonParallelizable, Category("Ui"), Category("Integration")]
 public sealed class AgentCliAccountUiTests
 {
+    private sealed class CopilotPathConfiguration : ICopilotCliConfiguration
+    {
+        public string? ExecutablePath { get; set; }
+        public string? ResolveExecutablePath() => ExecutablePath ?? @"C:\Users\usuario\AppData\Local\GitHubCopilotCLI\copilot.exe";
+        public string? ValidateExecutablePath(string? path) => path == "invalid" ? throw new ArgumentException("Invalid") : path;
+    }
+
+    [Test]
+    public async Task CopilotExecutableSettingsRenderAndPreserveConfigurationAfterSaveFailure()
+    {
+        await RunOnUiAsync(async () =>
+        {
+            var catalog = new MutableAgentCatalog(new AgentProviderPresentation(
+                AgentProviderIds.GitHubCopilotSubscription, "GitHub Copilot", AgentDataDestinationKind.External,
+                false, [], [AgentAuthenticationMethod.OfficialCliDelegated], AgentProviderAuthState.Unknown));
+            var configuration = new CopilotPathConfiguration();
+            var failSave = false;
+            var saves = 0;
+            using var settings = new AgentSettingsViewModel(catalog, null,
+                AgentProviderIds.GitHubCopilotSubscription, copilotCliConfiguration: configuration,
+                saveCopilotCliPath: path =>
+                {
+                    saves++;
+                    if (failSave) throw new IOException("Persistence failure");
+                    configuration.ExecutablePath = path;
+                    return Task.CompletedTask;
+                });
+            var window = new AgentSettingsWindow { DataContext = settings };
+            window.Show();
+            try
+            {
+                Assert.That(settings.CopilotCliPath, Does.EndWith(@"GitHubCopilotCLI\copilot.exe"));
+                foreach (var size in new[] { new Size(660, 560), new Size(520, 420) })
+                foreach (var theme in Themes)
+                {
+                    window.Width = size.Width;
+                    window.Height = size.Height;
+                    Avalonia.Application.Current!.RequestedThemeVariant = theme;
+                    await PumpAsync(() => true);
+                    var section = window.FindControl<StackPanel>("CopilotCliPathSection")!;
+                    window.FindControl<TextBox>("CopilotCliPathInput")!.BringIntoView();
+                    await PumpAsync(() => true);
+                    Assert.That(section.IsVisible, Is.True);
+                    Assert.That(window.FindControl<TextBox>("CopilotCliPathInput")!.Bounds.Width, Is.GreaterThan(100));
+                    Save(window, $"agent-copilot-path-{theme}-{size.Width}.png");
+                    var saveButton = window.FindControl<Button>("SaveCopilotCliPathButton")!;
+                    window.FindControl<Button>("AutomaticCopilotCliPathButton")!.BringIntoView();
+                    await PumpAsync(() => true);
+                    var origin = saveButton.TranslatePoint(new Point(), window)!.Value;
+                    Assert.That(origin.Y + saveButton.Bounds.Height, Is.LessThan(window.ClientSize.Height));
+                    Save(window, $"agent-copilot-path-{theme}-{size.Width}-actions.png");
+                }
+                settings.CopilotCliPath = "invalid";
+                await settings.SaveCopilotCliPathCommand.ExecuteAsync(null);
+                Assert.That((saves, configuration.ExecutablePath, settings.IsStatusError), Is.EqualTo((0, (string?)null, true)));
+                settings.CopilotCliPath = @"C:\test\copilot.exe";
+                await settings.SaveCopilotCliPathCommand.ExecuteAsync(null);
+                Assert.That(configuration.ExecutablePath, Is.EqualTo(settings.CopilotCliPath));
+                failSave = true;
+                settings.CopilotCliPath = @"C:\other\copilot.exe";
+                await settings.SaveCopilotCliPathCommand.ExecuteAsync(null);
+                Assert.That(configuration.ExecutablePath, Is.EqualTo(@"C:\test\copilot.exe"));
+                Assert.That(settings.IsStatusError, Is.True);
+                failSave = false;
+                await settings.UseAutomaticCopilotCliPathCommand.ExecuteAsync(null);
+                Assert.That(configuration.ExecutablePath, Is.Null);
+            }
+            finally { window.Close(); }
+        });
+    }
+
     private static readonly ThemeVariant[] Themes = [ThemeVariant.Light, ThemeVariant.Dark];
     private static readonly string[] SettingsStates =
         ["not-checked", "not-found", "unsupported", "version-low", "signed-out", "subscription", "api-key", "api-key-helper",

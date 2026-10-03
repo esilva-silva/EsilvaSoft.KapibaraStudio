@@ -1,4 +1,5 @@
 using EsilvaSoft.KapibaraStudio.SystemAdapters.Copilot;
+using EsilvaSoft.KapibaraStudio.Application.Agents;
 using EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Copilot;
 
 namespace EsilvaSoft.KapibaraStudio.IntegrationTests.Copilot;
@@ -8,11 +9,76 @@ internal sealed class CopilotCliDiscoveryIntegrationTests
 {
     private static readonly string[] LoginArguments = ["login"];
     [Test]
-    public void AccountCliRequiresUserInstalledNativeExecutableOnPath()
+    public void AccountCliUsesNativeUserInstallationOrPath()
     {
         Assert.That(LocalCopilotAccountCommands.FindCliExecutable(string.Empty), Is.Null);
         Assert.That(LocalCopilotAccountCommands.FindInstalledCliExecutable(), Is.EqualTo(
-            LocalCopilotAccountCommands.FindCliExecutable(Environment.GetEnvironmentVariable("PATH"))));
+            new LocalCopilotCliConfiguration().ResolveExecutablePath()));
+    }
+
+    [Test]
+    public void NativeUserInstallationWinsOverStaleProcessPath()
+    {
+        var local = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "copilot-user"));
+        var stale = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "copilot-path"));
+        var native = Path.Combine(local, "GitHubCopilotCLI", "copilot.exe");
+        var staleExecutable = Path.Combine(stale, "copilot.exe");
+        Assert.That(LocalCopilotCliConfiguration.Resolve(null, stale, local, true,
+            candidate => candidate == native || candidate == staleExecutable, _ => true), Is.EqualTo(native));
+    }
+
+    [Test]
+    public void ExplicitSelectionWinsAndMissingSelectionNeverFallsBack()
+    {
+        var selected = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "selected", "copilot.exe"));
+        var local = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "copilot-user"));
+        var path = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "copilot-path"));
+        Assert.That(LocalCopilotCliConfiguration.Resolve(selected, path, local, true, _ => true, _ => true),
+            Is.EqualTo(selected));
+        var examined = new List<string>();
+        Assert.Throws<InvalidOperationException>(() => LocalCopilotCliConfiguration.Resolve(selected, path, local,
+            true, candidate => { examined.Add(candidate); return false; }, _ => true));
+        Assert.That(examined, Is.EqualTo(new[] { selected }), "An explicit missing CLI must not switch installations.");
+    }
+
+    [TestCase("relative/copilot.exe")]
+    [TestCase("copilot")]
+    public void ExplicitSelectionRejectsRelativePaths(string path) =>
+        Assert.Throws<ArgumentException>(() => LocalCopilotCliConfiguration.NormalizeExecutablePath(path, true));
+
+    [TestCase("copilot.cmd")]
+    [TestCase("copilot.bat")]
+    [TestCase("copilot.ps1")]
+    public void ExplicitSelectionRejectsWindowsShellShims(string name) =>
+        Assert.Throws<ArgumentException>(() => LocalCopilotCliConfiguration.NormalizeExecutablePath(
+            Path.GetFullPath(Path.Combine(Path.GetTempPath(), name)), true));
+
+    [Test]
+    public void UnixSelectionRequiresExecutablePermissionAndNeverFallsBack()
+    {
+        var selected = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "selected", "copilot"));
+        Assert.Throws<InvalidOperationException>(() => LocalCopilotCliConfiguration.Resolve(selected,
+            Path.GetTempPath(), null, false, _ => true, _ => false));
+    }
+
+    [Test]
+    public async Task InvalidConfigurationBlocksAccountAndRuntimeWithoutStartingProcess()
+    {
+        var configured = new LocalCopilotCliConfiguration
+        {
+            ExecutablePath = Path.GetFullPath(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"),
+                OperatingSystem.IsWindows() ? "copilot.exe" : "copilot")),
+        };
+        var commands = new LocalCopilotAccountCommands(configured);
+        Assert.That(commands.IsCliInstalled(), Is.False);
+        Assert.That(await commands.RunVisibleAsync("login", CancellationToken.None),
+            Is.EqualTo(CopilotAccountCommandState.RuntimeUnavailable));
+        using var resources = new LocalCopilotRuntimeResources(configuration: configured);
+        Assert.Throws<InvalidOperationException>(() => resources.CreateAccountClient());
+        Assert.Throws<InvalidOperationException>(() => resources.CreateSessionClient(null, false));
+        Assert.Throws<InvalidOperationException>(() => configured.ValidateExecutablePath(configured.ExecutablePath));
+        Assert.That(configured.ValidateExecutablePath(null), Is.Null);
+        Assert.That(configured.ExecutablePath, Is.Not.Null, "Validation must not mutate the active selection.");
     }
 
     [Test]

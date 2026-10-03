@@ -11,6 +11,7 @@ internal sealed class MemoryCopilotRuntime : ICopilotRuntimeClient
     public IReadOnlyList<string> Models { get; set; } = ["synthetic-model"];
     public Exception? StartFailure { get; set; }
     public Exception? AuthenticationFailure { get; set; }
+    public Exception? CreateFailure { get; set; }
     public Exception? ModelCatalogFailure { get; set; }
     public Exception? DisposalFailure { get; set; }
     public Exception? SessionDisposalFailure { get; set; }
@@ -48,6 +49,7 @@ internal sealed class MemoryCopilotRuntime : ICopilotRuntimeClient
         SessionAcquisitionStarted.TrySetResult();
         // Simulate a native operation that completes despite cancellation, returning a handle the owner must close.
         if (SessionAcquisitionWait is { } wait) await wait;
+        if (CreateFailure is { } failure) throw failure;
         return await NewSession(config.SessionId ?? "synthetic-session");
     }
     public async Task<ICopilotRuntimeSession> ResumeSessionAsync(string id, ResumeSessionConfig config, CancellationToken token)

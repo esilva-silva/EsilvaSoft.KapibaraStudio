@@ -29,4 +29,8 @@ public interface IAgentChatHost
 
     /// <summary>The panel state that is part of the workspace session changed (provider, model, mode, conversation).</summary>
     void OnPanelPreferencesChanged();
+
+    /// <summary>Persists the executable override through the existing session owner before activating it.</summary>
+    Task SaveCopilotCliExecutablePathAsync(string? executablePath) =>
+        Task.FromException(new NotSupportedException("Persistência da CLI Copilot indisponível."));
 }

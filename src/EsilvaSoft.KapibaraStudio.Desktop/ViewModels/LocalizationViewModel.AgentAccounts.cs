@@ -9,6 +9,15 @@ public sealed partial class LocalizationViewModel
     /// </summary>
     private static readonly (string Key, string En, string Pt, string Es, string Zh)[] AgentAccountTranslations =
     [
+        ("agentCopilotCliPathLabel", "Copilot CLI path", "Caminho da CLI Copilot", "Ruta de la CLI Copilot", "Copilot CLI 路径"),
+        ("agentCopilotCliPathHint", "Choose the installed native executable. Automatic discovery checks your user profile, then PATH. Changes apply to new clients; existing sessions keep their executable.", "Informe o executável nativo instalado. A detecção automática busca no seu perfil e depois no PATH. A alteração vale para novos clientes; sessões em andamento mantêm o executável.", "Indique el ejecutable nativo instalado. La detección automática busca en su perfil y luego en PATH. El cambio se aplica a nuevos clientes; las sesiones abiertas conservan su ejecutable.", "输入已安装的原生可执行文件。自动检测先检查用户目录，再检查 PATH。更改适用于新客户端；现有会话保持原可执行文件。"),
+        ("agentCopilotCliPathSave", "Save path", "Salvar caminho", "Guardar ruta", "保存路径"),
+        ("agentCopilotCliPathAutomatic", "Use automatic discovery", "Usar detecção automática", "Usar detección automática", "使用自动检测"),
+        ("agentCopilotCliNotDetected", "No native Copilot CLI detected.", "Nenhuma CLI Copilot nativa detectada.", "No se detectó una CLI Copilot nativa.", "未检测到原生 Copilot CLI。"),
+        ("agentCopilotCliPathInvalid", "Enter an existing absolute path to the native Copilot executable.", "Informe um caminho absoluto existente para o executável nativo do Copilot.", "Indique una ruta absoluta existente al ejecutable nativo de Copilot.", "请输入原生 Copilot 可执行文件的有效绝对路径。"),
+        ("agentCopilotCliPathSaving", "Saving Copilot CLI path…", "Salvando caminho da CLI Copilot…", "Guardando ruta de la CLI Copilot…", "正在保存 Copilot CLI 路径…"),
+        ("agentCopilotCliPathSaved", "Path saved. Check the connection and start a new conversation to use it.", "Caminho salvo. Teste a conexão e inicie uma nova conversa para usá-lo.", "Ruta guardada. Pruebe la conexión e inicie una nueva conversación para usarla.", "路径已保存。请测试连接并开始新对话。"),
+        ("agentCopilotCliPathSaveFailed", "Could not save the path. The previous configuration remains active.", "Não foi possível salvar o caminho. A configuração anterior continua ativa.", "No se pudo guardar la ruta. La configuración anterior sigue activa.", "无法保存路径。原配置仍然有效。"),
         // Mode chip and account type.
         ("agentModeChip", "{0} · {1}", "{0} · {1}", "{0} · {1}", "{0} · {1}"),
         ("agentModeChipExperimental", "{0} · {1} · EXPERIMENTAL", "{0} · {1} · EXPERIMENTAL", "{0} · {1} · EXPERIMENTAL", "{0} · {1} · 实验性"),

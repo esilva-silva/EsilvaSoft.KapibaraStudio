@@ -54,11 +54,19 @@ public sealed record WorkspacePreferences
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public AgentPanelPreferences? AgentPanel { get; init; }
 
+    /// <summary>Optional per-user Copilot executable override; null keeps automatic discovery.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? CopilotCliExecutablePath { get; init; }
+
     public void ValidateKeyBindings() => EditorKeyBindings?.Validate();
 
     public void ValidateMetadata()
     {
         AgentPanel?.Validate();
+        if (CopilotCliExecutablePath is { } cliPath &&
+            (string.IsNullOrWhiteSpace(cliPath) || cliPath.Length > 4096 || cliPath.Any(char.IsControl) || !Path.IsPathFullyQualified(cliPath) ||
+             (OperatingSystem.IsWindows() && !string.Equals(Path.GetExtension(cliPath), ".exe", StringComparison.OrdinalIgnoreCase))))
+            throw new InvalidDataException("Caminho da CLI Copilot inválido.");
         if (SchemaSamplingProfileIds is null || SchemaSamplingProfileIds.Contains(Guid.Empty))
             throw new InvalidDataException("Preferência de amostragem de schema inválida.");
         if (LearnedSchemaExcludedProfileIds is null || LearnedSchemaExcludedProfileIds.Contains(Guid.Empty))

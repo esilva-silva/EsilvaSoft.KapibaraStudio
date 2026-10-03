@@ -14,10 +14,19 @@ public sealed class LocalCopilotAccountCommands : ICopilotAccountCommands
     private static readonly TimeSpan WaitLimit = TimeSpan.FromMinutes(5);
     private static readonly string[] LoginArguments = ["login"];
     private static readonly string[] LogoutArguments = [];
+    private readonly ICopilotCliConfiguration _configuration;
 
-    public bool IsCliInstalled() => FindInstalledCliExecutable() is not null;
+    public LocalCopilotAccountCommands(ICopilotCliConfiguration? configuration = null) =>
+        _configuration = configuration ?? new LocalCopilotCliConfiguration();
 
-    internal static string? FindInstalledCliExecutable() => FindCliExecutable(Environment.GetEnvironmentVariable("PATH"));
+    public bool IsCliInstalled()
+    {
+        try { return _configuration.ResolveExecutablePath() is not null; }
+        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or IOException or UnauthorizedAccessException)
+        { return false; }
+    }
+
+    internal static string? FindInstalledCliExecutable() => new LocalCopilotCliConfiguration().ResolveExecutablePath();
 
     internal static string? FindCliExecutable(string? path, bool? isWindows = null,
         Func<string, bool>? exists = null, Func<string, bool>? executableProbe = null)
@@ -51,7 +60,10 @@ public sealed class LocalCopilotAccountCommands : ICopilotAccountCommands
         if (action is not ("login" or "logout")) throw new ArgumentOutOfRangeException(nameof(action));
         cancellationToken.ThrowIfCancellationRequested();
 
-        var cli = FindInstalledCliExecutable();
+        string? cli;
+        try { cli = _configuration.ResolveExecutablePath(); }
+        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or IOException or UnauthorizedAccessException)
+        { return CopilotAccountCommandState.RuntimeUnavailable; }
         if (cli is null) return CopilotAccountCommandState.RuntimeUnavailable;
 
         var arguments = action == "login" ? LoginArguments : LogoutArguments;

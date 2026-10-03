@@ -66,6 +66,16 @@
           <TextBlock Grid.Row="5" Text="{local:Loc Key=agentAccountType}" Classes="metadata" IsVisible="{Binding IsApiKeyProvider}" />
           <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding SelectedProvider.ApiAccountTypeText, FallbackValue=''}" TextWrapping="Wrap" IsVisible="{Binding IsApiKeyProvider}" />
         </Grid>
+        <StackPanel x:Name="CopilotCliPathSection" Spacing="6" IsVisible="{Binding ShowCopilotCliPath}">
+          <TextBlock Text="{local:Loc Key=agentCopilotCliPathLabel}" FontWeight="SemiBold" />
+          <TextBox x:Name="CopilotCliPathInput" Text="{Binding CopilotCliPath}" IsEnabled="{Binding IsIdle}" AutomationProperties.Name="{local:Loc Key=agentCopilotCliPathLabel}" />
+          <TextBlock Text="{local:Loc Key=agentCopilotCliPathHint}" Classes="metadata" TextWrapping="Wrap" />
+          <WrapPanel>
+            <Button x:Name="SaveCopilotCliPathButton" Content="{local:Loc Key=agentCopilotCliPathSave}" Command="{Binding SaveCopilotCliPathCommand}" Margin="0,0,8,4" />
+            <Button x:Name="AutomaticCopilotCliPathButton" Content="{local:Loc Key=agentCopilotCliPathAutomatic}" Command="{Binding UseAutomaticCopilotCliPathCommand}" Margin="0,0,0,4" />
+          </WrapPanel>
+          <TextBlock Text="{Binding CopilotResolvedPathText}" Classes="metadata" TextWrapping="Wrap" />
+        </StackPanel>
         <StackPanel Spacing="4" IsVisible="{Binding HasSelection}">
           <Button x:Name="TestConnectionButton" Content="{local:Loc Key=agentTestConnection}" Command="{Binding TestConnectionCommand}" ToolTip.Tip="{local:Loc Key=agentTestConnectionHint}" AutomationProperties.HelpText="{local:Loc Key=agentTestConnectionHint}" />
           <TextBlock Text="{local:Loc Key=agentTestConnectionHint}" Classes="metadata" TextWrapping="Wrap" />

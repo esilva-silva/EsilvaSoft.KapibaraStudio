@@ -10,6 +10,25 @@ namespace EsilvaSoft.KapibaraStudio.IntegrationTests;
 public sealed class AgentPanelPreferencesSessionTests
 {
     private string _directory = null!;
+    [Test]
+    public async Task CopilotExecutableOverrideRoundTripsAndLegacySessionKeepsAutomaticDiscovery()
+    {
+        var path = NewDatabasePath();
+        var executable = Path.Combine(_directory, "copilot.exe");
+        using (var repository = new LiteDbConnectionProfileRepository(path))
+        {
+            Assert.That((await repository.LoadSessionAsync()).Preferences.CopilotCliExecutablePath, Is.Null);
+            await repository.SaveSessionAsync(new WorkspaceSession { Preferences = new() { CopilotCliExecutablePath = executable } });
+        }
+        using (var repository = new LiteDbConnectionProfileRepository(path))
+        {
+            var restored = await repository.LoadSessionAsync();
+            Assert.That(restored.Preferences.CopilotCliExecutablePath, Is.EqualTo(executable));
+            await repository.SaveSessionAsync(restored with { Preferences = restored.Preferences with { CopilotCliExecutablePath = null } });
+        }
+        Assert.That(ReadRawSession(path), Does.Not.Contain(nameof(WorkspacePreferences.CopilotCliExecutablePath)));
+    }
+
     [SetUp]
     public void CreateTestDirectory()
     {

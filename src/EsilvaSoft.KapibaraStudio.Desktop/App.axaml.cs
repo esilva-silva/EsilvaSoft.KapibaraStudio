@@ -181,7 +181,11 @@ public partial class App : Avalonia.Application
             Confirmations = provider.GetRequiredService<DesktopAgentToolConfirmationPrompt>(),
             Availability = provider.GetRequiredService<AgentProviderAvailabilityService>(),
             CliPresentation = provider.GetRequiredService<IAgentCliAccountPresentation>(),
-        }, provider.GetRequiredService<AgentProviderAvailabilityService>()));
+            CopilotCliConfiguration = provider.GetRequiredService<ICopilotCliConfiguration>(),
+        }, provider.GetRequiredService<AgentProviderAvailabilityService>())
+        {
+            CopilotCliConfiguration = provider.GetRequiredService<ICopilotCliConfiguration>(),
+        });
     }
 
     internal static string? DebugLogDirectoryForDesktop(IDiagnosticLogDirectoryResolver resolver)

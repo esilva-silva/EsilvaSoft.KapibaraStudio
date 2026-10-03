@@ -423,7 +423,8 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
 
     public AgentSettingsViewModel CreateSettingsViewModel() =>
         new(_services.Catalog, _services.Credentials, SelectedProvider?.ProviderId, _services.AccountManager,
-            _services.CliAccountPresentation, _services.Availability, () => _host.WorkspaceFolder);
+            _services.CliAccountPresentation, _services.Availability, () => _host.WorkspaceFolder,
+            _services.CopilotCliConfiguration, _host.SaveCopilotCliExecutablePathAsync);
 
     private void LoadProviders(string? keepProviderId, string? keepModel)
     {

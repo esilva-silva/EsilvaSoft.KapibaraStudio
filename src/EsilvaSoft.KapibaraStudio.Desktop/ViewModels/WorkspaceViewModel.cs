@@ -266,7 +266,7 @@ public sealed partial class WorkspaceViewModel : ObservableObject, IDisposable
                     UuidRepresentation = UuidRepresentation, ProfileUuidRepresentations = new(_profileUuidRepresentations), IdentifierMode = IdentifierMode,
                     SchemaSamplingProfileIds = Metadata.SchemaSamplingProfiles.ToArray(),
                     LearnedSchemaExcludedProfileIds = _learnedSchemaOptOut?.ExcludedProfiles.ToArray() ?? [], EditorKeyBindings = _keyBindings,
-                    AgentPanel = _agentPanelPreferences },
+                    AgentPanel = _agentPanelPreferences, CopilotCliExecutablePath = _copilotCliExecutablePath },
                 Tabs = Tabs.Select(t => t.Snapshot()).ToArray()
             };
             await _sessions.SaveSessionAsync(WorkspaceSessionPersistencePolicy.Prepare(session));

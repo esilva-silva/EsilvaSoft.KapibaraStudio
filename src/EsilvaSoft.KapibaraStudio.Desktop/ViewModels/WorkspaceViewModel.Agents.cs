@@ -19,6 +19,8 @@ public sealed partial class WorkspaceViewModel : IAgentChatHost
     private readonly IDisposable? _agentProposalTextAttachment;
     private AgentChatViewModel? _agentChat;
     private AgentPanelPreferences? _agentPanelPreferences;
+    private string? _copilotCliExecutablePath;
+    private readonly SemaphoreSlim _copilotCliSaveGate = new(1, 1);
     private bool _restoringAgentPanel;
 
     [ObservableProperty]
@@ -34,6 +36,9 @@ public sealed partial class WorkspaceViewModel : IAgentChatHost
 
     public void InitializeAgentPanel(WorkspacePreferences preferences)
     {
+        _copilotCliExecutablePath = preferences.CopilotCliExecutablePath;
+        if (_agentChatServices?.CopilotCliConfiguration is { } cliConfiguration)
+            cliConfiguration.ExecutablePath = _copilotCliExecutablePath;
         _agentPanelPreferences = preferences.AgentPanel;
         if (_agentPanelPreferences is { } saved)
         {
@@ -48,6 +53,27 @@ public sealed partial class WorkspaceViewModel : IAgentChatHost
             _ = _agentChatServices?.InitializeSavedProviderAsync(selectedProviderId);
         }
         OnPropertyChanged(nameof(ActiveAgentChat));
+    }
+
+    public async Task SaveCopilotCliExecutablePathAsync(string? executablePath)
+    {
+        await _copilotCliSaveGate.WaitAsync();
+        try
+        {
+            var configuration = _agentChatServices?.CopilotCliConfiguration
+                ?? throw new InvalidOperationException("Configuração da CLI Copilot indisponível.");
+            var normalized = configuration.ValidateExecutablePath(executablePath);
+            var previous = _copilotCliExecutablePath;
+            _copilotCliExecutablePath = normalized;
+            try { await SaveSessionAsync(); }
+            catch
+            {
+                _copilotCliExecutablePath = previous;
+                throw;
+            }
+            configuration.ExecutablePath = normalized;
+        }
+        finally { _copilotCliSaveGate.Release(); }
     }
 
     partial void OnIsAgentPanelOpenChanged(bool value)

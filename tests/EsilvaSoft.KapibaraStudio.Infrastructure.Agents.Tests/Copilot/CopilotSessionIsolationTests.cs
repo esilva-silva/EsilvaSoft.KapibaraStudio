@@ -244,8 +244,40 @@ internal sealed class CopilotSessionIsolationTests
         var client = new MemoryCopilotRuntime { RestrictionSucceeds = false };
         await using var session = Session(client);
         var events = await CollectAsync(session, Request());
-        Assert.That(events.Any(item => item.Kind == AgentEventKind.AgentError), Is.True);
+        Assert.That(events.Single(item => item.Kind == AgentEventKind.AgentError).Text, Is.EqualTo("CopilotSessionPolicyFailed"));
         Assert.That(client.Sessions.Single().Operations, Is.EqualTo(RestrictedOnly));
+    }
+
+    [Test]
+    public async Task ReservedSessionCreateFailureReportsCreationWithoutExposingExceptionAndCanRecover()
+    {
+        var client = new MemoryCopilotRuntime { CreateFailure = new IOException("private-path-and-prompt-canary") };
+        var storage = new MemoryCopilotSessionStorage(persistent: true);
+        var established = 0;
+        await using var session = new CopilotSubscriptionAgentSession(new NoTools(),
+            new(CopilotSubscriptionAgentProvider.Id, "synthetic-model")
+            {
+                ReservedProviderSessionId = "reserved-session",
+                ProviderSessionObserver = update =>
+                {
+                    if (update.Change == AgentProviderSessionChange.Established) established++;
+                },
+            }, client, storage);
+        var request = Request();
+        var failed = await CollectAsync(session, request);
+        Assert.Multiple(() =>
+        {
+            Assert.That(failed.Single(item => item.Kind == AgentEventKind.AgentError).Text, Is.EqualTo("CopilotSessionCreateFailed"));
+            Assert.That(failed.Any(item => item.Text?.Contains("private-path-and-prompt-canary", StringComparison.Ordinal) == true), Is.False);
+            Assert.That(established, Is.Zero);
+            Assert.That(client.Sessions, Is.Empty);
+            Assert.That(session.GetCancellationReport(request.TurnId), Is.EqualTo(AgentTurnCancellationReport.NothingSent));
+        });
+        client.CreateFailure = null;
+        var recovered = await CollectAsync(session, Request());
+        Assert.That(recovered.Any(item => item.Kind == AgentEventKind.MessageDelta), Is.True);
+        Assert.That(established, Is.EqualTo(1));
+        Assert.That(client.Sessions.Single().Operations, Is.EqualTo(RestrictedSend));
     }
 
     [Test]

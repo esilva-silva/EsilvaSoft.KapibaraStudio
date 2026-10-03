@@ -87,6 +87,8 @@ Detalhes e critérios de conclusão em [system-adapters](architecture/system-ada
 
 **Estado corrente (29/09/2026):** o chat Copilot está habilitado de forma limitada após checagem explícita de conta/modelos. O provider informa `Chat`, `Streaming`, `Sessions`, `ModelSelection`, `TurnPlan` e `ToolCalling`; `NativeTools` permanece falso. Os registros intermediários desta matriz que diziam “provider indisponível” ou “chat não habilitado” preservam o estado observado naquela data/etapa e foram superados pela correção de permissões descrita na Fase 7.
 
+**Caminho configurável da CLI — implementado em 03/10/2026:** restore/build Release e foco inicial 18/18 aprovados. A execução inicial integral teve 2 falhas de naturezas distintas; ambas passaram na reexecução focada junto aos demais casos afetados. O pacote Windows x64 passou validação estrutural e as capturas claro/escuro foram inspecionadas. A reexecução focada não equivale a uma nova execução integral; sem UI nativa ou inferência. [Resultados detalhados e limites](architecture/release-copilot.md#configuração-do-executável--revisão-de-03102026).
+
 | Escopo atual de tools Copilot | Estado verificável |
 | --- | --- |
 | Registry geral | 12 leituras MongoDB, 4 ferramentas por sessão e 5 ferramentas de escrita existem no registry comum; isso não significa que todas sejam declaradas ao Copilot. |

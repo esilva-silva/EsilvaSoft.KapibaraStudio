@@ -4,6 +4,8 @@
 **Estado:** análise documental preliminar atualizada em 02/10/2026; a integração deixou de redistribuir a CLI. Revisão jurídica/compliance de elegibilidade, dados e dependências continua aberta.
 **Escopo:** autenticação e execução do SDK/CLI oficial GitHub Copilot no painel Agente IA do KapibaraStudio. Este guia não é parecer jurídico nem confirmação de autorização contratual.
 
+**Configuração de instalação — implementada em 03/10/2026:** a interface guarda um caminho absoluto para o executável oficial da CLI em preferência local opcional. Conta, login e sessões compartilham a resolução; caminho salvo tem prioridade e falha visivelmente se inválido, enquanto limpar o valor restaura detecção no perfil local e depois no `PATH`. Exibir o caminho detectado não inicia a CLI. Essa configuração não baixa ou redistribui o executável, não altera autenticação delegada nem concede verificação legal adicional. Build, testes focados e limites de homologação estão registrados na [revisão de Release](../../architecture/release-copilot.md#configuração-do-executável--revisão-de-03102026).
+
 ## Conclusão executiva
 
 O KapibaraStudio usa `GitHub.Copilot.SDK` 1.0.14 e agora aponta login e sessões para a CLI oficial nativa instalada pelo usuário, descoberta no `PATH`; o build define `CopilotSkipCliDownload=true` e os pacotes não incluem a CLI/runtime. O SDK está sob MIT e documenta conexão por stdio com um executável existente, com validação de protocolo. Isso é evidência pública favorável ao uso do SDK; a licença MIT do SDK não concede direito de redistribuir a CLI nem acesso aos serviços Copilot sem conta, licença e termos do usuário.

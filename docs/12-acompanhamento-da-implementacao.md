@@ -1,5 +1,7 @@
 # Acompanhamento da implementação
 
+**Configuração do executável Copilot — implementada em 03/10/2026:** preferência aditiva e singleton Application unificam conta, login e sessões; override inválido falha sem fallback e detecção automática percorre perfil local antes de PATH. Restore/build Release, focos corrigidos e teste manual sem prompt passaram. Duas falhas na execução integral inicial foram corrigidas/cobertas por filtros focalizados, sem nova execução integral. [Resultados e limites](architecture/release-copilot.md#configuração-do-executável--revisão-de-03102026).
+
 ## Repriorização de entregas — Fase 5 antes da Fase 7 — 01/10/2026
 
 A prioridade de execução foi trocada entre a Fase 5 / v0.9.0 (IA local e produtividade contextual) e a Fase 7 / v0.11.0 (Claude e agentes). As entregas pendentes da Fase 5 passam à frente; a retomada da Fase 7 fica para depois. IDs, versões e evidências já registradas não foram renumerados nem reclassificados. O detalhamento executável continua na [meta da Fase 5](phases/phase-05-v0.9.0/meta-de-implementacao.md); inferência com modelos/hardware reais e homologação nativa permanecem nos gates da Fase 9. Consulte também o [roadmap](09-plano-de-implementacao.md) e o [índice das fases](phases/README.md).

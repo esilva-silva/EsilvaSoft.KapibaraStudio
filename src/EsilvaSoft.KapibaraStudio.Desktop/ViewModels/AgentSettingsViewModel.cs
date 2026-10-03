@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using EsilvaSoft.KapibaraStudio.Application.Agents;
+using EsilvaSoft.KapibaraStudio.Core.Agents;
 using EsilvaSoft.KapibaraStudio.Desktop.Agents;
 
 namespace EsilvaSoft.KapibaraStudio.Desktop.ViewModels;
@@ -28,13 +29,18 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
     private readonly IAgentCliAccountPresentation? _cliPresentation;
     private readonly AgentProviderAvailabilityService? _availability;
     private readonly Func<string?>? _captureWorkspaceFolder;
+    private readonly ICopilotCliConfiguration? _copilotCliConfiguration;
+    private readonly Func<string?, Task>? _saveCopilotCliPath;
     private readonly CancellationTokenSource _lifetime = new();
     private CancellationTokenSource? _signInWait;
 
     public AgentSettingsViewModel(IAgentProviderCatalog? catalog, IAgentApiKeyStore? credentials, string? providerId = null,
         IAgentAccountManager? accountManager = null, IAgentCliAccountPresentation? cliPresentation = null,
-        AgentProviderAvailabilityService? availability = null, Func<string?>? captureWorkspaceFolder = null)
+        AgentProviderAvailabilityService? availability = null, Func<string?>? captureWorkspaceFolder = null,
+        ICopilotCliConfiguration? copilotCliConfiguration = null, Func<string?, Task>? saveCopilotCliPath = null)
     {
+        _copilotCliConfiguration = copilotCliConfiguration;
+        _saveCopilotCliPath = saveCopilotCliPath;
         _captureWorkspaceFolder = captureWorkspaceFolder;
         _catalog = catalog;
         _credentials = credentials;
@@ -42,6 +48,7 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
         _cliPresentation = cliPresentation ?? accountManager as IAgentCliAccountPresentation;
         _availability = availability;
         Reload(providerId);
+        ReloadCopilotCliPath();
     }
 
     private static LocalizationViewModel Text => LocalizationViewModel.Current;
@@ -74,7 +81,8 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsIdle), nameof(ShowProgress))]
     [NotifyCanExecuteChangedFor(nameof(SaveApiKeyCommand), nameof(RemoveApiKeyCommand), nameof(TestConnectionCommand),
-        nameof(SignInCommand), nameof(SignOutCommand), nameof(StopWaitingCommand))]
+        nameof(SignInCommand), nameof(SignOutCommand), nameof(StopWaitingCommand),
+        nameof(SaveCopilotCliPathCommand), nameof(UseAutomaticCopilotCliPathCommand))]
     private bool _isBusy;
 
     /// <summary>Progress sentence of the running account operation (checking, waiting for the sign-in window…).</summary>
@@ -106,6 +114,65 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
     public bool ShowManualCommand => !string.IsNullOrEmpty(ManualCommand);
 
     public bool HasSelection => SelectedProvider is not null;
+
+    public bool ShowCopilotCliPath => SelectedProvider?.ProviderId == AgentProviderIds.GitHubCopilotSubscription &&
+        _copilotCliConfiguration is not null && _saveCopilotCliPath is not null;
+
+    [ObservableProperty]
+    private string _copilotCliPath = "";
+
+    [ObservableProperty]
+    private string _copilotResolvedPathText = "";
+
+    private void ReloadCopilotCliPath()
+    {
+        if (_copilotCliConfiguration is not { } configuration) return;
+        try
+        {
+            var resolved = configuration.ResolveExecutablePath();
+            CopilotCliPath = configuration.ExecutablePath ?? resolved ?? "";
+            CopilotResolvedPathText = resolved is null ? Text.Resolve("agentCopilotCliNotDetected") :
+                Text.Format("agentCliExecutablePath", resolved);
+        }
+        catch (Exception error) when (error is ArgumentException or InvalidOperationException or IOException or UnauthorizedAccessException)
+        {
+            CopilotCliPath = configuration.ExecutablePath ?? "";
+            CopilotResolvedPathText = Text.Resolve("agentCopilotCliPathInvalid");
+        }
+    }
+
+    private bool CanSaveCopilotCliPath() => !IsBusy && ShowCopilotCliPath;
+
+    [RelayCommand(CanExecute = nameof(CanSaveCopilotCliPath))]
+    private Task SaveCopilotCliPathAsync() => ApplyCopilotCliPathAsync(CopilotCliPath);
+
+    [RelayCommand(CanExecute = nameof(CanSaveCopilotCliPath))]
+    private Task UseAutomaticCopilotCliPathAsync() => ApplyCopilotCliPathAsync(null);
+
+    private async Task ApplyCopilotCliPathAsync(string? path)
+    {
+        Begin(Text.Resolve("agentCopilotCliPathSaving"));
+        try
+        {
+            string? normalized;
+            try { normalized = _copilotCliConfiguration!.ValidateExecutablePath(path); }
+            catch (Exception error) when (error is ArgumentException or InvalidOperationException or IOException or UnauthorizedAccessException)
+            {
+                Report("agentCopilotCliPathInvalid", true);
+                return;
+            }
+            try { await _saveCopilotCliPath!(normalized); }
+            catch (Exception)
+            {
+                Report("agentCopilotCliPathSaveFailed", true);
+                return;
+            }
+            CliStatus = null;
+            ReloadCopilotCliPath();
+            Report("agentCopilotCliPathSaved", false);
+        }
+        finally { End(); }
+    }
 
     public bool RequiresApiKey => SelectedProvider?.RequiresApiKey == true;
 
@@ -302,6 +369,9 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
 
     private void NotifyCliTexts()
     {
+        OnPropertyChanged(nameof(ShowCopilotCliPath));
+        SaveCopilotCliPathCommand.NotifyCanExecuteChanged();
+        UseAutomaticCopilotCliPathCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(IsCliUnmanaged));
         OnPropertyChanged(nameof(SignInButtonText));
         OnPropertyChanged(nameof(SignInHint));

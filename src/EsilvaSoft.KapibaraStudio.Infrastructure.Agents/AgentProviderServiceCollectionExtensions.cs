@@ -23,6 +23,7 @@ public static class AgentProviderServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         if (services.Any(static descriptor => descriptor.ServiceType == typeof(CopilotSubscriptionAgentProvider)))
             throw new InvalidOperationException("O provider Copilot por assinatura já foi composto.");
+        services.TryAddSingleton<ICopilotCliConfiguration, LocalCopilotCliConfiguration>();
         services.TryAddSingleton<ICopilotAccountCommands, LocalCopilotAccountCommands>();
         services.TryAddSingleton<IHostPlatformSnapshot, LocalHostPlatformSnapshot>();
         services.TryAddSingleton<ICopilotRuntimeResourcesFactory, LocalCopilotRuntimeResourcesFactory>();

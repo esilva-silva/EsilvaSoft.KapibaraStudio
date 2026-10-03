@@ -229,6 +229,11 @@ internal sealed class CopilotOfficialRuntimeManualTests
             sessionCreated = true;
             Assert.That(session.SessionId, Is.EqualTo(sessionId), "SessionFs must bind to the reserved session ID.");
 
+            var restriction = await session.Rpc.Options.UpdateAsync(
+                includedBuiltinAgents: [], cancellationToken: CancellationToken.None);
+            Assert.That(restriction.Success, Is.True,
+                "The same built-in agent restriction used by the product must be acknowledged before sending.");
+
             using var subscription = session.On<SessionEvent>(evt =>
             {
                 switch (evt)
