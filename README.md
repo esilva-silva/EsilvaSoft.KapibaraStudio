@@ -1,5 +1,7 @@
 # EsilvaSoft.KapibaraStudio
 
+**Phase 5 scope update (3 October 2026):** complete GitHub Copilot and its required agent infrastructure. Claude, Codex, external API providers and external MCP client integration move to [backlog](docs/backlog/bkl-06-integracoes-agentes.md), without a committed phase/version. Existing implementations, composition, availability and open gates remain unchanged. Phase 8 remains the current delivery priority.
+
 EsilvaSoft.KapibaraStudio is an open-source desktop IDE for MongoDB, built with **.NET 10** and **Avalonia** for **Windows and Linux**. It focuses on a predictable database workflow, BSON-aware results, local LiteDB storage, and optional on-device AI assistance. Licensed under **MIT**.
 
 ## MongoDB desktop IDE
@@ -46,7 +48,7 @@ Concretely: save and test connection profiles, browse databases and collections,
 | 2 | v0.6.0 | Project organisation and basic autocomplete | Feature scope completed and [archived](docs/done/release_v0.6.0/README.md); manual validation remains in Phase 10 |
 | 3 | v0.7.0 | AI-assisted autocomplete | Feature scope completed and [archived](docs/done/release_v0.7.0/README.md); reviewable suggestions, never applied automatically |
 | 4 | v0.8.0 | Opening and saving text files | Feature scope completed and [archived](docs/done/release_v0.8.0/README.md); includes local single-root workspace operations |
-| 5 | v0.9.0 | GitHub Copilot and agent integration | Deferred until prioritized Phase 8 deliveries are complete; [implementation, status and open gates](docs/phases/phase-05-v0.9.0/README.md) |
+| 5 | v0.9.0 | GitHub Copilot and agent integration | Deferred until prioritized Phase 8 deliveries are complete; complete Copilot and its required agent infrastructure; other integrations in [backlog](docs/backlog/bkl-06-integracoes-agentes.md); [implementation, status and open gates](docs/phases/phase-05-v0.9.0/README.md) |
 | 6 | v0.10.0 | Administration and maintenance | [In development](docs/phases/phase-06-v0.10.0/README.md) — collections, views, validation, indexes, stats, users, roles and logical export/import |
 | 7 | v0.11.0 | Simple workflow-based AI chat | [Planned](docs/phases/phase-07-v0.11.0/README.md) — predefined flow, limited scope and controlled actions |
 | 8 | v0.12.0 | Local AI and contextual productivity | **Current delivery priority**; automated scope implemented, further deliveries follow the [implementation meta](docs/phases/phase-08-v0.12.0/meta-de-implementacao.md), real ONNX remains experimental |

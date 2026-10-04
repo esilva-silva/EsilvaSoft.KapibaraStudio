@@ -111,4 +111,4 @@ O teste gera 18 imagens de workspace por sistema (2 temas × 3 dimensões × 3 e
 
 ## Claude e agents
 
-Os testes automatizados cobrem contratos, autenticação reportada pela CLI, streaming, retomada, aprovações e isolamento de sessão; não substituem a homologação com Claude Pro real nem MongoDB real. Use o roteiro e registre os resultados reais na [documentação Claude](phases/phase-05-v0.9.0/README.md) e na [matriz de validação](15-matriz-de-validacao.md).
+Os testes automatizados cobrem contratos, autenticação reportada pela CLI, streaming, retomada, aprovações e isolamento de sessão; não substituem a homologação com Claude Pro real nem MongoDB real. Use o roteiro e registre os resultados reais na [documentação Claude](backlog/integracoes-agentes/historico-integracoes.md#plano-e-andamento) e na [matriz de validação](15-matriz-de-validacao.md).

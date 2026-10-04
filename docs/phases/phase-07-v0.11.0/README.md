@@ -35,4 +35,4 @@ Fase 6 aceita; política de dados e contexto determinístico das fases anteriore
 
 O workflow ainda não foi definido em documento próprio de requisitos. Nenhuma evidência de aceite existe.
 
-**Dependência técnica adicional:** a integração atual com Claude está descrita em [Claude no KapibaraStudio](../phase-05-v0.9.0/README.md). O workflow desta fase preserva seu próprio conjunto fechado de ações e critérios de aceite.
+**Referência técnica preservada:** a integração existente com Claude está descrita em [Claude no KapibaraStudio](../../backlog/integracoes-agentes/historico-integracoes.md#plano-e-andamento) e fica no backlog bkl-06. Sua conclusão não é dependência automática deste workflow, que preserva seu próprio conjunto fechado de ações e critérios de aceite.

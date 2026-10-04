@@ -1,6 +1,6 @@
 # Fases do EsilvaSoft.KapibaraStudio
 
-Referência: **03/10/2026**. Esta pasta contém o trabalho **planejado ou em execução** por fase. Requisitos concluídos e aceitos são arquivados em [`../done`](../done/README.md); requisitos sem fase definida, adiados ou retirados do escopo ficam em [`../backlog`](../backlog/README.md). Os documentos de planejamento e agentes antigos da Fase 5 foram removidos; o estado atual de Claude está em [`phase-05-v0.9.0/README.md`](phase-05-v0.9.0/README.md).
+Referência: **03/10/2026**. Esta pasta contém o trabalho **planejado ou em execução** por fase. Requisitos concluídos e aceitos são arquivados em [`../done`](../done/README.md); requisitos sem fase definida, adiados ou retirados do escopo ficam em [`../backlog`](../backlog/README.md). A Fase 5 concentra Copilot e infraestrutura necessária; o estado de Claude e das demais integrações externas está no [bkl-06](../backlog/bkl-06-integracoes-agentes.md).
 
 O [roadmap](../09-plano-de-implementacao.md) permanece na raiz da documentação como índice e regra geral; cada fase detalha o próprio escopo aqui.
 
@@ -18,7 +18,7 @@ A meta de internacionalização da interface foi concluída no recorte automatiz
 | 2 | v0.6.0 | Organização dos projetos e autocomplete básico | Escopo funcional concluído e [arquivado](../done/release_v0.6.0/README.md); homologação manual na Fase 10 |
 | 3 | v0.7.0 | Autocomplete com IA | Escopo funcional concluído e [arquivado](../done/release_v0.7.0/README.md); sugestões revisáveis, sem aplicação automática |
 | 4 | v0.8.0 | Abertura e salvamento de arquivos de texto | Escopo funcional concluído e [arquivado](../done/release_v0.8.0/README.md); inclui workspace local de uma pasta |
-| 5 | v0.9.0 | GitHub Copilot e integração com agentes | Adiada até concluir as entregas prioritárias da Fase 8; implementação e gates abertos em [estado e limites](phase-05-v0.9.0/README.md) |
+| 5 | v0.9.0 | GitHub Copilot e integração com agentes | Adiada até concluir as entregas prioritárias da Fase 8; concluir Copilot e infraestrutura necessária; demais integrações no [bkl-06](../backlog/bkl-06-integracoes-agentes.md); gates abertos em [estado e limites](phase-05-v0.9.0/README.md) |
 | 6 | v0.10.0 | Administração e manutenção | [Em desenvolvimento](phase-06-v0.10.0/README.md): coleções, views, validação, índices, estatísticas, usuários, papéis e exportação/importação lógica |
 | 7 | v0.11.0 | Chat simples com IA baseado em workflow | [Planejada](phase-07-v0.11.0/README.md): fluxo predefinido, escopo limitado e ações controladas |
 | 8 | v0.12.0 | IA local e produtividade contextual | **Prioridade atual de entrega**; recorte automatizado implementado, entregas seguintes conforme [meta](phase-08-v0.12.0/meta-de-implementacao.md); ONNX real permanece experimental |
@@ -30,7 +30,8 @@ A meta de internacionalização da interface foi concluída no recorte automatiz
 
 | Escopo | Origem | Destino atual |
 | --- | --- | --- |
-| Copilot, Claude, Codex e contratos MCP/agentes | Fase 7 / v0.11.0 | [Fase 5 / v0.9.0](phase-05-v0.9.0/README.md) |
+| Copilot e infraestrutura de agentes necessária | Fase 7 / v0.11.0 → Fase 5 | [Fase 5 / v0.9.0](phase-05-v0.9.0/README.md) |
+| Claude, Codex, APIs externas e integração MCP externa | Fase 7 / v0.11.0 → Fase 5 | [Backlog bkl-06](../backlog/bkl-06-integracoes-agentes.md), sem fase/versão; implementações intactas |
 | Chat simples por workflow | Fase 8 / v0.12.0 | [Fase 7 / v0.11.0](phase-07-v0.11.0/README.md) |
 | IA local e produtividade contextual | Fase 5 / v0.9.0 | [Fase 8 / v0.12.0](phase-08-v0.12.0/README.md) |
 | Polimento de código, arquitetura e UI/UX | Novo escopo transversal | [Fase 9 / v0.13.0](phase-09-v0.13.0/README.md) |

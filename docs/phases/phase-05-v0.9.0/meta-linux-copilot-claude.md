@@ -1,5 +1,7 @@
 # P7-LINUX — Copilot e Claude no Linux
 
+**Recorte de planejamento — 03/10/2026:** este documento conserva contratos/evidências compartilhados e IDs históricos. Na Fase 5, o aceite remanescente cobre Copilot e a infraestrutura necessária; extensões específicas e homologações dos demais providers ficam no [bkl-06](../../backlog/bkl-06-integracoes-agentes.md). Código, disponibilidade, testes e limites de validação existentes permanecem.
+
 Meta ativa desde **30/09/2026**, solicitada pelo usuário. Escopo Linux definido em **01/10/2026**: revisão de código e estrutura para Copilot e Claude, com testes unitários; não serão feitos testes em máquinas Linux de conexão, login, CLI, cofre, MCP, MongoDB, UI ou acessibilidade. Linux x64/ARM64 podem ser compilados e inspecionados estruturalmente, sem executar seus binários. Codex não faz parte desta meta. A homologação Windows de P7-COP não é evidência Linux.
 
 ## Limite deliberado de validação Linux

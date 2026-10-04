@@ -1,5 +1,7 @@
 # Guia de validação dos termos Anthropic — Claude Code no Agente IA
 
+**Destino de planejamento — 03/10/2026:** backlog sem fase ou versão comprometida, conforme [bkl-06](../bkl-06-integracoes-agentes.md). As evidências, implementações, limitações e gates abaixo são preservados; esta integração não compõe o aceite da Fase 5. Novos trabalhos dependem de repriorização explícita.
+
 **Revisão documental:** 02/10/2026  
 **Estado:** análise técnica preliminar; liberação comercial não aprovada.  
 **Escopo:** Claude Code oficial iniciado pelo painel Agente IA do KapibaraStudio. O provider HTTP Anthropic legado não é registrado no catálogo Desktop e não aparece como modalidade no painel. Este guia não é parecer jurídico nem autorização da Anthropic.

@@ -1,5 +1,7 @@
 # Meta P7-UX2 — Autoscroll, diferenças e métricas do Agente IA
 
+**Recorte de planejamento — 03/10/2026:** este documento conserva contratos/evidências compartilhados e IDs históricos. Na Fase 5, o aceite remanescente cobre Copilot e a infraestrutura necessária; extensões específicas e homologações dos demais providers ficam no [bkl-06](../../backlog/bkl-06-integracoes-agentes.md). Código, disponibilidade, testes e limites de validação existentes permanecem.
+
 Data: **03/10/2026**. Estado: **implementada no checkout; validação automatizada Windows aprovada; homologações restantes registradas**.
 
 ## Resultado esperado

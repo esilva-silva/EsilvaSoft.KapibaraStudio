@@ -7,10 +7,10 @@
 - Produto: IDE desktop MongoDB em .NET 10/Avalonia; Windows e Linux; interface e documentação em pt-BR, identificadores em inglês.
 - Mantenha o nome EsilvaSoft.KapibaraStudio e a licença MIT. Não transformar o desktop em site ou adicionar dependência comercial sem pedido específico.
 
-## Integração Claude
+## Integrações de agentes
 
-- A integração de agentes pertence à Fase 5 / v0.9.0; IA local na Fase 8 / v0.12.0 é a prioridade atual. O trabalho Claude já existente mantém seu escopo; os antigos documentos de planejamento e agentes especializados foram removidos.
-- Estado, limitações, permissões e homologação estão em `docs/phases/phase-05-v0.9.0/README.md`; use o código e os ADRs vigentes como referência para contratos existentes.
+- A Fase 5 / v0.9.0 concentra a conclusão de GitHub Copilot e da infraestrutura de agentes necessária. Claude, Codex, APIs externas e integração MCP externa ficam no backlog `docs/backlog/bkl-06-integracoes-agentes.md`, sem fase/versão. Suas implementações, composição e disponibilidade continuam como estão. IA local na Fase 8 / v0.12.0 permanece a prioridade atual.
+- Escopo/aceite Copilot estão em `docs/phases/phase-05-v0.9.0/README.md`; estado e evidências das demais integrações em `docs/backlog/integracoes-agentes/`. Use o código e os ADRs vigentes como referência para contratos existentes; mover ao backlog não remove nem desativa código/UI.
 - Não criar providers ou fluxos de autenticação paralelos quando as abstrações atuais puderem ser concluídas.
 - Claude Code mantém autenticação oficial. Nunca ler arquivos de credenciais, capturar/reutilizar tokens, acessar endpoints privados ou fazer fallback silencioso para Anthropic API.
 

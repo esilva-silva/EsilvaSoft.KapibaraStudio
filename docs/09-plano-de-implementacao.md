@@ -1,5 +1,7 @@
 # Roadmap de evolução do Kapibara Studio
 
+**Recorte da Fase 5 — 03/10/2026:** GitHub Copilot e infraestrutura compartilhada necessária à sua conclusão permanecem na Fase 5 / v0.9.0. Claude, Codex, APIs externas e integração de clientes MCP externos passam ao [bkl-06](backlog/bkl-06-integracoes-agentes.md), sem fase/versão comprometida. Código, disponibilidade, permissões e gates existentes são preservados; IA local e workflow mantêm suas fases. Esta alteração é documental e não comprova conclusão funcional ou nova homologação.
+
 **P7-UX2 — implementação no checkout em 03/10/2026:** [meta de autoscroll, diferenças e métricas](phases/phase-05-v0.9.0/meta-autoscroll-contexto-consumo-agente.md). Autoscroll, cores, medição UTF-8 do snapshot e métricas tipadas oficiais para Claude Code, OpenAI e Copilot estão implementados. Gates automatizados Windows passaram; inspeção visual foi feita em capturas representativas. Homologação nativa, leitor de tela, conta oficial, amplitude de estados/capturas e tokenizer permanecem pendentes.
 
 **Qualidade — 01/10/2026:** benchmarks são instrumentos manuais de desenvolvimento, fora dos gates de CI/release. A matriz automatizada mantém as duas suítes unitárias em Windows/Linux, guarda estática de fontes nos dois sistemas e integração Windows. [Revisão de estabilidade e limites](architecture/test-stability.md). A leitura estrutural de fontes no Linux não amplia a meta para testes de runtime/conexões reais.
@@ -10,7 +12,7 @@
 
 **P7-AUTH — implementado em 30/09/2026:** [inicialização automática e contratos de conta](phases/phase-05-v0.9.0/meta-inicializacao-autenticacao-agentes.md) padroniza o reconhecimento da conta oficial já existente e o dispatch de integrações por contratos. Copilot é a primeira checagem automática elegível no Windows; políticas que podem exibir diálogo permanecem explícitas. Build e UnitTests passaram; homologação nativa de CLI/cofre continua pendente por SO. Não altera os gates da Fase 5.
 
-**Claude no painel Agente IA — implementação no checkout:** o único caminho oferecido é a CLI oficial Claude Code, preservando seus métodos nativos de autenticação e cobrança conforme o método escolhido no CLI. Restrições de destino/transporte não alteram esses métodos. O provider HTTP Anthropic legado fica fora da composição e do catálogo do painel; nenhuma falha faz fallback. A chave API legada no vault não é lida nem apagada e conversas antigas não migram automaticamente. O gate do acordo comercial Anthropic segue aberto; homologação manual/runtime real permanece pendente. Consulte [meta Claude assinatura](phases/phase-05-v0.9.0/meta-claude-subscription-parity.md) e [Fase 5](phases/phase-05-v0.9.0/README.md).
+**Claude no painel Agente IA — implementação no checkout:** o único caminho oferecido é a CLI oficial Claude Code, preservando seus métodos nativos de autenticação e cobrança conforme o método escolhido no CLI. Restrições de destino/transporte não alteram esses métodos. O provider HTTP Anthropic legado fica fora da composição e do catálogo do painel; nenhuma falha faz fallback. A chave API legada no vault não é lida nem apagada e conversas antigas não migram automaticamente. O gate do acordo comercial Anthropic segue aberto; homologação manual/runtime real permanece pendente. Consulte [meta Claude assinatura](backlog/integracoes-agentes/meta-claude-subscription-parity.md) e [backlog bkl-06](backlog/bkl-06-integracoes-agentes.md).
 
 ## Meta transversal ativa — adapters do SO e isolamento unitário (30/09/2026)
 
@@ -43,7 +45,7 @@ O incremento cobre catálogo, barra principal, Explorer, editor/resultados, ferr
 | 2 | v0.6.0 | Organização dos projetos e autocomplete básico | Escopo funcional concluído e [arquivado](done/release_v0.6.0/README.md); homologação manual na Fase 10 |
 | 3 | v0.7.0 | Autocomplete com IA | Escopo funcional concluído e [arquivado](done/release_v0.7.0/README.md); sugestões revisáveis, sem aplicação automática |
 | 4 | v0.8.0 | Abertura e salvamento de arquivos de texto | Escopo funcional concluído e [arquivado](done/release_v0.8.0/README.md); inclui workspace local de uma pasta |
-| 5 | v0.9.0 | GitHub Copilot e integração com agentes | Adiada até concluir as entregas prioritárias da Fase 8; implementação e gates abertos em [estado e limites](phases/phase-05-v0.9.0/README.md) |
+| 5 | v0.9.0 | GitHub Copilot e integração com agentes | Adiada até concluir as entregas prioritárias da Fase 8; concluir Copilot e infraestrutura necessária; demais integrações no [bkl-06](backlog/bkl-06-integracoes-agentes.md); gates abertos em [estado e limites](phases/phase-05-v0.9.0/README.md) |
 | 6 | v0.10.0 | Administração e manutenção | [Em desenvolvimento](phases/phase-06-v0.10.0/README.md): coleções, views, validação, índices, estatísticas, usuários, papéis e exportação/importação lógica |
 | 7 | v0.11.0 | Chat simples com IA baseado em workflow | [Planejada](phases/phase-07-v0.11.0/README.md): fluxo predefinido, escopo limitado e ações controladas |
 | 8 | v0.12.0 | IA local e produtividade contextual | **Prioridade atual de entrega**; recorte automatizado implementado, entregas seguintes conforme [meta](phases/phase-08-v0.12.0/meta-de-implementacao.md); ONNX real permanece experimental |
@@ -61,7 +63,7 @@ Quatro estados distintos, que não devem ser confundidos:
 
 - **Prioridade atual** — Fase 8 / v0.12.0; as entregas pendentes estão detalhadas na meta de implementação. A Fase 5 / v0.9.0 foi adiada até concluir esse foco. A homologação real aplicável permanece na Fase 10.
 - **Implementação antecipada** — código integrado que pertence a uma fase futura. Existe, é preservado e continua testado, mas **não** encerra a fase à qual pertence, **não** conta como escopo concluído da fase atual e **não** aparece na interface. Exemplos atuais: administração (v0.10.0), agregação e Script Engine (sem fase).
-- **Backlog** — requisito sem fase definida, adiado ou retirado do escopo. Ver [`backlog/`](backlog/README.md). Entrar no backlog não apaga código: a implementação é preservada e isolada, apenas sem ponto de entrada visual.
+- **Backlog** — requisito sem fase definida, adiado ou retirado do escopo. Ver [`backlog/`](backlog/README.md). Entrar no backlog não apaga código. A regra de ocultar entradas visuais exige decisão de escopo; no bkl-06, implementações e pontos de entrada existentes continuam como estão por determinação do usuário.
 - **Release arquivada** — versão cujo escopo funcional foi fechado e movido para [`done/`](done/README.md). Arquivar **não** significa homologar; a validação manual aplicável pertence à Fase 10.
 
 Recursos fora da fase podem continuar presentes no código, desativados ou experimentais. Sua existência não é compromisso de suporte.

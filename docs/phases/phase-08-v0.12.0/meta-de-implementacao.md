@@ -5,7 +5,7 @@
 **Título:** IA local e produtividade contextual (Local AI and contextual productivity).
 **Estado:** escopo automatizável implementado e validado em 22/09/2026; inferência com pacotes ONNX reais e homologação nativa permanecem experimentais e rastreadas na Fase 10.
 **Data:** 22/09/2026.
-**Coordenação:** registro histórico; os nomes de agentes especializados abaixo descrevem o plano original e não são instruções de delegação atuais. Os contratos de `/agents/` citados na época foram removidos. Para o trabalho atual de Claude, use [documentação Claude](../phase-05-v0.9.0/README.md).
+**Coordenação:** registro histórico; os nomes de agentes especializados abaixo descrevem o plano original e não são instruções de delegação atuais. Os contratos de `/agents/` citados na época foram removidos. Para o trabalho atual de Claude, use [documentação Claude](../../backlog/integracoes-agentes/historico-integracoes.md#plano-e-andamento).
 
 ## Resultado esperado
 

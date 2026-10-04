@@ -21,7 +21,7 @@ Menção a um comando no vocabulário do editor **não** comprova suporte admini
 
 - **ADM-05** — topologia por `hello`, sem diagnóstico de lag, oplog ou failover.
 - **ADV-08** — inferência de schema por amostra, sem SQL, gerador ou migrações versionadas.
-- **ADV-09 (parcela Git)** — continua planejada.
+- **ADV-09 (parcela Git)** — continua planejada; Claude, Codex, APIs externas e integração MCP externa estão no [bkl-06](bkl-06-integracoes-agentes.md), com implementações preservadas.
 - **TRF-05** — pode ser expresso por script entre conexões, mas não há assistente de clonagem com retomada. Ver [bkl-03](bkl-03-script-engine-entre-conexoes.md).
 
 ## Requisitos movidos para o backlog nesta reorganização
@@ -32,6 +32,7 @@ Menção a um comando no vocabulário do editor **não** comprova suporte admini
 | Recortes não priorizados da janela de Ferramentas | [bkl-02](bkl-02-ferramentas-fora-de-fase.md) |
 | Script Engine entre conexões (EDT-06, TRF-05) | [bkl-03](bkl-03-script-engine-entre-conexoes.md) |
 | Modo Aggregation (AGG-01/03/04) | [bkl-04](bkl-04-modo-aggregation.md) |
+| Demais integrações externas de agentes (ADV-09) | [bkl-06](bkl-06-integracoes-agentes.md) |
 
 ## Regras
 

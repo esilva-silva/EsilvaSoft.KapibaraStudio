@@ -1,6 +1,8 @@
 # Documentação do EsilvaSoft.KapibaraStudio
 
-Referência: **03/10/2026**. Produto desktop .NET 10/Avalonia, Windows/Linux, LiteDB e MIT. A integração Claude já está no código e segue em validação; a [documentação curta do Claude](phases/phase-05-v0.9.0/README.md) registra modalidades, segurança, limites e homologação pendente. A homologação real com Claude Pro não foi executada nesta revisão.
+**Recorte da Fase 5 — 03/10/2026:** GitHub Copilot e infraestrutura compartilhada necessária à sua conclusão permanecem na Fase 5 / v0.9.0. Claude, Codex, APIs externas e integração de clientes MCP externos passam ao [bkl-06](backlog/bkl-06-integracoes-agentes.md), sem fase/versão comprometida. Código, disponibilidade, permissões e gates existentes são preservados; IA local e workflow mantêm suas fases. Esta alteração é documental e não comprova conclusão funcional ou nova homologação.
+
+Referência: **03/10/2026**. Produto desktop .NET 10/Avalonia, Windows/Linux, LiteDB e MIT. A integração Claude já está no código e segue em validação; a [documentação do Claude no backlog](backlog/integracoes-agentes/historico-integracoes.md#plano-e-andamento) registra modalidades, segurança, limites e homologação pendente. A homologação real com Claude Pro não foi executada nesta revisão.
 
 ## Comece por aqui
 
@@ -22,7 +24,7 @@ Ao editar, adicionar ou mover arquivos `.md`, execute `node scripts/build-docs-i
 
 A [reorganização de 03/10/2026](phases/README.md#reorganização-de-03102026) define onze fases, com prioridade na Fase 8 / v0.12.0 e retomada da Fase 5 / v0.9.0 depois. Polimento pertence à Fase 9, homologação à Fase 10 e estabilidade à Fase 11. As versões-alvo documentais não alteram tags ou pacotes já produzidos.
 
-Os recortes funcionais v0.5.0–v0.8.0 estão arquivados, mas seus gates de plataforma, acessibilidade, diálogos nativos, topologias MongoDB e edição real continuam abertos. A IA local da v0.12.0 é experimental; a administração/manutenção da v0.10.0 segue em desenvolvimento. O Claude Code, o provider de chat, streaming, retomada e a ponte MCP já estão implementados em Windows; a homologação real com conta e servidor continua pendente. Consulte [Claude no KapibaraStudio](phases/phase-05-v0.9.0/README.md).
+Os recortes funcionais v0.5.0–v0.8.0 estão arquivados, mas seus gates de plataforma, acessibilidade, diálogos nativos, topologias MongoDB e edição real continuam abertos. A IA local da v0.12.0 é experimental; a administração/manutenção da v0.10.0 segue em desenvolvimento. O Claude Code, o provider de chat, streaming, retomada e a ponte MCP já estão implementados em Windows; a homologação real com conta e servidor continua pendente. Consulte [Claude no KapibaraStudio — backlog](backlog/integracoes-agentes/historico-integracoes.md#plano-e-andamento).
 
 A internacionalização da interface está concluída no recorte automatizado para `pt-BR`, `en`, `es` e `zh-CN`, com `pt-BR` inicial e fallback em `en`; os arquivos `docs/**/*.md` permanecem em português. A evidência histórica de fechamento da v0.8.0 é build sem avisos/erros, **2.674 testes unitários aprovados, 0 falhas e 20 ignorados**, além de **43 benchmarks aprovados**. Essa evidência não valida recursos MCP ou providers ainda planejados.
 
@@ -32,7 +34,7 @@ A internacionalização da interface está concluída no recorte automatizado pa
 | --- | --- |
 | Raiz de `docs/` | Documentos transversais a várias fases: governança, arquitetura, design system, segurança, qualidade e validação. |
 | [`phases/`](phases/README.md) | Trabalho planejado ou em execução, uma pasta por fase e versão. |
-| [`backlog/`](backlog/README.md) | Requisitos sem fase, adiados ou retirados do escopo. Código preservado, sem entrada na interface. |
+| [`backlog/`](backlog/README.md) | Requisitos sem fase, adiados ou retirados do escopo. Código preservado; o bkl-06 mantém composição e disponibilidade existentes. |
 | [`done/`](done/README.md) | Requisitos concluídos, arquivados por versão, com as pendências de homologação explícitas. |
 | [`auto-complite/`](auto-complite/README.md) | Subsistema de autocomplete. Suas "fases" têm numeração própria e não correspondem às fases do produto. |
 | `ui/`, `models/`, `legado/`, `assets/` | Paletas e capturas, exemplos de manifesto de modelo, imagens legadas e o runtime do leitor HTML. |
@@ -46,7 +48,7 @@ A internacionalização da interface está concluída no recorte automatizado pa
 | Dados e operação | [06 — Editor/BSON/UUID](06-editor-bson-e-uuid.md), [07 — Segurança/administração](07-dados-seguranca-e-administracao.md), [13 — Transferência lógica](13-exportacao-logica.md) |
 | Editor e exploração | [19 — Explorer](19-database-explorer.md), [20 — Console](20-console.md), [22 — Highlighting](22-syntax-highlighting.md) |
 | Inteligência opcional | [21 — Autocomplete local](21-autocomplete-local.md), [23 — ONNX/chat](23-onnx-slopcoder.md), [26 — IA local multimodelo](26-ia-local-multimodelo.md), [Autocomplete MongoDB — padrão e plano](auto-complite/README.md) |
-| Claude, autenticação e ferramentas | [Claude no KapibaraStudio](phases/phase-05-v0.9.0/README.md) |
+| Claude, autenticação e ferramentas | [Claude no KapibaraStudio](backlog/integracoes-agentes/historico-integracoes.md#plano-e-andamento) |
 | Planejamento e histórico | [03 — Catálogo funcional](03-catalogo-funcional.md), [09 — Roadmap](09-plano-de-implementacao.md), [12 — Acompanhamento](12-acompanhamento-da-implementacao.md), [24 — Inventário](24-inventario-roadmap.md) |
 | Qualidade e validação | [08 — Testes](08-testes-e-qualidade.md), [11 — Fontes/evidências](11-fontes-e-evidencias.md), [15 — Matriz de validação](15-matriz-de-validacao.md), [16 — Checklist de homologação](16-checklist-homologacao.md) |
 | Licenças dos pacotes Windows | [Revisão dos ZIPs e runtimes — 03/10/2026](architecture/windows-license-review-2026-10-03.md) |
