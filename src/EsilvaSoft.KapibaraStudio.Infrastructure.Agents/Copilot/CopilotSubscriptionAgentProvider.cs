@@ -24,6 +24,8 @@ public sealed class CopilotSubscriptionAgentProvider : IAgentProvider, IAgentPro
     private readonly SemaphoreSlim _statusGate = new(1, 1);
     private readonly Lock _lifecycleGate = new();
     private AgentProviderStatus _status = AgentProviderStatus.NotReported;
+    private long _accountRevision;
+    private bool _accountCommandInProgress;
     private int _disposed;
 
     public CopilotSubscriptionAgentProvider(IAgentToolRegistry toolRegistry)
@@ -108,21 +110,44 @@ public sealed class CopilotSubscriptionAgentProvider : IAgentProvider, IAgentPro
     /// </summary>
     public async Task<CopilotAccountStatus> CheckAccountAndModelsAsync(CancellationToken cancellationToken = default)
     {
-        ThrowIfDisposed();
+        long revision;
+        lock (_lifecycleGate)
+        {
+            ThrowIfDisposed();
+            cancellationToken.ThrowIfCancellationRequested();
+            if (_accountCommandInProgress) return new CopilotAccountStatus(CopilotAccountState.Unavailable);
+            revision = _accountRevision;
+        }
         await _statusGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             ThrowIfDisposed();
-            if (!_commands.IsCliInstalled())
+            if (!IsCurrentAccountRevision(revision)) return new CopilotAccountStatus(CopilotAccountState.Unavailable);
+            var cliAvailability = _commands.ProbeCli();
+            if (cliAvailability != CopilotCliAvailability.Available)
             {
-                SetUnavailable(AgentProviderAuthState.NotConfigured,
-                    "CopilotCliNotInstalled");
-                return new CopilotAccountStatus(CopilotAccountState.CliNotInstalled);
+                var code = cliAvailability switch
+                {
+                    CopilotCliAvailability.NotFound => "CopilotCliNotInstalled",
+                    CopilotCliAvailability.InvalidPath => "CopilotCliPathInvalid",
+                    CopilotCliAvailability.UnsupportedExecutable => "CopilotCliUnsupportedExecutable",
+                    CopilotCliAvailability.NotExecutable => "CopilotCliNotExecutable",
+                    _ => "CopilotCliProbeFailed",
+                };
+                var published = SetUnavailable(AgentProviderAuthState.NotConfigured,
+                    code, revision);
+                return new CopilotAccountStatus(published && cliAvailability == CopilotCliAvailability.NotFound
+                    ? CopilotAccountState.CliNotInstalled : CopilotAccountState.Unavailable,
+                    published ? cliAvailability : null);
             }
 
             await using var client = _resources.CreateAccountClient();
             await client.StartAsync(cancellationToken).ConfigureAwait(false);
             var auth = await client.GetAuthStatusAsync(cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            // A visible login/logout can invalidate the account while authentication is in flight.
+            // Its stale response cannot authorize a subsequent model lookup.
+            if (!IsCurrentAccountRevision(revision)) return new CopilotAccountStatus(CopilotAccountState.Unavailable);
             var accountState = ClassifyAuthentication(auth.IsAuthenticated, auth.AuthType).State;
             if (accountState != CopilotAccountState.Subscription)
             {
@@ -130,33 +155,36 @@ public sealed class CopilotSubscriptionAgentProvider : IAgentProvider, IAgentPro
                     ? AgentProviderAuthState.NotConfigured
                     : accountState == CopilotAccountState.OtherAuthentication
                         ? AgentProviderAuthState.Invalid : AgentProviderAuthState.Unknown;
-                SetUnavailable(authState, accountState switch
+                var published = SetUnavailable(authState, accountState switch
                 {
                     CopilotAccountState.NotLoggedIn => "CopilotLoginRequired",
                     CopilotAccountState.OtherAuthentication => "CopilotSubscriptionRequired",
                     _ => "CopilotProviderUnavailable",
-                });
-                return new CopilotAccountStatus(accountState);
+                }, revision);
+                return new CopilotAccountStatus(published ? accountState : CopilotAccountState.Unavailable);
             }
 
             // ListModelsAsync is an explicit account check, never an implicit catalog/startup operation. It returns
             // the models this signed-in account can select and does not send user text or workspace data.
-            var models = (await client.ListModelIdsAsync(cancellationToken).ConfigureAwait(false))
+            var modelIds = await client.ListModelIdsAsync(cancellationToken).ConfigureAwait(false);
+            // A completed RPC may race cancellation. A cancelled check cannot publish its late catalog.
+            cancellationToken.ThrowIfCancellationRequested();
+            var models = modelIds
                 .Where(IsSafeModelId)
                 .Distinct(StringComparer.Ordinal)
                 .Order(StringComparer.Ordinal)
                 .ToArray();
             if (models.Length == 0)
             {
-                PublishStatus(Unavailable(AgentProviderAuthState.Configured, "CopilotNoModels"));
-                return new CopilotAccountStatus(accountState);
+                var published = PublishStatus(Unavailable(AgentProviderAuthState.Configured, "CopilotNoModels"), revision);
+                return new CopilotAccountStatus(published ? accountState : CopilotAccountState.Unavailable);
             }
 
             // Only the product registry is exposed for tool calls. Provider-native shell/file/network tools stay off;
             // the registry applies the persisted tool and data permissions to every invocation.
-            PublishStatus(new AgentProviderStatus(true, AgentProviderAuthState.Configured,
-                SupportedCapabilities, models, models[0]));
-            return new CopilotAccountStatus(accountState);
+            var availablePublished = PublishStatus(new AgentProviderStatus(true, AgentProviderAuthState.Configured,
+                SupportedCapabilities, models, models[0]), revision);
+            return new CopilotAccountStatus(availablePublished ? accountState : CopilotAccountState.Unavailable);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -164,9 +192,10 @@ public sealed class CopilotSubscriptionAgentProvider : IAgentProvider, IAgentPro
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             ThrowIfDisposed();
             SetUnavailable(AgentProviderAuthState.Unknown,
-                IsProtocolMismatch(exception) ? "CopilotCliProtocolIncompatible" : "CopilotProviderUnavailable");
+                IsProtocolMismatch(exception) ? "CopilotCliProtocolIncompatible" : "CopilotProviderUnavailable", revision);
             return new CopilotAccountStatus(CopilotAccountState.Unavailable);
         }
         finally
@@ -182,19 +211,8 @@ public sealed class CopilotSubscriptionAgentProvider : IAgentProvider, IAgentPro
                 ? CopilotAccountState.Subscription
                 : CopilotAccountState.OtherAuthentication);
 
-    public async Task<CopilotAccountCommandResult> LoginAsync(CancellationToken cancellationToken = default)
-    {
-        Task<CopilotAccountCommandState> command;
-        lock (_lifecycleGate)
-        {
-            ThrowIfDisposed();
-            command = _commands.RunVisibleAsync("login", cancellationToken);
-        }
-        var state = await command.ConfigureAwait(false);
-        var account = state == CopilotAccountCommandState.Completed
-            ? await CheckAccountAndModelsAsync(cancellationToken).ConfigureAwait(false) : null;
-        return new CopilotAccountCommandResult(state, account);
-    }
+    public Task<CopilotAccountCommandResult> LoginAsync(CancellationToken cancellationToken = default) =>
+        RunAccountCommandAsync("login", cancellationToken);
 
     /// <summary>Logout affects the user's global Copilot CLI account and requires prior confirmation.</summary>
     public async Task<CopilotAccountCommandResult> LogoutAsync(
@@ -206,13 +224,41 @@ public sealed class CopilotSubscriptionAgentProvider : IAgentProvider, IAgentPro
             throw new InvalidOperationException("O logout global do Copilot exige confirmação do usuário.");
         }
 
-        Task<CopilotAccountCommandState> command;
+        return await RunAccountCommandAsync("logout", cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<CopilotAccountCommandResult> RunAccountCommandAsync(string action, CancellationToken cancellationToken)
+    {
         lock (_lifecycleGate)
         {
             ThrowIfDisposed();
-            command = _commands.RunVisibleAsync("logout", cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (_accountCommandInProgress) throw new InvalidOperationException("CopilotAccountOperationInProgress");
+            _accountCommandInProgress = true;
+            _accountRevision++;
+            // The CLI can change the global account even if waiting is cancelled or fails. Require a fresh
+            // explicit check before creating another session; open sessions keep their existing client.
+            Volatile.Write(ref _status, Unavailable(AgentProviderAuthState.Unknown, "CopilotProviderUnavailable"));
         }
-        var state = await command.ConfigureAwait(false);
+        CopilotAccountCommandState state;
+        try
+        {
+            Task<CopilotAccountCommandState> command;
+            lock (_lifecycleGate)
+            {
+                ThrowIfDisposed();
+                command = _commands.RunVisibleAsync(action, cancellationToken);
+            }
+            state = await command.ConfigureAwait(false);
+        }
+        finally
+        {
+            lock (_lifecycleGate)
+            {
+                _accountCommandInProgress = false;
+                _accountRevision++;
+            }
+        }
         var account = state == CopilotAccountCommandState.Completed
             ? await CheckAccountAndModelsAsync(cancellationToken).ConfigureAwait(false) : null;
         return new CopilotAccountCommandResult(state, account);
@@ -278,18 +324,29 @@ public sealed class CopilotSubscriptionAgentProvider : IAgentProvider, IAgentPro
         finally { _statusGate.Release(); }
     }
 
-    private void SetUnavailable(AgentProviderAuthState authState, string code)
+    private bool SetUnavailable(AgentProviderAuthState authState, string code, long revision)
     {
         var caps = AgentProviderCapabilities.None with { UsesNetwork = true };
-        PublishStatus(new AgentProviderStatus(false, authState, caps, unavailableCode: code));
+        return PublishStatus(new AgentProviderStatus(false, authState, caps, unavailableCode: code), revision);
     }
 
-    private void PublishStatus(AgentProviderStatus status)
+    private bool IsCurrentAccountRevision(long revision)
     {
         lock (_lifecycleGate)
         {
             ThrowIfDisposed();
+            return !_accountCommandInProgress && revision == _accountRevision;
+        }
+    }
+
+    private bool PublishStatus(AgentProviderStatus status, long revision)
+    {
+        lock (_lifecycleGate)
+        {
+            ThrowIfDisposed();
+            if (_accountCommandInProgress || revision != _accountRevision) return false;
             Volatile.Write(ref _status, status);
+            return true;
         }
     }
 
@@ -331,4 +388,4 @@ public enum CopilotAccountState
 }
 
 /// <summary>Somente classificação fixa; nunca inclui usuário, token ou mensagem nativa.</summary>
-public sealed record CopilotAccountStatus(CopilotAccountState State);
+public sealed record CopilotAccountStatus(CopilotAccountState State, CopilotCliAvailability? CliAvailability = null);

@@ -139,6 +139,8 @@ public sealed class CopilotProductToolRuntimeTests
     [TestCase(false, "denied", 1, "ConfirmationRejected", "Denied")]
     [TestCase(false, "denied", 1, "ConfirmationExpired", "Denied")]
     [TestCase(false, "failure", 1, "ConfirmationUnavailable", "Failed")]
+    [TestCase(false, "failure", 1, "ExecutionFailed", "Failed")]
+    [TestCase(false, "denied", 1, "ToolCallLimitExceeded", "Denied")]
     public async Task ProductToolResultPassesThroughRuntimeBindingAndRegistry(
         bool denyBinding, string expectedResultType, int expectedInvocations, string? registryErrorCode,
         string expectedStatus)
@@ -239,10 +241,10 @@ public sealed class CopilotProductToolRuntimeTests
         public AgentToolDescriptor? FindInProcessDescriptor(string providerId, string? name) =>
             providerId == CopilotSubscriptionAgentProvider.Id ? FindDescriptor(name) : null;
         public string? GetInputSchemaJson(string? name) => name == ToolName
-            ? "{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\"}}}" : null;
+            ? "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"scope\":{\"type\":\"string\"}}}" : null;
         public string? GetInProcessInputSchemaJson(string providerId, string? name) =>
             FindInProcessDescriptor(providerId, name) is null ? null
-                : "{\"type\":\"object\",\"properties\":{\"scope\":{\"type\":\"string\"}}}";
+                : "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"scope\":{\"type\":\"string\"}}}";
         public string? GetOutputSchemaJson(string? name) => name == ToolName
             ? "{\"type\":\"object\",\"properties\":{\"context\":{\"type\":\"string\"}}}" : null;
         public Task<AgentToolInvocationResult> InvokeAsync(AgentPrincipal? principal,

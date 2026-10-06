@@ -7,6 +7,13 @@
   <Grid RowDefinitions="Auto,*,Auto" RowSpacing="10" Margin="16">
     <StackPanel Spacing="4"><TextBlock Text="{local:Loc Key=agentDiffTitle}" Classes="section-title"/><TextBlock Text="{Binding Title}" Classes="metadata" TextTrimming="CharacterEllipsis"/></StackPanel>
     <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled"><ItemsControl ItemsSource="{Binding Hunks}"><ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:AgentEditProposalHunkViewModel"><Border Classes="diff-hunk" Padding="8" Margin="0,0,0,8"><StackPanel Spacing="6"><TextBlock Text="{Binding StateText}" Classes="metadata"/><Grid ColumnDefinitions="*,*" ColumnSpacing="8"><StackPanel><TextBlock Text="{local:Loc Key=agentDiffOriginal}" FontWeight="SemiBold"/><TextBox Text="{Binding OriginalText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap" MinHeight="48" MaxHeight="180"/></StackPanel><StackPanel Grid.Column="1"><TextBlock Text="{local:Loc Key=agentDiffProposed}" FontWeight="SemiBold"/><TextBox Text="{Binding ProposedText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap" MinHeight="48" MaxHeight="180"/></StackPanel></Grid><WrapPanel><Button Content="{local:Loc Key=agentDiffApplyHunk}" Classes="agent-apply" Command="{Binding $parent[Window].((vm:AgentEditProposalReviewViewModel)DataContext).ApplyHunkCommand}" CommandParameter="{Binding}" IsVisible="{Binding CanApply}" Margin="0,0,6,0"/><Button Content="{local:Loc Key=agentDiffRevertHunk}" Command="{Binding $parent[Window].((vm:AgentEditProposalReviewViewModel)DataContext).RevertHunkCommand}" CommandParameter="{Binding}" IsVisible="{Binding CanRevert}"/></WrapPanel></StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer>
-    <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8"><TextBlock Text="{Binding Status}" Classes="metadata" TextWrapping="Wrap" VerticalAlignment="Center"/><Button Grid.Column="1" Content="{local:Loc Key=agentDiffKeep}" Command="{Binding KeepAppliedCommand}" IsVisible="{Binding IsAutomatic}"/><Button Grid.Column="2" Content="{local:Loc Key=agentDiffRevertAll}" Command="{Binding RevertAppliedCommand}" IsEnabled="{Binding HasApplied}"/><Button Grid.Column="3" Content="{local:Loc Key=close}" Click="CloseWindow"/></Grid>
+    <StackPanel Grid.Row="2" Spacing="6">
+      <TextBlock Text="{Binding Status}" Classes="metadata" TextWrapping="Wrap"/>
+      <WrapPanel HorizontalAlignment="Right">
+        <Button Content="{local:Loc Key=agentDiffKeep}" Command="{Binding KeepAppliedCommand}" IsVisible="{Binding IsAutomatic}" Margin="8,0,0,0"/>
+        <Button Content="{local:Loc Key=agentDiffRevertAll}" Command="{Binding RevertAppliedCommand}" IsEnabled="{Binding HasApplied}" Margin="8,0,0,0"/>
+        <Button Content="{local:Loc Key=close}" Click="CloseWindow" Margin="8,0,0,0"/>
+      </WrapPanel>
+    </StackPanel>
   </Grid>
 </Window>

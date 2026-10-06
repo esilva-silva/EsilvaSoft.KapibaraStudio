@@ -68,6 +68,7 @@ public sealed partial class AgentToolRegistry
 
         var isActive = activeBuffer;
         string? fullPath = null;
+        IReadOnlyList<string>? capturedExclusions = null;
         if (activeBuffer)
         {
             // A native chat turn may only inspect/propose against the buffer when its resolved attachment was
@@ -85,16 +86,11 @@ public sealed partial class AgentToolRegistry
             if (permissions.Workspace?.UseFilesFolder != true ||
                 !AgentWorkspacePaths.TryGetWorkspaceRoot(snapshot.WorkspaceFolder, out var workspace, _sessionTools?.PathProbe))
                 return Refuse(ProposalErrors.NoWorkspace);
-            var exclusions = permissions.Workspace?.Exclusions ?? [];
+            var exclusions = (permissions.Workspace?.Exclusions ?? []).ToArray();
+            capturedExclusions = exclusions;
             // Single path-safety rule shared with the attachment resolver (containment, ADS/8.3 aliases, links, exclusions).
             if (!AgentWorkspacePaths.TryResolveInside(workspace, path!, exclusions, out fullPath, out _, out var pathError, _sessionTools?.PathProbe))
-                return Refuse(pathError switch
-                {
-                    AgentWorkspacePathError.NoWorkspace => ProposalErrors.NoWorkspace,
-                    AgentWorkspacePathError.OutsideWorkspace or AgentWorkspacePathError.LinkTraversal => ProposalErrors.OutsideWorkspace,
-                    AgentWorkspacePathError.Excluded or AgentWorkspacePathError.InvalidExclusion => ProposalErrors.Excluded,
-                    _ => ProposalErrors.InvalidPath
-                });
+                return Refuse(MapProposalPathError(pathError));
             isActive = snapshot.BufferText is not null && snapshot.ActiveFilePath is { } activePath &&
                 AgentWorkspacePaths.TryResolveInside(workspace, activePath, exclusions, out var activeFull, out _, out _, _sessionTools?.PathProbe) &&
                 string.Equals(activeFull, fullPath, OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
@@ -116,6 +112,15 @@ public sealed partial class AgentToolRegistry
             var read = await ReadProposalBaseAsync(fullPath!, _sessionTools?.FileReader, cancellationToken).ConfigureAwait(false);
             if (read.Error is { } readError) return Refuse(readError);
             original = read.Text!;
+
+            // Path safety is a snapshot too, but links/exclusions can change while the bounded file read awaits.
+            // Revalidate after reading and require the canonical target to remain the one captured before the await.
+            if (!AgentWorkspacePaths.TryResolveInside(snapshot.WorkspaceFolder, path, capturedExclusions,
+                    out var currentFullPath, out _, out var currentPathError, _sessionTools?.PathProbe))
+                return Refuse(MapProposalPathError(currentPathError));
+            if (!string.Equals(currentFullPath, fullPath, OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+                    ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+                return Refuse(ProposalErrors.OutsideWorkspace);
         }
         if (Encoding.UTF8.GetByteCount(original) > MaximumProposalTextBytes)
             return Refuse(ProposalErrors.FileTooLarge);
@@ -155,7 +160,10 @@ public sealed partial class AgentToolRegistry
             isActive ? snapshot.TabId : null,
             Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(original))),
             original, proposed, hunks, DateTimeOffset.UtcNow)
-        { TargetName = isActive ? snapshot.ActiveFileName ?? "Aba sem título" : Path.GetFileName(fullPath!) };
+        {
+            TargetName = isActive ? snapshot.ActiveFileName ?? "Aba sem título" : Path.GetFileName(fullPath!),
+            Handling = scope.Plan!.ProposalHandling
+        };
         // Release gate BEFORE the proposal leaves the registry: the channel and the plan must still be current.
         if (await RevalidateSessionReleaseAsync(principal!, context!, destination!, outputScope,
                 ProposeFileEditToolName, cancellationToken)
@@ -185,6 +193,14 @@ public sealed partial class AgentToolRegistry
 
     private static AgentToolInvocationResult Refuse(string code) =>
         AgentToolInvocationResult.Failure(code, AgentAuditDecisionReason.ValidationRejected);
+
+    private static string MapProposalPathError(AgentWorkspacePathError pathError) => pathError switch
+    {
+        AgentWorkspacePathError.NoWorkspace => ProposalErrors.NoWorkspace,
+        AgentWorkspacePathError.OutsideWorkspace or AgentWorkspacePathError.LinkTraversal => ProposalErrors.OutsideWorkspace,
+        AgentWorkspacePathError.Excluded or AgentWorkspacePathError.InvalidExclusion => ProposalErrors.Excluded,
+        _ => ProposalErrors.InvalidPath
+    };
 
     /// <summary>
     /// Applies the edits in order on the evolving text. Each <c>old_text</c> must occur exactly once; when it is absent

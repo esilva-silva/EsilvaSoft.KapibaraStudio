@@ -8,16 +8,42 @@ namespace EsilvaSoft.KapibaraStudio.Desktop.ViewModels;
 /// One operation mode offered in the composer. Label and hint only: what each mode allows comes exclusively from
 /// <c>AgentModePolicy</c>, never from the UI.
 /// </summary>
-public sealed record AgentModeOption(AgentOperationMode Mode, string Label, string Hint)
+public sealed partial class AgentModeOption : ObservableObject
 {
     private static LocalizationViewModel Text => LocalizationViewModel.Current;
 
+    private readonly string _labelKey;
+    private readonly string _hintKey;
+
+    private AgentModeOption(AgentOperationMode mode, string labelKey, string hintKey)
+    {
+        Mode = mode;
+        _labelKey = labelKey;
+        _hintKey = hintKey;
+        _label = Text.Resolve(labelKey);
+        _hint = Text.Resolve(hintKey);
+    }
+
+    public AgentOperationMode Mode { get; }
+
+    [ObservableProperty]
+    private string _label;
+
+    [ObservableProperty]
+    private string _hint;
+
+    internal void RefreshLocalizedText()
+    {
+        Label = Text.Resolve(_labelKey);
+        Hint = Text.Resolve(_hintKey);
+    }
+
     public static IReadOnlyList<AgentModeOption> All() =>
     [
-        new(AgentOperationMode.Agent, Text.Resolve("agentModeAgent"), Text.Resolve("agentModeAgentHint")),
-        new(AgentOperationMode.Planning, Text.Resolve("agentModePlanning"), Text.Resolve("agentModePlanningHint")),
-        new(AgentOperationMode.Automatic, Text.Resolve("agentModeAutomatic"), Text.Resolve("agentModeAutomaticHint")),
-        new(AgentOperationMode.AskConfirmations, Text.Resolve("agentModeAskConfirmations"), Text.Resolve("agentModeAskConfirmationsHint")),
+        new(AgentOperationMode.Agent, "agentModeAgent", "agentModeAgentHint"),
+        new(AgentOperationMode.Planning, "agentModePlanning", "agentModePlanningHint"),
+        new(AgentOperationMode.Automatic, "agentModeAutomatic", "agentModeAutomaticHint"),
+        new(AgentOperationMode.AskConfirmations, "agentModeAskConfirmations", "agentModeAskConfirmationsHint"),
     ];
 
     public override string ToString() => Label;

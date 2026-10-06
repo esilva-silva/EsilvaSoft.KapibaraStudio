@@ -226,6 +226,10 @@ public sealed class AgentProviderAvailabilityServiceTests
     }
 
     [TestCase("CopilotCliNotInstalled", AgentProviderAvailabilityState.CliMissing)]
+    [TestCase("CopilotCliPathInvalid", AgentProviderAvailabilityState.CliMissing)]
+    [TestCase("CopilotCliUnsupportedExecutable", AgentProviderAvailabilityState.CliMissing)]
+    [TestCase("CopilotCliNotExecutable", AgentProviderAvailabilityState.CliMissing)]
+    [TestCase("CopilotCliProbeFailed", AgentProviderAvailabilityState.Failed)]
     [TestCase("CopilotLoginRequired", AgentProviderAvailabilityState.NotConnected)]
     [TestCase("CopilotSubscriptionRequired", AgentProviderAvailabilityState.NotConnected)]
     public async Task CopilotSpecificAccountCodesMapToActionableStates(string code, AgentProviderAvailabilityState expected)

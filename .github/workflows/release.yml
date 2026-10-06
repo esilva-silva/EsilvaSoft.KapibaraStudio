@@ -79,19 +79,27 @@ jobs:
           -p:EnableClaudeCodeIntegration=false
           -p:DebugType=none -p:PublishDocumentationFiles=false -p:PublishReferencesDocumentationFiles=false
           -p:Version=${{ env.VERSION }} -o publish
-      - name: Package
+      - name: Prepare final payload for SBOM
         shell: pwsh
         run: |
           Remove-Item publish/*.pdb, publish/*.xml, publish/*.lib -ErrorAction Ignore
           if (-not $IsWindows) {
             chmod +x publish/EsilvaSoft.KapibaraStudio.Desktop
           }
+      - name: Install pinned SBOM tool
+        run: dotnet tool install Microsoft.Sbom.DotNetTool --tool-path .tools/sbom --version 4.1.5
+      - name: Generate and validate per-RID SBOM
+        shell: pwsh
+        run: ./eng/Generate-ReleaseSbom.ps1 -PublishDirectory 'publish' -ComponentDirectory 'src/EsilvaSoft.KapibaraStudio.Desktop' -Rid '${{ matrix.rid }}' -PackageName '${{ env.PACKAGE }}' -PackageVersion '${{ env.VERSION }}'
+      - name: Package
+        shell: pwsh
+        run: |
           ./eng/Test-ReleasePackage.ps1 -PublishDirectory 'publish' -Rid '${{ matrix.rid }}'
           New-Item -ItemType Directory -Force dist | Out-Null
+          . ./eng/ReleasePackaging.ps1
           if ($IsWindows) {
-            Compress-Archive -Path publish/* -DestinationPath "dist/$env:PACKAGE.zip"
+            New-KapibaraWindowsPackage (Join-Path $PWD 'publish') (Join-Path $PWD "dist/$env:PACKAGE.zip") '${{ matrix.rid }}'
           } else {
-            . ./eng/ReleasePackaging.ps1
             New-KapibaraLinuxPackage (Join-Path $PWD 'publish') (Join-Path $PWD "dist/$env:PACKAGE.tar.gz") '${{ matrix.rid }}'
           }
       - uses: actions/upload-artifact@v4

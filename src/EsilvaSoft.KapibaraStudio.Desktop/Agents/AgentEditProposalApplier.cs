@@ -56,10 +56,15 @@ public static class AgentEditProposalApplier
 
         var states = entry.HunkStates.ToArray();
         var hunk = entry.Proposal.Hunks[hunkIndex];
+        var text = editor.Text;
         var trackedHint = editor.GetHunkLineHint(entry.Id, hunkIndex);
         var hint = trackedHint ??
                    hunk.OriginalStartLine + ShiftAbove(entry.Proposal.Hunks, states, hunkIndex, applied: true);
-        var result = LineDiff.ApplyHunk(editor.Text, hunk, hint, allowShiftedBoundaryAnchor: trackedHint.HasValue);
+        var sameRevision = string.Equals(AgentEditProposalStore.Sha256(text), entry.Proposal.BaseTextSha256,
+            StringComparison.OrdinalIgnoreCase);
+        var result = LineDiff.ApplyHunk(text, hunk, hint,
+            allowShiftedBoundaryAnchor: trackedHint.HasValue,
+            allowExactHintForAmbiguous: sameRevision || trackedHint.HasValue);
         if (!result.Succeeded || result.Edit is null)
         {
             states[hunkIndex] = AgentEditHunkState.Stale;
@@ -110,6 +115,8 @@ public static class AgentEditProposalApplier
         var hunks = entry.Proposal.Hunks;
         var states = entry.HunkStates.ToArray();
         var text = editor.Text;
+        var sameRevision = string.Equals(AgentEditProposalStore.Sha256(text), entry.Proposal.BaseTextSha256,
+            StringComparison.OrdinalIgnoreCase);
         var edits = new List<AgentHunkTextEdit>();
         var stale = 0;
         for (var index = hunks.Count - 1; index >= 0; index--)
@@ -123,7 +130,9 @@ public static class AgentEditProposalApplier
 
             var trackedHint = editor.GetHunkLineHint(entry.Id, index);
             var hint = trackedHint ?? hunk.OriginalStartLine + ShiftAbove(hunks, states, index, applied: true);
-            var result = LineDiff.ApplyHunk(text, hunk, hint, allowShiftedBoundaryAnchor: trackedHint.HasValue);
+            var result = LineDiff.ApplyHunk(text, hunk, hint,
+                allowShiftedBoundaryAnchor: trackedHint.HasValue,
+                allowExactHintForAmbiguous: sameRevision || trackedHint.HasValue);
             if (!result.Succeeded || result.Edit is null || result.Text is null)
             {
                 states[index] = AgentEditHunkState.Stale;

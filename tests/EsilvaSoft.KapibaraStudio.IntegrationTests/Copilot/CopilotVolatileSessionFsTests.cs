@@ -165,6 +165,35 @@ internal sealed class CopilotVolatileSessionFsTests
             CopilotVolatileSessionFsStore.MaxSessionDirectories - 1));
     }
 
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task RejectedFileQuotaDoesNotConsumeParentDirectoryCapacity(bool append)
+    {
+        await using var state = NewState();
+        // Leave exactly one directory slot. A rejected write must leave that slot available for recovery.
+        for (var index = 0; index < CopilotVolatileSessionFsStore.MaxSessionDirectories - 2; index++)
+            await state.MakeDirectoryAsync($"/existing-{index}", recursive: false, CancellationToken.None);
+
+        Task Write(string path, string content) => append
+            ? state.AppendFileAsync(path, content, CancellationToken.None)
+            : state.WriteFileAsync(path, content, CancellationToken.None);
+        Assert.ThrowsAsync<IOException>(() => Write("/rejected/file.txt",
+            new string('x', CopilotVolatileSessionFsStore.MaxFileBytes + 1)));
+        var rejectedDirectoryExists = await state.ExistsAsync("/rejected", CancellationToken.None);
+        var rejectedFileExists = await state.ExistsAsync("/rejected/file.txt", CancellationToken.None);
+        Assert.Multiple(() =>
+        {
+            Assert.That(rejectedDirectoryExists, Is.False,
+                "A rejected file write must not leave a parent directory consuming the session quota.");
+            Assert.That(rejectedFileExists, Is.False);
+        });
+
+        await Write("/recovered/file.txt", "recoverable");
+        Assert.That(await state.ReadFileAsync("/recovered/file.txt", CancellationToken.None), Is.EqualTo("recoverable"));
+        Assert.That(await state.ReadDirectoryAsync("/", CancellationToken.None), Has.Count.EqualTo(
+            CopilotVolatileSessionFsStore.MaxSessionDirectories - 1));
+    }
+
     [Test]
     public async Task StoreLifecycleSerializesCreationAndDisposal()
     {
@@ -309,6 +338,62 @@ internal sealed class CopilotVolatileSessionFsTests
 
         Assert.That(firstRead.Content, Is.EqualTo("first only"));
         Assert.That(secondRead.Error, Is.Not.Null);
+    }
+
+    [Test]
+    public async Task NativeDeletionSerializesAgainstProviderCreationForTheSameSessionId()
+    {
+        await using var store = new CopilotVolatileSessionFsStore();
+        const string sessionId = "delete-create-race";
+        var original = store.CreateProvider(sessionId);
+        await ((ISessionFsHandler)original).WriteFileAsync(new SessionFsWriteFileRequest
+        { SessionId = sessionId, Path = "/state.txt", Content = "old" }, CancellationToken.None);
+        var nativeDeleteEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseNativeDelete = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var deleting = store.DeleteSessionAsync(sessionId, async _ =>
+        {
+            nativeDeleteEntered.TrySetResult();
+            await releaseNativeDelete.Task;
+        }).AsTask();
+        await nativeDeleteEntered.Task;
+
+        var createAttempted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var creating = Task.Run(() =>
+        {
+            createAttempted.TrySetResult();
+            return store.CreateProvider(sessionId);
+        });
+        await createAttempted.Task;
+        Assert.That(creating.IsCompleted, Is.False,
+            "Creating/resuming the same ID must wait while its native deletion is in progress.");
+
+        releaseNativeDelete.TrySetResult();
+        Assert.That(await deleting, Is.True);
+        var recreated = await creating;
+        Assert.That(await recreated.ExistsAsync(CancellationToken.None), Is.False,
+            "The provider returned after deletion must own a fresh, usable volatile state.");
+        Assert.ThrowsAsync<ObjectDisposedException>(() => original.ExistsAsync(CancellationToken.None));
+    }
+
+    [Test]
+    public async Task FailedNativeDeletionRetainsVolatileSessionStateForRetry()
+    {
+        await using var store = new CopilotVolatileSessionFsStore();
+        const string sessionId = "volatile-delete-retry";
+        var provider = store.CreateProvider(sessionId);
+        await ((ISessionFsHandler)provider).WriteFileAsync(new SessionFsWriteFileRequest
+        { SessionId = sessionId, Path = "/state.txt", Content = "recoverable" }, CancellationToken.None);
+
+        Assert.ThrowsAsync<InvalidOperationException>(async () => await store.DeleteSessionAsync(sessionId,
+            _ => Task.FromException(new InvalidOperationException("synthetic native delete failure"))));
+        Assert.That(store.ContainsSession(sessionId), Is.True);
+        var read = await ((ISessionFsHandler)provider).ReadFileAsync(new SessionFsReadFileRequest
+        { SessionId = sessionId, Path = "/state.txt" }, CancellationToken.None);
+        Assert.That(read.Content, Is.EqualTo("recoverable"));
+
+        Assert.That(await store.DeleteSessionAsync(sessionId, _ => Task.CompletedTask), Is.True);
+        Assert.That(store.ContainsSession(sessionId), Is.False);
     }
 
     [Test]

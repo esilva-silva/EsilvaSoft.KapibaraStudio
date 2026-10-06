@@ -14,7 +14,18 @@ public sealed partial class AgentToolRegistry
     {
         cancellationToken.ThrowIfCancellationRequested();
         // Per-session tools without a MongoDB namespace: only the channel and the turn plan can change.
-        if (name is GetWorkspaceContextToolName or ProposeFileEditToolName)
+        if (name == GetWorkspaceContextToolName)
+        {
+            if (result.ReleaseWorkspaceContext is not { } snapshot)
+                return AgentToolInvocationResult.Failure(PermissionDenied, AgentAuditDecisionReason.ValidationRejected);
+            var sessionDenial = await RevalidateSessionReleaseAsync(principal, context, destination, outputScope,
+                name, cancellationToken).ConfigureAwait(false);
+            if (sessionDenial is not null) return sessionDenial;
+            return IsCurrentWorkspaceSnapshot(principal, context, snapshot)
+                ? null
+                : AgentToolInvocationResult.Failure(PermissionDenied, AgentAuditDecisionReason.ValidationRejected);
+        }
+        if (name == ProposeFileEditToolName)
             return await RevalidateSessionReleaseAsync(principal, context, destination, outputScope, name, cancellationToken)
                 .ConfigureAwait(false);
         if (SessionScopeOf(principal) is { } sessionScope && !sessionScope.Exposes(name))
@@ -133,5 +144,19 @@ public sealed partial class AgentToolRegistry
             return AgentToolInvocationResult.Failure(PermissionDenied, AgentAuditDecisionReason.PolicyRevisionMismatch);
         cancellationToken.ThrowIfCancellationRequested();
         return null;
+    }
+
+    private bool IsCurrentWorkspaceSnapshot(AgentPrincipal principal, AgentInvocationContext context,
+        EsilvaSoft.KapibaraStudio.Core.Agents.AgentWorkspaceContext expected)
+    {
+        var current = principal.Origin == AgentPrincipalOrigin.External
+            ? SessionScopeOf(principal)?.WorkspaceContext
+            : principal.Origin == AgentPrincipalOrigin.Internal && context.SessionId is { } sessionId &&
+              context.TurnId is { } turnId
+                ? _sessionTools?.NativeChatTurnScopes?.Find(sessionId, turnId)?.WorkspaceContext
+                : null;
+        // Snapshot instances are immutable and are passed from the UI capture into the exact turn scope. Reference
+        // identity makes a workspace/tab replacement invalidate an in-flight response without comparing buffer text.
+        return ReferenceEquals(current, expected);
     }
 }

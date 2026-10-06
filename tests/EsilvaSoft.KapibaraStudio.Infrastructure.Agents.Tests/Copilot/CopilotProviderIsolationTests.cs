@@ -69,10 +69,16 @@ internal sealed class CopilotProviderIsolationTests
     private sealed class Commands : ICopilotAccountCommands
     {
         public bool Installed = true;
+        public CopilotCliAvailability? Diagnostic;
         public int Probes;
         public CopilotAccountCommandState Result = CopilotAccountCommandState.Completed;
         public readonly List<string> Actions = [];
         public bool IsCliInstalled() { Probes++; return Installed; }
+        public CopilotCliAvailability ProbeCli()
+        {
+            Probes++;
+            return Diagnostic ?? (Installed ? CopilotCliAvailability.Available : CopilotCliAvailability.NotFound);
+        }
         public Task<CopilotAccountCommandState> RunVisibleAsync(string action, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested(); Actions.Add(action); return Task.FromResult(Result);
@@ -103,6 +109,33 @@ internal sealed class CopilotProviderIsolationTests
         using var provider = new CopilotSubscriptionAgentProvider(new NoTools(), resources, commands);
         Assert.That((await provider.CheckAccountAndModelsAsync()).State, Is.EqualTo(CopilotAccountState.CliNotInstalled));
         Assert.That(resources.AccountCalls, Is.Zero);
+    }
+
+    [TestCase(CopilotCliAvailability.NotFound, "CopilotCliNotInstalled")]
+    [TestCase(CopilotCliAvailability.InvalidPath, "CopilotCliPathInvalid")]
+    [TestCase(CopilotCliAvailability.UnsupportedExecutable, "CopilotCliUnsupportedExecutable")]
+    [TestCase(CopilotCliAvailability.NotExecutable, "CopilotCliNotExecutable")]
+    [TestCase(CopilotCliAvailability.ProbeFailed, "CopilotCliProbeFailed")]
+    [TestCase((CopilotCliAvailability)999, "CopilotCliProbeFailed")]
+    public async Task CliDiagnosticIsPreservedAndBlocksAccountAndSessionClients(CopilotCliAvailability diagnostic, string code)
+    {
+        var resources = new Resources();
+        var commands = new Commands { Diagnostic = diagnostic };
+        using var provider = new CopilotSubscriptionAgentProvider(new NoTools(), resources, commands);
+        var account = await provider.CheckAccountAndModelsAsync();
+        var status = await provider.GetStatusAsync(CancellationToken.None);
+        Assert.Multiple(() =>
+        {
+            Assert.That(account.CliAvailability, Is.EqualTo(diagnostic));
+            Assert.That(status.UnavailableCode, Is.EqualTo(code));
+            Assert.That(status.IsAvailable || status.Capabilities.Chat, Is.False);
+            Assert.That(status.Models, Is.Empty);
+            Assert.That(resources.AccountCalls, Is.Zero);
+            Assert.That(resources.SessionCalls, Is.Zero);
+        });
+        Assert.ThrowsAsync<InvalidOperationException>(async () => await provider.CreateSessionAsync(
+            new(provider.ProviderId, "synthetic-model"), CancellationToken.None));
+        Assert.That(resources.SessionCalls, Is.Zero);
     }
 
     [TestCase(false, "user", CopilotAccountState.NotLoggedIn)]
@@ -216,6 +249,36 @@ internal sealed class CopilotProviderIsolationTests
         Assert.That(resources.LastPersistent, Is.False);
         Assert.That(resources.LastWorkingDirectory, Is.EqualTo("synthetic-captured-directory"));
         Assert.That(resources.Session.Starts, Is.Zero, "Creating a host session alone must not start a runtime.");
+    }
+
+    [TestCase(null)]
+    [TestCase("")]
+    [TestCase("removed-model")]
+    [TestCase("unsafe model")]
+    public async Task IneligibleModelCannotCreateAClientOrFallbackToTheCatalogDefault(string? model)
+    {
+        var resources = new Resources();
+        using var provider = new CopilotSubscriptionAgentProvider(new NoTools(), resources, new Commands());
+        await provider.CheckAccountAndModelsAsync();
+        Assert.That((await provider.GetStatusAsync(CancellationToken.None)).DefaultModel, Is.Not.Null);
+        Assert.ThrowsAsync<InvalidOperationException>(async () => await provider.CreateSessionAsync(
+            new AgentSessionOptions(provider.ProviderId, model) { PersistProviderSession = false }, CancellationToken.None));
+        Assert.That(resources.SessionCalls, Is.Zero);
+        Assert.That(resources.Session.Starts, Is.Zero);
+    }
+
+    [Test]
+    public async Task CatalogRemovalBlocksTheOldModelBeforeCreatingAnotherSessionClient()
+    {
+        var resources = new Resources();
+        using var provider = new CopilotSubscriptionAgentProvider(new NoTools(), resources, new Commands());
+        await provider.CheckAccountAndModelsAsync();
+        resources.Account.Models = ["replacement-model"];
+        await provider.CheckAccountAndModelsAsync();
+        Assert.ThrowsAsync<InvalidOperationException>(async () => await provider.CreateSessionAsync(
+            new AgentSessionOptions(provider.ProviderId, "synthetic-model") { PersistProviderSession = false }, CancellationToken.None));
+        Assert.That(resources.SessionCalls, Is.Zero);
+        Assert.That(resources.Session.Starts, Is.Zero);
     }
 
     [Test]

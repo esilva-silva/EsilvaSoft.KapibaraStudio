@@ -15,6 +15,8 @@ internal sealed class MemoryCopilotRuntime : ICopilotRuntimeClient
     public Exception? ModelCatalogFailure { get; set; }
     public Exception? DisposalFailure { get; set; }
     public Exception? SessionDisposalFailure { get; set; }
+    public Exception? SendFailure { get; set; }
+    public Task? SendWait { get; set; }
     public Task? SessionDisposalWait { get; set; }
     public Task? SessionAcquisitionWait { get; set; }
     public TaskCompletionSource SessionAcquisitionStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -27,6 +29,7 @@ internal sealed class MemoryCopilotRuntime : ICopilotRuntimeClient
     public readonly List<string> Deleted = [];
     public readonly List<MemorySession> Sessions = [];
     public Exception? DeleteFailure { get; set; }
+    public string? ReturnedSessionId { get; set; }
     public Task StartAsync(CancellationToken token)
     {
         token.ThrowIfCancellationRequested(); Starts++;
@@ -62,10 +65,12 @@ internal sealed class MemoryCopilotRuntime : ICopilotRuntimeClient
     }
     private Task<ICopilotRuntimeSession> NewSession(string id)
     {
-        var session = new MemorySession(id, RestrictionSucceeds, CompleteOnSend)
+        var session = new MemorySession(ReturnedSessionId ?? id, RestrictionSucceeds, CompleteOnSend)
         {
             DisposalFailure = SessionDisposalFailure,
             DisposalWait = SessionDisposalWait,
+            SendFailure = SendFailure,
+            SendWait = SendWait,
         };
         Sessions.Add(session);
         return Task.FromResult<ICopilotRuntimeSession>(session);
@@ -90,22 +95,31 @@ internal sealed class MemoryCopilotRuntime : ICopilotRuntimeClient
         public int SendInvocations;
         public int Disposals;
         public Exception? DisposalFailure { get; set; }
+        public Exception? SendFailure { get; set; }
+        public Task? SendWait { get; set; }
+        public System.Collections.Concurrent.ConcurrentQueue<(string RequestId, ToolResultObject Result)> ToolResults { get; } = new();
         public Task? DisposalWait { get; set; }
         public TaskCompletionSource DisposalStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Sent { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public Task<bool> RestrictBuiltInAgentsAsync(CancellationToken token) { Operations.Add("restrict"); return Task.FromResult(restrictionSucceeds); }
         public IDisposable Subscribe(Action<SessionEvent> handler) { _handler = handler; return new Subscription(() => _handler = null); }
-        public Task SendAsync(MessageOptions message, CancellationToken token)
+        public async Task SendAsync(MessageOptions message, CancellationToken token)
         {
             SendInvocations++;
             token.ThrowIfCancellationRequested(); Operations.Add("send"); Sent.TrySetResult();
             Emit(new AssistantMessageDeltaEvent { Data = new AssistantMessageDeltaData { MessageId = "message", DeltaContent = "synthetic response" } });
+            if (SendFailure is { } failure) throw failure;
             if (completeOnSend) Emit(new SessionIdleEvent { Data = new SessionIdleData { Mode = SessionMode.Interactive } });
-            return Task.CompletedTask;
+            if (SendWait is { } wait) await wait;
         }
         public void Emit(SessionEvent value) => _handler?.Invoke(value);
+        public Action<SessionEvent> CaptureEventHandler() => _handler ?? throw new InvalidOperationException("No subscription is active.");
         public Task AbortAsync(CancellationToken token) { Aborts++; return Task.CompletedTask; }
-        public Task SubmitToolResultAsync(string requestId, ToolResultObject result, CancellationToken token) => Task.CompletedTask;
+        public Task SubmitToolResultAsync(string requestId, ToolResultObject result, CancellationToken token)
+        {
+            ToolResults.Enqueue((requestId, result));
+            return Task.CompletedTask;
+        }
         public async ValueTask DisposeAsync()
         {
             Disposals++;

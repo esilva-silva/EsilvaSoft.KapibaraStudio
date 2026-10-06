@@ -4,6 +4,7 @@ using EsilvaSoft.KapibaraStudio.Application.Agents;
 using EsilvaSoft.KapibaraStudio.Core;
 using EsilvaSoft.KapibaraStudio.Core.Agents;
 using EsilvaSoft.KapibaraStudio.Desktop.Agents;
+using EsilvaSoft.KapibaraStudio.Testing;
 using EsilvaSoft.KapibaraStudio.Desktop.ViewModels;
 
 namespace EsilvaSoft.KapibaraStudio.UnitTests;
@@ -586,6 +587,57 @@ public sealed class AgentChatViewModelTests
             yield return new(AgentEventKind.UsageUpdated) { Usage = usage };
             yield return new(AgentEventKind.UsageUpdated) { Usage = usage };
         }
+    }
+
+    [Test]
+    public async Task ContextPreviewFreezesMutablePermissionListsBeforeDebounce()
+    {
+        await RunOnUiAsync(async () =>
+        {
+            const string providerId = "metrics";
+            var root = SyntheticPaths.Combine("context-preview", "workspace");
+            var files = new MemoryAgentFiles();
+            files.AddDirectory(root);
+            var exclusions = new List<string>();
+            var permissions = AgentProviderPermissions.Default(providerId) with
+            {
+                ExternalDestinationConsentAt = DateTimeOffset.UtcNow,
+                DataSending = new AgentDataSendingPermissions
+                {
+                    ActiveFile = true,
+                    TabMetadata = false,
+                    WorkspaceFiles = false,
+                },
+                Workspace = new AgentWorkspacePermissions { UseFilesFolder = true, Exclusions = exclusions },
+                AutomaticContext = new AgentAutomaticContextPermissions { ActiveFile = true, TabMetadata = false },
+            };
+            await using var runtime = new AgentRuntime([new ScriptedAgentProvider(providerId)]);
+            var catalog = new FakeAgentCatalog(FakeAgentCatalog.External(providerId, "Métricas") with { SupportsTurnPlan = true });
+            var tab = new AgentChatTabFixture
+            {
+                WorkspaceFolder = root,
+                ActiveFilePath = Path.Combine(root, "query.txt"),
+                Selection = "synthetic buffer",
+            };
+            var services = Services(runtime, catalog, permissions: [permissions]) with
+            {
+                FileReader = files,
+                PathProbe = files,
+            };
+            await using var chat = new AgentChatViewModel(services, tab.Capture);
+            await chat.Initialization;
+
+            chat.OnWorkspaceContextChanged();
+            // The preview has captured policy and chips; a later settings-list mutation belongs to the next snapshot.
+            exclusions.Add("query.txt");
+            await chat.ContextMeasurementCompletion;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(chat.ContextMeasurement!.Items.Any(item => item.Kind == AgentAttachmentKind.ActiveFile), Is.True);
+                Assert.That(chat.ContextMeasurement.FailedItems, Is.Zero);
+            });
+        });
     }
 
     private static AgentApprovalDetails Details(DateTimeOffset expires, AgentToolRisk risk) =>

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Reflection;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
@@ -14,6 +15,7 @@ using EsilvaSoft.KapibaraStudio.UnitTests;
 using EsilvaSoft.KapibaraStudio.Desktop;
 using EsilvaSoft.KapibaraStudio.Desktop.Agents;
 using EsilvaSoft.KapibaraStudio.Desktop.ViewModels;
+using EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Copilot;
 
 namespace EsilvaSoft.KapibaraStudio.IntegrationTests;
 
@@ -98,6 +100,61 @@ public sealed class AgentCliAccountUiTests
     }
 
     private static readonly ThemeVariant[] Themes = [ThemeVariant.Light, ThemeVariant.Dark];
+    private static readonly (CopilotCliAvailability Diagnostic, AgentAccountInstallState Install)[] CopilotDiagnostics =
+    [
+        (CopilotCliAvailability.NotFound, AgentAccountInstallState.NotFound),
+        (CopilotCliAvailability.InvalidPath, AgentAccountInstallState.InvalidPath),
+        (CopilotCliAvailability.UnsupportedExecutable, AgentAccountInstallState.UnsupportedExecutable),
+        (CopilotCliAvailability.NotExecutable, AgentAccountInstallState.NotExecutable),
+        (CopilotCliAvailability.ProbeFailed, AgentAccountInstallState.CheckFailed),
+    ];
+
+    [TestCase("pt-BR")]
+    [TestCase("en")]
+    [TestCase("es")]
+    [TestCase("zh-CN")]
+    public async Task CopilotCliDiagnosticsReachAccountSettingsAndRenderLocalizedGuidance(string language)
+    {
+        await RunOnUiAsync(async () =>
+        {
+            LocalizationViewModel.Current.Language = language;
+            var mapper = typeof(App).GetMethod("MapCopilot", BindingFlags.NonPublic | BindingFlags.Static)!;
+            var texts = new HashSet<string>(StringComparer.Ordinal);
+            var profile = new AgentCliProviderProfile("GitHub Copilot CLI", "GitHub Copilot", "copilot login",
+                "~/.copilot/session-state", "Copilot CLI keyring service", "Copilot CLI configuration");
+            foreach (var (diagnostic, install) in CopilotDiagnostics)
+            {
+                var mapped = (AgentAccountStatus)mapper.Invoke(null,
+                    [new CopilotAccountStatus(CopilotAccountState.Unavailable, diagnostic), AgentAccountInstallState.CheckFailed])!;
+                Assert.That(mapped.Install, Is.EqualTo(install));
+                Assert.That(mapped.Auth, Is.EqualTo(AgentAccountAuthState.NotChecked));
+                Assert.That(mapped.ExecutablePath, Is.Null, "Diagnostic codes must not carry local paths.");
+                var (window, settings, accounts, _) = await BuildSettingsAsync("not-found", 660, 560, profile,
+                    copilot: true, statusOverride: mapped);
+                try
+                {
+                    Assert.That(texts.Add(settings.CliInstallText), Is.True, "Each reason requires distinct guidance.");
+                    Assert.That(settings.CliInstallText, Does.Not.Contain("agentCli"));
+                    foreach (var theme in Themes)
+                    {
+                        Avalonia.Application.Current!.RequestedThemeVariant = theme;
+                        ScrollTo(window, top: true);
+                        await PumpAsync(() => true);
+                        var text = window.GetVisualDescendants().OfType<TextBlock>().Single(item => item.Text == settings.CliInstallText);
+                        Assert.That(window.GetVisualDescendants().OfType<TextBlock>().Any(item =>
+                            item.Text?.Contains("Claude Code", StringComparison.Ordinal) == true), Is.False,
+                            "The synthetic provider's availability reason must also describe Copilot.");
+                        Assert.That(text.TextWrapping, Is.EqualTo(TextWrapping.Wrap));
+                        Assert.That(text.Bounds.Width, Is.GreaterThan(200));
+                        Assert.That(text.Bounds.Height, Is.GreaterThan(15));
+                        Save(window, $"agent-copilot-diagnostic-{diagnostic}-{language}-{theme}.png");
+                    }
+                    Assert.That(accounts.SignIns + accounts.SignOuts, Is.Zero);
+                }
+                finally { window.Close(); }
+            }
+        });
+    }
     private static readonly string[] SettingsStates =
         ["not-checked", "not-found", "unsupported", "version-low", "signed-out", "subscription", "api-key", "api-key-helper",
             "environment-token", "cloud-provider", "native-unclassified", "blocked", "waiting", "no-terminal"];
@@ -443,14 +500,22 @@ public sealed class AgentCliAccountUiTests
         : "/home/teste/workspace-sintetico/consultas";
 
     private static async Task<(AgentSettingsWindow Window, AgentSettingsViewModel Settings, FakeCliAccountManager Accounts, Task? Pending)>
-        BuildSettingsAsync(string state, double width, double height, AgentCliProviderProfile? profile = null, bool copilot = false)
+        BuildSettingsAsync(string state, double width, double height, AgentCliProviderProfile? profile = null, bool copilot = false,
+            AgentAccountStatus? statusOverride = null)
     {
         var accounts = new FakeCliAccountManager
         {
             WorkspaceDirectory = state == "subscription" ? SyntheticWorkspace : null,
             Profile = profile ?? FakeCliAccountManager.TestProfile,
         };
-        var reason = state switch
+        var reason = statusOverride is not null ? statusOverride.Install switch
+        {
+            AgentAccountInstallState.NotFound => "CopilotCliNotInstalled",
+            AgentAccountInstallState.InvalidPath => "CopilotCliPathInvalid",
+            AgentAccountInstallState.UnsupportedExecutable => "CopilotCliUnsupportedExecutable",
+            AgentAccountInstallState.NotExecutable => "CopilotCliNotExecutable",
+            _ => "CopilotCliProbeFailed",
+        } : state switch
         {
             "not-checked" => "StatusNotReported",
             "not-found" => "ExecutableNotFound",
@@ -474,7 +539,7 @@ public sealed class AgentCliAccountUiTests
                 FamilyName: "GitHub Copilot")
             : MutableAgentCatalog.Subscription(state is "subscription" or "api-key" or "api-key-helper" or "environment-token" or "cloud-provider" or "native-unclassified", auth, reason);
         var catalog = new MutableAgentCatalog(subscriptionProvider);
-        accounts.Status = state switch
+        accounts.Status = statusOverride ?? state switch
         {
             "not-found" => new AgentAccountStatus(AgentAccountInstallState.NotFound, null, AgentAccountAuthState.NotChecked),
             "unsupported" => new AgentAccountStatus(AgentAccountInstallState.UnsupportedExecutable, null, AgentAccountAuthState.NotChecked),

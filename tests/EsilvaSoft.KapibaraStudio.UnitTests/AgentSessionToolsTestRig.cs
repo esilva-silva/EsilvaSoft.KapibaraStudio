@@ -26,7 +26,8 @@ internal sealed class AgentSessionToolsTestRig : AgentSessionToolDoubles, IDispo
     public AgentSessionToolsTestRig(AgentOperationMode mode = AgentOperationMode.Agent,
         Func<AgentProviderPermissions, AgentProviderPermissions>? permissions = null, bool withConfirmationPort = true,
         TimeSpan? approvalTimeout = null, IAgentEditProposalSink? proposalSink = null, MemoryAgentFiles? files = null,
-        params ConnectionProfile[] extraProfiles)
+        IAgentBoundedFileReader? proposalFileReader = null, IAgentWorkspacePathProbe? pathProbe = null,
+        TimeSpan? executionTimeout = null, params ConnectionProfile[] extraProfiles)
     {
         Files = files ?? new MemoryAgentFiles();
         Files.AddDirectory(_workspace);
@@ -51,6 +52,7 @@ internal sealed class AgentSessionToolsTestRig : AgentSessionToolDoubles, IDispo
         Confirmation = withConfirmationPort ? new FakeConfirmation() : null;
         ProposalSink = proposalSink ?? Sink;
         Registry = new AgentToolRegistry(Profiles, Policies, new AgentPermissionEvaluator(Policies), Audit,
+            executionTimeout: executionTimeout,
             metadata: Metadata, exposure: AgentToolExposure.Through(AgentToolExposureStage.Metadata),
             principalAuthority: Authority, indexes: Indexes,
             sessionTools: new AgentSessionToolPorts(Sessions)
@@ -59,8 +61,8 @@ internal sealed class AgentSessionToolsTestRig : AgentSessionToolDoubles, IDispo
                 LearnedSchemas = Learned,
                 WorkspaceContext = Workspace,
                 NativeChatTurnScopes = NativeChatScopes,
-                FileReader = Files,
-                PathProbe = Files,
+                FileReader = proposalFileReader ?? Files,
+                PathProbe = pathProbe ?? Files,
                 ProposalSink = ProposalSink,
                 ConfirmationPrompt = Confirmation,
                 ApprovalTimeout = approvalTimeout ?? TimeSpan.FromSeconds(5)

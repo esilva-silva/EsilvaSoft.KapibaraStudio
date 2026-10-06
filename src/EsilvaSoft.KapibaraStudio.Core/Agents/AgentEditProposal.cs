@@ -65,6 +65,9 @@ public sealed record AgentEditProposal(
     /// <summary>Friendly name captured from the editor tab when the target has no filesystem path.</summary>
     public string? TargetName { get; init; }
 
+    /// <summary>Handling authorized by the originating turn, independent of later conversation mode changes.</summary>
+    public AgentProposalHandling Handling { get; init; } = AgentProposalHandling.ReviewRequired;
+
     public int AddedLineCount => Hunks.Sum(static hunk => hunk.AddedLineCount);
 
     public int RemovedLineCount => Hunks.Sum(static hunk => hunk.RemovedLineCount);

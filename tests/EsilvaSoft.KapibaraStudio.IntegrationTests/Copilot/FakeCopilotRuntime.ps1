@@ -7,6 +7,9 @@ $sessionExists = -not ($args -contains '-MissingSession')
 $resumeFails = $args -contains '-ResumeFail'
 $nativeToolRequest = $args -contains '-NativeToolRequest'
 $productToolRequest = $args -contains '-ProductToolRequest'
+$lateProductToolRequest = $args -contains '-LateProductToolRequest'
+$rejectBuiltInAgentRestriction = $args -contains '-RejectBuiltInAgentRestriction'
+$builtInAgentRestrictionMethodMissing = $args -contains '-BuiltInAgentRestrictionMethodMissing'
 $editProposalToolRequest = $args -contains '-EditProposalToolRequest'
 $noIdle = $args -contains '-NoIdle'
 $delayIdleMs = 0
@@ -14,8 +17,16 @@ for ($index = 0; $index -lt $args.Length - 1; $index++) {
     if ($args[$index] -eq '-DelayIdleMs') { $delayIdleMs = [int]$args[$index + 1] }
 }
 $contractLogPath = $null
+$scriptedToolRequestsPath = $null
 for ($index = 0; $index -lt $args.Length - 1; $index++) {
     if ($args[$index] -eq '-ContractLogPath') { $contractLogPath = [string]$args[$index + 1] }
+    if ($args[$index] -eq '-ScriptedToolRequestsPath') { $scriptedToolRequestsPath = [string]$args[$index + 1] }
+}
+$scriptedToolRequests = @()
+$pendingScriptedRequests = @{}
+if ($scriptedToolRequestsPath) {
+    $scriptedToolRequests = Get-Content -LiteralPath $scriptedToolRequestsPath -Raw | ConvertFrom-Json
+    foreach ($call in $scriptedToolRequests) { $pendingScriptedRequests[[string]$call.requestId] = $true }
 }
 
 function Read-Frame {
@@ -52,8 +63,8 @@ function Write-Frame($value) {
 while ($null -ne ($request = Read-Frame)) {
     $method = [string]$request.method
     $requestId = $request.id
-    if ($contractLogPath -and $method -in @('session.create', 'session.resume', 'session.options.update', 'session.send', 'session.getMetadata', 'session.tools.handlePendingToolCall')) {
-        $entry = @{ method = $method; params = $request.params } | ConvertTo-Json -Depth 80 -Compress
+    if ($contractLogPath -and $method -in @('session.create', 'session.resume', 'session.options.update', 'session.send', 'session.getMetadata', 'session.tools.handlePendingToolCall', 'session.detach', 'session.abort', 'session.delete')) {
+        $entry = @{ method = $method; params = $request.params; processId = $PID } | ConvertTo-Json -Depth 80 -Compress
         Add-Content -LiteralPath $contractLogPath -Value $entry -Encoding UTF8
     }
     $sessionId = 'fake-copilot-session'
@@ -61,6 +72,12 @@ while ($null -ne ($request = Read-Frame)) {
     if ($null -eq $requestId) { continue }
     if ($method -eq 'session.resume' -and $resumeFails) {
         Write-Frame @{ jsonrpc = '2.0'; id = $requestId; error = @{ code = -32000; message = 'synthetic resume failure' } }
+        continue
+    }
+    $isBuiltInAgentRestriction = $method -eq 'session.options.update' -and
+        $request.params.PSObject.Properties.Name -contains 'includedBuiltinAgents'
+    if ($isBuiltInAgentRestriction -and $builtInAgentRestrictionMethodMissing) {
+        Write-Frame @{ jsonrpc = '2.0'; id = $requestId; error = @{ code = -32601; message = 'synthetic restriction method unavailable' } }
         continue
     }
     $result = switch ($method) {
@@ -71,9 +88,15 @@ while ($null -ne ($request = Read-Frame)) {
         'session.create' { @{ sessionId = $sessionId; capabilities = @{} }; break }
         'session.resume' { @{ sessionId = $sessionId; capabilities = @{} }; break }
         'session.fs.setProvider' { @{ success = $true }; break }
-        'session.options.update' { @{ success = $true }; break }
+        'session.options.update' { @{ success = -not ($isBuiltInAgentRestriction -and $rejectBuiltInAgentRestriction) }; break }
         'session.delete' { @{ success = $true }; break }
         'session.tools.handlePendingToolCall' {
+            if ($scriptedToolRequestsPath) {
+                $returnedRequest = [string]$request.params.requestId
+                if (-not $pendingScriptedRequests.ContainsKey($returnedRequest)) { throw 'Unknown or duplicate scripted tool result.' }
+                $pendingScriptedRequests.Remove($returnedRequest)
+                if ($pendingScriptedRequests.Count -gt 0) { @{ success = $true }; break }
+            }
             Write-Frame @{ jsonrpc = '2.0'; method = 'session.event'; params = @{ sessionId = $sessionId; event = @{ type = 'assistant.message_delta'; data = @{ messageId = 'assistant-after-tool'; deltaContent = 'ferramenta autorizada' } } } }
             Write-Frame @{ jsonrpc = '2.0'; method = 'session.event'; params = @{ sessionId = $sessionId; event = @{ type = 'assistant.message'; data = @{ messageId = 'assistant-after-tool'; content = 'ferramenta autorizada' } } } }
             Write-Frame @{ jsonrpc = '2.0'; method = 'session.event'; params = @{ sessionId = $sessionId; event = @{ type = 'session.idle'; data = @{ mode = 'interactive' } } } }
@@ -82,8 +105,21 @@ while ($null -ne ($request = Read-Frame)) {
         }
         'session.send' {
             @{ messageId = 'fake-message-1' }
+            if ($scriptedToolRequestsPath) {
+                foreach ($call in $scriptedToolRequests) {
+                    Write-Frame @{ jsonrpc = '2.0'; method = 'session.event'; params = @{ sessionId = $sessionId; event = @{ id = [guid]::NewGuid().ToString(); type = 'external_tool.requested'; data = @{ requestId = [string]$call.requestId; sessionId = $sessionId; toolCallId = [string]$call.requestId; toolName = [string]$call.toolName; arguments = $call.arguments } } } }
+                }
+                break
+            }
             if ($productToolRequest) {
                 Write-Frame @{ jsonrpc = '2.0'; method = 'session.event'; params = @{ sessionId = $sessionId; event = @{ type = 'external_tool.requested'; data = @{ requestId = 'rpc-product-1'; sessionId = $sessionId; toolCallId = 'tool-product-1'; toolName = 'get_workspace_context'; arguments = @{ scope = 'active' } } } } }
+                break
+            }
+            if ($lateProductToolRequest) {
+                Write-Frame @{ jsonrpc = '2.0'; method = 'session.event'; params = @{ sessionId = $sessionId; event = @{ type = 'assistant.message_delta'; data = @{ messageId = 'assistant-1'; deltaContent = 'resposta fake' } } } }
+                Write-Frame @{ jsonrpc = '2.0'; method = 'session.event'; params = @{ sessionId = $sessionId; event = @{ type = 'assistant.message'; data = @{ messageId = 'assistant-1'; content = 'resposta fake' } } } }
+                Write-Frame @{ jsonrpc = '2.0'; method = 'session.event'; params = @{ sessionId = $sessionId; event = @{ type = 'session.idle'; data = @{ mode = 'interactive' } } } }
+                Write-Frame @{ jsonrpc = '2.0'; method = 'session.event'; params = @{ sessionId = $sessionId; event = @{ type = 'external_tool.requested'; data = @{ requestId = 'rpc-product-late'; sessionId = $sessionId; toolCallId = 'tool-product-late'; toolName = 'get_workspace_context'; arguments = @{ scope = 'active' } } } } }
                 break
             }
             if ($editProposalToolRequest) {

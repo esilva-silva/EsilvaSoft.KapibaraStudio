@@ -178,7 +178,8 @@ public sealed class AgentPlatformCompositionTests
         var runtimeDenied = await composition.CallToolAsync(session);
         var brokerDenied = await CallBrokerAsync(peer, 1);
 
-        // 2. One store, one registry: grants saved now apply to the next call of each ingress, without recomposition.
+        // 2. The in-process issuer's durable policy is only an empty anchor: a saved session grant must not
+        //    authorize an unrelated provider turn. The authenticated broker uses its own channel-scoped grant.
         var internalPrincipal = await composition.Principals.GetInternalPrincipalIdAsync();
         await composition.Policies.SaveAsync(internalPrincipal,
             [composition.MetadataGrant(internalPrincipal, sessionGuid, AgentOutputDestination.ProviderExternal(ExternalProviderId))], 0);
@@ -201,11 +202,10 @@ public sealed class AgentPlatformCompositionTests
                 Is.EqualTo((AgentToolResultStatus.Denied, (string?)"PermissionDenied")));
             Assert.That(brokerDenied.ErrorCode, Is.EqualTo(AgentBrokerProtocol.ErrorCodes.PermissionDenied));
 
-            Assert.That(runtimeGranted.Status, Is.EqualTo(AgentToolResultStatus.Succeeded));
+            Assert.That((runtimeGranted.Status, runtimeGranted.ErrorCode),
+                Is.EqualTo((AgentToolResultStatus.Denied, (string?)"PermissionDenied")));
             Assert.That(brokerGranted.Status, Is.EqualTo(AgentBrokerMessage.SucceededStatus));
-            Assert.That(JsonNode.DeepEquals(JsonNode.Parse(runtimeGranted.Data!), JsonNode.Parse(brokerGranted.StructuredContent!.Value.GetRawText())),
-                Is.True, "Mesma tool, mesmo handler e mesma saída externa pelos dois ingressos.");
-            Assert.That(runtimeGranted.Data, Does.Contain(composition.Profile.Id.ToString("D"))
+            Assert.That(brokerGranted.StructuredContent!.Value.GetRawText(), Does.Contain(composition.Profile.Id.ToString("D"))
                 .And.Not.Contain(composition.Profile.Name).And.Not.Contain("db.internal"),
                 "Destino externo recebe apenas o alias por ID lógico.");
 

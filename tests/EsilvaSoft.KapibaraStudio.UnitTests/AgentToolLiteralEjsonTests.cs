@@ -9,6 +9,37 @@ public sealed class AgentToolLiteralEjsonTests
 {
     private static readonly string[] NestedCollections = ["archivedOrders", "customers", "employees", "orders"];
 
+    [TestCase("t", "-1")]
+    [TestCase("i", "-1")]
+    [TestCase("t", "4294967296")]
+    [TestCase("i", "4294967296")]
+    [TestCase("t", "9223372036854775807")]
+    [TestCase("i", "9223372036854775807")]
+    [TestCase("t", "0.5")]
+    [TestCase("i", "0.5")]
+    public void TimestampCodecRejectsValuesOutsideUnsigned32BitRange(string part, string number)
+    {
+        var timestamp = part == "t" ? $"{{\"$timestamp\":{{\"t\":{number},\"i\":0}}}}"
+            : $"{{\"$timestamp\":{{\"t\":0,\"i\":{number}}}}}";
+        var filter = "{\"ts\":" + timestamp + "}";
+        Assert.That(AgentToolLiteralEjson.IsQueryFilter(filter), Is.False, filter);
+        Assert.That(AgentToolLiteralEjson.IsLiteralValue(timestamp), Is.False, timestamp);
+        Assert.That(AgentToolLiteralEjson.TryValidatePipeline("[{\"$match\":" + filter + "}]", out _), Is.False);
+        Assert.That(() => MongoAgentFindSource.ParseLiteral(filter), Throws.TypeOf<FormatException>());
+    }
+
+    [TestCase(0L, 0L)]
+    [TestCase(2147483648L, 2147483648L)]
+    [TestCase(4294967295L, 4294967295L)]
+    public void TimestampCodecPreservesEveryValidUnsigned32BitBoundary(long timestamp, long increment)
+    {
+        var filter = $"{{\"ts\":{{\"$timestamp\":{{\"t\":{timestamp},\"i\":{increment}}}}}}}";
+        Assert.That(AgentToolLiteralEjson.IsQueryFilter(filter), Is.True);
+        var parsed = MongoAgentFindSource.ParseLiteral(filter)["ts"].AsBsonTimestamp;
+        Assert.That(unchecked((uint)parsed.Timestamp), Is.EqualTo((uint)timestamp));
+        Assert.That(unchecked((uint)parsed.Increment), Is.EqualTo((uint)increment));
+    }
+
     [TestCase("{}")]
     [TestCase("{\"name\":\"ENV.PRIVATE_CANARY\",\"template\":\"${ENV.MONGO_PASSWORD}\"}")]
     [TestCase("{\"big\":{\"$numberLong\":\"9007199254740993\"},\"dec\":{\"$numberDecimal\":\"1.10\"}}")]

@@ -225,7 +225,7 @@
               <Border Classes="card" Padding="8" Margin="2" BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1">
                 <StackPanel Spacing="6">
                   <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" AutomationProperties.LiveSetting="Assertive"/>
-                  <TextBlock Text="{Binding CategoryText}" Classes="metadata"/>
+                  <TextBlock Text="{Binding CategoryText}" Classes="metadata" TextWrapping="Wrap"/>
                   <TextBox Text="{Binding InputText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="120" IsVisible="{Binding HasInput}"/>
                   <TextBlock Text="{Binding StatusText}" Classes="metadata" TextWrapping="Wrap"/>
                   <WrapPanel IsVisible="{Binding IsPending}">
@@ -350,7 +350,40 @@
         <TextBox x:Name="Composer" Text="{Binding ComposerText}" IsEnabled="{Binding IsComposerEnabled}" AcceptsReturn="True" AcceptsTab="False" TextWrapping="Wrap" MinHeight="72" MaxHeight="160" PlaceholderText="{local:Loc Key=agentComposerPlaceholder}" AutomationProperties.Name="{local:Loc Key=agentComposer}" ToolTip.Tip="{local:Loc Key=agentComposerShortcut}" ScrollViewer.VerticalScrollBarVisibility="Auto" />
         </StackPanel>
         </ScrollViewer>
-        <TextBlock Text="{local:Loc Key=agentComposerHelp}" Classes="metadata" TextWrapping="Wrap" />
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+          <TextBlock Text="{local:Loc Key=agentComposerHelp}" Classes="metadata" TextWrapping="Wrap" VerticalAlignment="Center" />
+          <Button Grid.Column="1" x:Name="CopilotDataUseButton" Content="{local:Loc Key=agentCopilotDataUse}" IsVisible="{Binding IsCopilotSubscriptionSelected}"
+                  Padding="6,2" MinHeight="28" ToolTip.Tip="{local:Loc Key=agentCopilotDataUseTitle}"
+                  AutomationProperties.Name="{local:Loc Key=agentCopilotDataUseTitle}">
+            <Button.Flyout>
+              <Flyout>
+                <Border Width="320" MaxHeight="400" Padding="10" Background="{DynamicResource PanelBackground}">
+                  <ScrollViewer Width="300" MaxHeight="380" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="8">
+                      <TextBlock Text="{local:Loc Key=agentCopilotDataUseTitle}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                      <TextBlock Text="{local:Loc Key=agentCopilotDataUseSent}" Classes="metadata" TextWrapping="Wrap" />
+                      <TextBlock Text="{local:Loc Key=agentCopilotDataUsePolicy}" Classes="metadata" TextWrapping="Wrap" />
+                      <TextBlock Text="{local:Loc Key=agentCopilotDataUseLocal}" Classes="metadata" TextWrapping="Wrap" />
+                      <TextBlock Text="{local:Loc Key=agentCopilotUsageNotice}" Classes="metadata" TextWrapping="Wrap" />
+                      <HyperlinkButton x:Name="CopilotUsageLink"
+                                       NavigateUri="https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing"
+                                       Padding="0" HorizontalAlignment="Left"
+                                       AutomationProperties.Name="{local:Loc Key=agentCopilotUsageLink}">
+                        <TextBlock Text="{local:Loc Key=agentCopilotUsageLink}" TextWrapping="Wrap" />
+                      </HyperlinkButton>
+                      <HyperlinkButton x:Name="CopilotAccessLink"
+                                       NavigateUri="https://docs.github.com/en/copilot/how-tos/copilot-on-github/set-up-copilot/configure-access-to-ai-models"
+                                       Padding="0" HorizontalAlignment="Left"
+                                       AutomationProperties.Name="{local:Loc Key=agentCopilotAccessLink}">
+                        <TextBlock Text="{local:Loc Key=agentCopilotAccessLink}" TextWrapping="Wrap" />
+                      </HyperlinkButton>
+                    </StackPanel>
+                  </ScrollViewer>
+                </Border>
+              </Flyout>
+            </Button.Flyout>
+          </Button>
+        </Grid>
         <DockPanel LastChildFill="True">
           <Button DockPanel.Dock="Right" x:Name="CancelTurnButton" Content="{local:Loc Key=agentCancelTurn}" Command="{Binding CancelTurnCommand}" IsVisible="{Binding IsBusy}" VerticalAlignment="Top" ToolTip.Tip="{local:Loc Key=agentApprovalCancelNotice}" />
           <Button DockPanel.Dock="Right" x:Name="SendButton" Content="{local:Loc Key=agentSend}" Classes="primary" Command="{Binding SendCommand}" IsVisible="{Binding IsIdle}" IsEnabled="{Binding IsComposerEnabled}" VerticalAlignment="Top" ToolTip.Tip="{local:Loc Key=agentComposerShortcut}" />

@@ -11,6 +11,8 @@ public enum AgentAccountInstallState
     VersionUnreadable,
     TimedOut,
     CheckFailed,
+    InvalidPath,
+    NotExecutable,
 }
 
 /// <summary>Effective authentication method reported by the official runtime.</summary>

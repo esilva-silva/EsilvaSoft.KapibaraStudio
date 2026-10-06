@@ -20,6 +20,30 @@ public sealed class AgentSystemPromptBuilderTests
         return AgentSystemPromptBuilder.Build(new AgentSystemPromptContext(plan, folder, file));
     }
 
+    [TestCase(AgentOperationMode.Agent)]
+    [TestCase(AgentOperationMode.AskConfirmations)]
+    [TestCase(AgentOperationMode.Automatic)]
+    public void CopilotPromptWithFullProductToolCatalogFitsTheByteBudget(AgentOperationMode mode)
+    {
+        var permissions = AgentProviderPermissions.Default(AgentProviderIds.GitHubCopilotSubscription) with
+        {
+            ExternalDestinationConsentAt = DateTimeOffset.UnixEpoch,
+            EnabledReadTools = AgentProductToolNames.ReadTools,
+            DataSending = new AgentDataSendingPermissions
+            {
+                ActiveFile = true, WorkspaceFiles = true, InferredSchema = true, MongoDocuments = true
+            },
+            EditProposals = new AgentEditProposalPermissions { ActiveFile = true, OtherWorkspaceFiles = true }
+        };
+        var prompt = Build(mode, permissions: permissions, facts: new(true, true, false));
+        Assert.Multiple(() =>
+        {
+            Assert.That(Encoding.UTF8.GetByteCount(prompt), Is.LessThanOrEqualTo(AgentSystemPromptBuilder.MaximumUtf8Bytes));
+            Assert.That(prompt, Does.Contain("mongo_explain").And.Contain("propose_file_edit"));
+            Assert.That(prompt, Does.Contain("NotFound significa"));
+        });
+    }
+
     [TestCase(AgentOperationMode.Agent, "Agente")]
     [TestCase(AgentOperationMode.Planning, "Planejamento")]
     [TestCase(AgentOperationMode.Automatic, "Automático")]
@@ -77,6 +101,8 @@ public sealed class AgentSystemPromptBuilderTests
             Assert.That(prompt, Does.Contain("EditNotApplicable"));
             Assert.That(prompt, Does.Contain("isso não significa que falte editor ou arquivo"));
             Assert.That(prompt, Does.Contain("Não alegue que não há editor"));
+            Assert.That(prompt, Does.Contain("não cria arquivos novos"));
+            Assert.That(prompt, Does.Contain("NotFound significa que o arquivo base não foi encontrado"));
             Assert.That(Encoding.UTF8.GetByteCount(prompt), Is.LessThanOrEqualTo(AgentSystemPromptBuilder.MaximumUtf8Bytes));
         });
     }

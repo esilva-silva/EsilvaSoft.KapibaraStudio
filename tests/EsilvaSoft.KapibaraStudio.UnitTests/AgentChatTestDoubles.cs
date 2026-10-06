@@ -17,6 +17,7 @@ internal sealed class AgentChatTabFixture : IAgentChatHost
     public string? Database { get; set; } = "shop";
     public string? Collection { get; set; } = "orders";
     public string? Selection { get; set; }
+    public string? ActiveFilePath { get; set; }
     public string? WorkspaceFolder { get; set; }
     public int Captures { get; private set; }
 
@@ -26,7 +27,8 @@ internal sealed class AgentChatTabFixture : IAgentChatHost
     public AgentWorkspaceContext CaptureWorkspace()
     {
         Captures++;
-        return new(DateTimeOffset.UtcNow, WorkspaceFolder: WorkspaceFolder, TabId: TabId, DocumentVersion: Version,
+        return new(DateTimeOffset.UtcNow, WorkspaceFolder: WorkspaceFolder, ActiveFilePath: ActiveFilePath,
+            ActiveFileName: ActiveFilePath is null ? null : Path.GetFileName(ActiveFilePath), TabId: TabId, DocumentVersion: Version,
             BufferText: Selection, ConnectionId: ConnectionId, ConnectionName: ConnectionLabel,
             DatabaseName: Database, CollectionName: Collection);
     }

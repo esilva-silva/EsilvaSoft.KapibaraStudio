@@ -14,7 +14,41 @@ internal sealed class CopilotProviderLifecycleTests
 {
     private static readonly TimeSpan Deadline = TimeSpan.FromSeconds(5);
     private static readonly string[] AccountCloseOrder = ["account-closed", "owner-closed"];
+    private static readonly string[] CancelledAccountCloseOrder = ["account-closed"];
     private static readonly string[] CleanupCloseOrder = ["cleanup-closed", "owner-closed"];
+
+    [TestCase(false, false, TestName = "CancelledAccountCatalogCannotPublishAvailableModels")]
+    [TestCase(true, false, TestName = "CancelledAccountCatalogCannotPublishNoModels")]
+    [TestCase(false, true, TestName = "CancelledAccountCatalogFailureCannotPublishUnavailable")]
+    public async Task CancelledAccountCatalogPreservesSnapshotAndClosesClient(bool emptyCatalog, bool catalogFails)
+    {
+        var resources = new Resources();
+        resources.Account.WaitForCatalog = true;
+        resources.Account.EmptyCatalog = emptyCatalog;
+        resources.Account.CatalogFails = catalogFails;
+        using var provider = new CopilotSubscriptionAgentProvider(new NoTools(), resources, new Commands());
+        var initialStatus = await provider.GetStatusAsync(CancellationToken.None);
+        using var cancellation = new CancellationTokenSource();
+        var check = provider.CheckAccountAndModelsAsync(cancellation.Token);
+        await resources.Account.CatalogEntered.Task.WaitAsync(Deadline);
+        cancellation.Cancel();
+        resources.Account.ReleaseCatalog.TrySetResult();
+
+        Assert.CatchAsync<OperationCanceledException>(async () => await check.WaitAsync(Deadline));
+        Assert.That(await provider.GetStatusAsync(CancellationToken.None), Is.SameAs(initialStatus));
+        Assert.That(resources.Operations, Is.EqualTo(CancelledAccountCloseOrder));
+        Assert.Throws<InvalidOperationException>(() => provider.CreateSessionAsync(
+            new AgentSessionOptions(provider.ProviderId, "synthetic-model") { PersistProviderSession = false },
+            CancellationToken.None));
+        Assert.That(resources.SessionCreations, Is.Zero);
+
+        resources.Account.EmptyCatalog = false;
+        resources.Account.CatalogFails = false;
+        Assert.That((await provider.CheckAccountAndModelsAsync()).State, Is.EqualTo(CopilotAccountState.Subscription));
+        Assert.That((await provider.GetStatusAsync(CancellationToken.None)).IsAvailable, Is.True);
+        Assert.That(resources.AccountCreations, Is.EqualTo(2), "The cancelled check releases the gate for a fresh check.");
+        Assert.That(resources.Operations.Count, Is.EqualTo(2), "Each check closes its account client.");
+    }
 
     [Test]
     public async Task DisposeWaitsForPendingAccountClientAndRejectsQueuedRefresh()
@@ -139,6 +173,8 @@ internal sealed class CopilotProviderLifecycleTests
     private sealed class ControlledClient(string name, ConcurrentQueue<string> operations) : ICopilotRuntimeClient
     {
         public bool WaitForCatalog;
+        public bool EmptyCatalog;
+        public bool CatalogFails;
         public bool WaitForDelete;
         public TaskCompletionSource CatalogEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource ReleaseCatalog { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -151,7 +187,8 @@ internal sealed class CopilotProviderLifecycleTests
         {
             CatalogEntered.TrySetResult();
             if (WaitForCatalog) await ReleaseCatalog.Task;
-            return ["synthetic-model"];
+            if (CatalogFails) throw new IOException("synthetic late catalog failure");
+            return EmptyCatalog ? [] : ["synthetic-model"];
         }
         public Task<bool> HasSessionAsync(string sessionId, CancellationToken cancellationToken) => Task.FromResult(true);
         public async Task DeleteSessionAsync(string sessionId, CancellationToken cancellationToken)

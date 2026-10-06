@@ -114,12 +114,29 @@ public sealed partial class AgentToolRegistry
 
         // A decision that arrives after revocation or a plan change does not allow anything.
         var wasApproved = decision is AgentToolConfirmationDecision.ApprovedOnce or AgentToolConfirmationDecision.ApprovedThisSession;
-        var stillPlanned = wasApproved &&
-            await CheckPrincipalCurrentAsync(principal, cancellationToken).ConfigureAwait(false) is null &&
-            SessionScopeOf(principal) is { Plan: { } current } currentScope && ReferenceEquals(currentScope, scope) &&
-            CategoryOfPlannedTool(current, toolName) is { } currentCategory &&
-            (current.ConfirmationCategories & currentCategory) != 0 &&
-            (decision != AgentToolConfirmationDecision.ApprovedThisSession || CanApproveForSession(currentCategory));
+        var stillPlanned = false;
+        if (wasApproved)
+        {
+            try
+            {
+                var principalCurrent = await CheckPrincipalCurrentAsync(principal, window.Token).ConfigureAwait(false) is null;
+                stillPlanned = principalCurrent && !window.IsCancellationRequested &&
+                    SessionScopeOf(principal) is { Plan: { } current } currentScope && ReferenceEquals(currentScope, scope) &&
+                    CategoryOfPlannedTool(current, toolName) is { } currentCategory &&
+                    (current.ConfirmationCategories & currentCategory) != 0 &&
+                    (decision != AgentToolConfirmationDecision.ApprovedThisSession || CanApproveForSession(currentCategory));
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                await TryAppendAuditAsync(ConfirmationTerminal(intent, AgentToolConfirmationDecision.Rejected, expired: true))
+                    .ConfigureAwait(false);
+                throw;
+            }
+            catch (OperationCanceledException) when (window.IsCancellationRequested)
+            {
+                expired = true;
+            }
+        }
         var effective = stillPlanned ? decision : AgentToolConfirmationDecision.Rejected;
         if (!await TryAppendAuditAsync(ConfirmationTerminal(intent, effective,
                 expired: expired || wasApproved && !stillPlanned))
@@ -208,12 +225,29 @@ public sealed partial class AgentToolRegistry
         }
 
         // Copilot can approve one invocation only. ApprovedThisSession is treated as a rejection here.
-        var approved = decision == AgentToolConfirmationDecision.ApprovedOnce &&
-            await CheckPrincipalCurrentAsync(principal, cancellationToken).ConfigureAwait(false) is null &&
-            ReferenceEquals(_sessionTools?.NativeChatTurnScopes?.Find(sessionId, turnId), nativeScope) &&
-            !nativeScope.Plan.IsBlocked && nativeScope.Plan.ProductTools.Contains(toolName, StringComparer.Ordinal) &&
-            AgentProductToolNames.CategoryOf(toolName) == category &&
-            (nativeScope.Plan.ConfirmationCategories & category) != 0;
+        var approved = false;
+        if (decision == AgentToolConfirmationDecision.ApprovedOnce)
+        {
+            try
+            {
+                approved = await CheckPrincipalCurrentAsync(principal, window.Token).ConfigureAwait(false) is null &&
+                    !window.IsCancellationRequested &&
+                    ReferenceEquals(_sessionTools?.NativeChatTurnScopes?.Find(sessionId, turnId), nativeScope) &&
+                    !nativeScope.Plan.IsBlocked && nativeScope.Plan.ProductTools.Contains(toolName, StringComparer.Ordinal) &&
+                    AgentProductToolNames.CategoryOf(toolName) == category &&
+                    (nativeScope.Plan.ConfirmationCategories & category) != 0;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                await TryAppendAuditAsync(ConfirmationTerminal(intent, AgentToolConfirmationDecision.Rejected, expired: true))
+                    .ConfigureAwait(false);
+                throw;
+            }
+            catch (OperationCanceledException) when (window.IsCancellationRequested)
+            {
+                expired = true;
+            }
+        }
         var effective = approved ? AgentToolConfirmationDecision.ApprovedOnce : AgentToolConfirmationDecision.Rejected;
         if (!await TryAppendAuditAsync(ConfirmationTerminal(intent, effective, expired: expired ||
                 decision == AgentToolConfirmationDecision.ApprovedOnce && !approved)).ConfigureAwait(false))
@@ -227,6 +261,11 @@ public sealed partial class AgentToolRegistry
             return AgentToolInvocationResult.Failure(ConfirmationUnavailable, AgentAuditDecisionReason.PolicyRevisionMismatch);
         }
 
+        // The durable human decision has its own audit budget and may finish after the approval window.
+        // Recording ApprovedOnce does not renew that window or authorize dispatch after it has expired.
+        cancellationToken.ThrowIfCancellationRequested();
+        if (window.IsCancellationRequested)
+            return AgentToolInvocationResult.Failure(ConfirmationExpired, AgentAuditDecisionReason.ApprovalExpired);
         if (CanonicalInputHash(argumentsJson) != inputHash)
             return AgentToolInvocationResult.Failure(ConfirmationUnavailable, AgentAuditDecisionReason.PolicyRevisionMismatch);
         return null;

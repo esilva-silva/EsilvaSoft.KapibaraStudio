@@ -242,6 +242,10 @@ public sealed partial class AgentRuntime
             SessionId = sessionId;
             Session = session;
             Request = request;
+            MaximumToolCalls = session.ProviderId == AgentProviderIds.GitHubCopilotSubscription &&
+                request.Plan is { IsBlocked: false } && request.Permissions is { IsWellFormed: true } permissions &&
+                permissions.ProviderId == session.ProviderId
+                ? permissions.MaximumToolCallsPerTurn : options.MaxToolCallsPerTurn;
             TurnId = request.TurnId;
             Token = Cts.Token;
             Queue = new AgentRuntimeEventQueue(session.NextSequence, options.MaxQueuedEvents, options.MaxQueuedBytes,
@@ -253,6 +257,8 @@ public sealed partial class AgentRuntime
         public SessionState Session { get; }
 
         public AgentTurnRequest Request { get; }
+
+        public int? MaximumToolCalls { get; }
 
         public AgentTurnId TurnId { get; }
 

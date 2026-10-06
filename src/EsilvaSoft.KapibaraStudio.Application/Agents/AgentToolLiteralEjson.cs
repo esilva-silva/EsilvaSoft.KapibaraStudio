@@ -344,7 +344,7 @@ public static partial class AgentToolLiteralEjson
                 subType.All(char.IsAsciiHexDigit),
             "$regularExpression" => operand.ValueKind == JsonValueKind.Object &&
                 HasExactStringProperties(operand, "pattern", "options"),
-            "$timestamp" => operand.ValueKind == JsonValueKind.Object && HasExactNumberProperties(operand, "t", "i"),
+            "$timestamp" => operand.ValueKind == JsonValueKind.Object && HasExactUInt32Properties(operand, "t", "i"),
             "$minKey" or "$maxKey" => operand.ValueKind == JsonValueKind.Number &&
                 operand.TryGetInt32(out var marker) && marker == 1,
             _ => false
@@ -358,11 +358,14 @@ public static partial class AgentToolLiteralEjson
             properties.Count(property => property.Name == name && property.Value.ValueKind == JsonValueKind.String) == 1);
     }
 
-    private static bool HasExactNumberProperties(JsonElement value, params string[] names)
+    // BSON timestamps encode two unsigned 32-bit integers. The driver's Int64-to-Int32 cast otherwise
+    // wraps overflow silently, so reject incompatible values before it can change the literal query.
+    private static bool HasExactUInt32Properties(JsonElement value, params string[] names)
     {
         var properties = value.EnumerateObject().ToArray();
         return properties.Length == names.Length && names.All(name =>
-            properties.Count(property => property.Name == name && property.Value.ValueKind == JsonValueKind.Number) == 1);
+            properties.Count(property => property.Name == name && property.Value.ValueKind == JsonValueKind.Number &&
+                property.Value.TryGetUInt32(out _)) == 1);
     }
 
     private static bool IsSingleOperator(JsonElement value, string name, out JsonElement operand)

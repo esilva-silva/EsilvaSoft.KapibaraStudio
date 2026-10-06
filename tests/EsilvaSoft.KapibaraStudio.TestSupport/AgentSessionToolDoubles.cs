@@ -31,11 +31,12 @@ internal abstract class AgentSessionToolDoubles
     internal sealed class MemoryAudit : IAgentAuditRepository
     {
         public List<AgentAuditEvent> Events { get; } = [];
+        public Func<AgentAuditEvent, CancellationToken, Task>? AppendHandler { get; set; }
 
-        public Task AppendAsync(AgentAuditEvent auditEvent, CancellationToken cancellationToken = default)
+        public async Task AppendAsync(AgentAuditEvent auditEvent, CancellationToken cancellationToken = default)
         {
+            if (AppendHandler is { } handler) await handler(auditEvent, cancellationToken);
             lock (Events) Events.Add(auditEvent);
-            return Task.CompletedTask;
         }
 
         public Task<IReadOnlyList<AgentAuditEvent>> GetRecentAsync(int maximum = 100, CancellationToken cancellationToken = default) =>
@@ -83,9 +84,10 @@ internal abstract class AgentSessionToolDoubles
         public int Reads { get; private set; }
         public MetadataAccess? LastAccess { get; private set; }
         public int ForbiddenCalls { get; private set; }
+        public bool IsConnectedValue { get; set; } = true;
 
         public event EventHandler<MetadataChangedEventArgs>? Changed { add { } remove { } }
-        public bool IsConnected(ConnectionIdentity connection) => true;
+        public bool IsConnected(ConnectionIdentity connection) => IsConnectedValue;
         public void Connect(ConnectionProfile profile) => ForbiddenCalls++;
         public void Disconnect(Guid profileId) => ForbiddenCalls++;
         public void SetSchemaSamplingAllowed(Guid profileId, bool allowed) => ForbiddenCalls++;
@@ -127,10 +129,15 @@ internal abstract class AgentSessionToolDoubles
     internal sealed class FakeLearned : ILearnedSchemaRepository
     {
         public LearnedSchemaHydrationResult Result { get; set; } = new(LearnedSchemaHydrationState.NotLearned, null, null);
+        public Func<LearnedSchemaKey, CancellationToken, Task<LearnedSchemaHydrationResult>>? ReadAvailability { get; set; }
+        public int ReadAvailabilityCalls { get; private set; }
         public Task<LearnedSchemaSnapshot?> GetAsync(LearnedSchemaKey key, CancellationToken cancellationToken) =>
             Task.FromResult(Result.Snapshot);
-        public Task<LearnedSchemaHydrationResult> ReadAvailabilityAsync(LearnedSchemaKey key, CancellationToken cancellationToken) =>
-            Task.FromResult(Result);
+        public Task<LearnedSchemaHydrationResult> ReadAvailabilityAsync(LearnedSchemaKey key, CancellationToken cancellationToken)
+        {
+            ReadAvailabilityCalls++;
+            return ReadAvailability is { } read ? read(key, cancellationToken) : Task.FromResult(Result);
+        }
         public Task<IReadOnlyList<LearnedSchemaKey>> ListKeysAsync(Guid profileId, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<SchemaCommitResult> ApplyAsync(SchemaObservationDelta delta, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<bool> WasBatchCommittedAsync(LearnedSchemaKey key, Guid batchId, CancellationToken cancellationToken) => throw new NotSupportedException();

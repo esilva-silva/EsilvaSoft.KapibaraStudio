@@ -81,6 +81,16 @@ public sealed partial class AgentToolRegistry
         if (!decision.IsAllowed)
             return AgentToolInvocationResult.Failure(PermissionDenied, MapDenialReason(decision.Reason));
 
+        // Authorization can complete after a profile edit or policy revocation. Reject that stale
+        // decision before touching either schema source, including the local learned repository.
+        if (await RevalidateMetadataProfileAsync(profile, cancellationToken).ConfigureAwait(false) is { } preflightFailure)
+            return AgentToolInvocationResult.Failure(PermissionDenied, preflightFailure);
+        var beforeRead = await LoadCurrentPolicyAsync(principal!, cancellationToken).ConfigureAwait(false);
+        if (beforeRead.Policy is null)
+            return AgentToolInvocationResult.Failure(PermissionDenied, beforeRead.DenialReason);
+        if (beforeRead.Policy.Revision != policy.Revision)
+            return AgentToolInvocationResult.Failure(PermissionDenied, AgentAuditDecisionReason.PolicyRevisionMismatch);
+
         CachedSchemaResponse response;
         try
         {
@@ -138,6 +148,11 @@ public sealed partial class AgentToolRegistry
         if (read.Availability != LearnedSchemaHydrationState.Available || read.Snapshot is not { } snapshot)
             return CachedSchemaResponse.None("NoCachedSchema");
 
+        var trust = LearnedSchemaTrust.Compute(snapshot.LastObservedGenerationId, profile.SourceGenerationId,
+            cache.IsConnected(ConnectionIdentity.From(profile)));
+        if (!trust.IsServable)
+            return CachedSchemaResponse.None("NoCachedSchema");
+
         var fields = new CachedFieldBuilder();
         foreach (var field in snapshot.Fields)
         {
@@ -149,7 +164,8 @@ public sealed partial class AgentToolRegistry
             if (!fields.TryAdd(string.Join('.', field.Path.Segments), types, primary, field.Frequency))
                 break;
         }
-        return new CachedSchemaResponse(true, "learned", null, snapshot.LastObservedUtc, null,
+        return new CachedSchemaResponse(true, "learned", null, snapshot.LastObservedUtc,
+            trust.IsHistorical ? "stale" : "fresh",
             (int)Math.Min(int.MaxValue, Math.Max(0, snapshot.CompleteDocumentObservations)), fields.Fields,
             fields.Truncated || snapshot.IsTruncated);
     }

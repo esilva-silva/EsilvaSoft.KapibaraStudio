@@ -76,7 +76,8 @@ public enum AgentConnectionScope
 /// </summary>
 public sealed record AgentProviderPermissions
 {
-    public const int CurrentFormatVersion = 1;
+    public const int CurrentFormatVersion = 2;
+    public const int DefaultMaximumToolCallsPerTurn = 100;
 
     /// <summary>
     /// Product read tools enabled by default. They expose metadata only (names, indexes, cached schema, workspace
@@ -127,6 +128,9 @@ public sealed record AgentProviderPermissions
     /// <summary>Product read tool names the user enabled; unknown names are ignored by the policy.</summary>
     public IReadOnlyList<string> EnabledReadTools { get; init; } = DefaultEnabledReadTools;
 
+    /// <summary>Copilot product calls per turn; null disables this limit. Captured before the turn starts.</summary>
+    public int? MaximumToolCallsPerTurn { get; init; } = DefaultMaximumToolCallsPerTurn;
+
     /// <summary>Categories that ask for confirmation in the Agent and Planning modes (other modes override it).</summary>
     public AgentConfirmationCategories ConfirmationCategories { get; init; } = AgentConfirmationCategories.None;
 
@@ -151,6 +155,7 @@ public sealed record AgentProviderPermissions
         DataSending is not null && Workspace is not null && EditProposals is not null && AutomaticContext is not null &&
         Enum.IsDefined(ConnectionScope) && Enum.IsDefined(DefaultMode) &&
         (ConfirmationCategories & ~AgentConfirmationCategories.All) == 0 &&
+        (MaximumToolCallsPerTurn is null or > 0) &&
         (ConnectionScope != AgentConnectionScope.Selected || SelectedConnectionIds is not null);
 
     /// <summary>Conservative defaults: no consent (nothing is sent), history kept, reads limited to metadata.</summary>

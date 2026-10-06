@@ -97,7 +97,9 @@ public sealed partial class AgentToolRegistry
         }
         if (explained is null || !explained.TargetVerified)
             return AgentToolInvocationResult.Failure(PermissionDenied, AgentAuditDecisionReason.ValidationRejected);
-        if (explained.ResultTooLarge) return AgentToolInvocationResult.Failure(ResultTooLarge);
+        if (explained.ResultTooLarge ||
+            explained.PlanEjson is { } planEjson && Utf8ByteCount(planEjson) > MaximumOutputBytes)
+            return AgentToolInvocationResult.Failure(ResultTooLarge);
         if (!IsSafeExplainPlan(explained.PlanEjson))
             return AgentToolInvocationResult.Failure(PermissionDenied, AgentAuditDecisionReason.ValidationRejected);
 

@@ -66,7 +66,7 @@ public sealed partial class AgentChatViewModel
     }
 
     /// <summary>Completion of the running turn, for hosts and tests; null when idle.</summary>
-    private bool CanSend() => !string.IsNullOrWhiteSpace(ComposerText) && IsIdle && IsProviderUsable &&
+    private bool CanSend() => !string.IsNullOrWhiteSpace(ComposerText) && IsIdle && IsProviderUsable && HasEligibleCopilotModel &&
         SelectedProvider is { } provider &&
         (CurrentPermissions is { IsWellFormed: true } || !provider.IsExternal) && SendBlock == AgentSendBlock.None;
 
@@ -78,6 +78,14 @@ public sealed partial class AgentChatViewModel
             return;
         var permissions = CurrentPermissions ?? (provider.IsExternal ? null : AgentProviderPermissions.Default(provider.ProviderId));
         if (permissions is not { IsWellFormed: true }) return;
+        // Records retain collection references. Freeze them before attachment reads await so the request and
+        // its tool plan use the same permissions, even when the original settings lists change during preparation.
+        permissions = permissions with
+        {
+            Workspace = permissions.Workspace with { Exclusions = Array.AsReadOnly(permissions.Workspace.EffectiveExclusions.ToArray()) },
+            EnabledReadTools = permissions.EnabledReadTools is { } tools ? Array.AsReadOnly(tools.ToArray()) : null!,
+            SelectedConnectionIds = permissions.SelectedConnectionIds is { } ids ? Array.AsReadOnly(ids.ToArray()) : null!,
+        };
         var message = ComposerText.Trim();
         var mode = SelectedMode.Mode;
         var modelId = SelectedModel;

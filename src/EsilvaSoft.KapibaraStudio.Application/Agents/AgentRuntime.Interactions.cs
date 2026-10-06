@@ -245,7 +245,7 @@ public sealed partial class AgentRuntime
             }
         }
 
-        if (CountTools(turn) >= _options.MaxToolCallsPerTurn)
+        if (turn.MaximumToolCalls is { } maximumCalls && CountTools(turn) >= maximumCalls)
         {
             turn.Fail("ToolCallLimitExceeded");
             return false;
@@ -302,7 +302,7 @@ public sealed partial class AgentRuntime
 
             // Registration, answerable state and publication are one step: a broker that learns the call ID out of
             // band cannot answer before the request exists, and its terminal can never precede the request event.
-            // This control publication is bounded by MaxToolCallsPerTurn instead of consumer back-pressure.
+            // Calls use the captured turn budget; Copilot may explicitly opt out of a total-call limit.
             turn.Queue.TryEnqueueControl(sequence => turn.Create(sequence, AgentEventKind.ToolRequested,
                 toolCallId: callId, toolName: descriptorName));
         }
@@ -562,7 +562,7 @@ public sealed partial class AgentRuntime
         return code switch
         {
             PermissionDeniedCode or "ApprovalRejected" or "ApprovalExpired" or "ApprovalUnavailable" or "ApprovalInvalid" or
-                "ConfirmationRejected" or "ConfirmationExpired" =>
+                "ConfirmationRejected" or "ConfirmationExpired" or "ToolCallLimitExceeded" =>
                 ToolFailure(turn, callId, AgentToolResultStatus.Denied, code),
             RegistryOutcomeUnknownCode =>
                 ToolFailure(turn, callId, AgentToolResultStatus.OutcomeUnknown, ToolOutcomeUnknownCode),

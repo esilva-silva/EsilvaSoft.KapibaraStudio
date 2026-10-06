@@ -53,6 +53,50 @@ public sealed class CopilotSessionEventContractTests
         });
     }
 
+    [TestCase(null)]
+    [TestCase("")]
+    public void UsageWithoutOfficialCallIdentityIsNotPresentedAsAReportedMetric(string? callId)
+    {
+        var turn = CreateTurn();
+        Dispatch(turn, new AssistantUsageEvent { Data = new AssistantUsageData
+        {
+            ApiCallId = callId!, Model = "fixture-model", InputTokens = 900, OutputTokens = 12,
+        } });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(ReadEvents(turn), Is.Empty,
+                "Token counts without an official call identity cannot be safely deduplicated or attributed.");
+            Assert.That(GetDone(turn).IsCompleted, Is.False);
+        });
+    }
+
+    [Test]
+    public void OfficialUsageWithMissingCountsKeepsThemUnknown()
+    {
+        var turn = CreateTurn();
+        Dispatch(turn, new AssistantUsageEvent { Data = new AssistantUsageData
+        {
+            ApiCallId = "call-without-counts", Model = "fixture-model",
+        } });
+
+        var metric = ReadEvents(turn).Single();
+        Assert.Multiple(() =>
+        {
+            Assert.That(metric.Kind, Is.EqualTo(AgentEventKind.UsageUpdated));
+            Assert.That(metric.Usage!.ObservationId, Is.EqualTo("call-without-counts"));
+            Assert.That(metric.Usage.Scope, Is.EqualTo(AgentUsageScope.CallTotal));
+            Assert.That(metric.Usage.Source, Is.EqualTo("copilot.assistant.usage"));
+            Assert.That(metric.Usage.InputTokens, Is.Null);
+            Assert.That(metric.Usage.OutputTokens, Is.Null);
+            Assert.That(metric.Usage.CacheReadTokens, Is.Null);
+            Assert.That(metric.Usage.CacheWriteTokens, Is.Null);
+            Assert.That(metric.Usage.IsPartial, Is.False,
+                "The SDK event has no confirmed partial-update marker; absent fields remain unknown.");
+            Assert.That(GetDone(turn).IsCompleted, Is.False);
+        });
+    }
+
     [Test]
     public void AutopilotIdleDoesNotCompleteTurnWhileOrdinaryIdleDoes()
     {

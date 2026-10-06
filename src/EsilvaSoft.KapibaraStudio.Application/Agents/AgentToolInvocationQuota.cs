@@ -6,7 +6,7 @@ internal sealed class AgentToolInvocationQuota
     internal const int MaximumPerSession = 2;
     private const int MaximumPerConnection = 4;
     private const int MaximumGlobal = 8;
-    private const int MaximumPerTurn = 20;
+    internal const int LegacyMaximumPerTurn = 20;
     private const int MaximumTrackedTurns = 4_096;
     private static readonly TimeSpan TurnIdleLifetime = TimeSpan.FromHours(1);
 
@@ -25,10 +25,14 @@ internal sealed class AgentToolInvocationQuota
     /// would only fill the shared turn table until every new turn, chat included, is refused. On refusal, <c>busy</c>
     /// is <see langword="true"/> for transient concurrency saturation (session, connection or global slots) and
     /// <see langword="false"/> for an exhausted turn budget, which a retry within the same turn cannot fix.
+    /// The first admission captures <paramref name="maximumPerTurn"/> for that turn; null removes its total-call
+    /// limit while concurrency, table capacity and late-operation lease tracking remain active.
     /// </summary>
-    public Lease? TryEnter(Guid sessionId, Guid turnId, Guid? connectionId, bool trackTurn, out bool busy)
+    public Lease? TryEnter(Guid sessionId, Guid turnId, Guid? connectionId, bool trackTurn, out bool busy,
+        int? maximumPerTurn = LegacyMaximumPerTurn)
     {
         busy = false;
+        if (maximumPerTurn is <= 0) throw new ArgumentOutOfRangeException(nameof(maximumPerTurn));
         if (sessionId == Guid.Empty || turnId == Guid.Empty)
             throw new ArgumentException("A session and turn are required for quota admission.");
         lock (_gate)
@@ -41,11 +45,11 @@ internal sealed class AgentToolInvocationQuota
                 if (!_turns.TryGetValue(turnKey, out var usage))
                 {
                     // If all slots still belong to live turns, deny new turns instead of evicting
-                    // their counters and silently granting another 20 calls.
+                    // their counters and silently granting a fresh call budget.
                     if (_turns.Count >= MaximumTrackedTurns) return null;
-                    usage = new TurnUsage(0, now);
+                    usage = new TurnUsage(0, now, maximumPerTurn);
                 }
-                if (usage.Count >= MaximumPerTurn) return null;
+                if (usage.MaximumCalls is { } maximum && usage.Count >= maximum) return null;
                 _turns[turnKey] = usage with { Count = usage.Count + 1, LastSeenUtc = now };
             }
 
@@ -89,7 +93,7 @@ internal sealed class AgentToolInvocationQuota
             _turns.Remove(key);
     }
 
-    private readonly record struct TurnUsage(int Count, DateTimeOffset LastSeenUtc);
+    private readonly record struct TurnUsage(long Count, DateTimeOffset LastSeenUtc, int? MaximumCalls);
 
     internal sealed class Lease : IDisposable
     {

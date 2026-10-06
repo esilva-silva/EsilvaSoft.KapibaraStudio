@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using EsilvaSoft.KapibaraStudio.Application.Agents.Broker;
 using EsilvaSoft.KapibaraStudio.Application.Agents;
 using EsilvaSoft.KapibaraStudio.Application.SchemaLearning;
 using EsilvaSoft.KapibaraStudio.Autocomplete.Core;
@@ -313,6 +314,98 @@ public sealed class AgentSessionToolsTests
     }
 
     [Test]
+    public async Task CopilotWorkspaceOnlyProposalPermissionDoesNotRequireActiveFileAccess()
+    {
+        using var rig = new AgentSessionToolsTestRig();
+        const string provider = AgentProviderIds.GitHubCopilotSubscription;
+        var permissions = rig.Permissions with
+        {
+            ProviderId = provider,
+            Workspace = new AgentWorkspacePermissions { UseFilesFolder = true },
+            DataSending = rig.Permissions.DataSending with { ActiveFile = false, WorkspaceFiles = true },
+            EditProposals = new AgentEditProposalPermissions { ActiveFile = false, OtherWorkspaceFiles = true },
+        };
+        var context = new AgentWorkspaceContext(DateTimeOffset.UtcNow, WorkspaceFolder: rig.WorkspaceFolder,
+            ActiveFilePath: Path.Combine(rig.WorkspaceFolder, "teste.md"), ActiveFileName: "teste.md",
+            TabId: "tab-active", BufferText: "active-file-canary");
+        var plan = AgentModePolicy.Plan(AgentOperationMode.Agent, permissions,
+            new AgentPlatformFacts(true, true, NativeToolsAvailable: false));
+        var session = Guid.NewGuid();
+        var turn = Guid.NewGuid();
+        rig.NativeChatScopes.Register(new AgentNativeChatTurnScope(session, turn, provider, plan, permissions, context)
+        {
+            ConversationId = rig.ConversationId,
+            ActiveFileAttachmentResolved = true,
+            ActiveFileAttachmentMatchesSnapshot = true,
+        });
+        rig.WriteFile("report.md", "value = 1\n");
+        var principal = new AgentPrincipal(Guid.NewGuid(), AgentPrincipalOrigin.Internal, 1);
+        async Task<AgentToolInvocationResult> Invoke(string arguments) => await rig.Registry.InvokeAsync(principal,
+            new AgentInvocationContext(provider, null, session, turn), AgentOutputDestination.ProviderExternal(provider),
+            AgentToolOutputScopes.For("propose_file_edit"), "propose_file_edit", arguments);
+
+        var workspace = await Invoke("""{"path":"report.md","edits":[{"old_text":"value = 1","new_text":"value = 2"}]}""");
+        Assert.That(workspace.Succeeded, Is.True, workspace.ErrorCode);
+        var activeBuffer = await Invoke("""{"target":"active_buffer","new_content":"changed"}""");
+        var activePath = await Invoke("""{"path":"teste.md","new_content":"changed"}""");
+        var absent = await Invoke("""{"path":"new-report.md","new_content":"changed"}""");
+        Assert.Multiple(() =>
+        {
+            Assert.That(activeBuffer.ErrorCode, Is.EqualTo("TargetNotPermitted"));
+            Assert.That(activePath.ErrorCode, Is.EqualTo("TargetNotPermitted"));
+            Assert.That(absent.ErrorCode, Is.EqualTo("NotFound"));
+            Assert.That(rig.Sink.Proposals, Has.Count.EqualTo(1));
+            Assert.That(rig.Sink.Proposals.Single().TargetPath, Is.EqualTo(Path.Combine(rig.WorkspaceFolder, "report.md")));
+            Assert.That(rig.Sink.Proposals.Single().ProposedText, Is.EqualTo("value = 2\n"));
+        });
+    }
+
+    [Test]
+    public async Task CopilotProposalSharesDiscoveryQuotaAndRecoversOnlyInNewTurn()
+    {
+        using var rig = new AgentSessionToolsTestRig();
+        const string provider = AgentProviderIds.GitHubCopilotSubscription;
+        var permissions = rig.Permissions with { ProviderId = provider, MaximumToolCallsPerTurn = 20 };
+        var workspace = new AgentWorkspaceContext(DateTimeOffset.UtcNow, ActiveFileName: "teste.md",
+            TabId: "tab-report", BufferText: "base\n");
+        var plan = AgentModePolicy.Plan(AgentOperationMode.Agent, permissions, new AgentPlatformFacts(false, true, false));
+        var session = Guid.NewGuid();
+        var turn = Guid.NewGuid();
+        void Register(Guid turnId) => rig.NativeChatScopes.Register(new AgentNativeChatTurnScope(session, turnId,
+            provider, plan, permissions, workspace)
+        {
+            ConversationId = rig.ConversationId,
+            ActiveFileAttachmentResolved = true,
+            ActiveFileAttachmentMatchesSnapshot = true,
+        });
+        Register(turn);
+        var principal = new AgentPrincipal(Guid.NewGuid(), AgentPrincipalOrigin.Internal, 1);
+        async Task<AgentToolInvocationResult> Invoke(Guid turnId, string tool, string arguments) =>
+            await rig.Registry.InvokeAsync(principal, new AgentInvocationContext(provider, null, session, turnId),
+                AgentOutputDestination.ProviderExternal(provider), AgentToolOutputScopes.For(tool), tool, arguments);
+        for (var call = 0; call < 20; call++)
+        {
+            var discovery = await Invoke(turn, "get_workspace_context", "{}");
+            Assert.That(discovery.Succeeded, Is.True, discovery.ErrorCode);
+        }
+        const string proposal = """{"target":"active_buffer","new_content":"report\n"}""";
+        var refused = await Invoke(turn, "propose_file_edit", proposal);
+        Assert.Multiple(() =>
+        {
+            Assert.That(refused.ErrorCode, Is.EqualTo("ToolCallLimitExceeded"));
+            Assert.That(rig.Sink.Proposals, Is.Empty);
+            Assert.That(rig.Audit.Events[^1].Outcome, Is.EqualTo(AgentAuditOutcome.Denied));
+            Assert.That(rig.Audit.Events[^1].DecisionReason, Is.EqualTo(AgentAuditDecisionReason.LimitExceeded));
+        });
+        var newTurn = Guid.NewGuid();
+        Register(newTurn);
+        var recovered = await Invoke(newTurn, "propose_file_edit", proposal);
+        Assert.That(recovered.Succeeded, Is.True, recovered.ErrorCode);
+        Assert.That(rig.Sink.Proposals, Has.Count.EqualTo(1));
+        Assert.That(rig.Sink.Proposals.Single().TabId, Is.EqualTo("tab-report"));
+    }
+
+    [Test]
     public async Task NativeChatWorkspaceScopesDoNotShareSnapshotsAcrossSessions()
     {
         using var rig = new AgentSessionToolsTestRig();
@@ -474,6 +567,45 @@ public sealed class AgentSessionToolsTests
         });
     }
 
+    [TestCase(false, true, "fresh")]
+    [TestCase(false, false, "stale")]
+    [TestCase(true, false, null)]
+    public async Task CachedSchemaHonorsLearnedOriginAndSessionTrust(bool superseded, bool sessionConnected, string? expectedFreshness)
+    {
+        using var rig = new AgentSessionToolsTestRig();
+        rig.Cache.IsConnectedValue = sessionConnected;
+        var key = LearnedSchemaKey.Create(rig.Profile.Id, "app", "people");
+        var observed = DateTimeOffset.UtcNow.AddHours(-1);
+        var snapshot = new LearnedSchemaSnapshot(key, 1, 3,
+            superseded ? Guid.NewGuid() : rig.Profile.SourceGenerationId,
+            observed, observed, 10, 1, 0, false,
+            [new LearnedFieldStatistics(new LearnedFieldPath(["origin-field-canary"]), 9, 10,
+                new Dictionary<string, long> { ["string"] = 9 }, observed, observed)]);
+        rig.Learned.Result = new LearnedSchemaHydrationResult(LearnedSchemaHydrationState.Available, snapshot, null);
+
+        var result = await rig.CallAsync("get_cached_schema",
+            new { connectionId = rig.Profile.Id, database = "app", collection = "people" });
+
+        Assert.That(result.Succeeded, Is.True, result.ErrorCode);
+        using var json = JsonDocument.Parse(result.StructuredContentJson!);
+        Assert.Multiple(() =>
+        {
+            Assert.That(json.RootElement.GetProperty("available").GetBoolean(), Is.EqualTo(!superseded));
+            Assert.That(json.RootElement.GetProperty("source").GetString(), Is.EqualTo(superseded ? "none" : "learned"));
+            Assert.That(json.RootElement.GetProperty("fields").GetArrayLength(), Is.EqualTo(superseded ? 0 : 1));
+            Assert.That(result.StructuredContentJson!.Contains("origin-field-canary", StringComparison.Ordinal), Is.EqualTo(!superseded));
+            Assert.That(json.RootElement.TryGetProperty("freshness", out var freshness)
+                ? freshness.GetString() : null, Is.EqualTo(expectedFreshness));
+            Assert.That(rig.Learned.Result.Snapshot, Is.SameAs(snapshot), "A superseded snapshot remains untouched for recovery.");
+            Assert.That(rig.Cache.Reads, Is.EqualTo(1));
+            Assert.That(rig.Cache.LastAccess, Is.EqualTo(MetadataAccess.Peek));
+            Assert.That(rig.Cache.ForbiddenCalls, Is.Zero, "Do not connect, load, refresh, sample or invalidate.");
+            Assert.That(rig.Metadata.Calls, Is.Zero, "No MongoDB access to replace a superseded origin.");
+        });
+        if (superseded)
+            Assert.That(json.RootElement.GetProperty("reason").GetString(), Is.EqualTo("NoCachedSchema"));
+    }
+
     [Test]
     public async Task CachedSchemaNeedsTheSchemaGrantAndThePlan()
     {
@@ -521,6 +653,210 @@ public sealed class AgentSessionToolsTests
             Assert.That(outOfScope.StructuredContentJson, Does.Contain("\"connectionInScope\":false")
                 .And.Not.Contain(rig.Profile.Id.ToString("D")).And.Not.Contain("Principal").And.Not.Contain("CakeShop"));
             Assert.That(extra.ErrorCode, Is.EqualTo("InvalidArguments"));
+        });
+    }
+
+    [Test]
+    public async Task WorkspaceContextSuppressesMetadataWhenTerminalAuditWriteFails()
+    {
+        using var rig = new AgentSessionToolsTestRig();
+        rig.Workspace.Context = new AgentWorkspaceContext(DateTimeOffset.UtcNow, rig.WorkspaceFolder,
+            ActiveFileName: "private-query.js", ConnectionId: rig.Profile.Id.ToString("D"),
+            ConnectionName: "private-profile", DatabaseName: "private-database",
+            CollectionName: "private-collection");
+        rig.Audit.AppendHandler = (entry, _) => entry.Outcome == AgentAuditOutcome.Succeeded
+            ? throw new IOException("audit storage failure")
+            : Task.CompletedTask;
+
+        var result = await rig.CallRawAsync("get_workspace_context", "{}");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.ErrorCode, Is.EqualTo("PermissionDenied"));
+            Assert.That(result.StructuredContentJson, Is.Null);
+            Assert.That(rig.Audit.Events.Select(static item => item.Outcome),
+                Is.EqualTo(new[] { AgentAuditOutcome.Intent }));
+            Assert.That(JsonSerializer.Serialize(rig.Audit.Events), Does.Not.Contain("private-"));
+            Assert.That(rig.Files.Reads, Is.Zero);
+            Assert.That(rig.Metadata.Calls, Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task WorkspaceContextSuppressesCapturedSnapshotWhenItChangesBeforePublication()
+    {
+        using var rig = new AgentSessionToolsTestRig();
+        var plan = AgentModePolicy.Plan(AgentOperationMode.Agent, rig.Permissions,
+            new AgentPlatformFacts(true, true));
+        rig.Workspace.Context = new AgentWorkspaceContext(DateTimeOffset.UtcNow, rig.WorkspaceFolder,
+            ActiveFileName: "old-snapshot-canary.js");
+        rig.BindPlan(plan);
+        var auditEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseAudit = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        rig.Audit.AppendHandler = async (entry, _) =>
+        {
+            if (entry.Outcome != AgentAuditOutcome.Succeeded) return;
+            auditEntered.TrySetResult();
+            await releaseAudit.Task;
+        };
+
+        var pending = rig.CallRawAsync("get_workspace_context", "{}");
+        try
+        {
+            await auditEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            rig.Workspace.Context = new AgentWorkspaceContext(DateTimeOffset.UtcNow, rig.WorkspaceFolder,
+                ActiveFileName: "new-snapshot-canary.js");
+            rig.BindPlan(plan);
+        }
+        finally
+        {
+            releaseAudit.TrySetResult();
+        }
+        var result = await pending.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.ErrorCode, Is.EqualTo("PermissionDenied"));
+            Assert.That(result.StructuredContentJson, Is.Null);
+            Assert.That(rig.Audit.Events.Select(static item => item.Outcome),
+                Is.EqualTo(new[] { AgentAuditOutcome.Intent, AgentAuditOutcome.Succeeded, AgentAuditOutcome.Denied }));
+            Assert.That(JsonSerializer.Serialize(rig.Audit.Events), Does.Not.Contain("old-snapshot-canary"));
+            Assert.That(rig.Files.Reads, Is.Zero);
+            Assert.That(rig.Metadata.Calls, Is.Zero);
+        });
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task WorkspaceContextDoesNotPublishWhenCallerCancelsOrDeadlineExpiresDuringTerminalAudit(bool deadline)
+    {
+        using var rig = new AgentSessionToolsTestRig(executionTimeout: deadline
+            ? TimeSpan.FromMilliseconds(500) : null);
+        rig.Workspace.Context = new AgentWorkspaceContext(DateTimeOffset.UtcNow, rig.WorkspaceFolder,
+            ActiveFileName: "pending-metadata-canary.js");
+        rig.BindPlan(AgentModePolicy.Plan(AgentOperationMode.Agent, rig.Permissions,
+            new AgentPlatformFacts(true, true)));
+        var auditEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseAudit = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        rig.Audit.AppendHandler = async (entry, _) =>
+        {
+            if (entry.Outcome != AgentAuditOutcome.Succeeded) return;
+            auditEntered.TrySetResult();
+            await releaseAudit.Task;
+        };
+        using var callerCancellation = new CancellationTokenSource();
+        var pending = rig.Registry.InvokeAsync(rig.Principal,
+            new AgentInvocationContext(AgentBrokerProtocol.McpProviderId, rig.ChannelId, rig.ChannelId, Guid.NewGuid()),
+            AgentSessionToolsTestRig.Destination, AgentToolOutputScopes.For("get_workspace_context"),
+            "get_workspace_context", "{}", callerCancellation.Token);
+        try
+        {
+            await auditEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            if (deadline)
+                await Task.Delay(TimeSpan.FromMilliseconds(650));
+            else
+                callerCancellation.Cancel();
+        }
+        finally
+        {
+            releaseAudit.TrySetResult();
+        }
+
+        if (deadline)
+        {
+            var result = await pending.WaitAsync(TimeSpan.FromSeconds(2));
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.ErrorCode, Is.EqualTo("DeadlineExceeded"));
+                Assert.That(result.StructuredContentJson, Is.Null);
+            });
+        }
+        else
+        {
+            Assert.CatchAsync<OperationCanceledException>(async () =>
+                await pending.WaitAsync(TimeSpan.FromSeconds(2)));
+        }
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(rig.Audit.Events.Select(static item => item.Outcome),
+                Is.EqualTo(new[] { AgentAuditOutcome.Intent, AgentAuditOutcome.Succeeded, AgentAuditOutcome.Cancelled }));
+            Assert.That(rig.Audit.Events[^1].ItemCount, Is.Zero);
+            Assert.That(rig.Audit.Events[^1].OutputBytes, Is.Zero);
+            Assert.That(JsonSerializer.Serialize(rig.Audit.Events), Does.Not.Contain("pending-metadata-canary"));
+            Assert.That(rig.Files.Reads, Is.Zero);
+            Assert.That(rig.Metadata.Calls, Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task WorkspaceContextOmitsPathsLongerThanPublishedSchemaBounds()
+    {
+        using var rig = new AgentSessionToolsTestRig();
+        var permissions = rig.Permissions with
+        {
+            Workspace = new AgentWorkspacePermissions { UseFilesFolder = true }
+        };
+        var plan = AgentModePolicy.Plan(AgentOperationMode.Agent, permissions,
+            new AgentPlatformFacts(true, true));
+        var longRelativePath = string.Join(Path.DirectorySeparatorChar,
+            Enumerable.Repeat(new string('d', 200), 6)) + Path.DirectorySeparatorChar + "query.js";
+        var longRoot = Path.Combine(rig.WorkspaceFolder, longRelativePath);
+        Assert.That(longRoot.Length, Is.GreaterThan(1_024));
+        rig.Files.AddDirectory(longRoot);
+        var activeBelowLongRoot = Path.Combine(longRoot, "query.js");
+        rig.Workspace.Context = new AgentWorkspaceContext(DateTimeOffset.UtcNow, longRoot,
+            activeBelowLongRoot, "query.js");
+        rig.BindPlan(plan, permissions);
+
+        var longRootResult = await rig.CallRawAsync("get_workspace_context", "{}");
+
+        var activePath = Path.Combine(rig.WorkspaceFolder, longRelativePath);
+        rig.Workspace.Context = new AgentWorkspaceContext(DateTimeOffset.UtcNow, rig.WorkspaceFolder,
+            activePath, "query.js");
+        rig.BindPlan(plan, permissions);
+        var longRelativeResult = await rig.CallRawAsync("get_workspace_context", "{}");
+
+        using var rootOutput = JsonDocument.Parse(longRootResult.StructuredContentJson!);
+        using var relativeOutput = JsonDocument.Parse(longRelativeResult.StructuredContentJson!);
+        var rootActiveFile = rootOutput.RootElement.GetProperty("activeFile");
+        var activeFile = relativeOutput.RootElement.GetProperty("activeFile");
+        Assert.Multiple(() =>
+        {
+            Assert.That(longRootResult.Succeeded, Is.True, longRootResult.ErrorCode);
+            Assert.That(rootOutput.RootElement.GetProperty("workspaceFolder").ValueKind, Is.EqualTo(JsonValueKind.Null));
+            Assert.That(rootActiveFile.GetProperty("insideWorkspace").GetBoolean(), Is.True,
+                "Suppressing a long root path must not suppress the internal containment check.");
+            Assert.That(rootActiveFile.GetProperty("relativePath").GetString(), Is.EqualTo("query.js"));
+            Assert.That(longRelativeResult.Succeeded, Is.True, longRelativeResult.ErrorCode);
+            Assert.That(activeFile.GetProperty("insideWorkspace").GetBoolean(), Is.True);
+            Assert.That(activeFile.GetProperty("relativePath").ValueKind, Is.EqualTo(JsonValueKind.Null));
+            Assert.That(rig.Files.Reads, Is.Zero, "Paths are metadata; no file contents are read.");
+        });
+    }
+
+    [Test]
+    public async Task WorkspaceContextDoesNotCallAnUnprovenLinkTargetInsideTheWorkspace()
+    {
+        using var rig = new AgentSessionToolsTestRig();
+        var file = rig.WriteFile("linked.js", "synthetic content\n");
+        rig.Files.SetLink(file);
+        rig.Workspace.Context = new AgentWorkspaceContext(DateTimeOffset.UtcNow, rig.WorkspaceFolder, file,
+            "linked.js", "tab-linked", 3, "synthetic content\n");
+        rig.BindPlan(AgentModePolicy.Plan(AgentOperationMode.Agent, rig.Permissions,
+            new AgentPlatformFacts(true, true)));
+
+        var result = await rig.CallRawAsync("get_workspace_context", "{}");
+
+        using var json = JsonDocument.Parse(result.StructuredContentJson!);
+        var activeFile = json.RootElement.GetProperty("activeFile");
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Succeeded, Is.True, result.ErrorCode);
+            Assert.That(activeFile.GetProperty("insideWorkspace").GetBoolean(), Is.False,
+                "Um caminho lexical interno com travessia de link não prova que o destino está dentro da raiz.");
+            Assert.That(activeFile.GetProperty("relativePath").ValueKind, Is.EqualTo(JsonValueKind.Null));
+            Assert.That(rig.Files.Reads, Is.Zero, "get_workspace_context não lê conteúdo do arquivo.");
         });
     }
 
@@ -706,6 +1042,90 @@ public sealed class AgentSessionToolsTests
         {
             Assert.That(result.ErrorCode, Is.EqualTo(expected));
             Assert.That(rig.Sink.Proposals, Is.Empty);
+        });
+    }
+
+    [Test]
+    public async Task ProposeFileEditRejectsWorkspaceLinkIntroducedWhileReadingTheBase()
+    {
+        var files = new MemoryAgentFiles();
+        var io = new LinkIntroducedDuringRead(files);
+        using var rig = new AgentSessionToolsTestRig(files: files, proposalFileReader: io, pathProbe: io);
+        var target = rig.WriteFile("safe.txt", "before\n");
+        var invocation = rig.CallAsync("propose_file_edit", new
+        {
+            path = "safe.txt",
+            edits = new[] { new { old_text = "outside secret fixture\n", new_text = "stolen fixture\n" } }
+        });
+
+        await io.ReadEntered.Task;
+        io.InstallLink();
+        io.ReleaseRead.TrySetResult();
+        var result = await invocation;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(io.ExternalFixtureWasRead, Is.True,
+                "The synthetic reader models a link switch to an outside fixture during the awaited read.");
+            Assert.That(result.ErrorCode, Is.EqualTo("OutsideWorkspace"));
+            Assert.That(rig.Sink.Proposals, Is.Empty, "A reparse-point target must not produce a proposal.");
+            Assert.That(files.GetText(target), Is.EqualTo("before\n"), "Proposal generation never writes its source.");
+        });
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task ProposeFileEditDoesNotRegisterLateBaseReadAfterCallerCancellationOrDeadline(bool deadline)
+    {
+        var files = new MemoryAgentFiles();
+        var reader = new LateProposalBaseReader(files);
+        using var rig = new AgentSessionToolsTestRig(files: files, proposalFileReader: reader,
+            executionTimeout: deadline ? TimeSpan.FromMilliseconds(500) : null);
+        const string original = "const value = 1;\n";
+        var path = rig.WriteFile("safe.js", original);
+        using var callerCancellation = new CancellationTokenSource();
+        var pending = rig.Registry.InvokeAsync(rig.Principal,
+            new AgentInvocationContext(AgentBrokerProtocol.McpProviderId, rig.ChannelId, rig.ChannelId, Guid.NewGuid()),
+            AgentSessionToolsTestRig.Destination, AgentToolOutputScopes.For("propose_file_edit"),
+            "propose_file_edit", "{\"path\":\"safe.js\",\"edits\":[{\"old_text\":\"value = 1\",\"new_text\":\"value = 2\"}]}",
+            callerCancellation.Token);
+        try
+        {
+            await reader.ReadEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            if (deadline)
+                await Task.Delay(TimeSpan.FromMilliseconds(650));
+            else
+                callerCancellation.Cancel();
+        }
+        finally
+        {
+            reader.ReleaseRead.TrySetResult();
+        }
+
+        if (deadline)
+        {
+            var result = await pending.WaitAsync(TimeSpan.FromSeconds(2));
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.ErrorCode, Is.EqualTo("DeadlineExceeded"));
+                Assert.That(result.StructuredContentJson, Is.Null);
+            });
+        }
+        else
+        {
+            Assert.CatchAsync<OperationCanceledException>(async () =>
+                await pending.WaitAsync(TimeSpan.FromSeconds(2)));
+        }
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(reader.Calls, Is.EqualTo(1), "The late completion must not start another read.");
+            Assert.That(rig.Sink.Proposals, Is.Empty, "A cancelled/deadline read cannot register its late proposal.");
+            Assert.That(files.GetText(path), Is.EqualTo(original), "A proposal path never writes the target file.");
+            Assert.That(rig.Audit.Events.Select(static item => item.Outcome),
+                Is.EqualTo(new[] { AgentAuditOutcome.Intent, AgentAuditOutcome.Cancelled }));
+            Assert.That(rig.Audit.Events[^1].ItemCount, Is.Zero);
+            Assert.That(rig.Audit.Events[^1].OutputBytes, Is.Zero);
         });
     }
 
@@ -907,5 +1327,55 @@ public sealed class AgentSessionToolsTests
             yield return path;
         foreach (var property in node.EnumerateObject())
             foreach (var open in OpenObjectPaths(property.Value, path + "." + property.Name)) yield return open;
+    }
+
+    private sealed class LateProposalBaseReader(MemoryAgentFiles files) : IAgentBoundedFileReader
+    {
+        private int _calls;
+        public int Calls => Volatile.Read(ref _calls);
+        public TaskCompletionSource ReadEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource ReleaseRead { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public AgentFileReadResult Read(string fullPath, int maximumBytes) => files.Read(fullPath, maximumBytes);
+
+        public async Task<AgentFileReadResult> ReadAsync(string fullPath, int maximumBytes, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _calls);
+            ReadEntered.TrySetResult();
+            await ReleaseRead.Task; // Deliberately ignores cancellation to model a late completed bounded reader.
+            return await files.ReadAsync(fullPath, maximumBytes, CancellationToken.None);
+        }
+    }
+
+    private sealed class LinkIntroducedDuringRead(MemoryAgentFiles files) : IAgentBoundedFileReader, IAgentWorkspacePathProbe
+    {
+        private volatile bool _linkInstalled;
+        public TaskCompletionSource ReadEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource ReleaseRead { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public bool ExternalFixtureWasRead { get; private set; }
+
+        public AgentFileReadResult Read(string fullPath, int maximumBytes) => files.Read(fullPath, maximumBytes);
+
+        public async Task<AgentFileReadResult> ReadAsync(string fullPath, int maximumBytes, CancellationToken cancellationToken)
+        {
+            ReadEntered.TrySetResult();
+            await ReleaseRead.Task.WaitAsync(cancellationToken);
+            if (_linkInstalled)
+            {
+                ExternalFixtureWasRead = true;
+                return new AgentFileReadResult(AgentFileReadState.Read, Encoding.UTF8.GetBytes("outside secret fixture\n"));
+            }
+
+            return await files.ReadAsync(fullPath, maximumBytes, cancellationToken);
+        }
+
+        public void InstallLink() => _linkInstalled = true;
+
+        public bool DirectoryExists(string fullPath) => files.DirectoryExists(fullPath);
+
+        public bool FileExists(string fullPath) => files.FileExists(fullPath);
+
+        public bool TraversesLink(string fullPath, string? workspaceRoot) =>
+            _linkInstalled || files.TraversesLink(fullPath, workspaceRoot);
     }
 }

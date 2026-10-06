@@ -31,6 +31,24 @@ public sealed partial class AgentChatViewModel
         {
             var context = _host.CaptureWorkspace();
             var permissions = CurrentPermissions;
+            if (permissions is { IsWellFormed: true })
+            {
+                // Settings records can still contain caller-owned mutable lists. The debounce is an await
+                // boundary, so freeze each collection now to keep this preview tied to the policy it captured.
+                permissions = permissions with
+                {
+                    Workspace = permissions.Workspace with
+                    {
+                        Exclusions = Array.AsReadOnly(permissions.Workspace.EffectiveExclusions.ToArray()),
+                    },
+                    EnabledReadTools = permissions.EnabledReadTools is { } tools
+                        ? Array.AsReadOnly(tools.ToArray())
+                        : null!,
+                    SelectedConnectionIds = permissions.SelectedConnectionIds is { } ids
+                        ? Array.AsReadOnly(ids.ToArray())
+                        : null!,
+                };
+            }
             var message = ComposerText.Trim();
             var conversationId = ActiveConversation.Id;
             var mode = SelectedMode.Mode;

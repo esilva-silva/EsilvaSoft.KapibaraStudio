@@ -131,6 +131,10 @@ public sealed class AgentChatUiTests
             await PumpAsync(() => chat.Chips.Count == 2);
             try
             {
+                var dataUseButton = panel.FindControl<Button>("CopilotDataUseButton")!;
+                Assert.That(chat.IsCopilotSubscriptionSelected, Is.False,
+                    "This matrix uses an API or Claude Code catalog entry, not GitHub Copilot.");
+                Assert.That(dataUseButton.IsVisible, Is.False);
                 foreach (var language in PanelLanguages)
                     foreach (var theme in Themes)
                         foreach (var width in PanelWidths)
@@ -180,6 +184,13 @@ public sealed class AgentChatUiTests
                     await PumpAsync(() => true);
                     Save(window, $"agent-ux-usage-details-{officialCli}-{theme}.png");
                     usageButton.Flyout.Hide();
+                    if (officialCli)
+                    {
+                        dataUseButton.Flyout!.ShowAt(dataUseButton);
+                        await PumpAsync(() => true);
+                        Save(window, $"agent-copilot-data-use-{theme}.png");
+                        dataUseButton.Flyout.Hide();
+                    }
                 }
                 var contextSummaryBeforeRemoval = chat.ContextMetricsSummary;
                 var active = chat.Chips.Single(chip => chip.Kind == AgentAttachmentKind.ActiveFile);
@@ -211,6 +222,143 @@ public sealed class AgentChatUiTests
             {
                 LocalizationViewModel.Current.Language = "pt-BR";
                 window.SetRenderScaling(1);
+                await CloseAsync(window, chat, runtime);
+            }
+        });
+    }
+
+    [Test]
+    public async Task CopilotDataAndUsageDisclosureIsVisibleBeforeSendInAllSupportedLocales()
+    {
+        await RunOnUiAsync(async () =>
+        {
+            var runtime = new ChannelAgentRuntime();
+            var tab = new AgentChatTabFixture();
+            var provider = new AgentProviderPresentation(AgentProviderIds.GitHubCopilotSubscription,
+                "GitHub Copilot", AgentDataDestinationKind.External, true, ["fake-model"],
+                [AgentAuthenticationMethod.OfficialCliDelegated], AgentProviderAuthState.Configured,
+                SupportsToolCalling: true, SupportsTurnPlan: true);
+            var services = new AgentChatServices(runtime, new FakeAgentCatalog(provider), new FakeAgentContextProvider());
+            var chat = new AgentChatViewModel(services, tab.Capture);
+            var panel = new AgentChatPanel { DataContext = chat };
+            var window = new Window { Content = panel, Width = 380, Height = 820 };
+            window.Show();
+            await chat.Initialization;
+            try
+            {
+                var disclosure = panel.FindControl<Button>("CopilotDataUseButton")!;
+                var usageLink = panel.FindControl<HyperlinkButton>("CopilotUsageLink")!;
+                var accessLink = panel.FindControl<HyperlinkButton>("CopilotAccessLink")!;
+                Assert.That(chat.IsCopilotSubscriptionSelected, Is.True);
+                Assert.That(disclosure.IsVisible, Is.True,
+                    "The user can review data transfer and usage guidance before sending the first message.");
+                Assert.Multiple(() =>
+                {
+                    Assert.That(usageLink.NavigateUri, Is.EqualTo(new Uri("https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing")));
+                    Assert.That(accessLink.NavigateUri, Is.EqualTo(new Uri("https://docs.github.com/en/copilot/how-tos/copilot-on-github/set-up-copilot/configure-access-to-ai-models")));
+                });
+
+                foreach (var language in PanelLanguages)
+                    foreach (var theme in Themes)
+                    {
+                        LocalizationViewModel.Current.Language = language;
+                        Avalonia.Application.Current!.RequestedThemeVariant = theme;
+                        await PumpAsync(() => true);
+                        disclosure.Flyout!.ShowAt(disclosure);
+                        await PumpAsync(() => true);
+                        Save(window, $"agent-copilot-data-use-{language}-{theme}.png");
+                        disclosure.Flyout.Hide();
+                    }
+            }
+            finally
+            {
+                LocalizationViewModel.Current.Language = "pt-BR";
+                await CloseAsync(window, chat, runtime);
+            }
+        });
+    }
+
+    [Test]
+    public async Task CopilotProductWorkspaceAndReadFailuresAreClearAcrossLocalesSizesAndScales()
+    {
+        await RunOnUiAsync(async () =>
+        {
+            var runtime = new ChannelAgentRuntime();
+            var tab = new AgentChatTabFixture { WorkspaceFolder = @"D:\synthetic-workspace" };
+            var id = AgentProviderIds.GitHubCopilotSubscription;
+            var provider = new AgentProviderPresentation(id, "GitHub Copilot", AgentDataDestinationKind.External,
+                true, ["fake-model"], [AgentAuthenticationMethod.OfficialCliDelegated], AgentProviderAuthState.Configured);
+            var services = new AgentChatServices(runtime, new FakeAgentCatalog(provider), new FakeAgentContextProvider())
+            {
+                Permissions = new FakeAgentPermissionsRepository(AgentProviderPermissions.Default(id) with
+                {
+                    ExternalDestinationConsentAt = DateTimeOffset.UtcNow,
+                    DefaultModel = "fake-model",
+                    Workspace = new AgentWorkspacePermissions { UseFilesFolder = true }
+                })
+            };
+            var chat = new AgentChatViewModel(services, tab);
+            var panel = new AgentChatPanel { DataContext = chat };
+            var window = new Window { Content = panel, Width = 380, Height = 820 };
+            window.Show();
+            await chat.Initialization;
+            try
+            {
+                var failure = new AgentToolCallItem(AgentToolCallId.New(), "mongo_find", origin: AgentToolOrigin.Registry)
+                    { State = AgentToolCallState.Failed, ErrorCode = "ExecutionFailed" };
+                var missing = new AgentToolCallItem(AgentToolCallId.New(), "propose_file_edit", origin: AgentToolOrigin.Registry)
+                    { State = AgentToolCallState.Failed, ErrorCode = "NotFound" };
+                var limited = new AgentToolCallItem(AgentToolCallId.New(), "mongo_explain", origin: AgentToolOrigin.Registry)
+                    { State = AgentToolCallState.Denied, ErrorCode = "ToolCallLimitExceeded" };
+                chat.Items.Add(failure);
+                chat.Items.Add(missing);
+                chat.Items.Add(limited);
+                chat.ActiveConversation.SessionProviderId = id;
+                chat.ActiveConversation.HasSessionWorkingDirectory = true;
+                chat.ActiveConversation.SessionWorkingDirectory = @"D:\older-synthetic-workspace";
+                foreach (var language in PanelLanguages)
+                    foreach (var theme in Themes)
+                        foreach (var width in PanelWidths)
+                            foreach (var scale in PanelScales)
+                            {
+                                LocalizationViewModel.Current.Language = language;
+                                Avalonia.Application.Current!.RequestedThemeVariant = theme;
+                                window.Width = width;
+                                window.SetRenderScaling(scale);
+                                chat.RefreshReadScope();
+                                panel.FindControl<Expander>("ReadScopeDetails")!.IsExpanded = true;
+                                await PumpAsync(() => true);
+                                Save(window, $"copilot-product-permissions-{language}-{theme}-{width}-{scale.ToString(CultureInfo.InvariantCulture)}.png");
+                                Assert.Multiple(() =>
+                                {
+                                    Assert.That(chat.ReadScopeSummary, Is.EqualTo(LocalizationViewModel.Current.Resolve("agentReadScopeDetails")));
+                                    Assert.That(chat.ReadScopeText, Does.Contain(tab.WorkspaceFolder));
+                                    Assert.That(chat.IsReadScopeCritical, Is.False,
+                                        "O workspace das tools do produto é capturado por turno; não herda alerta de leitura nativa.");
+                                    Assert.That(failure.CanReviewPermissions, Is.False);
+                                    Assert.That(missing.CanReviewPermissions, Is.False);
+                                    Assert.That(limited.CanReviewPermissions, Is.False);
+                                    Assert.That(failure.StatusText, Does.Not.Contain("[[").And.Not.Contain("ExecutionFailed"));
+                                    Assert.That(missing.StatusText, Does.Not.Contain("[[").And.Not.Contain("NotFound"));
+                                    Assert.That(limited.StatusText, Does.Not.Contain("[[").And.Not.Contain("ToolCallLimitExceeded"));
+                                    var statuses = panel.GetVisualDescendants().OfType<TextBlock>()
+                                        .Where(item => item.Text == failure.StatusText || item.Text == missing.StatusText || item.Text == limited.StatusText).ToArray();
+                                    Assert.That(statuses, Has.Length.EqualTo(3), "Os diagnósticos visíveis acompanham a troca de idioma.");
+                                    foreach (var status in statuses)
+                                    {
+                                        Assert.That(status.TextLayout.Width, Is.LessThanOrEqualTo(status.Bounds.Width + 1));
+                                        Assert.That(status.TextLayout.Height, Is.LessThanOrEqualTo(status.Bounds.Height + 1));
+                                    }
+                                });
+                            }
+                tab.WorkspaceFolder = null;
+                chat.RefreshReadScope();
+                Assert.That(chat.ReadScopeSummary, Is.EqualTo(LocalizationViewModel.Current.Resolve("agentReadScopeNoWorkspaceSummary")));
+                Assert.That(chat.ReadScopeText, Does.Not.Contain("synthetic-workspace"));
+            }
+            finally
+            {
+                LocalizationViewModel.Current.Language = "pt-BR";
                 await CloseAsync(window, chat, runtime);
             }
         });

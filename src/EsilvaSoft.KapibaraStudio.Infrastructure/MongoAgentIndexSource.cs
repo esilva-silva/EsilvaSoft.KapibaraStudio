@@ -10,7 +10,8 @@ namespace EsilvaSoft.KapibaraStudio.Infrastructure;
 public sealed class MongoAgentIndexSource(
     IConnectionSecretStore secrets,
     IEnvironmentVaultRepository? environments,
-    MongoClientPool clients) : IAgentMongoIndexSource
+    IMongoClientPool clients,
+    ISecretStore? credentialStore = null) : IAgentMongoIndexSource
 {
     private const int MaximumIndexes = 200;
     private const int MaximumRawIndexBytes = 64 * 1024;
@@ -35,7 +36,7 @@ public sealed class MongoAgentIndexSource(
             profile.TargetHost?.Contains("ENV.get(", StringComparison.OrdinalIgnoreCase) == true)
             throw new InvalidOperationException("Dynamic targets are not supported for agent index reads.");
         var context = await MongoOperationContext.PrepareAsync(profile, secrets, environments, clients,
-            operationToken).ConfigureAwait(false);
+            operationToken, credentialStore).ConfigureAwait(false);
         var target = context.CreateClient().GetDatabase(database);
         var originalUuid = await MongoMetadataSource.ReadConcreteCollectionUuidAsync(target, collection,
             operationToken).ConfigureAwait(false);
@@ -43,6 +44,7 @@ public sealed class MongoAgentIndexSource(
 
         var indexes = new List<AgentMongoIndexSummary>(MaximumIndexes);
         var truncated = false;
+        var indexLimitReached = false;
         var rawBytes = 0;
         // One definition per batch bounds the cursor's decoded batch; MongoDB may still send one
         // oversized definition, which is rejected before it enters the projected result.
@@ -58,14 +60,16 @@ public sealed class MongoAgentIndexSource(
                     if (indexes.Count == MaximumIndexes)
                     {
                         truncated = true;
+                        indexLimitReached = true;
                         break;
                     }
                     var projected = ProjectBounded(definition, MaximumRawTotalBytes - rawBytes,
-                        out var definitionBytes);
+                        out var definitionBytes, out var projectionTruncated);
                     rawBytes += definitionBytes;
                     indexes.Add(projected);
+                    truncated |= projectionTruncated;
                 }
-                if (truncated) break;
+                if (indexLimitReached) break;
             }
         }
 
@@ -77,22 +81,33 @@ public sealed class MongoAgentIndexSource(
     }
 
     internal static AgentMongoIndexSummary Project(BsonDocument definition)
+        => Project(definition, out _);
+
+    private static AgentMongoIndexSummary Project(BsonDocument definition, out bool truncated)
     {
+        truncated = false;
         if (!definition.TryGetValue("name", out var name) || !name.IsString ||
             !definition.TryGetValue("key", out var key) || key is not BsonDocument fields)
             throw new FormatException("Invalid index metadata.");
+        var partialFields = definition.TryGetValue("partialFilterExpression", out var partial) &&
+                            partial is BsonDocument filter
+            ? PartialFilterPaths(filter, out truncated) : null;
         return new(name.AsString, fields.Names.ToArray(), Flag(definition, "unique"),
             Flag(definition, "sparse"), Flag(definition, "hidden"))
         {
             KeyDirections = fields.Values.Select(Direction).ToArray(),
-            TtlSeconds = definition.TryGetValue("expireAfterSeconds", out var ttl) && ttl.IsNumeric &&
-                         ttl.ToDouble() is var seconds && double.IsFinite(seconds) && seconds >= 0
-                ? (long)Math.Min(seconds, long.MaxValue) : null,
+            TtlSeconds = definition.TryGetValue("expireAfterSeconds", out var ttl) ? ProjectTtl(ttl) : null,
             // Only the paths: the partial filter's values (constants of the user's data) never leave this adapter.
-            PartialFilterFields = definition.TryGetValue("partialFilterExpression", out var partial) &&
-                                  partial is BsonDocument filter
-                ? PartialFilterPaths(filter) : null
+            PartialFilterFields = partialFields
         };
+    }
+
+    private static long? ProjectTtl(BsonValue ttl)
+    {
+        // BSON Int64 is already the output type; routing it through double loses seconds above 2^53.
+        if (ttl.IsInt64) return ttl.AsInt64 >= 0 ? ttl.AsInt64 : null;
+        return ttl.IsNumeric && ttl.ToDouble() is var seconds && double.IsFinite(seconds) && seconds >= 0
+            ? (long)Math.Min(seconds, long.MaxValue) : null;
     }
 
     // Numeric keys become "1"/"-1"; special index kinds keep their short token ("text", "2dsphere", "hashed"...).
@@ -101,18 +116,29 @@ public sealed class MongoAgentIndexSource(
         value.IsString && value.AsString is { Length: > 0 and <= 32 } kind &&
             kind.All(static c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_') ? kind : "other";
 
-    private static string[] PartialFilterPaths(BsonDocument filter)
+    private static string[] PartialFilterPaths(BsonDocument filter, out bool truncated)
     {
         var paths = new List<string>();
+        var projectionTruncated = false;
         Collect(filter, 0);
-        return [.. paths.Distinct(StringComparer.Ordinal).Take(32)];
+        var distinct = paths.Distinct(StringComparer.Ordinal).Take(33).ToArray();
+        truncated = projectionTruncated || distinct.Length > 32;
+        return [.. distinct.Take(32)];
 
         void Collect(BsonDocument document, int depth)
         {
-            if (depth > 4) return;
+            if (depth > 4)
+            {
+                projectionTruncated = true;
+                return;
+            }
             foreach (var element in document)
             {
-                if (paths.Count >= 64) return;
+                if (paths.Count >= 64)
+                {
+                    projectionTruncated = true;
+                    return;
+                }
                 if (element.Name is "$and" or "$or" or "$nor" && element.Value is BsonArray items)
                 {
                     foreach (var item in items)
@@ -145,6 +171,10 @@ public sealed class MongoAgentIndexSource(
 
     internal static AgentMongoIndexSummary ProjectBounded(BsonDocument definition, int remainingBytes,
         out int definitionBytes)
+        => ProjectBounded(definition, remainingBytes, out definitionBytes, out _);
+
+    internal static AgentMongoIndexSummary ProjectBounded(BsonDocument definition, int remainingBytes,
+        out int definitionBytes, out bool truncated)
     {
         ArgumentNullException.ThrowIfNull(definition);
         if (definition.ElementCount is < 2 or > MaximumDefinitionFields ||
@@ -154,7 +184,7 @@ public sealed class MongoAgentIndexSource(
         definitionBytes = definition.ToBson().Length;
         if (definitionBytes > MaximumRawIndexBytes || definitionBytes > remainingBytes)
             throw new FormatException("Index metadata exceeds the byte limit.");
-        return Project(definition);
+        return Project(definition, out truncated);
     }
 
     private static bool Flag(BsonDocument definition, string name) =>

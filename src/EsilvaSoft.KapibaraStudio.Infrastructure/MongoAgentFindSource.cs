@@ -13,7 +13,8 @@ namespace EsilvaSoft.KapibaraStudio.Infrastructure;
 public sealed class MongoAgentFindSource(
     IConnectionSecretStore secrets,
     IEnvironmentVaultRepository? environments,
-    MongoClientPool clients) : IAgentMongoFindSource, IAgentMongoCountSource, IAgentMongoDistinctSource
+    IMongoClientPool clients,
+    ISecretStore? credentialStore = null) : IAgentMongoFindSource, IAgentMongoCountSource, IAgentMongoDistinctSource
 {
     private const int MaximumDocumentBytes = 256 * 1024;
     private static readonly JsonWriterSettings CanonicalJson = new()
@@ -57,7 +58,7 @@ public sealed class MongoAgentFindSource(
     {
         // The operation context resolves only the connection string. Its dynamic JSON parser is never used here.
         var context = await MongoOperationContext.PrepareAsync(profile, secrets, environments, clients,
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken, credentialStore).ConfigureAwait(false);
         var database = context.CreateClient().GetDatabase(databaseName);
         var originalUuid = await MongoMetadataSource.ReadConcreteCollectionUuidAsync(database, collectionName,
             cancellationToken).ConfigureAwait(false);
@@ -135,7 +136,7 @@ public sealed class MongoAgentFindSource(
 
         var filter = ParseLiteral(query.FilterEjson);
         var context = await MongoOperationContext.PrepareAsync(profile, secrets, environments, clients,
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken, credentialStore).ConfigureAwait(false);
         var database = context.CreateClient().GetDatabase(query.Database);
         var originalUuid = await MongoMetadataSource.ReadConcreteCollectionUuidAsync(database, query.Collection,
             cancellationToken).ConfigureAwait(false);
@@ -166,7 +167,7 @@ public sealed class MongoAgentFindSource(
 
         var filter = ParseLiteral(query.FilterEjson);
         var context = await MongoOperationContext.PrepareAsync(profile, secrets, environments, clients,
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken, credentialStore).ConfigureAwait(false);
         var database = context.CreateClient().GetDatabase(query.Database);
         var originalUuid = await MongoMetadataSource.ReadConcreteCollectionUuidAsync(database, query.Collection,
             cancellationToken).ConfigureAwait(false);

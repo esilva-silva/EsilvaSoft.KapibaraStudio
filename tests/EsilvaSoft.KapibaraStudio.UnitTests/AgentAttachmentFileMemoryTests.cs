@@ -109,4 +109,62 @@ public sealed class AgentAttachmentFileMemoryTests
         Assert.That(result.Failures.Single().Error, Is.EqualTo(AgentAttachmentError.NoWorkspace));
         Assert.That(files.Reads, Is.Zero);
     }
+
+    [Test]
+    public async Task FileReadAwaitDoesNotChangeTheCapturedChipListOrExclusions()
+    {
+        var files = Files();
+        files.Set(Path.Combine(Root, "first.txt"), Encoding.UTF8.GetBytes("first"));
+        var exclusions = new List<string> { "second.txt" };
+        var permissions = Permissions with
+        {
+            Workspace = new AgentWorkspacePermissions { UseFilesFolder = true, Exclusions = exclusions },
+        };
+        var requests = new List<AgentAttachmentRequest>
+        {
+            new(AgentAttachmentKind.WorkspaceFile, "first.txt"),
+            new(AgentAttachmentKind.WorkspaceFile, "second.txt"),
+        };
+        var reader = new FirstReadGate(files);
+        var resolving = AgentAttachmentResolver.ResolveAsync(requests,
+            new AgentWorkspaceContext(DateTimeOffset.UnixEpoch, Root), permissions, default, reader, files);
+
+        await reader.FirstReadEntered.Task;
+        exclusions.Clear();
+        requests[1] = new AgentAttachmentRequest(AgentAttachmentKind.WorkspaceFile, "replacement.txt");
+        reader.ReleaseFirstRead.TrySetResult();
+        var result = await resolving;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Attachments, Has.Count.EqualTo(1));
+            Assert.That(result.Attachments.Single().PathOrName, Is.EqualTo("first.txt"));
+            Assert.That(result.Failures, Has.Count.EqualTo(1));
+            Assert.That(result.Failures.Single().Error, Is.EqualTo(AgentAttachmentError.Excluded));
+            Assert.That(reader.Paths, Has.Count.EqualTo(1));
+            Assert.That(reader.Paths.Single(), Is.EqualTo(Path.Combine(Root, "first.txt")));
+        });
+    }
+
+    private sealed class FirstReadGate(MemoryAgentFiles files) : IAgentBoundedFileReader
+    {
+        private int _readCount;
+        public TaskCompletionSource FirstReadEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource ReleaseFirstRead { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public List<string> Paths { get; } = [];
+
+        public AgentFileReadResult Read(string fullPath, int maximumBytes) => files.Read(fullPath, maximumBytes);
+
+        public async Task<AgentFileReadResult> ReadAsync(string fullPath, int maximumBytes, CancellationToken cancellationToken)
+        {
+            Paths.Add(fullPath);
+            if (Interlocked.Increment(ref _readCount) == 1)
+            {
+                FirstReadEntered.TrySetResult();
+                await ReleaseFirstRead.Task.WaitAsync(cancellationToken);
+            }
+
+            return await files.ReadAsync(fullPath, maximumBytes, cancellationToken);
+        }
+    }
 }

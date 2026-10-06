@@ -195,6 +195,14 @@ public sealed partial class AgentToolCallItem : AgentChatItemViewModel
 
     public bool IsTerminal => State is not (AgentToolCallState.Requested or AgentToolCallState.Running);
 
+    internal void RefreshLocalizedText()
+    {
+        OnPropertyChanged(nameof(Title));
+        OnPropertyChanged(nameof(OriginText));
+        OnPropertyChanged(nameof(DestinationText));
+        OnPropertyChanged(nameof(StatusText));
+    }
+
     /// <summary>Outcome persisted with the conversation (name and outcome only).</summary>
     public AgentToolResultStatus PersistedOutcome => State switch
     {

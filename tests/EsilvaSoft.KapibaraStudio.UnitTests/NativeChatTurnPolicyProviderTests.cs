@@ -11,6 +11,138 @@ public sealed class NativeChatTurnPolicyProviderTests
     private const string ProviderId = AgentProviderIds.GitHubCopilotSubscription;
 
     [Test]
+    public async Task NonemptyInternalAnchorIsDeniedEvenAfterEveryTurnHasEnded()
+    {
+        var owner = new MemoryAuthority();
+        var principalId = await owner.GetInternalPrincipalIdAsync();
+        var profile = Profile("Only");
+        var sessionId = Guid.NewGuid();
+        var turnId = Guid.NewGuid();
+        var grant = new AgentPermissionGrant(principalId, AgentInvocationScope.ForTurn(sessionId, turnId),
+            profile.SourceGenerationId!.Value, AgentPermission.ReadMetadata,
+            AgentNamespaceScope.ForConnection(profile.Id), AgentOutputDestination.ProviderExternal(ProviderId),
+            AgentOutputDataScope.Metadata);
+        await owner.Policies.SaveAsync(principalId, [grant], 0);
+        var policy = new NativeChatTurnPolicyProvider(owner.Policies, owner, new AgentNativeChatTurnScopeRegistry(),
+            new Mcp.McpFixedProfiles(profile));
+        var request = new AgentPermissionRequest(new AgentPrincipal(principalId, AgentPrincipalOrigin.Internal, 1),
+            AgentPermission.ReadMetadata, AgentToolRisk.ReadOnly, AgentNamespaceScope.ForConnection(profile.Id),
+            1, false, new AgentInvocationContext(ProviderId, null, sessionId, turnId), profile.SourceGenerationId,
+            AgentOutputDestination.ProviderExternal(ProviderId), AgentOutputDataScope.Metadata);
+
+        Assert.That(await policy.LoadAsync(principalId, default), Is.Null);
+        var decision = await new AgentPermissionEvaluator(policy).EvaluateAsync(request, default);
+        Assert.That(decision.IsAllowed, Is.False, "Ended scopes cannot expose durable internal grants.");
+        Assert.That((await owner.Policies.LoadAsync(principalId, default))!.Grants, Has.Count.EqualTo(1),
+            "Unexpected persisted grants must be denied without silently rewriting storage.");
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task TurnRemovedOrReplacedDuringProfileLoadCannotPublishOldGrants(bool replace)
+    {
+        var owner = new MemoryAuthority();
+        var principalId = await owner.GetInternalPrincipalIdAsync();
+        await owner.Policies.SaveAsync(principalId, [], 0);
+        var profile = Profile("Only");
+        var turns = new AgentNativeChatTurnScopeRegistry();
+        var permissions = Permissions();
+        var removed = new AgentNativeChatTurnScope(Guid.NewGuid(), Guid.NewGuid(), ProviderId, Plan(permissions), permissions, null);
+        var surviving = new AgentNativeChatTurnScope(Guid.NewGuid(), Guid.NewGuid(), ProviderId, Plan(permissions), permissions, null);
+        turns.Register(removed);
+        turns.Register(surviving);
+        var profiles = new WaitingProfiles(profile);
+        var policy = new NativeChatTurnPolicyProvider(owner.Policies, owner, turns, profiles);
+        var pending = policy.LoadAsync(principalId, default);
+        await profiles.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        try
+        {
+            turns.Remove(removed.SessionId, removed.TurnId);
+            if (replace)
+                turns.Register(removed with { Permissions = permissions with { ExternalDestinationConsentAt = null } });
+            profiles.Release.TrySetResult();
+            var loaded = await pending.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.That(loaded, Is.Not.Null);
+            Assert.That(loaded!.Grants, Has.Count.EqualTo(1));
+            Assert.That(loaded.Grants.Single().InvocationScope.Covers(
+                new AgentInvocationContext(ProviderId, null, surviving.SessionId, surviving.TurnId)), Is.True);
+            Assert.That(loaded.Grants.Any(grant => grant.InvocationScope.Covers(
+                new AgentInvocationContext(ProviderId, null, removed.SessionId, removed.TurnId))), Is.False);
+        }
+        finally
+        {
+            profiles.Release.TrySetResult();
+            await pending.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task AnchorChangedOrUnreadableDuringProfileLoadDeniesEvaluation(bool failReload)
+    {
+        var owner = new MemoryAuthority();
+        var principalId = await owner.GetInternalPrincipalIdAsync();
+        await owner.Policies.SaveAsync(principalId, [], 0);
+        var profile = Profile("Only");
+        var turns = new AgentNativeChatTurnScopeRegistry();
+        var permissions = Permissions();
+        var turn = new AgentNativeChatTurnScope(Guid.NewGuid(), Guid.NewGuid(), ProviderId, Plan(permissions), permissions, null);
+        turns.Register(turn);
+        var profiles = new WaitingProfiles(profile);
+        var policy = new NativeChatTurnPolicyProvider(owner.Policies, owner, turns, profiles);
+        var request = new AgentPermissionRequest(new AgentPrincipal(principalId, AgentPrincipalOrigin.Internal, 1),
+            AgentPermission.ReadMetadata, AgentToolRisk.ReadOnly, AgentNamespaceScope.ForConnection(profile.Id),
+            1, false, new AgentInvocationContext(ProviderId, null, turn.SessionId, turn.TurnId), profile.SourceGenerationId,
+            AgentOutputDestination.ProviderExternal(ProviderId), AgentOutputDataScope.Metadata);
+        var pending = new AgentPermissionEvaluator(policy).EvaluateAsync(request, default);
+        await profiles.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        try
+        {
+            if (failReload) owner.Policies.LoadFailure = new IOException("synthetic anchor reload failure");
+            else await owner.Policies.SaveAsync(principalId, [], 1);
+            profiles.Release.TrySetResult();
+            var decision = await pending.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.That(decision.IsAllowed, Is.False, "Neither an earlier revision nor a failed reload may authorize the invocation.");
+            Assert.That(decision.Reason, Is.EqualTo(AgentPermissionDenialReason.PolicyUnavailable));
+        }
+        finally
+        {
+            profiles.Release.TrySetResult();
+            await pending.WaitAsync(TimeSpan.FromSeconds(5));
+            owner.Policies.LoadFailure = null;
+        }
+    }
+
+    [Test]
+    public async Task EmptyAnchorReturnedForAnotherPrincipalCannotBeReboundToInternalTurn()
+    {
+        var owner = new MemoryAuthority();
+        var principalId = await owner.GetInternalPrincipalIdAsync();
+        var foreignAnchor = AgentAuthorizationPolicySnapshot.Load(Guid.NewGuid(), 1, 1, []);
+        var turns = new AgentNativeChatTurnScopeRegistry();
+        var permissions = Permissions();
+        turns.Register(new AgentNativeChatTurnScope(Guid.NewGuid(), Guid.NewGuid(), ProviderId, Plan(permissions), permissions, null));
+        var policy = new NativeChatTurnPolicyProvider(new StubPolicyRepository(foreignAnchor), owner, turns,
+            new Mcp.McpFixedProfiles(Profile("Only")));
+        Assert.That(await policy.LoadAsync(principalId, default), Is.Null);
+    }
+
+    [Test]
+    public async Task DurableGrantsOfAnotherPrincipalStayAvailableWithoutNativeTurns()
+    {
+        var owner = new MemoryAuthority();
+        var externalId = Guid.NewGuid();
+        var profile = Profile("Only");
+        var grant = new AgentPermissionGrant(externalId, AgentInvocationScope.ForTurn(Guid.NewGuid(), Guid.NewGuid()),
+            profile.SourceGenerationId!.Value, AgentPermission.ReadMetadata, AgentNamespaceScope.ForConnection(profile.Id),
+            AgentOutputDestination.McpExternal("fixture"), AgentOutputDataScope.Metadata);
+        var stored = await owner.Policies.SaveAsync(externalId, [grant], 0);
+        var policy = new NativeChatTurnPolicyProvider(owner.Policies, owner, new AgentNativeChatTurnScopeRegistry(),
+            new Mcp.McpFixedProfiles(profile));
+        Assert.That(await policy.LoadAsync(externalId, default), Is.SameAs(stored));
+    }
+
+    [Test]
     public async Task ActiveGrantIsLimitedToExactTurnSelectedConnectionGenerationAndDestination()
     {
         var owner = new MemoryAuthority();
@@ -360,6 +492,20 @@ public sealed class NativeChatTurnPolicyProviderTests
 
     private static ConnectionProfile Profile(string name) =>
         ConnectionProfile.Create(name, "mongodb://localhost:27017") with { SourceGenerationId = Guid.NewGuid() };
+
+    private sealed class WaitingProfiles(ConnectionProfile profile) : IConnectionProfileRepository
+    {
+        public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public async Task<IReadOnlyList<ConnectionProfile>> GetAllAsync(CancellationToken cancellationToken = default)
+        {
+            Entered.TrySetResult();
+            await Release.Task.WaitAsync(cancellationToken);
+            return [profile];
+        }
+        public Task SaveAsync(ConnectionProfile value, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task DeleteAsync(Guid profileId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+    }
 
     private static AgentProviderPermissions Permissions() => AgentProviderPermissions.Default(ProviderId) with
     {

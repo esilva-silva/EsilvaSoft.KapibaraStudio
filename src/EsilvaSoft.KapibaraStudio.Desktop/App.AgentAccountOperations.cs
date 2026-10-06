@@ -70,7 +70,16 @@ public partial class App
     }
 
     private static AgentAccountStatus MapCopilot(CopilotAccountStatus account, AgentAccountInstallState install) =>
-        new(install, null, account.State switch
+        new(account.CliAvailability switch
+        {
+            CopilotCliAvailability.NotFound => AgentAccountInstallState.NotFound,
+            CopilotCliAvailability.InvalidPath => AgentAccountInstallState.InvalidPath,
+            CopilotCliAvailability.UnsupportedExecutable => AgentAccountInstallState.UnsupportedExecutable,
+            CopilotCliAvailability.NotExecutable => AgentAccountInstallState.NotExecutable,
+            CopilotCliAvailability.ProbeFailed => AgentAccountInstallState.CheckFailed,
+            _ => install,
+        }, null, account.CliAvailability is not (null or CopilotCliAvailability.Available)
+            ? AgentAccountAuthState.NotChecked : account.State switch
         {
             CopilotAccountState.Subscription => AgentAccountAuthState.Subscription,
             CopilotAccountState.NotLoggedIn => AgentAccountAuthState.SignedOut,

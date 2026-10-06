@@ -188,6 +188,52 @@ internal sealed class CopilotPersistentSessionFsStoreTests
         finally { if (Directory.Exists(root)) Directory.Delete(root, recursive: true); }
     }
 
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task RejectedPersistentFileQuotaDoesNotLeaveParentDirectoriesAndCanReopen(bool append)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "kapibara-copilot-atomic-quota-" + Guid.NewGuid().ToString("N"));
+        const string id = "quota-recovery-id";
+        try
+        {
+            await using (var store = new CopilotPersistentSessionFsStore(root))
+            {
+                var handler = (ISessionFsHandler)store.CreateProvider(id);
+                await handler.WriteFileAsync(new SessionFsWriteFileRequest
+                { SessionId = id, Path = "/committed.txt", Content = "durable" }, CancellationToken.None);
+                // Repeating an overwrite is idempotent and must not consume another file slot.
+                await handler.WriteFileAsync(new SessionFsWriteFileRequest
+                { SessionId = id, Path = "/committed.txt", Content = "durable" }, CancellationToken.None);
+                var rejectedPath = "/rejected/nested/state.txt";
+                var tooLarge = new string('x', CopilotVolatileSessionFsStore.MaxFileBytes + 1);
+                var response = append
+                    ? await handler.AppendFileAsync(new SessionFsAppendFileRequest
+                    { SessionId = id, Path = rejectedPath, Content = tooLarge }, CancellationToken.None)
+                    : await handler.WriteFileAsync(new SessionFsWriteFileRequest
+                    { SessionId = id, Path = rejectedPath, Content = tooLarge }, CancellationToken.None);
+                Assert.That(response, Is.Not.Null);
+                var sessionDirectory = Path.Combine(root, Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(id))));
+                var filesRoot = Path.Combine(sessionDirectory, "files");
+                Assert.That(Directory.Exists(Path.Combine(filesRoot, "rejected")), Is.False,
+                    "A rejected file must not publish parents or consume persistent directory quota.");
+                Assert.That(Directory.GetFiles(filesRoot, "*", SearchOption.AllDirectories), Has.Length.EqualTo(1));
+                await handler.WriteFileAsync(new SessionFsWriteFileRequest
+                { SessionId = id, Path = "/accepted/state.txt", Content = "recovered" }, CancellationToken.None);
+            }
+
+            await using var reopened = new CopilotPersistentSessionFsStore(root);
+            var recoveredHandler = (ISessionFsHandler)reopened.CreateProvider(id);
+            foreach (var (path, expected) in new[] { ("/committed.txt", "durable"), ("/accepted/state.txt", "recovered") })
+            {
+                var read = await recoveredHandler.ReadFileAsync(new SessionFsReadFileRequest
+                { SessionId = id, Path = path }, CancellationToken.None);
+                Assert.That(read.Error, Is.Null);
+                Assert.That(read.Content, Is.EqualTo(expected));
+            }
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, recursive: true); }
+    }
+
     [Test]
     public async Task StoresCannotOwnTheSamePersistentSessionConcurrently()
     {

@@ -13,6 +13,11 @@ namespace EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Copilot;
 
 internal sealed class CopilotSubscriptionAgentSession : IAgentSession
 {
+    // Keep every accepted SDK identity until this turn ends. Never evict IDs and make a replay admissible again.
+    // This bounds the replay ledger independently of the runtime's queued-event, message and tool-call limits.
+    internal const int MaximumSdkEventIdsPerTurn = 16_384;
+    private const int MaxToolSchemaChars = 64 * 1024;
+    private const int MaxToolSchemaDepth = 16;
     private static readonly string[] ErrorCodes =
         ["CopilotNotLoggedIn", "CopilotNonSubscriptionAuth", "CopilotInvalidPlan", "CopilotTurnPlanMissing",
             "CopilotTurnPlanBlocked", "CopilotNativeToolsUnsupported", "CopilotPromptEmpty", "CopilotToolNotAvailable",
@@ -20,7 +25,9 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
             "CopilotSessionUnavailable", "CopilotProviderFailure", "CopilotRuntimeStartFailed",
             "CopilotAuthenticationCheckFailed", "CopilotSessionConfigurationFailed", "CopilotSessionLookupFailed",
             "CopilotSessionResumeFailed", "CopilotSessionCreateFailed", "CopilotSessionPolicyFailed",
-            "CopilotSessionSendFailed", "CopilotSessionStreamFailed"];
+            "CopilotSessionSendFailed", "CopilotSessionStreamFailed", "CopilotAuthenticationFailed",
+            "CopilotAccessDenied", "CopilotQuotaExceeded", "CopilotRateLimited", "CopilotContextLimitExceeded",
+            "CopilotQueryFailed", "CopilotRequestTimedOut"];
 
     private readonly IAgentToolRegistry _registry;
     private readonly AgentSessionOptions _options;
@@ -253,14 +260,14 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
                     return;
                 }
 
-                if (_registry.GetInProcessInputSchemaJson(AgentProviderIds.GitHubCopilotSubscription, name) is not { } schema)
+                if (PrepareToolSchema(_registry.GetInProcessInputSchemaJson(
+                        AgentProviderIds.GitHubCopilotSubscription, name)) is not { } schema)
                 {
                     turn.Emit(new AgentProviderEvent(AgentEventKind.AgentError, "CopilotToolSchemaUnavailable"));
                     return;
                 }
 
-                using var document = JsonDocument.Parse(schema);
-                declared.Add(AIFunctionFactory.CreateDeclaration(name, ToolDescription(name), document.RootElement.Clone()));
+                declared.Add(AIFunctionFactory.CreateDeclaration(name, ToolDescription(name), schema));
                 available.AddCustom(name);
             }
 
@@ -397,11 +404,12 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
         {
             // Após SendAsync, cancelar não implica rollback nem confirma se uma operação remota concluiu.
         }
-        catch (Exception)
+        catch (Exception error)
         {
             // A reserved identifier is not proof of an established native session. Report the failed operation,
             // never the exception message: RPC failures may contain user paths, prompts or authentication details.
-            turn.Emit(new AgentProviderEvent(AgentEventKind.AgentError, failureCode));
+            turn.Emit(new AgentProviderEvent(AgentEventKind.AgentError,
+                CopilotSessionErrorClassifier.FromException(error, failureCode)));
         }
         finally
         {
@@ -477,6 +485,104 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
         });
     }
 
+    /// <summary>
+    /// Accept only bounded, closed object schemas from the product registry before declaring a Copilot tool.
+    /// Invalid schemas are rejected before creating or resuming a runtime session.
+    /// </summary>
+    internal static JsonElement? PrepareToolSchema(string? schemaJson)
+    {
+        if (schemaJson is null || schemaJson.Length is 0 or > MaxToolSchemaChars)
+            return null;
+
+        try
+        {
+            using var document = JsonDocument.Parse(schemaJson, new JsonDocumentOptions { MaxDepth = MaxToolSchemaDepth });
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object ||
+                !root.TryGetProperty("type", out var type) || type.ValueKind != JsonValueKind.String ||
+                !string.Equals(type.GetString(), "object", StringComparison.Ordinal) ||
+                !root.TryGetProperty("additionalProperties", out var additionalProperties) ||
+                additionalProperties.ValueKind != JsonValueKind.False ||
+                ContainsOpenObjectSchema(root))
+            {
+                return null;
+            }
+
+            // JsonElement must outlive the JsonDocument disposed above.
+            return root.Clone();
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static bool ContainsOpenObjectSchema(JsonElement node)
+    {
+        if (node.ValueKind != JsonValueKind.Object) return false;
+
+        if (node.TryGetProperty("type", out var type))
+        {
+            var declaresObject = type.ValueKind == JsonValueKind.String &&
+                                string.Equals(type.GetString(), "object", StringComparison.Ordinal);
+            if (type.ValueKind == JsonValueKind.Array)
+                declaresObject = type.EnumerateArray().Any(item => item.ValueKind == JsonValueKind.String &&
+                    string.Equals(item.GetString(), "object", StringComparison.Ordinal));
+
+            if (declaresObject && (!node.TryGetProperty("additionalProperties", out var additionalProperties) ||
+                                   additionalProperties.ValueKind != JsonValueKind.False))
+                return true;
+        }
+
+        foreach (var keyword in node.EnumerateObject())
+        {
+            switch (keyword.Name)
+            {
+                case "$defs":
+                case "definitions":
+                case "properties":
+                case "patternProperties":
+                case "dependentSchemas":
+                    foreach (var childSchema in keyword.Value.EnumerateObject())
+                        if (ContainsOpenObjectSchema(childSchema.Value)) return true;
+                    break;
+                case "items":
+                case "prefixItems":
+                    if (keyword.Value.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var childSchema in keyword.Value.EnumerateArray())
+                            if (ContainsOpenObjectSchema(childSchema)) return true;
+                    }
+                    else if (ContainsOpenObjectSchema(keyword.Value)) return true;
+                    break;
+                case "additionalProperties":
+                case "unevaluatedProperties":
+                case "propertyNames":
+                case "contains":
+                case "unevaluatedItems":
+                case "contentSchema":
+                case "not":
+                case "if":
+                case "then":
+                case "else":
+                    if (ContainsOpenObjectSchema(keyword.Value)) return true;
+                    break;
+                case "allOf":
+                case "anyOf":
+                case "oneOf":
+                    foreach (var childSchema in keyword.Value.EnumerateArray())
+                        if (ContainsOpenObjectSchema(childSchema)) return true;
+                    break;
+                case "dependencies":
+                    foreach (var dependency in keyword.Value.EnumerateObject())
+                        if (dependency.Value.ValueKind == JsonValueKind.Object &&
+                            ContainsOpenObjectSchema(dependency.Value)) return true;
+                    break;
+            }
+        }
+        return false;
+    }
+
 #pragma warning disable GHCP001 // SDK 1.0.14 exposes no stable alternative to explicitly resolve permission.requested RPCs.
     internal static Task<PermissionDecision> DecidePermissionAsync(PermissionRequest permission, HashSet<string> allowed)
     {
@@ -543,7 +649,10 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
         return prompt;
     }
 
-    private static void OnEvent(ActiveTurn turn, SessionEvent evt, HashSet<string> allowed)
+    private static void OnEvent(ActiveTurn turn, SessionEvent evt, HashSet<string> allowed) =>
+        turn.ProcessEvent(evt, allowed);
+
+    private static void MapEvent(ActiveTurn turn, SessionEvent evt, HashSet<string> allowed)
     {
         switch (evt)
         {
@@ -568,12 +677,13 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
             case ExternalToolRequestedEvent tool when tool.Data is { } data:
                 turn.RequestTool(data, allowed);
                 break;
-            case SessionErrorEvent:
-                turn.Emit(new AgentProviderEvent(AgentEventKind.AgentError, "CopilotProviderFailure"));
-                turn.Done.TrySetResult();
+            case SessionErrorEvent error:
+                turn.Emit(new AgentProviderEvent(AgentEventKind.AgentError,
+                    CopilotSessionErrorClassifier.FromSessionError(error.Data)));
+                turn.Complete();
                 break;
             case SessionIdleEvent idle when !string.Equals(idle.Data?.Mode.ToString(), "autopilot", StringComparison.OrdinalIgnoreCase):
-                turn.Done.TrySetResult();
+                turn.Complete();
                 break;
         }
     }
@@ -584,7 +694,7 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
         catch (Exception) when (turn.Cancelled is false)
         {
             turn.Emit(new AgentProviderEvent(AgentEventKind.AgentError, "CopilotProviderFailure"));
-            turn.Done.TrySetResult();
+            turn.Complete();
         }
     }
 
@@ -714,9 +824,11 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
     private sealed class ActiveTurn : IDisposable
     {
         private readonly CancellationTokenSource _cancel;
+        private readonly object _eventGate = new();
         private readonly Dictionary<string, (AgentMessageId Id, bool Started, bool HasDelta)> _messages = new(StringComparer.Ordinal);
         private readonly HashSet<string> _completedMessages = new(StringComparer.Ordinal);
         private readonly HashSet<string> _toolRequestIds = new(StringComparer.Ordinal);
+        private readonly HashSet<Guid> _sdkEventIds = [];
         public ActiveTurn(AgentTurnId turnId, CancellationToken cancellationToken)
         {
             TurnId = turnId;
@@ -733,14 +845,49 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
         public ICopilotRuntimeSession? Session { get; set; }
         public bool Sent { get; set; }
         public bool Cancelled { get; private set; }
+        private int _terminal;
+        public bool IsTerminal => Volatile.Read(ref _terminal) != 0;
+        public void ProcessEvent(SessionEvent evt, HashSet<string> allowed)
+        {
+            lock (_eventGate)
+            {
+                // Serialize message state, identity acceptance and terminal transitions. A callback captured
+                // by an older subscription always stays on its originating turn and cannot reopen it.
+                if (_terminal != 0) return;
+                // SDK 1.0.14 identifies events with a UUID. An empty ID carries no deduplication evidence.
+                if (evt.Id != Guid.Empty)
+                {
+                    if (_sdkEventIds.Contains(evt.Id)) return;
+                    if (_sdkEventIds.Count >= MaximumSdkEventIdsPerTurn)
+                    {
+                        Emit(new AgentProviderEvent(AgentEventKind.AgentError, "CopilotSessionStreamFailed"));
+                        Complete();
+                        return;
+                    }
+                    _sdkEventIds.Add(evt.Id);
+                }
+                MapEvent(this, evt, allowed);
+            }
+        }
+        public void Complete()
+        {
+            lock (_eventGate) Interlocked.Exchange(ref _terminal, 1);
+            Done.TrySetResult();
+        }
         public void Cancel()
         {
             Cancelled = true;
             _cancel.Cancel();
-            Done.TrySetResult();
+            Complete();
         }
         public void Dispose() => _cancel.Dispose();
-        public void Emit(AgentProviderEvent item) => Events.Writer.TryWrite(item);
+        public void Emit(AgentProviderEvent item)
+        {
+            lock (_eventGate)
+            {
+                if (_terminal == 0) Events.Writer.TryWrite(item);
+            }
+        }
 
         public void StartMessage(string? key)
         {
@@ -773,18 +920,20 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
 
         public void RequestTool(ExternalToolRequestedData data, HashSet<string> allowed)
         {
+            if (IsTerminal) return;
+
             if (string.IsNullOrWhiteSpace(data.RequestId) || string.IsNullOrWhiteSpace(data.ToolName) ||
                 !data.Arguments.HasValue || data.Arguments.Value.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
             {
                 Emit(new AgentProviderEvent(AgentEventKind.AgentError, "CopilotToolRequestInvalid"));
-                Done.TrySetResult();
+                Complete();
                 return;
             }
 
             if (!allowed.Contains(data.ToolName))
             {
                 Emit(new AgentProviderEvent(AgentEventKind.AgentError, "CopilotToolNotPlanned"));
-                Done.TrySetResult();
+                Complete();
                 return;
             }
 
@@ -794,7 +943,7 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
                 if (Pending.Count >= 32 || !_toolRequestIds.Add(data.RequestId))
                 {
                     Emit(new AgentProviderEvent(AgentEventKind.AgentError, "CopilotInvalidPlan"));
-                    Done.TrySetResult();
+                    Complete();
                     return;
                 }
 
@@ -806,9 +955,16 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
 
         public bool TryTakeTool(AgentToolCallId id, out string requestId)
         {
-            lock (Pending)
+            lock (_eventGate)
             {
-                return Pending.Remove(id, out requestId!);
+                // A queued result cannot reopen a turn already closed by idle/error/cancellation.
+                // Serialize acceptance with terminal events, using the same lock order as RequestTool.
+                if (_terminal != 0)
+                {
+                    requestId = string.Empty;
+                    return false;
+                }
+                lock (Pending) return Pending.Remove(id, out requestId!);
             }
         }
     }

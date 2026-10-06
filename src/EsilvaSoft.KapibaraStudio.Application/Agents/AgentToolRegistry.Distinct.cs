@@ -99,6 +99,7 @@ public sealed partial class AgentToolRegistry
         }
         if (page is null || !page.TargetVerified || page.ValuesEjson is null ||
             page.ValuesEjson.Count > query!.MaximumValues ||
+            page.TruncationReason is not (null or AgentMongoDistinctTruncationReason.ValueLimit or AgentMongoDistinctTruncationReason.OutputLimit) ||
             page.Truncated != (page.TruncationReason is not null) ||
             page.Truncated && page.ValuesEjson.Count == 0)
             return AgentToolInvocationResult.Failure(PermissionDenied, AgentAuditDecisionReason.ValidationRejected);

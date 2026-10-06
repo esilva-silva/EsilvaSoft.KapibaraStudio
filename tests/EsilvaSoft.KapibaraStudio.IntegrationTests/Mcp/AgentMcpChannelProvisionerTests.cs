@@ -115,6 +115,91 @@ public sealed class AgentMcpChannelProvisionerTests
     }
 
     [Test]
+    public async Task SessionChannelReadsWorkspaceContextThroughTheAuthenticatedBrokerPipe()
+    {
+        await using var rig = new ProvisionerRig(exposeWorkspaceContext: true);
+        var provisioner = rig.Create();
+        var opened = await provisioner.OpenSessionAsync("claude-code", Guid.NewGuid());
+        Assert.That(opened.IsReady, Is.True, opened.Status.ToString());
+
+        var snapshot = new AgentWorkspaceContext(DateTimeOffset.UtcNow,
+            WorkspaceFolder: rig.Folder,
+            ActiveFilePath: Path.Combine(rig.Folder, "consulta.js"),
+            ActiveFileName: "consulta.js",
+            TabId: "synthetic-tab",
+            BufferText: "BUFFER-CANARY-PRIVATE-91f2",
+            ConnectionId: rig.Allowed.Id.ToString("D"),
+            ConnectionName: "Conexão sintética",
+            DatabaseName: "catalogo",
+            CollectionName: "itens");
+        var permissions = AgentProviderPermissions.Default("claude-code") with
+        {
+            ExternalDestinationConsentAt = DateTimeOffset.UtcNow,
+            Workspace = new AgentWorkspacePermissions { UseFilesFolder = true, Exclusions = [] },
+            EditProposals = new AgentEditProposalPermissions { ActiveFile = false },
+            EnabledReadTools = [AgentProductToolNames.GetWorkspaceContext],
+            ConfirmationCategories = AgentConfirmationCategories.None,
+        };
+        var plan = AgentModePolicy.Plan(AgentOperationMode.Agent, permissions,
+            new AgentPlatformFacts(true, true));
+        Assert.That(plan.ProductTools, Is.EquivalentTo([AgentProductToolNames.GetWorkspaceContext]));
+        Assert.That(await provisioner.UpdateTurnAsync(opened.Handle!, plan, permissions, snapshot),
+            Is.EqualTo(AgentMcpChannelStatus.Ready));
+
+        var proofRef = new SecretReference(Guid.Parse(opened.LaunchSpec!.Args[
+            opened.LaunchSpec.Args.ToList().IndexOf("--proof-ref") + 1]), 1);
+        var proof = rig.Secrets.Values[proofRef];
+        await using var peer = await RawBrokerPeer.ConnectAsync(provisioner.Broker!.WorkspaceId);
+        Assert.That((await peer.AuthenticateAsync(opened.Handle!.ChannelId, proof))?.Type,
+            Is.EqualTo(AgentBrokerProtocol.MessageTypes.Authenticated));
+
+        var tools = await ListToolsAsync(peer, 1);
+        var invalid = await CallAsync(peer, 2, AgentProductToolNames.GetWorkspaceContext, "{\"path\":\"fora-da-aba\"}");
+        var result = await CallAsync(peer, 3, AgentProductToolNames.GetWorkspaceContext, "{}");
+        await peer.CallAsync(4, AgentProductToolNames.GetWorkspaceContext, "{}");
+        await peer.CallAsync(5, AgentProductToolNames.GetWorkspaceContext, "{}");
+        var concurrentA = await peer.ReceiveAsync();
+        var concurrentB = await peer.ReceiveAsync();
+        var auditRepository = (IAgentAuditRepository)rig.Owner;
+        var audit = await auditRepository.GetRecentAsync(100);
+        var workspaceEvents = audit.Where(item => item.ToolName == AgentProductToolNames.GetWorkspaceContext).ToArray();
+        var invocationGroups = workspaceEvents.GroupBy(item => item.InvocationId).ToArray();
+        var pending = await auditRepository.GetPendingAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That(tools, Is.EqualTo([AgentProductToolNames.GetWorkspaceContext]));
+            Assert.That((invalid.Status, invalid.ErrorCode), Is.EqualTo(("failed", "InvalidArguments")));
+            Assert.That(result.Status, Is.EqualTo(AgentBrokerMessage.SucceededStatus), result.ErrorCode);
+            Assert.That(result.StructuredContent!.Value.GetProperty("workspaceFolder").GetString(), Is.EqualTo(rig.Folder));
+            Assert.That(result.StructuredContent.Value.GetProperty("activeFile").GetProperty("relativePath").GetString(),
+                Is.EqualTo("consulta.js"));
+            Assert.That(result.StructuredContent.Value.GetProperty("activeFile").GetProperty("insideWorkspace").GetBoolean(), Is.True);
+            var tab = result.StructuredContent.Value.GetProperty("tab");
+            Assert.That(tab.GetProperty("connectionId").GetGuid(), Is.EqualTo(rig.Allowed.Id));
+            Assert.That(tab.GetProperty("database").GetString(), Is.EqualTo("catalogo"));
+            Assert.That(tab.GetProperty("collection").GetString(), Is.EqualTo("itens"));
+            Assert.That(result.StructuredContent.Value.GetRawText(), Does.Not.Contain("BUFFER-CANARY-PRIVATE-91f2")
+                .And.Not.Contain(ProvisionerRig.UriCanary));
+            Assert.That(new[] { concurrentA?.Id, concurrentB?.Id }, Is.EquivalentTo(new long?[] { 4, 5 }));
+            Assert.That(new[] { concurrentA?.Status, concurrentB?.Status },
+                Is.All.EqualTo(AgentBrokerMessage.SucceededStatus));
+            Assert.That(invocationGroups, Has.Length.EqualTo(4));
+            Assert.That(invocationGroups.All(group => group.Count() == 2 &&
+                group.Count(item => item.Outcome == AgentAuditOutcome.Intent) == 1), Is.True,
+                "Cada chamada deve ter intenção e exatamente um desfecho no ledger LiteDB.");
+            Assert.That(workspaceEvents.Count(item => item.Outcome == AgentAuditOutcome.Denied), Is.EqualTo(1));
+            Assert.That(workspaceEvents.Count(item => item.Outcome == AgentAuditOutcome.Succeeded), Is.EqualTo(3));
+            Assert.That(workspaceEvents.Where(item => item.Outcome == AgentAuditOutcome.Succeeded)
+                .All(item => item.ItemCount == 1 && item.OutputBytes > 0), Is.True);
+            Assert.That(pending, Is.Empty);
+            Assert.That(JsonSerializer.Serialize(workspaceEvents), Does.Not.Contain("BUFFER-CANARY-PRIVATE-91f2")
+                .And.Not.Contain("consulta.js").And.Not.Contain(ProvisionerRig.UriCanary));
+        });
+
+        await provisioner.CloseSessionAsync(opened.Handle!);
+    }
+
+    [Test]
     public async Task MissingPlannedToolStopsTheTurnBeforeTheClaudeProcess()
     {
         await using var rig = new ProvisionerRig();
@@ -206,7 +291,7 @@ public sealed class AgentMcpChannelProvisionerTests
         private readonly SyntheticDirectory _files = new();
         private readonly List<AgentMcpChannelProvisioner> _created = [];
 
-        public ProvisionerRig()
+        public ProvisionerRig(bool exposeWorkspaceContext = false)
         {
             Folder = _files.Path;
             Executable = Path.Combine(Folder, "EsilvaSoft.KapibaraStudio.McpServer.exe");
@@ -219,7 +304,11 @@ public sealed class AgentMcpChannelProvisionerTests
                 exposure: AgentToolExposure.Through(AgentToolExposureStage.Metadata), principalAuthority: Owner,
                 indexes: new AgentSessionToolDoubles.FakeIndexes(),
                 metadata: new AgentSessionToolDoubles.ThrowingMetadataSource(),
-                sessionTools: new AgentSessionToolPorts(Sessions));
+                sessionTools: new AgentSessionToolPorts(Sessions)
+                {
+                    PathProbe = new LocalAgentWorkspacePathProbe(),
+                    WorkspaceContext = exposeWorkspaceContext ? new SyntheticWorkspaceContextSource() : null
+                });
         }
 
         public string Folder { get; }
@@ -251,4 +340,10 @@ public sealed class AgentMcpChannelProvisionerTests
             _files.Dispose();
         }
     }
+
+    private sealed class SyntheticWorkspaceContextSource : IAgentWorkspaceContextSource
+    {
+        public AgentWorkspaceContext Capture() => new(DateTimeOffset.UtcNow);
+    }
+
 }

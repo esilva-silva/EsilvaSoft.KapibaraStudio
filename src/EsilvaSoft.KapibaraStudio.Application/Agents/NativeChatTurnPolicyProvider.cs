@@ -28,13 +28,17 @@ public sealed class NativeChatTurnPolicyProvider : IAgentAuthorizationPolicyProv
     public async Task<AgentAuthorizationPolicySnapshot?> LoadAsync(Guid principalId, CancellationToken cancellationToken)
     {
         var stored = await _repository.LoadAsync(principalId, cancellationToken).ConfigureAwait(false);
-        var turns = _turns.Snapshot();
-        if (turns.Count == 0 || stored is null || !stored.IsValid)
+        if (stored is null || !stored.IsValid)
             return stored;
+        if (stored.PrincipalId != principalId) return null;
+        // The internal anchor must stay empty even when the last turn has already ended. Otherwise a late
+        // invocation could acquire unexpected durable grants merely because the transient registry is empty.
         if (stored.Grants.Count != 0)
-            return stored is { IsValid: true, Grants.Count: > 0 } &&
-                   principalId == await _authority.GetInternalPrincipalIdAsync(cancellationToken).ConfigureAwait(false)
+            return principalId == await _authority.GetInternalPrincipalIdAsync(cancellationToken).ConfigureAwait(false)
                 ? null : stored;
+
+        var turns = _turns.Snapshot();
+        if (turns.Count == 0) return stored;
 
         if (principalId !=
             await _authority.GetInternalPrincipalIdAsync(cancellationToken).ConfigureAwait(false))
@@ -88,8 +92,17 @@ public sealed class NativeChatTurnPolicyProvider : IAgentAuthorizationPolicyProv
             }
         }
 
+        // Loading profiles may suspend while an anchor is replaced or a turn is revoked. Do not publish grants
+        // from the earlier revision, nor transfer grants to a replacement scope with the same session/turn IDs.
+        var currentStored = await _repository.LoadAsync(principalId, cancellationToken).ConfigureAwait(false);
+        if (currentStored is null || !currentStored.IsValid || currentStored.PrincipalId != principalId ||
+            currentStored.SchemaVersion != stored.SchemaVersion || currentStored.Revision != stored.Revision ||
+            currentStored.Grants.Count != 0)
+            return null;
+        var currentScopes = turns.Where(turn => ReferenceEquals(turn, _turns.Find(turn.SessionId, turn.TurnId)))
+            .Select(turn => AgentInvocationScope.ForTurn(turn.SessionId, turn.TurnId)).ToHashSet();
         return AgentAuthorizationPolicySnapshot.Load(principalId, stored.SchemaVersion, stored.Revision,
-            grants.Distinct());
+            grants.Where(grant => currentScopes.Contains(grant.InvocationScope)).Distinct());
     }
 
     private static bool IsDocumentReadTool(string name) => name is

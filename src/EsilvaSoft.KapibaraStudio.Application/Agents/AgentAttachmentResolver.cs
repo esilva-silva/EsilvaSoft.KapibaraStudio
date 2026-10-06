@@ -105,16 +105,21 @@ public static class AgentAttachmentResolver
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(permissions);
 
+        // Both inputs may be backed by mutable UI/settings collections. Freeze the complete request and policy
+        // inputs before the first file read awaits, so later UI changes affect only the next send.
+        var capturedRequests = requests.ToArray();
         var attachments = new List<AgentContextAttachment>();
         var failures = new List<AgentAttachmentFailure>();
         var wellFormed = permissions.IsWellFormed;
-        var exclusions = wellFormed ? permissions.Workspace.EffectiveExclusions : AgentWorkspacePermissions.DefaultExclusions;
+        var exclusions = wellFormed
+            ? permissions.Workspace.EffectiveExclusions.ToArray()
+            : AgentWorkspacePermissions.DefaultExclusions.ToArray();
         long total = userMessage is null ? 0 : Encoding.UTF8.GetByteCount(userMessage);
 
-        for (var index = 0; index < requests.Count; index++)
+        for (var index = 0; index < capturedRequests.Length; index++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var request = requests[index] ?? throw new ArgumentException("Pedido de anexo nulo.", nameof(requests));
+            var request = capturedRequests[index] ?? throw new ArgumentException("Pedido de anexo nulo.", nameof(requests));
             var outcome = !wellFormed
                 ? Fail(DisplayNameOf(request, context), AgentAttachmentError.InvalidPermissions)
                 : !permissions.HasExternalDestinationConsent

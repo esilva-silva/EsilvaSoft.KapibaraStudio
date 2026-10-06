@@ -8,6 +8,43 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests;
 [TestFixture, Category("Unit")]
 public sealed class AgentEditProposalStoreEventOrderTests
 {
+    [TestCase(false)]
+    [TestCase(true)]
+    public void QueuedProposalNotificationsDoNotPublishAForgottenConversation(bool forgetConversation)
+    {
+        const string original = "const value = 1;\n";
+        const string proposed = "const value = 2;\n";
+        var path = Path.DirectorySeparatorChar == '\\' ? @"C:\proposal-event-order.js" : "/proposal-event-order.js";
+        Assert.That(LineDiff.TryCompute(original, proposed, out var hunks), Is.True);
+        var proposal = new AgentEditProposal(Guid.NewGuid(), Guid.NewGuid(), path, null,
+            AgentEditProposalStore.Sha256(original), original, proposed, hunks, DateTimeOffset.UtcNow);
+        var queuedNotifications = new System.Collections.Concurrent.ConcurrentQueue<Action>();
+        var store = new AgentEditProposalStore(queuedNotifications.Enqueue, new OriginalTextReader(original));
+        var added = 0;
+        var updated = 0;
+        var review = 0;
+        store.ProposalAdded += (_, _) => added++;
+        store.ProposalUpdated += (_, _) => updated++;
+        store.ReviewRequested += (_, _) => review++;
+
+        Assert.That(store.Submit(proposal).Status, Is.EqualTo(AgentEditProposalSubmissionStatus.Registered));
+        store.Mutate(proposal.Id, _ => (true, new[] { AgentEditHunkState.Applied }));
+        Assert.That(store.RequestReview(proposal.Id), Is.True);
+        Assert.That(queuedNotifications, Has.Count.EqualTo(3));
+        if (forgetConversation) store.ForgetConversation(proposal.ConversationId);
+
+        while (queuedNotifications.TryDequeue(out var notification)) notification();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(store.TryGet(proposal.Id, out _), Is.EqualTo(!forgetConversation));
+            Assert.That(store.ForConversation(proposal.ConversationId), Has.Count.EqualTo(forgetConversation ? 0 : 1));
+            Assert.That(added, Is.EqualTo(forgetConversation ? 0 : 1));
+            Assert.That(updated, Is.EqualTo(forgetConversation ? 0 : 1));
+            Assert.That(review, Is.EqualTo(forgetConversation ? 0 : 1));
+        });
+    }
+
     [Test]
     public async Task ConcurrentMutationsPublishTheLatestSnapshotWhenUiQueueIsDrained()
     {

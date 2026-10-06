@@ -2,6 +2,7 @@ using EsilvaSoft.KapibaraStudio.Application;
 using EsilvaSoft.KapibaraStudio.Application.Agents;
 using EsilvaSoft.KapibaraStudio.Core;
 using EsilvaSoft.KapibaraStudio.Core.Agents;
+using EsilvaSoft.KapibaraStudio.Autocomplete.Core;
 
 namespace EsilvaSoft.KapibaraStudio.IntegrationTests.Copilot;
 
@@ -16,17 +17,21 @@ internal sealed class CopilotProductToolTestRig : AgentSessionToolDoubles, IDisp
     public MemoryAudit Audit { get; } = new();
     public AgentNativeChatTurnScopeRegistry NativeChatScopes { get; } = new();
     public AgentToolRegistry Registry { get; }
+    public FakeConfirmation Confirmation { get; } = new();
 
-    public CopilotProductToolTestRig()
+    public CopilotProductToolTestRig(IMongoMetadataSource? metadata = null, IAgentMongoFindSource? find = null,
+        IAgentMongoCountSource? count = null, IAgentMongoDistinctSource? distinct = null,
+        IAgentMongoExplainSource? explain = null)
     {
         Registry = new AgentToolRegistry(new FixedProfiles(Profile), Policies, new AgentPermissionEvaluator(Policies), Audit,
-            metadata: new ThrowingMetadataSource(), exposure: AgentToolExposure.Through(AgentToolExposureStage.Metadata),
+            metadata: metadata ?? new ThrowingMetadataSource(), find: find, count: count, distinct: distinct, explain: explain,
+            exposure: AgentToolExposure.Through(find is null ? AgentToolExposureStage.Metadata : AgentToolExposureStage.DerivedReads),
             principalAuthority: new TestAgentPrincipalAuthority(), indexes: new FakeIndexes(),
             sessionTools: new AgentSessionToolPorts(new AgentMcpSessionRegistry())
             {
                 MetadataCache = new FakeMetadataCache(), LearnedSchemas = new FakeLearned(),
                 WorkspaceContext = new FakeWorkspace { Context = new AgentWorkspaceContext(DateTimeOffset.UtcNow, WorkspaceFolder) },
-                NativeChatTurnScopes = NativeChatScopes, ProposalSink = new FakeSink(), ConfirmationPrompt = new FakeConfirmation(),
+                NativeChatTurnScopes = NativeChatScopes, ProposalSink = new FakeSink(), ConfirmationPrompt = Confirmation,
                 PathProbe = new EsilvaSoft.KapibaraStudio.SystemAdapters.LocalAgentWorkspacePathProbe()
             });
     }

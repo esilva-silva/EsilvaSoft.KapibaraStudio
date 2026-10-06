@@ -63,6 +63,22 @@ public sealed class CopilotFakeStdioRuntimeTests
     }
 
     [Test]
+    public async Task ToolRequestDeliveredAfterIdleIsIgnored()
+    {
+        await using var session = new CopilotSubscriptionAgentSession(new OneToolRegistry("get_workspace_context"),
+            new AgentSessionOptions(CopilotSubscriptionAgentProvider.Id, "fake-model"),
+            CreateFakeClient(lateProductToolRequest: true));
+        var request = CreateRequest();
+        request = request with { Plan = request.Plan! with { ProductTools = ["get_workspace_context"] } };
+
+        var events = new List<AgentProviderEvent>();
+        await foreach (var item in session.RunTurnAsync(request, CancellationToken.None)) events.Add(item);
+
+        Assert.That(events.Any(item => item.Kind == AgentEventKind.ToolRequested), Is.False,
+            "A runtime callback arriving after session.idle must not reopen a completed turn.");
+    }
+
+    [Test]
     public async Task ExplicitAccountCheckEnablesOnlyVerifiedMessageCapabilities()
     {
         var factoryCalls = 0;
@@ -231,6 +247,83 @@ public sealed class CopilotFakeStdioRuntimeTests
 
         Assert.That(events.Any(item => item.Kind == AgentEventKind.MessageDelta), Is.True);
         AssertSessionConfigurationWasRestricted(contractLogPath, "session.resume");
+    }
+
+    [TestCase(false, false)]
+    [TestCase(false, true)]
+    [TestCase(true, false)]
+    [TestCase(true, true)]
+    public async Task BuiltInAgentRestrictionMustBeAcknowledgedBeforeCreateOrResumeCanSend(bool resume, bool methodMissing)
+    {
+        const string reservedId = "reserved-policy-refusal-session";
+        var contractLogPath = CreateContractLogPath();
+        await using var session = new CopilotSubscriptionAgentSession(new NoToolsRegistry(),
+            new AgentSessionOptions(CopilotSubscriptionAgentProvider.Id, "fake-model")
+            {
+                ReservedProviderSessionId = reservedId,
+                ResumeProviderSessionId = resume ? reservedId : null,
+            }, CreateFakeClient(contractLogPath: contractLogPath,
+                rejectBuiltInAgentRestriction: !methodMissing, builtInAgentRestrictionMethodMissing: methodMissing));
+        var request = CreateRequest();
+        var events = new List<AgentProviderEvent>();
+        await CollectTurnAsync(session, request, events, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(10));
+
+        using var log = ReadContractLog(contractLogPath);
+        var entries = log.RootElement.EnumerateArray().ToArray();
+        var operations = entries.Select(entry => entry.GetProperty("method").GetString()).ToArray();
+        var acquisition = entries.Single(entry => entry.GetProperty("method").GetString() ==
+            (resume ? "session.resume" : "session.create"));
+        var restriction = entries.Single(entry => entry.GetProperty("method").GetString() == "session.options.update" &&
+            entry.GetProperty("params").TryGetProperty("includedBuiltinAgents", out _));
+        var detached = entries.Single(entry => entry.GetProperty("method").GetString() == "session.detach");
+        Assert.Multiple(() =>
+        {
+            Assert.That(events.Single(item => item.Kind == AgentEventKind.AgentError).Text,
+                Is.EqualTo("CopilotSessionPolicyFailed"));
+            Assert.That(events.Any(item => item.Kind is AgentEventKind.MessageDelta or AgentEventKind.ToolRequested), Is.False);
+            Assert.That(operations, Does.Not.Contain("session.send"), "No prompt may precede acknowledged native-agent restrictions.");
+            Assert.That(operations.Count(method => method is "session.create" or "session.resume"), Is.EqualTo(1),
+                "A policy failure must not create another native session or replay work.");
+            Assert.That(acquisition.GetProperty("params").GetProperty("sessionId").GetString(), Is.EqualTo(reservedId));
+            Assert.That(restriction.GetProperty("params").GetProperty("includedBuiltinAgents").GetArrayLength(), Is.Zero);
+            Assert.That(detached.GetProperty("params").GetProperty("sessionId").GetString(), Is.EqualTo(reservedId));
+            Assert.That(session.GetCancellationReport(request.TurnId), Is.EqualTo(AgentTurnCancellationReport.NothingSent));
+            if (resume)
+                Assert.That(acquisition.GetProperty("params").GetProperty("continuePendingWork").GetBoolean(), Is.False);
+        });
+    }
+
+    [Test]
+    public async Task ReservedResumeFailureDoesNotCreateReplacementOrSendPromptOverStdio()
+    {
+        const string reservedId = "reserved-resume-failure-session";
+        var contractLogPath = CreateContractLogPath();
+        var updates = new List<AgentProviderSessionUpdate>();
+        await using var session = new CopilotSubscriptionAgentSession(new NoToolsRegistry(),
+            new AgentSessionOptions(CopilotSubscriptionAgentProvider.Id, "fake-model")
+            {
+                ReservedProviderSessionId = reservedId, ResumeProviderSessionId = reservedId,
+                ProviderSessionObserver = updates.Add,
+            }, CreateFakeClient(resumeFails: true, contractLogPath: contractLogPath));
+        var request = CreateRequest();
+        var events = new List<AgentProviderEvent>();
+        await CollectTurnAsync(session, request, events, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(10));
+        using var log = ReadContractLog(contractLogPath);
+        var entries = log.RootElement.EnumerateArray().ToArray();
+        var operations = entries.Select(entry => entry.GetProperty("method").GetString()).ToArray();
+        var resumed = entries.Single(entry => entry.GetProperty("method").GetString() == "session.resume");
+        Assert.Multiple(() =>
+        {
+            Assert.That(events.Single(item => item.Kind == AgentEventKind.AgentError).Text,
+                Is.EqualTo("CopilotSessionResumeFailed"));
+            Assert.That(operations, Does.Not.Contain("session.create"));
+            Assert.That(operations, Does.Not.Contain("session.send"));
+            Assert.That(operations.Count(method => method == "session.resume"), Is.EqualTo(1));
+            Assert.That(resumed.GetProperty("params").GetProperty("sessionId").GetString(), Is.EqualTo(reservedId));
+            Assert.That(resumed.GetProperty("params").GetProperty("continuePendingWork").GetBoolean(), Is.False);
+            Assert.That(updates, Is.Empty, "An ambiguous resume failure cannot report a replacement or lose the reserved ID.");
+            Assert.That(session.GetCancellationReport(request.TurnId), Is.EqualTo(AgentTurnCancellationReport.NothingSent));
+        });
     }
 
     [Test]
@@ -473,57 +566,90 @@ public sealed class CopilotFakeStdioRuntimeTests
     [Test]
     public async Task CancellingOneConversationDoesNotAbortAnotherActiveConversation()
     {
-        await using var cancelledConversation = new CopilotSubscriptionAgentSession(new NoToolsRegistry(),
-            new AgentSessionOptions(CopilotSubscriptionAgentProvider.Id, "fake-model"),
-            CreateFakeClient(noIdle: true));
-        await using var activeConversation = new CopilotSubscriptionAgentSession(new NoToolsRegistry(),
-            new AgentSessionOptions(CopilotSubscriptionAgentProvider.Id, "fake-model"),
-            CreateFakeClient(delayIdleMs: 2_000));
-
+        const string firstId = "cancelled-conversation-session";
+        const string secondId = "active-conversation-session";
+        var cancelledLogPath = CreateContractLogPath();
+        var activeLogPath = CreateContractLogPath();
+        await using var cancelledConversation = new CopilotSubscriptionAgentSession(new OneToolRegistry("get_workspace_context"),
+            new AgentSessionOptions(CopilotSubscriptionAgentProvider.Id, "fake-model") { ReservedProviderSessionId = firstId },
+            CreateFakeClient(productToolRequest: true, contractLogPath: cancelledLogPath));
+        await using var activeConversation = new CopilotSubscriptionAgentSession(new OneToolRegistry("get_workspace_context"),
+            new AgentSessionOptions(CopilotSubscriptionAgentProvider.Id, "fake-model") { ReservedProviderSessionId = secondId },
+            CreateFakeClient(productToolRequest: true, contractLogPath: activeLogPath));
         using var cancelledToken = new CancellationTokenSource();
-        var cancelledRequest = CreateRequest();
-        var activeRequest = CreateRequest();
+        using var activeToken = new CancellationTokenSource();
+        var cancelledRequest = CreateRequest() with { UserMessage = "first isolated prompt" };
+        cancelledRequest = cancelledRequest with { Plan = cancelledRequest.Plan! with { ProductTools = ["get_workspace_context"] } };
+        var activeRequest = CreateRequest() with { UserMessage = "second isolated prompt" };
+        activeRequest = activeRequest with { Plan = activeRequest.Plan! with { ProductTools = ["get_workspace_context"] } };
         var cancelledEvents = new List<AgentProviderEvent>();
         var activeEvents = new List<AgentProviderEvent>();
-        var cancelledDelta = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var activeDelta = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var cancelledTool = new TaskCompletionSource<AgentToolCallId>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var activeTool = new TaskCompletionSource<AgentToolCallId>(TaskCreationOptions.RunContinuationsAsynchronously);
         var cancelledTask = CollectTurnAsync(cancelledConversation, cancelledRequest, cancelledEvents,
-            cancelledToken.Token, () => cancelledDelta.TrySetResult());
-        await cancelledDelta.Task.WaitAsync(TimeSpan.FromSeconds(10));
-        var activeTask = CollectTurnAsync(activeConversation, activeRequest, activeEvents, CancellationToken.None,
-            () => activeDelta.TrySetResult());
-        await activeDelta.Task.WaitAsync(TimeSpan.FromSeconds(10));
-
-        cancelledToken.Cancel();
-        await cancelledTask.WaitAsync(TimeSpan.FromSeconds(10));
-        Assert.That(activeTask.IsCompleted, Is.False,
-            "The second conversation should still be active while its fake runtime delays the idle event.");
-        await activeTask.WaitAsync(TimeSpan.FromSeconds(10));
-
-        Assert.Multiple(() =>
+            cancelledToken.Token, onTool: id => cancelledTool.TrySetResult(id));
+        var activeTask = CollectTurnAsync(activeConversation, activeRequest, activeEvents, activeToken.Token,
+            onTool: id => activeTool.TrySetResult(id));
+        try
         {
-            Assert.That(cancelledEvents.Any(item => item.Kind == AgentEventKind.MessageDelta), Is.True);
-            Assert.That(cancelledConversation.GetCancellationReport(cancelledRequest.TurnId),
-                Is.EqualTo(AgentTurnCancellationReport.MayHaveTakenEffect));
-            Assert.That(activeEvents.Any(item => item.Kind == AgentEventKind.MessageDelta && item.Text == "resposta fake"), Is.True);
-            Assert.That(activeEvents.Any(item => item.Kind == AgentEventKind.AgentError), Is.False);
-        });
+            await Task.WhenAll(cancelledTool.Task, activeTool.Task).WaitAsync(TimeSpan.FromSeconds(10));
+            using var cancelledProcess = GetFakeRuntimeProcess(cancelledLogPath);
+            using var activeProcess = GetFakeRuntimeProcess(activeLogPath);
+            Assert.That(cancelledProcess.Id, Is.Not.EqualTo(activeProcess.Id));
+            cancelledToken.Cancel();
+            await cancelledTask.WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.That(activeTask.IsCompleted, Is.False, "The second turn is still awaiting its own tool result.");
+            Assert.That(activeToken.IsCancellationRequested, Is.False);
+            Assert.That(activeProcess.HasExited, Is.False);
+            using (var logBeforeResult = ReadContractLog(activeLogPath))
+                Assert.That(logBeforeResult.RootElement.EnumerateArray().Any(entry =>
+                    entry.GetProperty("method").GetString() == "session.abort"), Is.False);
+
+            await activeConversation.SubmitToolResultAsync(new AgentToolResult(AgentSessionId.New(), activeRequest.TurnId,
+                await activeTool.Task, AgentToolResultStatus.Succeeded, "second isolated result"), activeToken.Token);
+            await activeTask.WaitAsync(TimeSpan.FromSeconds(10));
+            await cancelledConversation.DisposeAsync();
+            await activeConversation.DisposeAsync();
+            await Task.WhenAll(cancelledProcess.WaitForExitAsync(), activeProcess.WaitForExitAsync())
+                .WaitAsync(TimeSpan.FromSeconds(10));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(cancelledConversation.GetCancellationReport(cancelledRequest.TurnId),
+                    Is.EqualTo(AgentTurnCancellationReport.MayHaveTakenEffect));
+                Assert.That(activeEvents.Any(item => item.Kind == AgentEventKind.MessageDelta && item.Text == "ferramenta autorizada"), Is.True);
+                Assert.That(activeEvents.Any(item => item.Kind == AgentEventKind.AgentError), Is.False);
+                Assert.That(cancelledProcess.HasExited, Is.True);
+                Assert.That(activeProcess.HasExited, Is.True);
+            });
+            AssertConversationLedger(cancelledLogPath, firstId, "first isolated prompt", aborted: true, toolResult: false);
+            AssertConversationLedger(activeLogPath, secondId, "second isolated prompt", aborted: false, toolResult: true);
+        }
+        finally
+        {
+            cancelledToken.Cancel();
+            activeToken.Cancel();
+            await Task.WhenAll(cancelledTask, activeTask).WaitAsync(TimeSpan.FromSeconds(10));
+        }
     }
 
     private static async Task CollectTurnAsync(CopilotSubscriptionAgentSession session, AgentTurnRequest request,
-        List<AgentProviderEvent> events, CancellationToken cancellationToken, Action? onDelta = null)
+        List<AgentProviderEvent> events, CancellationToken cancellationToken, Action? onDelta = null,
+        Action<AgentToolCallId>? onTool = null)
     {
         await foreach (var item in session.RunTurnAsync(request, cancellationToken))
         {
             events.Add(item);
             if (item.Kind == AgentEventKind.MessageDelta) onDelta?.Invoke();
+            if (item.Kind == AgentEventKind.ToolRequested && item.ToolCallId is { } toolId) onTool?.Invoke(toolId);
         }
     }
 
     private CopilotClient CreateFakeClient(bool authenticated = true, bool sessionExists = true,
         bool resumeFails = false, SessionFsConfig? sessionFs = null, string? contractLogPath = null,
         bool nativeToolRequest = false, bool productToolRequest = false, bool noIdle = false,
-        int delayIdleMs = 0)
+        int delayIdleMs = 0, bool lateProductToolRequest = false,
+        bool rejectBuiltInAgentRestriction = false, bool builtInAgentRestrictionMethodMissing = false)
     {
         var runtimeScript = FindRuntimeScript();
         var powershell = FindPowerShellExecutable();
@@ -540,6 +666,9 @@ public sealed class CopilotFakeStdioRuntimeTests
         if (resumeFails) arguments = [.. arguments, "-ResumeFail"];
         if (nativeToolRequest) arguments = [.. arguments, "-NativeToolRequest"];
         if (productToolRequest) arguments = [.. arguments, "-ProductToolRequest"];
+        if (lateProductToolRequest) arguments = [.. arguments, "-LateProductToolRequest"];
+        if (rejectBuiltInAgentRestriction) arguments = [.. arguments, "-RejectBuiltInAgentRestriction"];
+        if (builtInAgentRestrictionMethodMissing) arguments = [.. arguments, "-BuiltInAgentRestrictionMethodMissing"];
         if (noIdle) arguments = [.. arguments, "-NoIdle"];
         if (delayIdleMs > 0) arguments = [.. arguments, "-DelayIdleMs", delayIdleMs.ToString(System.Globalization.CultureInfo.InvariantCulture)];
         if (contractLogPath is not null) arguments = [.. arguments, "-ContractLogPath", contractLogPath];
@@ -556,6 +685,37 @@ public sealed class CopilotFakeStdioRuntimeTests
 
     private string CreateContractLogPath() => Path.Combine(_testRoot,
         $"contract-{Guid.NewGuid():N}.jsonl");
+
+    private static JsonDocument ReadContractLog(string path) =>
+        JsonDocument.Parse("[" + string.Join(",", File.ReadAllLines(path)) + "]");
+
+    private static Process GetFakeRuntimeProcess(string logPath)
+    {
+        using var log = ReadContractLog(logPath);
+        var processId = log.RootElement.EnumerateArray().Select(entry => entry.GetProperty("processId").GetInt32()).Distinct().Single();
+        return Process.GetProcessById(processId);
+    }
+
+    private static void AssertConversationLedger(string logPath, string sessionId, string prompt, bool aborted, bool toolResult)
+    {
+        using var log = ReadContractLog(logPath);
+        var entries = log.RootElement.EnumerateArray().ToArray();
+        var operations = entries.Select(entry => entry.GetProperty("method").GetString()).ToArray();
+        Assert.Multiple(() =>
+        {
+            Assert.That(operations.Count(method => method == "session.create"), Is.EqualTo(1));
+            Assert.That(operations, Does.Not.Contain("session.resume"));
+            Assert.That(operations.Count(method => method == "session.send"), Is.EqualTo(1), "Cancelled or pending work is never replayed.");
+            Assert.That(operations.Count(method => method == "session.detach"), Is.EqualTo(1), "Every acquired handle is released once.");
+            Assert.That(operations.Contains("session.abort"), Is.EqualTo(aborted));
+            Assert.That(operations.Count(method => method == "session.tools.handlePendingToolCall"), Is.EqualTo(toolResult ? 1 : 0));
+            Assert.That(entries.Single(entry => entry.GetProperty("method").GetString() == "session.send")
+                .GetProperty("params").GetProperty("prompt").GetString(), Is.EqualTo(prompt));
+            foreach (var entry in entries)
+                Assert.That(entry.GetProperty("params").GetProperty("sessionId").GetString(), Is.EqualTo(sessionId),
+                    entry.GetProperty("method").GetString());
+        });
+    }
 
     private static string FindPowerShellExecutable() => OperatingSystem.IsWindows()
         ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
@@ -711,9 +871,9 @@ public sealed class CopilotFakeStdioRuntimeTests
         public AgentToolDescriptor? FindInProcessDescriptor(string providerId, string? name) =>
             providerId == AgentProviderIds.GitHubCopilotSubscription ? FindDescriptor(name) : null;
         public string? GetInputSchemaJson(string? name) => FindDescriptor(name) is null
-            ? null : "{\"type\":\"object\",\"properties\":{}}";
+            ? null : "{\"type\":\"object\",\"properties\":{},\"additionalProperties\":false}";
         public string? GetInProcessInputSchemaJson(string providerId, string? name) =>
-            FindInProcessDescriptor(providerId, name) is null ? null : "{\"type\":\"object\",\"properties\":{}}";
+            FindInProcessDescriptor(providerId, name) is null ? null : "{\"type\":\"object\",\"properties\":{},\"additionalProperties\":false}";
         public string? GetOutputSchemaJson(string? name) => FindDescriptor(name) is null
             ? null : "{\"type\":\"object\",\"properties\":{}}";
         public Task<AgentToolInvocationResult> InvokeAsync(AgentPrincipal? principal,

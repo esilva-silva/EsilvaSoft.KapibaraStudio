@@ -33,9 +33,11 @@ internal sealed class MongoOperationContext
         ISecretStore? credentialStore = null, IHostEnvironmentSnapshot? hostEnvironment = null,
         IHostPlatformSnapshot? hostPlatform = null)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var environment = new OperationEnvironment(environments, secrets, profile.Id, credentialStore, hostEnvironment, hostPlatform);
         await Task.CompletedTask.ConfigureAwait(ConfigureAwaitOptions.ForceYielding);
         await environment.PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested(); // A late vault response cannot start a cancelled Mongo operation.
         return new MongoOperationContext(profile, environment, clients);
     }
 

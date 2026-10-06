@@ -1,5 +1,15 @@
 # Catálogo funcional
 
+**Copilot: limite configurável — 06/10/2026:** a janela de permissões oferece o máximo de chamadas por mensagem, padrão 100 e vazio sem limite de quantidade. Salvamento por provider, aplicação nas próximas mensagens e validação de inteiro positivo; formato de permissões v2 lê v1 com padrão 100 e grava a atualização somente ao salvar. Runtime e registry usam o snapshot do turno. [Detalhes](phases/phase-05-v0.9.0/meta-permissoes-tools-copilot.md#limite-configurável-solicitado-pelo-usuário--06102026).
+
+**Novo retorno do client — 06/10/2026:** a captura confirma `get_document` recusada por limite de chamadas; o relato do agente informa o mesmo código para `mongo_explain`. Proposta não testada por falta de conteúdo ativo autorizado. Essas evidências esclarecem a categoria cota, sem comprovar execução das duas leituras ou recusa de permissão da proposta. [Registro e aceite manual restante](phases/phase-05-v0.9.0/meta-permissoes-tools-copilot.md#novo-retorno-do-client--06102026).
+
+**F5-COP-PERM — retomada em 06/10/2026:** o usuário informou 11/14 tools funcionando. O checkout distingue cota de chamadas com `ToolCallLimitExceeded` e alinha o gate de propostas às permissões independentes de arquivo ativo/workspace. Cota de 20, gates e edição apenas de bases existentes permanecem. Os três bloqueios reais continuam sem causa confirmada; [registro e evidências](phases/phase-05-v0.9.0/meta-permissoes-tools-copilot.md#retomada--06102026).
+
+**F5-COP-PERM — correção no checkout em 05/10/2026:** fontes de leitura do agente recebem o cofre MongoDB já composto; falha de execução tem código distinto de negação de permissão. O resumo Copilot usa o workspace das tools do produto e propostas esclarecem o limite de arquivos existentes. [Meta e evidências](phases/phase-05-v0.9.0/meta-permissoes-tools-copilot.md). Nenhuma ferramenta, grant ou escrita foi ampliada; homologação manual reservada ao usuário.
+
+**ADV-09 / Fase 5 — aceite complementado em 03/10/2026:** [30 requisitos GitHub/produto e 14 ferramentas Copilot](phases/phase-05-v0.9.0/meta-de-implementacao.md), com condições de liberação e critérios individuais. O requisito amplo continua em desenvolvimento; ferramentas existentes/selecionáveis não são homologação completa.
+
 **Recorte da Fase 5 — 03/10/2026:** GitHub Copilot e infraestrutura compartilhada necessária à sua conclusão permanecem na Fase 5 / v0.9.0. Claude, Codex, APIs externas e integração de clientes MCP externos passam ao [bkl-06](backlog/bkl-06-integracoes-agentes.md), sem fase/versão comprometida. Código, disponibilidade, permissões e gates existentes são preservados; IA local e workflow mantêm suas fases. Esta alteração é documental e não comprova conclusão funcional ou nova homologação.
 
 **UX-03 / ADV-09 — 01/10/2026:** runtime SDK externo ao single-file e CLI oficial de login incluída nos quatro pacotes. Auto update usa exclusivamente o repositório KapibaraStudio. Conta/modelos reconhecidos no publish Windows x64 sem CLI no PATH; novo OAuth e execução Linux/ARM64 permanecem pendentes. [Evidências](architecture/release-copilot.md).

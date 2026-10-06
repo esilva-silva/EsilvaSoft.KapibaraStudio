@@ -329,6 +329,30 @@ internal sealed class CopilotSessionIsolationTests
     }
 
     [Test]
+    public async Task NativeToolsInPlanAreRejectedBeforeRuntimeStartOrBroadApproval()
+    {
+        var client = new MemoryCopilotRuntime();
+        await using var session = Session(client);
+        var request = Request() with
+        {
+            Plan = new(AgentOperationMode.Agent, ["bash"], [], [], [], AgentProposalHandling.Disabled,
+                RequiresPermissionPromptTool: false, ConfirmationCategories: AgentConfirmationCategories.None),
+        };
+
+        var events = await CollectAsync(session, request);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(events.Single(item => item.Kind == AgentEventKind.AgentError).Text,
+                Is.EqualTo("CopilotNativeToolsUnsupported"));
+            Assert.That(client.Starts, Is.Zero);
+            Assert.That(client.Creates, Is.Empty);
+            Assert.That(client.Resumes, Is.Empty);
+            Assert.That(client.Sessions, Is.Empty);
+        });
+    }
+
+    [Test]
     public async Task CancellationIsScopedToTheMatchingTurnAndReportsPossibleEffects()
     {
         var client = new MemoryCopilotRuntime { CompleteOnSend = false };
@@ -413,5 +437,79 @@ internal sealed class CopilotSessionIsolationTests
             Assert.That(client.Creates.Single().SessionId, Is.EqualTo("reserved-id"));
             Assert.That(events.Any(item => item.Kind == AgentEventKind.MessageDelta), Is.True);
         }
+    }
+
+    [TestCase(false, false)]
+    [TestCase(false, true)]
+    [TestCase(true, false)]
+    [TestCase(true, true)]
+    public async Task DivergentReservedSessionHandleNeverReceivesPromptAndCanRecover(bool resume, bool cleanupFails)
+    {
+        const string reservedId = "reserved-recovery-session";
+        const string divergentId = "untracked-session-canary";
+        var updates = new List<AgentProviderSessionUpdate>();
+        var client = new MemoryCopilotRuntime
+        {
+            SessionExists = resume,
+            ReturnedSessionId = divergentId,
+            DeleteFailure = cleanupFails ? new IOException("synthetic native cleanup failure") : null,
+        };
+        var storage = new MemoryCopilotSessionStorage(persistent: true);
+        storage.ReserveSession(reservedId);
+        await using var session = new CopilotSubscriptionAgentSession(new NoTools(),
+            new(CopilotSubscriptionAgentProvider.Id, "synthetic-model")
+            {
+                ReservedProviderSessionId = reservedId,
+                ResumeProviderSessionId = resume ? reservedId : null,
+                ProviderSessionObserver = updates.Add,
+            }, client, storage);
+        var failedRequest = Request();
+        var failed = await CollectAsync(session, failedRequest).WaitAsync(TimeSpan.FromSeconds(5));
+        var rejectedHandle = client.Sessions.Single();
+        Assert.Multiple(() =>
+        {
+            Assert.That(failed.Single(item => item.Kind == AgentEventKind.AgentError).Text,
+                Is.EqualTo(resume ? "CopilotSessionResumeFailed" : "CopilotSessionCreateFailed"));
+            Assert.That(failed.Any(item => item.Text?.Contains(divergentId, StringComparison.Ordinal) == true), Is.False);
+            Assert.That(rejectedHandle.SendInvocations, Is.Zero);
+            Assert.That(rejectedHandle.Operations, Is.Empty);
+            Assert.That(rejectedHandle.Disposals, Is.EqualTo(1), "Even failed native deletion must detach the rejected handle.");
+            Assert.That(client.Deleted.Single(), Is.EqualTo(divergentId));
+            Assert.That(updates, Is.Empty, "Never establish or advertise a substitute session.");
+            Assert.That(storage.ContainsSession(reservedId), Is.True);
+            Assert.That(session.GetCancellationReport(failedRequest.TurnId), Is.EqualTo(AgentTurnCancellationReport.NothingSent));
+        });
+        if (resume)
+        {
+            Assert.That(client.Creates, Is.Empty);
+            Assert.That(client.Resumes.Single().ContinuePendingWork, Is.False);
+        }
+        else
+        {
+            Assert.That(client.Resumes, Is.Empty);
+            Assert.That(client.Creates.Single().SessionId, Is.EqualTo(reservedId));
+        }
+
+        client.ReturnedSessionId = null;
+        client.DeleteFailure = null;
+        var recoveredRequest = Request();
+        var recovered = await CollectAsync(session, recoveredRequest).WaitAsync(TimeSpan.FromSeconds(5));
+        var acceptedHandle = client.Sessions.Last();
+        Assert.Multiple(() =>
+        {
+            Assert.That(acceptedHandle.SessionId, Is.EqualTo(reservedId));
+            Assert.That(acceptedHandle.Operations, Is.EqualTo(RestrictedSend));
+            Assert.That(acceptedHandle.SendInvocations, Is.EqualTo(1));
+            Assert.That(acceptedHandle.Disposals, Is.EqualTo(1));
+            Assert.That(recovered.Any(item => item.Kind == AgentEventKind.MessageDelta), Is.True);
+            Assert.That(updates.Single().Change, Is.EqualTo(AgentProviderSessionChange.Established));
+            Assert.That(updates.Single().ProviderSessionId, Is.EqualTo(reservedId));
+            Assert.That(client.Creates.Count + client.Resumes.Count, Is.EqualTo(2), "Exactly one acquisition per turn; no replacement or replay.");
+            Assert.That(client.Deleted, Has.Count.EqualTo(1), "Recovery must not delete the reserved session.");
+            Assert.That(session.GetCancellationReport(recoveredRequest.TurnId), Is.EqualTo(AgentTurnCancellationReport.MayHaveTakenEffect));
+        });
+        await session.DisposeAsync();
+        Assert.That(client.Disposals, Is.EqualTo(1));
+        Assert.That(client.Sessions.All(handle => handle.Disposals == 1), Is.True);
     }
 }

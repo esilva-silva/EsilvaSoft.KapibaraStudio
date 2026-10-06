@@ -13,6 +13,8 @@ internal sealed record AgentProviderPermissionsDecoded(AgentStoredDocumentState 
 /// format version and revision for CAS, and the permissions as a closed JSON payload. Only the nulls tolerated by the
 /// Core contract are materialized, to their restrictive meaning (see <see cref="Normalize"/>); a null section makes a
 /// stored document unreadable and a value to save invalid, as does every other deviation or failed limit. A newer <c>formatVersion</c> is read-only. Neither is replaced by defaults.
+/// Version 1 is read without rewriting and uses the default tool budget of 100; a successful save writes version 2,
+/// whose explicit nullable budget distinguishes unlimited calls from a missing or damaged field.
 /// </summary>
 internal static class AgentProviderPermissionsDocumentCodec
 {
@@ -66,7 +68,8 @@ internal static class AgentProviderPermissionsDocumentCodec
             return new(AgentStoredDocumentState.UnsupportedVersion, null);
 
         if (document.Count != DocumentFields.Length || !document.Keys.ToHashSet(StringComparer.Ordinal).SetEquals(DocumentFields) ||
-            versionValue is not { IsInt32: true } || versionValue.AsInt32 != AgentProviderPermissions.CurrentFormatVersion ||
+            versionValue is not { IsInt32: true } || versionValue.AsInt32 is < 1 ||
+            versionValue.AsInt32 > AgentProviderPermissions.CurrentFormatVersion ||
             !document["_id"].IsString || !document["revision"].IsInt64 || document["revision"].AsInt64 < 1 ||
             !document["updatedAtUtc"].IsDateTime || !document["json"].IsString)
             return Unreadable();
@@ -74,6 +77,9 @@ internal static class AgentProviderPermissionsDocumentCodec
         AgentProviderPermissions? permissions;
         try
         {
+            using var payload = JsonDocument.Parse(document["json"].AsString);
+            if (versionValue.AsInt32 >= 2 && !payload.RootElement.TryGetProperty(nameof(AgentProviderPermissions.MaximumToolCallsPerTurn), out _))
+                return Unreadable();
             permissions = JsonSerializer.Deserialize<AgentProviderPermissions>(document["json"].AsString, AgentPersistenceJson.Permissions);
         }
         catch (Exception exception) when (exception is JsonException or NotSupportedException or ArgumentException or InvalidOperationException)
@@ -84,7 +90,7 @@ internal static class AgentProviderPermissionsDocumentCodec
         // A stored null section can only come from a foreign or damaged writer (this codec never writes one). It is
         // reported as unreadable, kept as is and never widened to defaults; the UI shows the failure and the policy,
         // having no permissions, sends nothing.
-        if (permissions is null || !permissions.IsWellFormed) return Unreadable();
+        if (permissions is null || !permissions.IsWellFormed || permissions.FormatVersion != versionValue.AsInt32) return Unreadable();
         permissions = Normalize(permissions);
         if (Validate(permissions) is not null ||
             !string.Equals(permissions.ProviderId, document["_id"].AsString, StringComparison.Ordinal) ||
@@ -112,7 +118,7 @@ internal static class AgentProviderPermissionsDocumentCodec
     private static string? Validate(AgentProviderPermissions permissions)
     {
         if (!AgentPersistenceJson.IsValidProviderId(permissions.ProviderId)) return "ProviderIdInvalid";
-        if (permissions.FormatVersion != AgentProviderPermissions.CurrentFormatVersion || permissions.Revision < 1 ||
+        if (permissions.FormatVersion is < 1 || permissions.FormatVersion > AgentProviderPermissions.CurrentFormatVersion || permissions.Revision < 1 ||
             !Enum.IsDefined(permissions.ConnectionScope) || !Enum.IsDefined(permissions.DefaultMode) ||
             (permissions.ConfirmationCategories & ~AgentConfirmationCategories.All) != 0 ||
             (permissions.DefaultModel is not null && !AgentPersistenceJson.IsSafeShortText(permissions.DefaultModel, MaximumModelIdChars)))

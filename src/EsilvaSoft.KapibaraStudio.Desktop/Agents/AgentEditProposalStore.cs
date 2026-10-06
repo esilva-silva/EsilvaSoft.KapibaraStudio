@@ -151,12 +151,20 @@ public sealed class AgentEditProposalStore : IAgentEditProposalSink
         }
 
         var entry = new AgentEditProposalEntry(proposal, [.. proposal.Hunks.Select(static hunk => hunk.State)]);
-        if (!_entries.TryAdd(proposal.Id, entry))
+        lock (_mutationGate)
         {
-            return new AgentEditProposalSubmission(AgentEditProposalSubmissionStatus.Rejected, "ProposalDuplicate");
+            // Another submission can consume the last slot while the current target text is being read.
+            // Reserve capacity and register together, without holding the lock across the UI/file read.
+            if (_entries.Count >= MaximumProposals)
+                return new AgentEditProposalSubmission(AgentEditProposalSubmissionStatus.Rejected, "ProposalLimitReached");
+            if (!_entries.TryAdd(proposal.Id, entry))
+                return new AgentEditProposalSubmission(AgentEditProposalSubmissionStatus.Rejected, "ProposalDuplicate");
         }
 
-        _post(() => ProposalAdded?.Invoke(this, entry));
+        _post(() =>
+        {
+            if (_entries.TryGetValue(proposal.Id, out var latest)) ProposalAdded?.Invoke(this, latest);
+        });
         return new AgentEditProposalSubmission(AgentEditProposalSubmissionStatus.Registered);
     }
 
@@ -215,12 +223,15 @@ public sealed class AgentEditProposalStore : IAgentEditProposalSink
     /// <summary>Raises <see cref="ReviewRequested"/> for a registered proposal (the caller activated its tab first).</summary>
     public bool RequestReview(Guid proposalId)
     {
-        if (!_entries.TryGetValue(proposalId, out var entry))
+        if (!_entries.ContainsKey(proposalId))
         {
             return false;
         }
 
-        _post(() => ReviewRequested?.Invoke(this, entry));
+        _post(() =>
+        {
+            if (_entries.TryGetValue(proposalId, out var latest)) ReviewRequested?.Invoke(this, latest);
+        });
         return true;
     }
 

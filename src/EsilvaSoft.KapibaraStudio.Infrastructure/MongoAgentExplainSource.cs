@@ -10,7 +10,8 @@ namespace EsilvaSoft.KapibaraStudio.Infrastructure;
 public sealed class MongoAgentExplainSource(
     IConnectionSecretStore secrets,
     IEnvironmentVaultRepository? environments,
-    MongoClientPool clients) : IAgentMongoExplainSource
+    IMongoClientPool clients,
+    ISecretStore? credentialStore = null) : IAgentMongoExplainSource
 {
     private const int MaximumRawBytes = 256 * 1024;
 
@@ -33,7 +34,7 @@ public sealed class MongoAgentExplainSource(
         var sort = query.SortEjson is null ? null : MongoAgentFindSource.ParseLiteral(query.SortEjson);
         var command = BuildExplainCommand(query, filter, projection, sort);
         var context = await MongoOperationContext.PrepareAsync(profile, secrets, environments, clients,
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken, credentialStore).ConfigureAwait(false);
         var target = context.CreateClient().GetDatabase(query.Database);
         var originalUuid = await MongoMetadataSource.ReadConcreteCollectionUuidAsync(target, query.Collection,
             cancellationToken).ConfigureAwait(false);

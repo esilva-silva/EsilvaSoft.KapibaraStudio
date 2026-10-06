@@ -38,6 +38,7 @@ public sealed class LocalCopilotCliConfiguration : ICopilotCliConfiguration
         var windows = isWindows ?? OperatingSystem.IsWindows();
         var fileExists = exists ?? File.Exists;
         bool IsAvailable(string candidate) => fileExists(candidate) &&
+            (exists is not null || NativeCopilotExecutableProbe.IsNativeExecutable(candidate, windows)) &&
             ((executableProbe is null && !OperatingSystem.IsLinux()) ||
              (executableProbe ?? LinuxExecutableProbe.IsExecutable)(candidate));
 

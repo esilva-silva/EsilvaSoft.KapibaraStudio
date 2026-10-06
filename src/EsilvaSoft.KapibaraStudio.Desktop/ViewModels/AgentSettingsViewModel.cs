@@ -212,6 +212,8 @@ public sealed partial class AgentSettingsViewModel : ObservableObject, IDisposab
             AgentAccountInstallState.Installed => Text.Format("agentCliInstalled", status.Version ?? "?"),
             AgentAccountInstallState.NotFound => Text.Format("agentCliNotFound", CliName),
             AgentAccountInstallState.UnsupportedExecutable => Text.Format("agentCliUnsupportedExecutable", CliName),
+            AgentAccountInstallState.InvalidPath => Text.Format("agentCliInvalidPath", CliName),
+            AgentAccountInstallState.NotExecutable => Text.Format("agentCliNotExecutable", CliName),
             AgentAccountInstallState.VersionTooLow => Text.Format("agentCliVersionTooLow", status.Version ?? "?", CliName),
             AgentAccountInstallState.VersionUnreadable => Text.Format("agentCliVersionUnreadable", CliName),
             AgentAccountInstallState.TimedOut => Text.Format("agentCliCheckTimedOut", CliName),

@@ -110,17 +110,18 @@ public static class LineDiff
     /// its anchors and lines: the candidate exactly at <paramref name="hintLine"/> (default
     /// <see cref="AgentEditHunk.OriginalStartLine"/>) wins; otherwise a single candidate is used, and several candidates
     /// are ambiguous (<see cref="LineDiffHunkStatus.Stale"/>). Callers that track which hunks are applied should pass the
-    /// exact expected line. <paramref name="allowShiftedBoundaryAnchor"/> lets that tracked hint locate a hunk whose
+    /// exact expected line. <paramref name="allowExactHintForAmbiguous"/> controls whether an exact line hint can
+    /// select one of several otherwise identical candidates. <paramref name="allowShiftedBoundaryAnchor"/> lets that tracked hint locate a hunk whose
     /// short start/end context moved away from the document boundary. <paramref name="fallbackLineEnding"/> (default <see cref="Environment.NewLine"/>) is used
     /// only when the text has no line break at all.
     /// </summary>
     public static LineDiffHunkResult ApplyHunk(
         string text, AgentEditHunk hunk, int? hintLine = null, string? fallbackLineEnding = null,
-        bool allowShiftedBoundaryAnchor = false)
+        bool allowShiftedBoundaryAnchor = false, bool allowExactHintForAmbiguous = true)
     {
         ArgumentNullException.ThrowIfNull(hunk);
         return Replace(text, hunk, hunk.OriginalLines, hunk.ProposedLines, hintLine ?? hunk.OriginalStartLine,
-            fallbackLineEnding, allowShiftedBoundaryAnchor);
+            fallbackLineEnding, allowShiftedBoundaryAnchor, allowExactHintForAmbiguous);
     }
 
     /// <summary>
@@ -246,7 +247,8 @@ public static class LineDiff
         IReadOnlyList<string> replacement,
         int hint,
         string? fallbackLineEnding,
-        bool allowShiftedBoundaryAnchor)
+        bool allowShiftedBoundaryAnchor,
+        bool allowExactHintForAmbiguous = true)
     {
         ArgumentNullException.ThrowIfNull(text);
         var table = LineTable.Parse(text);
@@ -277,8 +279,9 @@ public static class LineDiff
             }
         }
 
-        // The exact position wins; a single candidate elsewhere is safe; several candidates are ambiguous.
-        var chosen = exact >= 0 ? exact : candidates == 1 ? single : -1;
+        // A caller with an unchanged revision may use the exact position as identity. After divergence,
+        // several matching blocks are ambiguous even if one now occupies the old line number.
+        var chosen = candidates == 1 ? single : allowExactHintForAmbiguous ? exact : -1;
         if (chosen < 0)
         {
             return LineDiffHunkResult.Stale;

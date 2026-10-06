@@ -116,7 +116,9 @@ public sealed partial class AgentToolRegistry
             (name == GetWorkspaceContextToolName && native.Permissions.EnabledReadTools?.Contains(name, StringComparer.Ordinal) != true) ||
             (name == ProposeFileEditToolName && (native.ConversationId == Guid.Empty ||
                 native.Plan.ProposalHandling == AgentProposalHandling.Disabled || native.Plan.Mode == AgentOperationMode.Planning ||
-                native.Permissions.EditProposals?.ActiveFile != true || native.Permissions.DataSending?.ActiveFile != true)))
+                !(native.Permissions.EditProposals?.ActiveFile == true && native.Permissions.DataSending?.ActiveFile == true ||
+                  native.Permissions.EditProposals?.OtherWorkspaceFiles == true && native.Permissions.DataSending?.WorkspaceFiles == true &&
+                  native.Permissions.Workspace?.UseFilesFolder == true))))
             return false;
 
         scope = new AgentMcpSessionScope(Guid.Empty, Guid.Empty, native.ProviderId, native.ConversationId,
@@ -144,6 +146,7 @@ public sealed partial class AgentToolRegistry
         var workspace = string.Empty;
         var hasWorkspace = permissions.Workspace?.UseFilesFolder == true &&
             AgentWorkspacePaths.TryGetWorkspaceRoot(snapshot.WorkspaceFolder, out workspace, _sessionTools?.PathProbe);
+        var workspaceFolder = hasWorkspace && workspace.Length <= 1_024 ? workspace : null;
 
         WorkspaceActiveFile? active = null;
         if (permissions.DataSending?.ActiveFile == true && (snapshot.ActiveFilePath is not null || snapshot.ActiveFileName is not null))
@@ -157,14 +160,17 @@ public sealed partial class AgentToolRegistry
                     AgentWorkspacePaths.TryResolveInside(workspace, activePath, exclusions, out _, out var resolved, out _, _sessionTools?.PathProbe))
                 {
                     inside = true;
-                    relative = resolved;
+                    if (resolved.Length <= 1_024) relative = resolved;
                 }
                 else
                 {
                     // Exclusions apply by the real path, inside the workspace or not (e.g. an open ".env" elsewhere).
                     var check = AgentWorkspacePaths.CheckFile(activePath, hasWorkspace ? workspace : null, exclusions, _sessionTools?.PathProbe);
                     excluded = check is AgentWorkspacePathError.Excluded or AgentWorkspacePathError.InvalidExclusion;
-                    inside = hasWorkspace && AgentWorkspacePaths.IsStrictlyInside(activePath, workspace);
+                    // A lexical path below the root is not enough when a link or junction prevents proving the
+                    // actual target. Keep the context response fail-closed instead of describing it as in-workspace.
+                    inside = hasWorkspace && check != AgentWorkspacePathError.LinkTraversal &&
+                        AgentWorkspacePaths.IsStrictlyInside(activePath, workspace);
                 }
             }
             // An excluded file keeps only the fact that it is excluded; outside the workspace only its name is given.
@@ -186,11 +192,11 @@ public sealed partial class AgentToolRegistry
                 : new WorkspaceTab(null, null, null, null, false);
         }
 
-        var json = JsonSerializer.Serialize(new WorkspaceContextResponse(hasWorkspace ? workspace : null, active, tab),
+        var json = JsonSerializer.Serialize(new WorkspaceContextResponse(workspaceFolder, active, tab),
             SessionSerializerOptions);
         if (Utf8ByteCount(json) > MaximumOutputBytes) return AgentToolInvocationResult.Failure(ResultTooLarge);
         cancellationToken.ThrowIfCancellationRequested();
-        return AgentToolInvocationResult.Success(json);
+        return AgentToolInvocationResult.SuccessWorkspaceContext(json, snapshot);
     }
 
     /// <summary>
@@ -215,7 +221,8 @@ public sealed partial class AgentToolRegistry
         if (string.IsNullOrWhiteSpace(name) || name.Length > 255 || name.Any(char.IsControl)) return null;
         try
         {
-            return AgentSecretRedaction.Redact(name.Trim());
+            var redacted = AgentSecretRedaction.Redact(name.Trim());
+            return redacted is { Length: > 0 and <= 255 } ? redacted : null;
         }
         catch (AgentRuntimeException)
         {

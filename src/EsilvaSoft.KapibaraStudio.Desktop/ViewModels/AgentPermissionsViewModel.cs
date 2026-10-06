@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using EsilvaSoft.KapibaraStudio.Application.Agents;
@@ -51,7 +52,32 @@ public sealed partial class AgentPermissionsViewModel : ObservableObject
     public bool IsBusy { get; private set; }
     private bool _canEdit;
     public bool CanEdit => _canEdit && !IsBusy;
-    public bool CanSave => CanEdit && _repository is not null && _permissions.IsWellFormed;
+    public bool CanSave => CanEdit && _repository is not null && _permissions.IsWellFormed && IsToolCallLimitValid;
+    public bool ShowToolCallLimit => _providerId == AgentProviderIds.GitHubCopilotSubscription;
+    private string _toolCallLimitText = AgentProviderPermissions.DefaultMaximumToolCallsPerTurn.ToString(CultureInfo.InvariantCulture);
+    public string ToolCallLimitText
+    {
+        get => _toolCallLimitText;
+        set
+        {
+            if (!CanEdit || _toolCallLimitText == value) return;
+            _toolCallLimitText = value ?? string.Empty;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsToolCallLimitValid));
+            OnPropertyChanged(nameof(CanSave));
+            NotifyCommandStates();
+        }
+    }
+    public bool IsToolCallLimitValid => TryParseToolCallLimit(out _);
+    private bool TryParseToolCallLimit(out int? limit)
+    {
+        limit = null;
+        var text = _toolCallLimitText.Trim();
+        if (text.Length == 0) return true;
+        if (!int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var parsed) || parsed <= 0) return false;
+        limit = parsed;
+        return true;
+    }
     public bool CanDeleteHistory => CanEdit && _conversations is not null;
     public bool CanRetryLoad => _loadFailed && !IsBusy && !_canEdit && _repository is not null;
     public bool IsConfirmingHistoryDelete { get; private set; }
@@ -143,6 +169,7 @@ public sealed partial class AgentPermissionsViewModel : ObservableObject
             else if (result.Status != AgentPersistenceStatus.NotFound) { SetLoadFailure(Text.Resolve("agentPermissionsLoadFailed")); return; }
             _loadFailed = false;
             _canEdit = true;
+            _toolCallLimitText = _permissions.MaximumToolCallsPerTurn?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
             SyncConnectionSelection();
             Status = Text.Resolve(_permissions.HasExternalDestinationConsent ? "agentPermissionsConsentActive" : "agentPermissionsNoConsent");
             OnPropertyChanged(nameof(CanSave));
@@ -278,6 +305,8 @@ public sealed partial class AgentPermissionsViewModel : ObservableObject
     private async Task SaveAsync()
     {
         if (!CanSave || _repository is not { } repository) return;
+        if (!TryParseToolCallLimit(out var limit)) return;
+        _permissions = _permissions with { MaximumToolCallsPerTurn = limit };
         IsBusy = true; OnPropertyChanged(nameof(IsBusy)); OnPropertyChanged(nameof(CanEdit)); OnPropertyChanged(nameof(CanSave)); SaveCommand.NotifyCanExecuteChanged();
         try
         {

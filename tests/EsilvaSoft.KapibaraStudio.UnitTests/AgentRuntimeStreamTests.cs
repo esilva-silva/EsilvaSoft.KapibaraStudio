@@ -15,6 +15,45 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests;
 [TestFixture]
 public sealed partial class AgentRuntimeStreamTests
 {
+    [TestCase(100, 101, 100)]
+    [TestCase(3, 4, 3)]
+    [TestCase(null, 150, 150)]
+    public async Task CopilotCapturedToolBudgetReplacesTheRuntimeThirtyTwoCallLimit(int? maximum, int requested, int expected)
+    {
+        const string providerId = AgentProviderIds.GitHubCopilotSubscription;
+        var provider = new ScriptedProvider((session, _, token) => Script(session, token), providerId);
+        await using var runtime = new AgentRuntime([provider], new FakeAuthority());
+        var sessionId = await runtime.StartSessionAsync(new(providerId), CancellationToken.None);
+        var turnId = AgentTurnId.New();
+        var permissions = AgentProviderPermissions.Default(providerId) with
+        {
+            ExternalDestinationConsentAt = DateTimeOffset.UtcNow,
+            MaximumToolCallsPerTurn = maximum,
+        };
+        var request = Request(turnId) with
+        {
+            Permissions = permissions,
+            Plan = AgentModePolicy.Plan(AgentOperationMode.Agent, permissions, new(false, true, false)),
+        };
+        var events = await CollectAsync(runtime.RunTurnAsync(sessionId, request, CancellationToken.None), async item =>
+        {
+            if (item.Kind == AgentEventKind.ToolRequested && item.ToolCallId is { } call)
+                await runtime.SubmitToolResultAsync(new(sessionId, turnId, call, AgentToolResultStatus.Succeeded, "{}"), CancellationToken.None);
+        });
+        Assert.That(events.Count(item => item.Kind == AgentEventKind.ToolRequested), Is.EqualTo(expected));
+        Assert.That(events.Last().Outcome, Is.EqualTo(maximum is null ? AgentTurnOutcome.Completed : AgentTurnOutcome.Failed));
+        Assert.That(events.Any(item => item.ErrorCode == "ToolCallLimitExceeded"), Is.EqualTo(maximum is not null));
+
+        async IAsyncEnumerable<AgentProviderEvent> Script(ScriptedSession session, [EnumeratorCancellation] CancellationToken token)
+        {
+            for (var call = 0; call < requested; call++)
+            {
+                yield return new(AgentEventKind.ToolRequested, ToolCallId: AgentToolCallId.New(), ToolName: ToolName, ArgumentsJson: "{}");
+                await session.NextResultAsync(token);
+            }
+        }
+    }
+
     private static readonly TimeSpan Wait = TimeSpan.FromSeconds(5);
     private const string ToolName = "list_connections";
 

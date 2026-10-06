@@ -25,6 +25,14 @@ internal sealed class MemoryAgentFiles : IAgentBoundedFileReader, IAgentWorkspac
             Interlocked.Increment(ref _revision);
         }
     }
+    public void Remove(string path)
+    {
+        lock (_gate)
+        {
+            _files.Remove(Normalize(path));
+            Interlocked.Increment(ref _revision);
+        }
+    }
     public string GetText(string path) { lock (_gate) return System.Text.Encoding.UTF8.GetString(_files[Normalize(path)]); }
     public void AddDirectory(string path) { lock (_gate) _directories.Add(Normalize(path)); }
     public void SetLink(string path) { lock (_gate) _links.Add(Normalize(path)); }

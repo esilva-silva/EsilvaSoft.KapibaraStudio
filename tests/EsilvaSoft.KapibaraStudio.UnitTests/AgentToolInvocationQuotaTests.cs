@@ -5,6 +5,31 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests;
 [TestFixture]
 public sealed class AgentToolInvocationQuotaTests
 {
+    [TestCase(1)]
+    [TestCase(100)]
+    [TestCase(null)]
+    public void ConfiguredBudgetIsCapturedAndUnlimitedStillEnforcesConcurrency(int? maximum)
+    {
+        var quota = new AgentToolInvocationQuota();
+        var session = Guid.NewGuid();
+        var turn = Guid.NewGuid();
+        var count = maximum ?? 200;
+        for (var call = 0; call < count; call++)
+        {
+            using var lease = quota.TryEnter(session, turn, null, true, out _, call == 0 ? maximum : 1);
+            Assert.That(lease, Is.Not.Null, $"Call {call + 1}: the first admission captures the limit.");
+        }
+        using var next = quota.TryEnter(session, turn, null, true, out var busy, null);
+        Assert.That(next is null, Is.EqualTo(maximum is not null));
+        Assert.That(busy, Is.False);
+        next?.Dispose();
+        var newTurn = Guid.NewGuid();
+        using var first = quota.TryEnter(session, newTurn, null, true, out _, null);
+        using var second = quota.TryEnter(session, newTurn, null, true, out _, null);
+        Assert.That(quota.TryEnter(session, newTurn, null, true, out var saturated, null), Is.Null);
+        Assert.That(saturated, Is.True, "Clearing the call budget does not disable concurrency bounds.");
+    }
+
     [Test]
     public void SessionLimitReleasesACompletedLease()
     {

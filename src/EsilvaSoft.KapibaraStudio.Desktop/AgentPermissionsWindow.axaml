@@ -37,6 +37,15 @@
           <StackPanel Spacing="6">
             <TextBlock Text="{local:Loc Key=agentPermissionsToolsSection}" FontWeight="SemiBold"/>
             <TextBlock Text="{Binding ProductToolsStatus}" TextWrapping="Wrap"/>
+            <StackPanel x:Name="ToolCallBudgetControls" Spacing="4" IsVisible="{Binding ShowToolCallLimit}">
+              <TextBlock Text="{local:Loc Key=agentPermissionsToolCallLimit}" TextWrapping="Wrap"/>
+              <TextBox x:Name="ToolCallLimitBox" Text="{Binding ToolCallLimitText}" MaxLength="10"
+                       PlaceholderText="{local:Loc Key=agentPermissionsToolCallLimitUnlimited}"
+                       AutomationProperties.Name="{local:Loc Key=agentPermissionsToolCallLimit}"
+                       AutomationProperties.HelpText="{local:Loc Key=agentPermissionsToolCallLimitHelp}"/>
+              <TextBlock x:Name="ToolCallLimitHelp" Text="{local:Loc Key=agentPermissionsToolCallLimitHelp}" Classes="metadata" TextWrapping="Wrap"/>
+              <TextBlock x:Name="ToolCallLimitError" Text="{local:Loc Key=agentPermissionsToolCallLimitInvalid}" IsVisible="{Binding !IsToolCallLimitValid}" Foreground="{DynamicResource ErrorBrush}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+            </StackPanel>
             <CheckBox Content="{local:Loc Key=agentPermissionsLimitConnections}" IsChecked="{Binding LimitConnections}" IsEnabled="{Binding CanEdit}"/>
             <TextBlock Text="{local:Loc Key=agentPermissionsNoConnections}" IsVisible="{Binding !HasConnections}" Classes="metadata"/>
             <ItemsControl ItemsSource="{Binding Connections}" IsVisible="{Binding LimitConnections}">
@@ -105,13 +114,13 @@
         </Border>
       </StackPanel>
     </ScrollViewer>
-    <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-      <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-        <TextBlock Text="{Binding Status}" TextWrapping="Wrap"/>
+    <Grid Grid.Row="2" RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" RowSpacing="8">
+      <StackPanel Grid.ColumnSpan="3" Spacing="8">
+        <TextBlock x:Name="PermissionsStatus" Text="{Binding Status}" TextWrapping="Wrap"/>
         <Button Content="{local:Loc Key=agentPermissionsRetryLoad}" Command="{Binding RetryLoadCommand}" IsVisible="{Binding CanRetryLoad}"/>
       </StackPanel>
-      <Button Grid.Column="1" Content="{local:Loc Key=agentPermissionsSave}" Command="{Binding SaveCommand}"/>
-      <Button Grid.Column="2" Content="{local:Loc Key=agentPermissionsClose}" Click="CloseWindow"/>
+      <Button x:Name="SavePermissionsButton" Grid.Row="1" Grid.Column="1" Content="{local:Loc Key=agentPermissionsSave}" Command="{Binding SaveCommand}"/>
+      <Button Grid.Row="1" Grid.Column="2" Content="{local:Loc Key=agentPermissionsClose}" Click="CloseWindow"/>
     </Grid>
   </Grid>
 </Window>

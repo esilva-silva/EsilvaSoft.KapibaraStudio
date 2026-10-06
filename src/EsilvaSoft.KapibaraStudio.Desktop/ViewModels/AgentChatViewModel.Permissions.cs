@@ -244,7 +244,7 @@ public sealed partial class AgentChatViewModel
         if (SelectedProvider?.ProviderId == providerId)
         {
             _readScopeCache = null;
-            if (SelectedModel is null && CurrentPermissions?.DefaultModel is { } model && Models.Contains(model))
+            if (!_copilotModelChoiceRequired && SelectedModel is null && CurrentPermissions?.DefaultModel is { } model && Models.Contains(model))
             {
                 SelectedModel = model;
             }

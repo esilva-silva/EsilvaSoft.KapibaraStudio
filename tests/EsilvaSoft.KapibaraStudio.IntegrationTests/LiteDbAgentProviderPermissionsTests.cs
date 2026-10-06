@@ -12,6 +12,103 @@ namespace EsilvaSoft.KapibaraStudio.IntegrationTests;
 [Category("Integration")]
 public sealed class LiteDbAgentProviderPermissionsTests
 {
+    [TestCase(100)]
+    [TestCase(7)]
+    [TestCase(null)]
+    public async Task ToolBudgetSurvivesClosingOwnerAndIsIsolatedByProvider(int? maximum)
+    {
+        using var fixture = new Workspace();
+        using (var owner = new LiteDbConnectionProfileRepository(fixture.Path))
+        {
+            var repository = Repository(owner);
+            Assert.That((await repository.SaveAsync(AgentProviderPermissions.Default(Provider) with
+                { MaximumToolCallsPerTurn = maximum }, 0, default)).Succeeded, Is.True);
+            await repository.SaveAsync(AgentProviderPermissions.Default("other") with { MaximumToolCallsPerTurn = 3 }, 0, default);
+        }
+        using var reopened = new LiteDbConnectionProfileRepository(fixture.Path);
+        var loaded = await Repository(reopened).LoadAsync(Provider, default);
+        Assert.That(loaded.Value!.MaximumToolCallsPerTurn, Is.EqualTo(maximum));
+        Assert.That((await Repository(reopened).LoadAsync("other", default)).Value!.MaximumToolCallsPerTurn, Is.EqualTo(3));
+    }
+
+    [Test]
+    public async Task LegacyPermissionsUseOneHundredAndUpgradeOnlyOnSuccessfulSave()
+    {
+        using var fixture = new Workspace();
+        using (var owner = new LiteDbConnectionProfileRepository(fixture.Path))
+            await Repository(owner).SaveAsync(AgentProviderPermissions.Default(Provider), 0, default);
+        using (var raw = fixture.OpenOffline())
+        {
+            var collection = raw.GetCollection(CollectionName);
+            var document = collection.FindById(Provider);
+            var json = JsonNode.Parse(document["json"].AsString)!.AsObject();
+            json.Remove(nameof(AgentProviderPermissions.MaximumToolCallsPerTurn));
+            json[nameof(AgentProviderPermissions.FormatVersion)] = 1;
+            document["formatVersion"] = 1;
+            document["json"] = json.ToJsonString();
+            collection.Update(document);
+        }
+        AgentProviderPermissions legacy;
+        using (var owner = new LiteDbConnectionProfileRepository(fixture.Path))
+        {
+            var repository = Repository(owner);
+            var loaded = await repository.LoadAsync(Provider, default);
+            Assert.That(loaded.Value!.MaximumToolCallsPerTurn, Is.EqualTo(100));
+            Assert.That(loaded.Value.FormatVersion, Is.EqualTo(1));
+            legacy = loaded.Value;
+        }
+        using (var unchanged = fixture.OpenOffline())
+            Assert.That(unchanged.GetCollection(CollectionName).FindById(Provider)["formatVersion"].AsInt32, Is.EqualTo(1), "Reading legacy settings must not rewrite them.");
+        using (var owner = new LiteDbConnectionProfileRepository(fixture.Path))
+        {
+            var saved = await Repository(owner).SaveAsync(legacy with { MaximumToolCallsPerTurn = null }, legacy.Revision, default);
+            Assert.That(saved.Value!.FormatVersion, Is.EqualTo(2));
+        }
+        using var rawAfter = fixture.OpenOffline();
+        var persisted = rawAfter.GetCollection(CollectionName).FindById(Provider);
+        Assert.That(persisted["formatVersion"].AsInt32, Is.EqualTo(2));
+        Assert.That(JsonNode.Parse(persisted["json"].AsString)!.AsObject().ContainsKey(nameof(AgentProviderPermissions.MaximumToolCallsPerTurn)), Is.True);
+        Assert.That(JsonNode.Parse(persisted["json"].AsString)![nameof(AgentProviderPermissions.MaximumToolCallsPerTurn)], Is.Null);
+    }
+
+    [TestCase(0)]
+    [TestCase(-1)]
+    public async Task NonPositiveBudgetCannotBeSaved(int maximum)
+    {
+        using var fixture = new Workspace();
+        using var owner = new LiteDbConnectionProfileRepository(fixture.Path);
+        var result = await Repository(owner).SaveAsync(AgentProviderPermissions.Default(Provider) with
+            { MaximumToolCallsPerTurn = maximum }, 0, default);
+        Assert.That(result.Status, Is.EqualTo(AgentPersistenceStatus.Invalid));
+    }
+
+    [TestCase(null)]
+    [TestCase("0")]
+    [TestCase("-1")]
+    [TestCase("\"invalid\"")]
+    [TestCase("2147483648")]
+    public async Task MalformedVersionTwoBudgetIsPreservedAndCannotBeReplacedByDefaults(string? jsonValue)
+    {
+        using var fixture = new Workspace();
+        using (var owner = new LiteDbConnectionProfileRepository(fixture.Path))
+            await Repository(owner).SaveAsync(AgentProviderPermissions.Default(Provider), 0, default);
+        RewriteStoredJson(fixture, node =>
+        {
+            if (jsonValue is null) node.Remove(nameof(AgentProviderPermissions.MaximumToolCallsPerTurn));
+            else node[nameof(AgentProviderPermissions.MaximumToolCallsPerTurn)] = JsonNode.Parse(jsonValue);
+        });
+        string before;
+        using (var raw = fixture.OpenOffline()) before = raw.GetCollection(CollectionName).FindById(Provider).ToString();
+        using (var owner = new LiteDbConnectionProfileRepository(fixture.Path))
+        {
+            var repository = Repository(owner);
+            Assert.That((await repository.LoadAsync(Provider, default)).Status, Is.EqualTo(AgentPersistenceStatus.Unreadable));
+            Assert.That((await repository.SaveAsync(AgentProviderPermissions.Default(Provider), 1, default)).Status, Is.EqualTo(AgentPersistenceStatus.Unreadable));
+        }
+        using var after = fixture.OpenOffline();
+        Assert.That(after.GetCollection(CollectionName).FindById(Provider).ToString(), Is.EqualTo(before));
+    }
+
     private const string CollectionName = "agentProviderPermissions";
     private const string Provider = "claude-code";
 

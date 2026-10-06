@@ -36,7 +36,7 @@ public sealed partial class AgentChatViewModel
         card.DiscardHandler = DiscardProposalAsync;
         card.KeepHandler = KeepProposalAsync;
         card.RevertHandler = RevertProposalAsync;
-        card.IsAutomatic = conversation.Mode == AgentOperationMode.Automatic;
+        card.IsAutomatic = entry.Proposal.Handling == AgentProposalHandling.AutoApplyToBuffer;
         conversation.Items.Add(card);
         _ = SaveConversationAsync(conversation);
         if (card.IsAutomatic) _ = ApplyAutomaticProposalAsync(card);
@@ -62,8 +62,7 @@ public sealed partial class AgentChatViewModel
     private void OnProposalReviewRequested(object? sender, AgentEditProposalEntry entry)
     {
         if (!_proposalEditors.Remove(entry.Id, out var editor)) return;
-        var automatic = _conversations.TryGetValue(entry.Proposal.ConversationId, out var conversation) &&
-            conversation.Mode == AgentOperationMode.Automatic;
+        var automatic = entry.Proposal.Handling == AgentProposalHandling.AutoApplyToBuffer;
         ProposalReviewRequested?.Invoke(this, new AgentEditProposalReviewViewModel(entry, editor, _services.Proposals!, automatic));
     }
 

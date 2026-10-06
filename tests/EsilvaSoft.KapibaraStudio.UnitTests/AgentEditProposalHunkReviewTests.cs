@@ -79,4 +79,27 @@ public sealed class AgentEditProposalHunkReviewTests
             Assert.That(buffer.Text, Is.EqualTo("before\nuser edit\nafter\n"));
         });
     }
+
+    [Test]
+    public void DivergedBufferWithRepeatedExactContextIsStaleInsteadOfEditingTheInsertedDuplicate()
+    {
+        var original = string.Join('\n', "top", "before one", "before two", "target", "after one", "after two", "bottom");
+        var proposed = string.Join('\n', "top", "before one", "before two", "changed", "after one", "after two", "bottom");
+        var insertedDuplicate = string.Join('\n', "top", "before one", "before two", "target", "after one", "after two",
+            "before one", "before two", "target", "after one", "after two", "bottom");
+        var entry = Create(original, proposed);
+        var buffer = new Buffer(insertedDuplicate);
+
+        var result = AgentEditProposalApplier.ApplyPending(buffer, entry);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Succeeded, Is.True);
+            Assert.That(result.Changed, Is.Zero);
+            Assert.That(result.Stale, Is.EqualTo(1));
+            Assert.That(result.States[0], Is.EqualTo(AgentEditHunkState.Stale));
+            Assert.That(buffer.Text, Is.EqualTo(insertedDuplicate),
+                "An exact old line number cannot identify which duplicate block the user intended to keep.");
+        });
+    }
 }

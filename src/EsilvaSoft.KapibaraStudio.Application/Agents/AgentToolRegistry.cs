@@ -49,6 +49,7 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
     private const string ResultTooLarge = "ResultTooLarge";
     private const string DeadlineExceeded = "DeadlineExceeded";
     private const string Busy = "Busy";
+    private const string ToolCallLimitExceeded = "ToolCallLimitExceeded";
 
     /// <summary>
     /// Concurrent calls admitted per invocation session. For MCP the session is the enrolled channel, so every proxy
@@ -506,15 +507,22 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
             // turn and receives a correlated, typed audit outcome without touching a source.
             // External (MCP) calls have no model turn: they share the session (= enrolled channel) and global
             // concurrency slots but no per-turn budget. Saturated slots answer Busy (retryable); an exhausted
-            // turn budget stays PermissionDenied. Both are audited as LimitExceeded.
+            // turn budget answers ToolCallLimitExceeded. Both are audited as Denied/LimitExceeded.
             var quotaBusy = false;
+            var nativeQuotaScope = auditable && principal!.Origin == AgentPrincipalOrigin.Internal
+                ? _sessionTools?.NativeChatTurnScopes?.Find(invocationContext!.SessionId!.Value, invocationContext.TurnId!.Value)
+                : null;
+            // Use the permission snapshot of this exact Copilot turn, never current persisted settings or model arguments.
+            int? maximumCalls = nativeQuotaScope is { ProviderId: AgentProviderIds.GitHubCopilotSubscription } &&
+                nativeQuotaScope.ProviderId == invocationContext!.ProviderId && nativeQuotaScope.Permissions.IsWellFormed
+                ? nativeQuotaScope.Permissions.MaximumToolCallsPerTurn : AgentToolInvocationQuota.LegacyMaximumPerTurn;
             using var quotaLease = auditable
                 ? _quota.TryEnter(invocationContext!.SessionId!.Value, invocationContext.TurnId!.Value,
                     intent!.ConnectionId, trackTurn: principal!.Origin != AgentPrincipalOrigin.External,
-                    out quotaBusy)
+                    out quotaBusy, maximumCalls)
                 : null;
             var result = auditable && quotaLease is null
-                ? AgentToolInvocationResult.Failure(quotaBusy ? Busy : PermissionDenied,
+                ? AgentToolInvocationResult.Failure(quotaBusy ? Busy : ToolCallLimitExceeded,
                     AgentAuditDecisionReason.LimitExceeded)
                 : auditable && await CheckPrincipalCurrentAsync(principal!, deadline.Token).ConfigureAwait(false) is
                     { } channelDenial
@@ -685,8 +693,8 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
     {
         var succeeded = result?.Succeeded == true;
         var cancelled = result is null || result.ErrorCode == DeadlineExceeded;
-        // Busy is an admission refusal (nothing dispatched): audited as Denied/LimitExceeded, as before the split.
-        var denied = result?.ErrorCode is PermissionDenied or InvalidArguments or UnknownTool or Busy or
+        // Quota refusals dispatch nothing and remain Denied/LimitExceeded, distinct from missing permission.
+        var denied = result?.ErrorCode is PermissionDenied or InvalidArguments or UnknownTool or Busy or ToolCallLimitExceeded or
             ConfirmationRejected or ConfirmationExpired;
         var reason = succeeded ? AgentAuditDecisionReason.PolicyAllowed : cancelled ? AgentAuditDecisionReason.Cancelled :
             result?.AuditReason is { } auditReason ? auditReason :
@@ -1007,6 +1015,14 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
              string.Equals(grant.Scope.DatabaseName, database, StringComparison.Ordinal)));
         if (!hasEligibleGrant)
             return AgentToolInvocationResult.Failure(PermissionDenied, AgentAuditDecisionReason.PermissionMissing);
+
+        if (await RevalidateMetadataProfileAsync(profile, cancellationToken).ConfigureAwait(false) is { } preflightFailure)
+            return AgentToolInvocationResult.Failure(PermissionDenied, preflightFailure);
+        var beforeRead = await LoadCurrentPolicyAsync(principal, cancellationToken).ConfigureAwait(false);
+        if (beforeRead.Policy is null)
+            return AgentToolInvocationResult.Failure(PermissionDenied, beforeRead.DenialReason);
+        if (beforeRead.Policy.Revision != policy.Revision)
+            return AgentToolInvocationResult.Failure(PermissionDenied, AgentAuditDecisionReason.PolicyRevisionMismatch);
 
         IReadOnlyList<string> names;
         bool overflow;

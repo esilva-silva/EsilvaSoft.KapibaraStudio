@@ -1,5 +1,13 @@
 # Fase 5 — v0.9.0: GitHub Copilot e integração com agentes
 
+**Cota configurável — 06/10/2026:** o campo nas permissões Copilot usa padrão 100 e vazio ilimitado por mensagem, com persistência versionada e efeito nos próximos turnos. [Implementação, regressões e inspeção visual](meta-permissoes-tools-copilot.md#limite-configurável-solicitado-pelo-usuário--06102026). Esse incremento não encerra o aceite manual das 14 tools ou os demais gates da fase.
+
+**Novo retorno do client — 06/10/2026:** [captura e relato](meta-permissoes-tools-copilot.md#novo-retorno-do-client--06102026) identificam cota de chamadas nas duas leituras restantes; o cartão visível comprova `get_document`, e o agente relata o mesmo código para `mongo_explain`. Proposta não testada sem conteúdo autorizado. Leituras em novos turnos e proposta com anexo ativo permanecem no aceite manual do usuário; não há nova falha de permissão comprovada por esse retorno.
+
+**Permissões reabertas — 06/10/2026:** o usuário informou 11/14 tools funcionando. [F5-COP-PERM](meta-permissoes-tools-copilot.md#retomada--06102026) corrige a divergência de proposta workspace-only e distingue cota de chamadas de permissão, com regressões e UI localizada. Os três bloqueios reais ainda precisam de argumentos/auditoria; aceite integral e validação na aplicação permanecem abertos.
+
+**Correção de permissões no checkout — 05/10/2026:** [F5-COP-PERM](meta-permissoes-tools-copilot.md) reproduziu a omissão do cofre MongoDB nas fontes de oito leituras e corrigiu sua composição. Falha da fonte tem diagnóstico distinto de negação; workspace e `NotFound` em propostas têm orientação coerente. Foco **41/41** unitários e **13/13** integração/UI; PNGs reais inspecionados. Nenhum grant foi ampliado. O usuário fará a validação manual na aplicação; integração oficial completa segue com seus gates.
+
 **Escopo reorganizado em 03/10/2026:** concluir a integração completa com GitHub Copilot no painel Agente IA, usando os contratos compartilhados existentes. “Integração com agentes” nesta fase significa o runtime, sessões, contexto, ferramentas, permissões, auditoria e propostas necessários ao Copilot; não é um compromisso de concluir todos os providers.
 
 **Prioridade entre fases:** permanece a ordem vigente: entregas prioritárias da [Fase 8 / v0.12.0](../phase-08-v0.12.0/README.md), depois Fase 5 / v0.9.0. Esta revisão reorganiza o escopo, sem iniciar implementação ou declarar a integração concluída.
@@ -7,6 +15,22 @@
 **Demais integrações:** Claude Code/Anthropic, Codex/ChatGPT, OpenAI API e outros providers externos, além da integração MCP com clientes externos, ficam no [bkl-06 — integrações de agentes](../../backlog/bkl-06-integracoes-agentes.md), sem fase ou versão comprometida. Suas implementações, composição, catálogo, disponibilidade, testes, permissões e gates continuam como estão. A infraestrutura compartilhada necessária ao Copilot permanece nesta fase. IA local e workflow conservam suas fases próprias.
 
 **Rastreabilidade:** IDs históricos `P7-COP-01..07`, `P7-UX`, `P7-UX2`, `P7-AUTH` e `P7-LINUX`, versões de CLI/SDK, datas e resultados não são renumerados. Novos trabalhos referenciam Fase 5 / v0.9.0. O [histórico integral anterior](../../backlog/integracoes-agentes/historico-integracoes.md) conserva evidências e estados intermediários, inclusive os já substituídos.
+
+**Meta complementada em 03/10/2026:** a [meta de implementação](meta-de-implementacao.md) detalha **30 requisitos GitHub/produto**, **14 ferramentas liberáveis**, parâmetros/permissões/limites, ferramentas bloqueadas e matriz de sucesso/recusa/falha/concorrência/homologação por ferramenta. Inclui fontes oficiais e destinação das capacidades opcionais SDK/CLI; mantém os gates atuais e a separação entre código, contrato local e aceite real.
+
+**Primeiro lote de implementação — 03/10/2026:** avanços locais nos requisitos F5-GH-04/06/07 (invalidação e concorrência das ações de conta), F5-GH-13 (schema fechado e limitado antes de criar/retomar sessão) e F5-GH-10 (ignorar callbacks posteriores ao encerramento do turno). Testes dirigidos passaram: 25/25 de conta/lifecycle, 9/9 de schema e 22/22 no runtime fake STDIO. São evidências automatizadas locais; não encerram os critérios GH completos, as 14 tools V1..V9, CLI/conta oficial, MongoDB descartável ou homologação nativa.
+
+**Continuação da implementação — 03/10/2026:** F5-GH-01/03 recebeu detecção de cabeçalho PE/ELF sem executar o candidato e testes fake de protocolo/capacidades; F5-GH-12 passou a congelar chips e exclusões antes da primeira leitura assíncrona. Para F5-GH-24/25 foi adicionada divulgação Copilot “Dados e uso” antes do envio, com link oficial, em pt-BR/en/es/zh-CN. Evidência local dirigida: 34/34 testes de conta/schema/compatibilidade (conjuntos focalizados), 9/9 de anexos e 1/1 teste UI que gera oito PNGs; os oito PNGs foram inspecionados em quatro idiomas e dois temas e não mostram corte do conteúdo. Esses testes não comprovam CLI oficial, fluxo de conta, MongoDB, acessibilidade nativa nem aceite das ferramentas. Termos, licença, métricas e outros gates seguem abertos.
+
+**Segundo lote — 03/10/2026:** GH-11 agora mapeia categorias estruturadas de erro e timeouts para códigos localizados, sanitizados e sem replay automático; **44/44** testes focados de sessão/eventos/isolamento e **5/5** de localização passaram. GH-20/21 serializa a exclusão nativa/local do store volátil contra criação concorrente; **3/3** casos focalizados de exclusão/retry passaram. TOOL-04 ganhou verificação explícita de key directions, TTL e caminhos de filtros parciais sem valores; os testes de projeção e handler passaram **9/9**. A regressão visual de conversa e o aviso Copilot passaram **3/3**. São testes locais com fixtures/doubles; runtime oficial, crash/restart, MongoDB e matriz integral V1–V9 permanecem pendentes.
+
+**Terceiro lote — 03/10/2026:** fake-STDIO cobre GH-14 em create/resume, rejeição de built-in agents por recusa e RPC ausente antes do prompt, e GH-19 para resume reservado ambíguo sem criar sessão substituta nem retransmitir prompt/histórico. Casos novos **5/5** e regressões fake **3/3** passaram. Não substituem runtime oficial, restart real, confirmação humana na UI nem cobertura de concorrência/cancelamento GH-22.
+
+**Quarto lote — 03/10/2026:** GH-17/TOOL-14 agora revalida containment, links, exclusões e caminho canônico após a leitura assíncrona do arquivo do workspace; link inserido durante o `await` produz `OutsideWorkspace` e nenhuma proposta. Filtro de propostas passou **7/7** após rebuild correto do Application. O teste usa PathProbe/leitor sintéticos; symlink/junction nativo, aplicação/Undo no editor e runtime oficial continuam pendentes.
+
+**Quinto lote — 03/10/2026:** GH-22 fortaleceu o teste fake-STDIO de duas conversas: ambas aguardam tools distintas; cancelar uma faz abort/detach somente da primeira e a segunda termina com o resultado correspondente. Ledger verifica IDs/prompts separados, processos com PIDs distintos e saída após Dispose. Teste fortalecido **1/1**, regressões fake **6/6**. Não substitui concorrência com CLI/runtime oficial, validação nativa nem crash/dispose sob sessão real.
+
+**Sexto lote — 03/10/2026:** TOOL-06/GH-12 corrigiu a classificação de contexto: se a checagem detecta travessia de link, o metadado não afirma que o alvo está dentro da workspace só por seu caminho lexical. Um teste comprova `insideWorkspace=false`, ausência de `relativePath` e nenhuma leitura. Foco rebuilt com regressão de contexto/snapshot passou **3/3**; links OS nativos e runtime oficial seguem pendentes.
 
 ## Meta P7-COP — GitHub Copilot por assinatura
 
@@ -37,6 +61,8 @@
 | P7-COP-05 | Configuração e experiência | Concluir estados, mensagens, permissões, contexto e métricas oficiais Copilot; verificar PNGs reais nos temas/idiomas e registrar pendências nativas. |
 | P7-COP-06 | Sessões e recuperação | Cobrir duas conversas concorrentes, cancelamento independente, troca de seleção, reinício, sessão ausente/ilegível, falhas de gravação e exclusão, retenção/opt-out com runtime oficial. |
 | P7-COP-07 | Validação e documentação | Restore locked, build e suítes previstas, evidências proporcionais; alinhar ADRs, design system, catálogo, matriz, guia e acompanhamento. Homologação manual real coordenada com a Fase 10. |
+
+O aceite de cada entrega deve cobrir seus IDs `F5-GH-*`, as linhas `F5-TOOL-01..14` e os cenários V1..V9 aplicáveis da [meta detalhada](meta-de-implementacao.md). A liberação condicional de uma tool não equivale à homologação de seu contrato completo.
 
 As linhas permanecem **parciais**; contratos locais e testes Headless não substituem os cenários oficiais restantes. Primeiro fechar configuração/conta e distribuição; depois conversa e tools; em seguida sessão/recuperação e experiência; por fim consolidar evidências e aceite.
 

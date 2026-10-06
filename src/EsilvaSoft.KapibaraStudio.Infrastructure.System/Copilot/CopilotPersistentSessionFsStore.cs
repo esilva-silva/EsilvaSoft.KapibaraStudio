@@ -105,6 +105,8 @@ internal sealed class CopilotPersistentSessionFsStore : ICopilotSessionFsStore
                 if (deleteNativeSession is not null)
                     await deleteNativeSession(cancellationToken).ConfigureAwait(false);
                 if (!existed) return false;
+                // Native deletion may complete despite cancellation; retain local state for explicit recovery.
+                cancellationToken.ThrowIfCancellationRequested();
                 Directory.Delete(directory, recursive: true);
             }
             return true;
@@ -262,8 +264,9 @@ internal sealed class CopilotPersistentSessionFsStore : ICopilotSessionFsStore
             var target = ResolveFile(path, allowMissingLeaf: true);
             lock (_filesGate)
             {
-                ThrowIfDisposed(); EnsureParents(target);
+                ThrowIfDisposed();
                 EnforceFileQuota(target, Encoding.UTF8.GetByteCount(content));
+                EnsureParents(target);
                 AtomicWrite(target, content);
             }
             await Task.CompletedTask.ConfigureAwait(false);
@@ -275,10 +278,11 @@ internal sealed class CopilotPersistentSessionFsStore : ICopilotSessionFsStore
             var target = ResolveFile(path, allowMissingLeaf: true);
             lock (_filesGate)
             {
-                ThrowIfDisposed(); EnsureParents(target);
+                ThrowIfDisposed();
                 var old = File.Exists(target) ? File.ReadAllText(target) : string.Empty;
                 var combined = old + content;
                 EnforceFileQuota(target, Encoding.UTF8.GetByteCount(combined));
+                EnsureParents(target);
                 AtomicWrite(target, combined);
             }
             await Task.CompletedTask.ConfigureAwait(false);

@@ -1,5 +1,11 @@
 namespace EsilvaSoft.KapibaraStudio.Application.Agents;
 
+/// <summary>Only-read CLI discovery; no path, process output or account data is returned.</summary>
+public enum CopilotCliAvailability
+{
+    Available, NotFound, InvalidPath, UnsupportedExecutable, NotExecutable, ProbeFailed,
+}
+
 public enum CopilotAccountCommandState
 {
     Completed, CommandFailed, StillRunning, RuntimeUnavailable, NoVisibleTerminal, StartFailed,
@@ -9,5 +15,6 @@ public enum CopilotAccountCommandState
 public interface ICopilotAccountCommands
 {
     bool IsCliInstalled();
+    CopilotCliAvailability ProbeCli() => IsCliInstalled() ? CopilotCliAvailability.Available : CopilotCliAvailability.NotFound;
     Task<CopilotAccountCommandState> RunVisibleAsync(string action, CancellationToken cancellationToken);
 }

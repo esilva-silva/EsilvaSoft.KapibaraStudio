@@ -78,7 +78,7 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
         AttachPorts();
         LoadProviders(preferences?.SelectedProviderId, preferences?.SelectedModelId);
         ActiveConversation.ProviderId = SelectedProvider?.ProviderId ?? "";
-        ActiveConversation.ModelId = SelectedModel;
+        ActiveConversation.ModelId = _copilotModelChoiceRequired ? preferences?.SelectedModelId : SelectedModel;
         ActiveConversation.Mode = SelectedMode.Mode;
         WatchConversation(ActiveConversation);
         RefreshAutomaticChips();
@@ -133,10 +133,13 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsExternalDestination), nameof(DestinationText), nameof(DestinationHint),
         nameof(HasModels), nameof(IsStatusError), nameof(ProviderSummary), nameof(ModeText), nameof(HasModeText), nameof(ReadScopeText),
-        nameof(HasReadScope), nameof(ReadScopeSummary), nameof(IsReadScopeCritical), nameof(SupportsTurnPlan), nameof(AreChipsEnabled), nameof(ShowChipsDisabledNotice))]
+        nameof(HasReadScope), nameof(ReadScopeSummary), nameof(IsReadScopeCritical), nameof(SupportsTurnPlan), nameof(AreChipsEnabled),
+        nameof(ShowChipsDisabledNotice), nameof(IsCopilotSubscriptionSelected))]
     private AgentProviderOption? _selectedProvider;
 
     [ObservableProperty] private string? _selectedModel;
+    private bool _updatingModelCatalog;
+    private bool _copilotModelChoiceRequired;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SelectedModeHint))]
@@ -169,12 +172,16 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
     /// <summary>Mode chip next to Local/Externo; CLI providers are labeled by their delegated runtime, API providers by billing mode.</summary>
     public string ProviderSummary => SelectedProvider?.ModeText ?? SelectedProvider?.Label ?? Text.Resolve("agentProvider");
 
+    /// <summary>Shows the Copilot-specific data and plan disclosure before each send.</summary>
+    public bool IsCopilotSubscriptionSelected => string.Equals(SelectedProvider?.ProviderId,
+        AgentProviderIds.GitHubCopilotSubscription, StringComparison.Ordinal);
+
     public bool ShowStatusLine => State != AgentChatState.Generating ||
         !Items.OfType<AgentChatMessageItem>().Any(static message => message.IsStreaming);
 
     public bool ShowStatusArea => ShowStatusLine || HasActivePersistenceText || HistoryStatusIsError;
 
-    public string StatusSummary => State == AgentChatState.Ready && string.IsNullOrEmpty(StatusDetail)
+    public string StatusSummary => State == AgentChatState.Ready && string.IsNullOrEmpty(StatusDetail) && !IsCopilotModelSelectionRequired
         ? Text.Resolve("agentReadyCompact") : StatusText;
 
     public string? ModeText => SelectedProvider?.ModeText;
@@ -216,6 +223,8 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
     {
         get
         {
+            if (IsIdle && IsCopilotModelSelectionRequired)
+                return Text.Resolve("agentCopilotChooseEligibleModel");
             var name = SelectedProvider?.Presentation.DisplayName ?? "";
             var detail = ActiveDetail;
             var text = State switch
@@ -266,6 +275,15 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
     {
         get
         {
+            if (IsCopilotSubscriptionSelected)
+            {
+                // Copilot exposes product tools only. Its account handler has no native CLI read scope;
+                // that absence says nothing about the folder captured for the product tools in the next turn.
+                var candidate = SessionFolderCandidate();
+                var description = candidate is null ? Text.Resolve("agentCopilotNoWorkspaceScope")
+                    : Text.Format("agentCopilotWorkspaceScope", candidate);
+                return description;
+            }
             if (CurrentReadScope() is not { } current)
             {
                 return "";
@@ -289,15 +307,16 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
 
     public bool HasReadScope => ReadScopeText.Length > 0;
 
-    public string ReadScopeSummary => Text.Resolve(CurrentReadScope()?.Scope.CandidateDirectory is null
+    public string ReadScopeSummary => Text.Resolve((IsCopilotSubscriptionSelected
+        ? SessionFolderCandidate() : CurrentReadScope()?.Scope.CandidateDirectory) is null
         ? "agentReadScopeNoWorkspaceSummary" : "agentReadScopeDetails");
 
     // Keep blocked or pinned-session scope warnings expanded; routine scope details can be disclosed on demand.
-    public bool IsReadScopeCritical => IsReadScopeBlocked ||
+    public bool IsReadScopeCritical => !IsCopilotSubscriptionSelected && (IsReadScopeBlocked ||
         (CurrentReadScope()?.Scope.Rejection is not null and not AgentCliReadScopeRejection.None and not AgentCliReadScopeRejection.NotProvided) ||
         (CurrentReadScope() is { } current && ActiveConversation.HasSessionWorkingDirectory &&
          ActiveConversation.SessionProviderId == SelectedProvider?.ProviderId &&
-         !string.Equals(ActiveConversation.SessionWorkingDirectory, current.Scope.CandidateDirectory, StringComparison.Ordinal));
+         !string.Equals(ActiveConversation.SessionWorkingDirectory, current.Scope.CandidateDirectory, StringComparison.Ordinal)));
 
     /// <summary>Neither the chosen folder nor the dedicated folder can be used: no session can start (no fallback).</summary>
     public bool IsReadScopeBlocked => CurrentReadScope()?.Scope.BlocksSending == true;
@@ -478,34 +497,57 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
 
     private void LoadModels(string? keep)
     {
-        Models.Clear();
-        foreach (var model in SelectedProvider?.Presentation.Models ?? [])
+        // A previous unresolved choice belongs to the conversation, even though the selector is empty.
+        if (keep is null && _copilotModelChoiceRequired && IsCopilotSubscriptionSelected &&
+            ActiveConversation.ProviderId == SelectedProvider?.ProviderId)
+            keep = ActiveConversation.ModelId;
+        _updatingModelCatalog = true;
+        try
         {
-            Models.Add(model);
-        }
+            _copilotModelChoiceRequired = false;
+            Models.Clear();
+            foreach (var model in SelectedProvider?.Presentation.Models ?? [])
+            {
+                Models.Add(model);
+            }
 
-        // A restored conversation may target a saved CLI model while its first account/model discovery is still
-        // running. Keep that selection visible until the active check completes; then this method runs again against
-        // the published list and naturally falls back if the model is no longer eligible.
-        var selectedProviderId = SelectedProvider?.ProviderId;
-        var accountProvider = SelectedProvider?.Presentation.AuthenticationMethods.Any(static method =>
-            method is AgentAuthenticationMethod.OfficialCliDelegated or AgentAuthenticationMethod.OfficialAppServerDelegated) == true;
-        var availability = selectedProviderId is null ? null : _services.Availability?.Current(selectedProviderId);
-        var accountCheckPending = accountProvider && availability is null or
-            { State: AgentProviderAvailabilityState.Checking or AgentProviderAvailabilityState.NotChecked };
-        if (accountCheckPending && keep is { Length: > 0 } && !Models.Contains(keep))
-        {
-            Models.Insert(0, keep);
-            SelectedModel = keep;
+            // A restored conversation may target a saved CLI model while its first account/model discovery is still
+            // running. Keep that selection visible until the active check completes; then this method runs again against
+            // the published list. Copilot requires an explicit choice if the model is no longer eligible.
+            var selectedProviderId = SelectedProvider?.ProviderId;
+            var accountProvider = SelectedProvider?.Presentation.AuthenticationMethods.Any(static method =>
+                method is AgentAuthenticationMethod.OfficialCliDelegated or AgentAuthenticationMethod.OfficialAppServerDelegated) == true;
+            var availability = selectedProviderId is null ? null : _services.Availability?.Current(selectedProviderId);
+            var accountCheckPending = accountProvider && SelectedProvider?.Presentation.IsAvailable != true &&
+                (availability is null or { State: AgentProviderAvailabilityState.Checking or AgentProviderAvailabilityState.NotChecked });
+            if (accountCheckPending && keep is { Length: > 0 } && !Models.Contains(keep))
+            {
+                Models.Insert(0, keep);
+                SelectedModel = keep;
+                OnPropertyChanged(nameof(HasModels));
+                return;
+            }
+
+            if (IsCopilotSubscriptionSelected && keep is not null && !Models.Contains(keep))
+            {
+                _copilotModelChoiceRequired = true;
+                SelectedModel = null;
+                OnPropertyChanged(nameof(HasModels));
+                return;
+            }
+            var fallback = CurrentPermissions?.DefaultModel;
+            SelectedModel = keep is not null && Models.Contains(keep) ? keep
+                : fallback is not null && Models.Contains(fallback) ? fallback
+                : Models.FirstOrDefault();
             OnPropertyChanged(nameof(HasModels));
-            return;
         }
-
-        var fallback = CurrentPermissions?.DefaultModel;
-        SelectedModel = keep is not null && Models.Contains(keep) ? keep
-            : fallback is not null && Models.Contains(fallback) ? fallback
-            : Models.FirstOrDefault();
-        OnPropertyChanged(nameof(HasModels));
+        finally
+        {
+            _updatingModelCatalog = false;
+            OnPropertyChanged(nameof(StatusText));
+            OnPropertyChanged(nameof(StatusSummary));
+            SendCommand.NotifyCanExecuteChanged();
+        }
     }
 
     partial void OnSelectedProviderChanged(AgentProviderOption? oldValue, AgentProviderOption? newValue)
@@ -566,12 +608,17 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
     partial void OnSelectedModelChanged(string? value)
     {
         ScheduleContextMeasurement();
-        if (!ActiveConversation.IsBusy)
+        if (!_updatingModelCatalog && IsCopilotSubscriptionSelected && value is not null && Models.Contains(value))
+            _copilotModelChoiceRequired = false;
+        if ((!_updatingModelCatalog || !IsCopilotSubscriptionSelected) && !ActiveConversation.IsBusy)
         {
             ActiveConversation.ModelId = value;
         }
 
-        if (!_suppressProviderSwitch)
+        OnPropertyChanged(nameof(StatusText));
+        OnPropertyChanged(nameof(StatusSummary));
+        SendCommand.NotifyCanExecuteChanged();
+        if (!_updatingModelCatalog && !_suppressProviderSwitch)
         {
             _host.OnPanelPreferencesChanged();
         }
@@ -678,6 +725,12 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
         IsFeatureAvailable && SelectedProvider is { Presentation: { IsAvailable: true } presentation } &&
         presentation.AuthState is AgentProviderAuthState.NotRequired or AgentProviderAuthState.Configured && !IsReadScopeBlocked;
 
+    private bool HasEligibleCopilotModel => !IsCopilotSubscriptionSelected ||
+        SelectedModel is { Length: > 0 } model && Models.Contains(model);
+
+    private bool IsCopilotModelSelectionRequired => IsCopilotSubscriptionSelected && IsProviderUsable &&
+        (_copilotModelChoiceRequired || !HasEligibleCopilotModel);
+
     /// <summary>"Check availability" is offered only while no usable provider is selected and nothing runs.</summary>
     public bool ShowRefreshProviders => IsFeatureAvailable && IsIdle && !IsProviderUsable && State != AgentChatState.ReadScopeUnavailable &&
         !ShowAvailabilityRetry;
@@ -735,6 +788,10 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
         void RefreshLocalizedState()
         {
             if (_disposed) return;
+            foreach (var mode in Modes) mode.RefreshLocalizedText();
+            foreach (var conversation in _conversations.Values)
+                foreach (var tool in conversation.Items.OfType<AgentToolCallItem>()) tool.RefreshLocalizedText();
+            OnPropertyChanged(nameof(SelectedModeHint));
             NotifyMetricProperties();
             OnPropertyChanged(nameof(StatusText));
             OnPropertyChanged(nameof(DestinationText));

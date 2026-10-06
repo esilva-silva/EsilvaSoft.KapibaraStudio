@@ -77,24 +77,27 @@ internal sealed class CopilotVolatileSessionFsStore : ICopilotSessionFsStore
     public async ValueTask<bool> DeleteSessionAsync(string sessionId, Func<CancellationToken, Task>? deleteNativeSession,
         CancellationToken cancellationToken = default)
     {
-        if (deleteNativeSession is not null) await deleteNativeSession(cancellationToken).ConfigureAwait(false);
-        return await DeleteSessionAsync(sessionId, cancellationToken).ConfigureAwait(false);
-    }
-
-    public async ValueTask<bool> DeleteSessionAsync(string sessionId, CancellationToken cancellationToken = default)
-    {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         cancellationToken.ThrowIfCancellationRequested();
         await _lifecycleGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
+            // Serialize native cleanup with create/resume. Otherwise a provider can be handed out for this ID
+            // during remote deletion and then become disposed when local state is removed below.
+            if (deleteNativeSession is not null)
+                await deleteNativeSession(cancellationToken).ConfigureAwait(false);
+            // Native deletion may complete despite cancellation; retain local state for explicit recovery.
+            cancellationToken.ThrowIfCancellationRequested();
             if (!_sessions.TryRemove(sessionId, out var state)) return false;
             await state.DisposeAsync().ConfigureAwait(false);
             return true;
         }
         finally { _lifecycleGate.Release(); }
     }
+
+    public ValueTask<bool> DeleteSessionAsync(string sessionId, CancellationToken cancellationToken = default) =>
+        DeleteSessionAsync(sessionId, deleteNativeSession: null, cancellationToken);
 
     public async ValueTask DisposeAsync()
     {
@@ -179,10 +182,12 @@ internal sealed class CopilotVolatileSessionFsStore : ICopilotSessionFsStore
             lock (_filesGate)
             {
                 ThrowIfDisposed();
-                EnsureParentDirectories(key);
+                var parents = ValidateParentDirectories(key);
                 if (_directories.ContainsKey(key)) throw new IOException("O caminho SessionFs é um diretório.");
                 var current = _files.GetValueOrDefault(key);
-                _files[key] = CreateFileEntry(key, content, current?.Birthtime, current?.Mtime);
+                var entry = CreateFileEntry(key, content, current?.Birthtime, current?.Mtime);
+                AddParentDirectories(parents);
+                _files[key] = entry;
             }
             return Task.CompletedTask;
         }
@@ -196,10 +201,12 @@ internal sealed class CopilotVolatileSessionFsStore : ICopilotSessionFsStore
             lock (_filesGate)
             {
                 ThrowIfDisposed();
-                EnsureParentDirectories(key);
+                var parents = ValidateParentDirectories(key);
                 if (_directories.ContainsKey(key)) throw new IOException("O caminho SessionFs é um diretório.");
                 var current = _files.GetValueOrDefault(key);
-                _files[key] = CreateFileEntry(key, (current?.Content ?? string.Empty) + content, current?.Birthtime, current?.Mtime);
+                var entry = CreateFileEntry(key, (current?.Content ?? string.Empty) + content, current?.Birthtime, current?.Mtime);
+                AddParentDirectories(parents);
+                _files[key] = entry;
             }
             await Task.CompletedTask.ConfigureAwait(false);
         }
@@ -506,7 +513,7 @@ internal sealed class CopilotVolatileSessionFsStore : ICopilotSessionFsStore
             throw new NotSupportedException("Tipo de consulta SQLite SessionFs não suportado.");
         }
 
-        private void EnsureParentDirectories(string path)
+        private List<string> ValidateParentDirectories(string path)
         {
             var parent = Parent(path);
             var current = "/";
@@ -519,6 +526,12 @@ internal sealed class CopilotVolatileSessionFsStore : ICopilotSessionFsStore
             }
 
             EnsureDirectoryCapacity(missing.Count);
+            // Validate without mutation: a subsequent file quota refusal must not consume directory capacity.
+            return missing;
+        }
+
+        private void AddParentDirectories(IReadOnlyList<string> missing)
+        {
             var now = DateTimeOffset.UtcNow;
             foreach (var directory in missing) _directories.Add(directory, now);
         }

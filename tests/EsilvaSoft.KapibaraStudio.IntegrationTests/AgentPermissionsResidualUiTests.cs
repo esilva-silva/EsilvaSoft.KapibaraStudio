@@ -15,6 +15,131 @@ namespace EsilvaSoft.KapibaraStudio.IntegrationTests;
 [TestFixture, Category("Integration")]
 public sealed class AgentPermissionsResidualUiTests
 {
+    private static readonly string[] BudgetLanguages = ["pt-BR", "en", "es", "zh-CN"];
+    private static readonly Size[] BudgetSizes = [new(520, 500), new(700, 720), new(960, 760)];
+    private static readonly double[] BudgetScales = [1.0, 1.5, 2.0];
+    private static readonly string[] BudgetInputs = ["100", "", "0"];
+    private static readonly string[] BudgetTextNames = ["ToolCallLimitHelp", "ToolCallLimitError", "PermissionsStatus"];
+    [Test, NonParallelizable]
+    public async Task CopilotToolBudgetFieldRendersAcrossLocalesThemesSizesAndScales()
+    {
+        var session = HeadlessUnitTestSession.GetOrStartForAssembly(typeof(IntegrationUiTestApp).Assembly);
+        await session.Dispatch(async () =>
+        {
+            try
+            {
+                foreach (var language in BudgetLanguages)
+                {
+                    LocalizationViewModel.Current.Language = language;
+                    var repository = new PermissionsRepository
+                    {
+                        LoadResult = AgentPersistenceResult.Success(AgentProviderPermissions.Default(AgentProviderIds.GitHubCopilotSubscription)),
+                    };
+                    var vm = new AgentPermissionsViewModel(repository, null, AgentProviderIds.GitHubCopilotSubscription, "GitHub Copilot", @"D:\synthetic-workspace",
+                        [], true, TimeProvider.System);
+                    var window = new AgentPermissionsWindow { DataContext = vm };
+                    window.Show();
+                    await vm.LoadTask;
+                    var box = window.FindControl<TextBox>("ToolCallLimitBox")!;
+                    try
+                    {
+                        foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+                            foreach (var size in BudgetSizes)
+                                foreach (var scale in BudgetScales)
+                                    foreach (var input in BudgetInputs)
+                                    {
+                                        Avalonia.Application.Current!.RequestedThemeVariant = theme;
+                                        window.Width = size.Width;
+                                        window.Height = size.Height;
+                                        window.SetRenderScaling(scale);
+                                        box.Text = input;
+                                        window.UpdateLayout();
+                                        window.FindControl<StackPanel>("ToolCallBudgetControls")!.BringIntoView();
+                                        Dispatcher.UIThread.RunJobs();
+                                        window.UpdateLayout();
+                                        Assert.That(box.Text, Is.EqualTo(input));
+                                        Assert.That(vm.ToolCallLimitText, Is.EqualTo(input), "The field must update the permission editor through its two-way binding.");
+                                        Assert.That(vm.IsToolCallLimitValid, Is.EqualTo(input != "0"));
+                                        Assert.That(window.FindControl<Button>("SavePermissionsButton")!.IsEffectivelyEnabled, Is.EqualTo(input != "0"),
+                                            "Command availability controls effective enablement, not the local IsEnabled value.");
+                                        foreach (var textName in BudgetTextNames)
+                                        {
+                                            var block = window.FindControl<TextBlock>(textName)!;
+                                            if (!block.IsVisible) continue;
+                                            Assert.That(block.TextLayout.Width, Is.LessThanOrEqualTo(block.Bounds.Width + 1));
+                                            Assert.That(block.TextLayout.Height, Is.LessThanOrEqualTo(block.Bounds.Height + 1));
+                                        }
+                                        Assert.That(Avalonia.Automation.AutomationProperties.GetName(box),
+                                            Is.EqualTo(LocalizationViewModel.Current.Resolve("agentPermissionsToolCallLimit")));
+                                        using var frame = window.CaptureRenderedFrame();
+                                        var directory = UiEvidenceDirectory.Current();
+                                        Directory.CreateDirectory(directory);
+                                        var state = input.Length == 0 ? "unlimited" : input == "0" ? "invalid" : "default";
+                                        frame!.Save(Path.Combine(directory, $"copilot-tool-budget-{language}-{theme}-{size.Width}x{size.Height}-{scale.ToString(System.Globalization.CultureInfo.InvariantCulture)}-{state}.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+                                    }
+                    }
+                    finally { window.Close(); }
+                }
+            }
+            finally
+            {
+                LocalizationViewModel.Current.Language = "pt-BR";
+                Avalonia.Application.Current!.RequestedThemeVariant = ThemeVariant.Default;
+            }
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [TestCase("100", 100)]
+    [TestCase("7", 7)]
+    [TestCase("", null)]
+    [TestCase("   ", null)]
+    public async Task ToolBudgetEditorSavesPositiveOrUnlimitedValues(string input, int? expected)
+    {
+        var repository = new PermissionsRepository
+        {
+            LoadResult = AgentPersistenceResult.Success(AgentProviderPermissions.Default(AgentProviderIds.GitHubCopilotSubscription)),
+        };
+        var vm = new AgentPermissionsViewModel(repository, null, AgentProviderIds.GitHubCopilotSubscription, "Copilot", null,
+            [], true, TimeProvider.System);
+        await vm.LoadTask;
+        Assert.That(vm.ToolCallLimitText, Is.EqualTo("100"));
+        vm.ToolCallLimitText = input;
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.That(repository.Saved!.MaximumToolCallsPerTurn, Is.EqualTo(expected));
+        repository.LoadResult = AgentPersistenceResult.Success(repository.Saved);
+        var reopened = new AgentPermissionsViewModel(repository, null, AgentProviderIds.GitHubCopilotSubscription, "Copilot", null,
+            [], true, TimeProvider.System);
+        await reopened.LoadTask;
+        Assert.That(reopened.ToolCallLimitText, Is.EqualTo(expected?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty));
+    }
+
+    [TestCase("0")]
+    [TestCase("-1")]
+    [TestCase("1.5")]
+    [TestCase("abc")]
+    [TestCase("2147483648")]
+    public async Task InvalidToolBudgetCannotSaveOtherPermissionChanges(string input)
+    {
+        var repository = new PermissionsRepository
+        {
+            LoadResult = AgentPersistenceResult.Success(AgentProviderPermissions.Default(AgentProviderIds.GitHubCopilotSubscription)),
+        };
+        var vm = new AgentPermissionsViewModel(repository, null, AgentProviderIds.GitHubCopilotSubscription, "Copilot", null,
+            [], true, TimeProvider.System);
+        await vm.LoadTask;
+        vm.ToolCallLimitText = input;
+        vm.ActiveFile = false;
+        Assert.That(vm.CanSave, Is.False);
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.That(repository.Saved, Is.Null);
+        vm.ToolCallLimitText = "";
+        Assert.That(vm.CanSave, Is.True);
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.That(repository.Saved!.DataSending.ActiveFile, Is.False);
+        Assert.That(repository.Saved.MaximumToolCallsPerTurn, Is.Null);
+    }
+
     [Test]
     [NonParallelizable]
     public async Task PermissionsWindowRendersLocalizedSectionsInBothThemes()

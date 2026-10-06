@@ -111,6 +111,9 @@ internal sealed class CopilotCliDiscoveryIntegrationTests
             Assert.That(LocalCopilotAccountCommands.FindCliExecutable(root), Is.Null);
             Assert.That(LocalCopilotAccountCommands.FindCliExecutable("relative-path"), Is.Null);
             File.WriteAllText(executable, "test placeholder");
+            Assert.That(LocalCopilotAccountCommands.FindCliExecutable(root), Is.Null,
+                "A script or text renamed as copilot is not a native installation.");
+            File.Copy(Environment.ProcessPath!, executable, overwrite: true);
             if (OperatingSystem.IsLinux())
             {
                 File.SetUnixFileMode(executable, UnixFileMode.UserRead | UnixFileMode.UserWrite);

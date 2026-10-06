@@ -210,7 +210,7 @@ public sealed partial class AgentToolRegistry
                         filter = property.Value.GetString()!;
                         break;
                     case "projectionEjson" when property.Value.ValueKind == JsonValueKind.String &&
-                        IsSimpleFieldSpec(property.Value.GetString(), allowDescending: false):
+                        IsValidProjection(property.Value.GetString()):
                         projection = property.Value.GetString();
                         break;
                     case "sortEjson" when property.Value.ValueKind == JsonValueKind.String &&
@@ -277,7 +277,7 @@ public sealed partial class AgentToolRegistry
                         limit = parsedLimit;
                         break;
                     case "projectionEjson" when property.Value.ValueKind == JsonValueKind.String &&
-                        IsSimpleFieldSpec(property.Value.GetString(), allowDescending: false):
+                        IsValidProjection(property.Value.GetString()):
                         projection = property.Value.GetString();
                         break;
                     default: return false;
@@ -330,7 +330,7 @@ public sealed partial class AgentToolRegistry
                         filter = property.Value.GetString()!;
                         break;
                     case "projectionEjson" when property.Value.ValueKind == JsonValueKind.String &&
-                        IsSimpleFieldSpec(property.Value.GetString(), allowDescending: false):
+                        IsValidProjection(property.Value.GetString()):
                         projection = property.Value.GetString();
                         break;
                     case "sortEjson" when property.Value.ValueKind == JsonValueKind.String &&
@@ -429,6 +429,21 @@ public sealed partial class AgentToolRegistry
                 allowDescending && direction == 0) return false;
         }
         return true;
+    }
+
+    private static bool IsValidProjection(string? json)
+    {
+        if (!IsSimpleFieldSpec(json, allowDescending: false)) return false;
+        using var document = JsonDocument.Parse(json!);
+        var hasIncludedField = false;
+        var hasExcludedNonIdField = false;
+        foreach (var property in document.RootElement.EnumerateObject())
+        {
+            var direction = property.Value.GetInt32();
+            hasIncludedField |= direction == 1;
+            hasExcludedNonIdField |= direction == 0 && property.Name != "_id";
+        }
+        return !hasIncludedField || !hasExcludedNonIdField;
     }
 
     private sealed record FindResponse(

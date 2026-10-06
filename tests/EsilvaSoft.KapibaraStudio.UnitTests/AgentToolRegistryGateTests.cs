@@ -23,6 +23,10 @@ public sealed class AgentToolRegistryGateTests
 
     private static readonly AgentAuditOutcome[] IntentThenDenied = [AgentAuditOutcome.Intent, AgentAuditOutcome.Denied];
     private static readonly string[] OnlyListConnections = ["list_connections"];
+    private static readonly AgentPermission[] DocumentReadPermissions =
+        [AgentPermission.ExecuteReadQueries, AgentPermission.ReadDocuments];
+    private static readonly AgentPermission[] ExplainPermissions =
+        [AgentPermission.ReadDiagnostics, AgentPermission.ExecuteReadQueries, AgentPermission.ReadDocuments];
     private static readonly string[] ChatThenMcpIdentifiers = ["openai", "openai", "claude-code", "claude-code"];
     private static readonly (AgentAuditOutcome, AgentAuditChannel)[] TwoExternalCalls =
     [
@@ -364,6 +368,67 @@ public sealed class AgentToolRegistryGateTests
         });
     }
 
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task CopilotMongoExplainApprovalDoesNotReplaceDiagnosticsGrant(bool hasDiagnosticsGrant)
+    {
+        var prompt = new RecordingConfirmation(AgentToolConfirmationDecision.ApprovedOnce);
+        var rig = CopilotReadRig(AgentConfirmationCategories.MongoDocumentRead, prompt,
+            toolName: AgentToolRegistry.MongoExplainToolName, includeDiagnosticsGrant: hasDiagnosticsGrant);
+        const string filter = "{\"value\":\"private-explain-filter-canary\"}";
+        var arguments = FindArguments(rig.Profile, filter);
+        rig.Explain.OnDispatch = () => Assert.Multiple(() =>
+        {
+            Assert.That(rig.Audit.Events, Has.Count.EqualTo(3), "Human approval and read intent must precede dispatch.");
+            Assert.That(rig.Audit.Events[1].ApprovalState, Is.EqualTo(AgentAuditApprovalState.ApprovedOnce));
+            Assert.That(rig.Audit.Events[2].Outcome, Is.EqualTo(AgentAuditOutcome.Intent));
+        });
+
+        var result = await rig.Registry.InvokeAsync(Internal(5), rig.Context, rig.Destination,
+            AgentOutputDataScope.DocumentValues, AgentToolRegistry.MongoExplainToolName, arguments);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(prompt.Requests, Has.Count.EqualTo(1));
+            Assert.That(prompt.Requests[0].ProviderId, Is.EqualTo(AgentProviderIds.GitHubCopilotSubscription));
+            Assert.That(prompt.Requests[0].ToolName, Is.EqualTo(AgentToolRegistry.MongoExplainToolName));
+            Assert.That(prompt.Requests[0].Category, Is.EqualTo(AgentConfirmationCategories.MongoDocumentRead));
+            Assert.That(prompt.Requests[0].InputJson, Is.EqualTo(arguments));
+            Assert.That(result.Succeeded, Is.EqualTo(hasDiagnosticsGrant));
+            Assert.That(rig.Explain.Calls, Is.EqualTo(hasDiagnosticsGrant ? 1 : 0));
+            Assert.That(rig.Find.Calls, Is.Zero, "Explain must not dispatch a document find instead.");
+            Assert.That(rig.Audit.Events, Has.Count.EqualTo(4));
+            Assert.That(rig.Audit.Events[1].ApprovalState, Is.EqualTo(AgentAuditApprovalState.ApprovedOnce));
+            Assert.That(rig.Audit.Events[^1].Outcome, Is.EqualTo(hasDiagnosticsGrant
+                ? AgentAuditOutcome.Succeeded : AgentAuditOutcome.Denied));
+            Assert.That(rig.Audit.Events.All(item => item.ToolName == AgentToolRegistry.MongoExplainToolName), Is.True);
+            Assert.That(JsonSerializer.Serialize(rig.Audit.Events), Does.Not.Contain("private-explain-filter-canary"));
+        });
+        if (hasDiagnosticsGrant)
+        {
+            using var output = JsonDocument.Parse(result.StructuredContentJson!);
+            Assert.Multiple(() =>
+            {
+                Assert.That(output.RootElement.GetProperty("verbosity").GetString(), Is.EqualTo("queryPlanner"));
+                Assert.That(output.RootElement.GetProperty("planEjson").GetString(), Is.EqualTo(CountingExplain.Plan));
+                Assert.That(rig.Explain.LastQuery!.FilterEjson, Is.EqualTo(filter));
+                Assert.That(rig.Explain.LastQuery.Limit, Is.EqualTo(5));
+                Assert.That(result.StructuredContentJson, Does.Not.Contain("private-explain-filter-canary"));
+            });
+        }
+        else
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.ErrorCode, Is.EqualTo("PermissionDenied"));
+                Assert.That(result.StructuredContentJson, Is.Null);
+                Assert.That(rig.Audit.Events[^1].DecisionReason, Is.EqualTo(AgentAuditDecisionReason.PermissionMissing));
+                Assert.That(rig.Audit.Events[^1].ItemCount, Is.Zero);
+                Assert.That(rig.Audit.Events[^1].OutputBytes, Is.Zero);
+            });
+        }
+    }
+
     [TestCase(AgentToolConfirmationDecision.Rejected)]
     [TestCase(AgentToolConfirmationDecision.ApprovedThisSession)]
     public async Task CopilotReadDenialOrSessionDecisionNeverDispatches(AgentToolConfirmationDecision decision)
@@ -418,6 +483,224 @@ public sealed class AgentToolRegistryGateTests
     }
 
     [Test]
+    public async Task CopilotSampleDocumentsUsesPlannedDocumentReadApprovalAndBoundedQuery()
+    {
+        var prompt = new RecordingConfirmation(AgentToolConfirmationDecision.ApprovedOnce);
+        var rig = CopilotReadRig(AgentConfirmationCategories.MongoDocumentRead, prompt,
+            toolName: AgentToolRegistry.SampleDocumentsToolName);
+        var arguments = JsonSerializer.Serialize(new
+        {
+            connectionId = rig.Profile.Id, database = "app", collection = "items", limit = 20
+        });
+
+        var result = await rig.Registry.InvokeAsync(Internal(5), rig.Context, rig.Destination,
+            AgentOutputDataScope.DocumentValues, AgentToolRegistry.SampleDocumentsToolName, arguments);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Succeeded, Is.True, result.ErrorCode);
+            Assert.That(rig.Find.Calls, Is.EqualTo(1));
+            Assert.That(rig.Find.LastQuery!.Limit, Is.EqualTo(20));
+            Assert.That(rig.Find.LastQuery.FilterEjson, Is.EqualTo("{}"));
+            Assert.That(rig.Find.LastQuery.Skip, Is.Zero);
+            Assert.That(rig.Confirmation!.Requests.Single().ToolName,
+                Is.EqualTo(AgentToolRegistry.SampleDocumentsToolName));
+            Assert.That(rig.Confirmation.Requests.Single().Category,
+                Is.EqualTo(AgentConfirmationCategories.MongoDocumentRead));
+            Assert.That(rig.Audit.Events.Select(item => item.Outcome), Is.EqualTo(new[]
+            {
+                AgentAuditOutcome.Intent, AgentAuditOutcome.Succeeded,
+                AgentAuditOutcome.Intent, AgentAuditOutcome.Succeeded
+            }));
+            Assert.That(rig.Audit.Events[1].ApprovalState, Is.EqualTo(AgentAuditApprovalState.ApprovedOnce));
+            Assert.That(rig.Audit.Events[1].ToolName, Is.EqualTo(AgentToolRegistry.SampleDocumentsToolName));
+        });
+    }
+
+    [Test]
+    public async Task CopilotMongoFindOneRequiresDocumentReadApprovalAndForwardsSingleResultOptions()
+    {
+        var prompt = new RecordingConfirmation(AgentToolConfirmationDecision.ApprovedOnce);
+        var rig = CopilotReadRig(AgentConfirmationCategories.MongoDocumentRead, prompt,
+            toolName: AgentToolRegistry.MongoFindOneToolName);
+        var arguments = JsonSerializer.Serialize(new
+        {
+            connectionId = rig.Profile.Id, database = "app", collection = "items",
+            filterEjson = "{\"active\":true}", projectionEjson = "{\"_id\":0,\"value\":1}",
+            sortEjson = "{\"_id\":-1}", maxTimeMs = 30_000
+        });
+
+        var result = await rig.Registry.InvokeAsync(Internal(5), rig.Context, rig.Destination,
+            AgentOutputDataScope.DocumentValues, AgentToolRegistry.MongoFindOneToolName, arguments);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Succeeded, Is.True, result.ErrorCode);
+            Assert.That(rig.Find.Calls, Is.EqualTo(1));
+            Assert.That(rig.Find.LastQuery!.Limit, Is.EqualTo(1));
+            Assert.That(rig.Find.LastQuery.Skip, Is.Zero);
+            Assert.That(rig.Find.LastQuery.FilterEjson, Is.EqualTo("{\"active\":true}"));
+            Assert.That(rig.Find.LastQuery.ProjectionEjson, Is.EqualTo("{\"_id\":0,\"value\":1}"));
+            Assert.That(rig.Find.LastQuery.SortEjson, Is.EqualTo("{\"_id\":-1}"));
+            Assert.That(rig.Find.LastQuery.MaxTimeMs, Is.EqualTo(5_000));
+            Assert.That(rig.Confirmation!.Requests.Single().ToolName,
+                Is.EqualTo(AgentToolRegistry.MongoFindOneToolName));
+            Assert.That(rig.Confirmation.Requests.Single().Category,
+                Is.EqualTo(AgentConfirmationCategories.MongoDocumentRead));
+            Assert.That(rig.Audit.Events[1].ApprovalState, Is.EqualTo(AgentAuditApprovalState.ApprovedOnce));
+            Assert.That(rig.Audit.Events[1].ToolName, Is.EqualTo(AgentToolRegistry.MongoFindOneToolName));
+        });
+    }
+
+    [Test]
+    public async Task CopilotGetDocumentUsesTypedByIdContractAndRecoversAfterSanitizedSourceFailure()
+    {
+        var prompt = new RecordingConfirmation(AgentToolConfirmationDecision.ApprovedOnce);
+        var rig = CopilotReadRig(AgentConfirmationCategories.MongoDocumentRead, prompt,
+            toolName: AgentToolRegistry.GetDocumentToolName);
+        const string uuidEjson = "{\"$binary\":{\"base64\":\"AQIDBAUGBwgJCgsMDQ4PEA==\",\"subType\":\"04\"}}";
+        var arguments = JsonSerializer.Serialize(new
+        {
+            connectionId = rig.Profile.Id, database = "app", collection = "items", idEjson = uuidEjson
+        });
+        rig.Find.ByIdHandler = (_, _, _) => Task.FromException<AgentMongoFindPage>(
+            new IOException("private-get-document-failure-canary"));
+
+        var failed = await rig.Registry.InvokeAsync(Internal(5), rig.Context, rig.Destination,
+            AgentOutputDataScope.DocumentValues, AgentToolRegistry.GetDocumentToolName, arguments);
+        rig.Find.ByIdHandler = null;
+        var recovered = await rig.Registry.InvokeAsync(Internal(5), rig.Context, rig.Destination,
+            AgentOutputDataScope.DocumentValues, AgentToolRegistry.GetDocumentToolName, arguments);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(failed.ErrorCode, Is.EqualTo("ExecutionFailed"));
+            Assert.That(failed.StructuredContentJson, Is.Null);
+            Assert.That(recovered.Succeeded, Is.True, recovered.ErrorCode);
+            Assert.That(rig.Find.Calls, Is.EqualTo(2));
+            Assert.That(rig.Find.ByIdCalls, Is.EqualTo(2));
+            Assert.That(rig.Find.GeneralFindCalls, Is.Zero);
+            Assert.That(rig.Find.LastByIdQuery!.IdEjson, Is.EqualTo(uuidEjson));
+            Assert.That(rig.Find.LastByIdQuery.Database, Is.EqualTo("app"));
+            Assert.That(rig.Find.LastByIdQuery.Collection, Is.EqualTo("items"));
+            Assert.That(rig.Find.LastByIdQuery.MaxTimeMs, Is.EqualTo(5_000));
+            Assert.That(rig.Confirmation!.Requests.Select(request => request.ToolName),
+                Is.EqualTo(new[] { AgentToolRegistry.GetDocumentToolName, AgentToolRegistry.GetDocumentToolName }));
+            Assert.That(rig.Confirmation.Requests.All(request => request.Category ==
+                AgentConfirmationCategories.MongoDocumentRead), Is.True);
+            Assert.That(rig.Audit.Events.Select(item => item.Outcome), Is.EqualTo(new[]
+            {
+                AgentAuditOutcome.Intent, AgentAuditOutcome.Succeeded,
+                AgentAuditOutcome.Intent, AgentAuditOutcome.Failed,
+                AgentAuditOutcome.Intent, AgentAuditOutcome.Succeeded,
+                AgentAuditOutcome.Intent, AgentAuditOutcome.Succeeded
+            }));
+            Assert.That(rig.Audit.Events[1].ApprovalState, Is.EqualTo(AgentAuditApprovalState.ApprovedOnce));
+            Assert.That(rig.Audit.Events[1].ToolName, Is.EqualTo(AgentToolRegistry.GetDocumentToolName));
+            Assert.That(rig.Audit.Events[3].DecisionReason, Is.EqualTo(AgentAuditDecisionReason.ExecutionFailed));
+            Assert.That(rig.Audit.Events[3].ItemCount, Is.Zero);
+            Assert.That(rig.Audit.Events[3].OutputBytes, Is.Zero);
+            Assert.That(JsonSerializer.Serialize(rig.Audit.Events), Does.Not.Contain("private-get-document-failure-canary"));
+        });
+        using var output = JsonDocument.Parse(recovered.StructuredContentJson!);
+        Assert.That(output.RootElement.GetProperty("documentEjson").GetString(), Is.EqualTo(DocumentEjson));
+    }
+
+    [Test]
+    public async Task CopilotMongoDistinctSanitizesFailureAndRecoversWithHeterogeneousValuesWithinTurnBounds()
+    {
+        var prompt = new RecordingConfirmation(AgentToolConfirmationDecision.ApprovedOnce);
+        var rig = CopilotReadRig(AgentConfirmationCategories.MongoDocumentRead, prompt,
+            toolName: AgentToolRegistry.MongoDistinctToolName);
+        var values = new[]
+        {
+            "{\"$numberLong\":\"9007199254740993\"}",
+            "{\"$numberDecimal\":\"123.45\"}",
+            "{\"$binary\":{\"base64\":\"AQIDBAUGBwgJCgsMDQ4PEA==\",\"subType\":\"04\"}}"
+        };
+        rig.Distinct.Page = new(values, false, true, false);
+        rig.Distinct.Handler = _ => Task.FromException<AgentMongoDistinctPage>(
+            new IOException("private-distinct-failure-canary"));
+        const string filter = "{\"state\":\"active\"}";
+        var arguments = JsonSerializer.Serialize(new
+        {
+            connectionId = rig.Profile.Id, database = "app", collection = "items", field = "nested.value",
+            filterEjson = filter, maximumValues = 3, maxTimeMs = 30_000
+        });
+
+        var failed = await rig.Registry.InvokeAsync(Internal(5), rig.Context, rig.Destination,
+            AgentOutputDataScope.DocumentValues, AgentToolRegistry.MongoDistinctToolName, arguments);
+        rig.Distinct.Handler = null;
+        var recovered = await rig.Registry.InvokeAsync(Internal(5), rig.Context, rig.Destination,
+            AgentOutputDataScope.DocumentValues, AgentToolRegistry.MongoDistinctToolName, arguments);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(failed.ErrorCode, Is.EqualTo("ExecutionFailed"));
+            Assert.That(failed.StructuredContentJson, Is.Null);
+            Assert.That(recovered.Succeeded, Is.True, recovered.ErrorCode);
+            Assert.That(rig.Distinct.Calls, Is.EqualTo(2), "The failed invocation is not replayed; the later call recovers once.");
+            Assert.That(rig.Distinct.LastQuery!.Field, Is.EqualTo("nested.value"));
+            Assert.That(rig.Distinct.LastQuery.FilterEjson, Is.EqualTo(filter));
+            Assert.That(rig.Distinct.LastQuery.MaximumValues, Is.EqualTo(3));
+            Assert.That(rig.Distinct.LastQuery.MaxTimeMs, Is.EqualTo(5_000));
+            Assert.That(rig.Confirmation!.Requests.Select(request => request.ToolName),
+                Is.EqualTo(new[] { AgentToolRegistry.MongoDistinctToolName, AgentToolRegistry.MongoDistinctToolName }));
+            Assert.That(rig.Confirmation.Requests.All(request => request.Category ==
+                AgentConfirmationCategories.MongoDocumentRead), Is.True);
+            Assert.That(rig.Audit.Events.Select(item => item.Outcome), Is.EqualTo(new[]
+            {
+                AgentAuditOutcome.Intent, AgentAuditOutcome.Succeeded,
+                AgentAuditOutcome.Intent, AgentAuditOutcome.Failed,
+                AgentAuditOutcome.Intent, AgentAuditOutcome.Succeeded,
+                AgentAuditOutcome.Intent, AgentAuditOutcome.Succeeded
+            }));
+            Assert.That(rig.Audit.Events[1].ApprovalState, Is.EqualTo(AgentAuditApprovalState.ApprovedOnce));
+            Assert.That(rig.Audit.Events[1].ToolName, Is.EqualTo(AgentToolRegistry.MongoDistinctToolName));
+            Assert.That(rig.Audit.Events[3].DecisionReason, Is.EqualTo(AgentAuditDecisionReason.ExecutionFailed));
+            Assert.That(rig.Audit.Events[3].ItemCount, Is.Zero);
+            Assert.That(rig.Audit.Events[3].OutputBytes, Is.Zero);
+            Assert.That(JsonSerializer.Serialize(rig.Audit.Events), Does.Not.Contain("private-distinct-failure-canary"));
+        });
+        using var output = JsonDocument.Parse(recovered.StructuredContentJson!);
+        Assert.Multiple(() =>
+        {
+            Assert.That(output.RootElement.GetProperty("valuesEjson").EnumerateArray().Select(value => value.GetString()),
+                Is.EqualTo(values));
+            Assert.That(output.RootElement.GetProperty("truncated").GetBoolean(), Is.False);
+        });
+    }
+
+    [Test]
+    public async Task CopilotConfirmationDeadlineAlsoBoundsPostDecisionPrincipalRevalidation()
+    {
+        var timeout = TimeSpan.FromMilliseconds(40);
+        var authority = new DelayedConfirmationRevalidation();
+        var prompt = new ApprovedOnceSignalingPrompt(authority);
+        var rig = CopilotReadRig(AgentConfirmationCategories.MongoDocumentRead,
+            prompt,
+            approvalTimeout: timeout, principalAuthority: authority);
+        var invocation = rig.Registry.InvokeAsync(Internal(5), rig.Context, rig.Destination,
+            AgentOutputDataScope.DocumentValues, AgentToolRegistry.MongoFindToolName, FindArguments(rig.Profile, "{}"));
+
+        await authority.RevalidationEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await Task.Delay(timeout + timeout);
+        var completedBeforeRevalidationRelease = await Task.WhenAny(invocation, Task.Delay(TimeSpan.FromSeconds(2))) == invocation;
+        authority.ReleaseRevalidation.TrySetResult(true);
+        var result = await invocation.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(completedBeforeRevalidationRelease, Is.True,
+                "The approval timeout must cancel the pending revalidation, even if its authority ignores cancellation.");
+            Assert.That(result.ErrorCode, Is.EqualTo("ConfirmationExpired"));
+            Assert.That(rig.Find.Calls, Is.Zero, "A late revalidation must not turn an expired decision into dispatch.");
+            Assert.That(rig.Audit.Events.Last().DecisionReason, Is.EqualTo(AgentAuditDecisionReason.ApprovalExpired));
+            Assert.That(rig.Audit.Events.Last().ApprovalState, Is.EqualTo(AgentAuditApprovalState.Expired));
+        });
+    }
+
+    [Test]
     public async Task CopilotConfirmationFailsClosedWhenAuditCannotRecordIntent()
     {
         var prompt = new RecordingConfirmation(AgentToolConfirmationDecision.ApprovedOnce);
@@ -458,20 +741,58 @@ public sealed class AgentToolRegistryGateTests
         });
     }
 
+    [TestCase(AgentToolRegistry.GetDocumentToolName, 20)]
+    [TestCase(AgentToolRegistry.GetDocumentToolName, 100)]
+    [TestCase(AgentToolRegistry.GetDocumentToolName, null)]
+    [TestCase(AgentToolRegistry.MongoExplainToolName, 20)]
+    [TestCase(AgentToolRegistry.MongoExplainToolName, 100)]
+    [TestCase(AgentToolRegistry.MongoExplainToolName, null)]
+    public async Task CopilotReadQuotaReportsLimitWithoutDispatchingOrChangingGrants(string toolName, int? maximumCalls)
+    {
+        var rig = CopilotReadRig(AgentConfirmationCategories.None, null, toolName: toolName, maximumCalls: maximumCalls);
+        var arguments = toolName == AgentToolRegistry.GetDocumentToolName
+            ? JsonSerializer.Serialize(new { connectionId = rig.Profile.Id, database = "app", collection = "items", idEjson = "1" })
+            : FindArguments(rig.Profile, "{}");
+        var admittedCount = maximumCalls ?? 150;
+        for (var call = 0; call < admittedCount; call++)
+        {
+            var admitted = await rig.Registry.InvokeAsync(Internal(5), rig.Context, rig.Destination,
+                AgentOutputDataScope.DocumentValues, toolName, arguments);
+            Assert.That(admitted.Succeeded, Is.True, $"Call {call + 1}: {admitted.ErrorCode}");
+        }
+        var refused = await rig.Registry.InvokeAsync(Internal(5), rig.Context, rig.Destination,
+            AgentOutputDataScope.DocumentValues, toolName, arguments);
+        Assert.Multiple(() =>
+        {
+            Assert.That(refused.ErrorCode, Is.EqualTo(maximumCalls is null ? null : "ToolCallLimitExceeded"));
+            Assert.That(refused.Succeeded, Is.EqualTo(maximumCalls is null));
+            Assert.That(rig.Find.ByIdCalls, Is.EqualTo(toolName == AgentToolRegistry.GetDocumentToolName ? admittedCount + (maximumCalls is null ? 1 : 0) : 0));
+            Assert.That(rig.Find.GeneralFindCalls, Is.Zero);
+            Assert.That(rig.Explain.Calls, Is.EqualTo(toolName == AgentToolRegistry.MongoExplainToolName ? admittedCount + (maximumCalls is null ? 1 : 0) : 0));
+            Assert.That(rig.Audit.Events[^1].Outcome, Is.EqualTo(maximumCalls is null ? AgentAuditOutcome.Succeeded : AgentAuditOutcome.Denied));
+            Assert.That(rig.Audit.Events[^1].DecisionReason, Is.EqualTo(maximumCalls is null ? AgentAuditDecisionReason.PolicyAllowed : AgentAuditDecisionReason.LimitExceeded));
+        });
+    }
+
     private static CopilotReadScenario CopilotReadRig(AgentConfirmationCategories confirmations,
-        IAgentToolConfirmationPrompt? prompt, IAgentAuditRepository? auditOverride = null, TimeSpan? approvalTimeout = null)
+        IAgentToolConfirmationPrompt? prompt, IAgentAuditRepository? auditOverride = null, TimeSpan? approvalTimeout = null,
+        IAgentPrincipalAuthority? principalAuthority = null, string toolName = AgentToolRegistry.MongoFindToolName,
+        bool includeDiagnosticsGrant = true, int? maximumCalls = 100)
     {
         var profile = Connection();
         var profiles = new CountingProfiles(profile);
         var policies = new MapPolicyProvider();
         var audit = new MemoryAudit();
         var find = new CountingFind { Documents = [DocumentEjson] };
+        var distinct = new CountingDistinct();
+        var explain = new CountingExplain();
         var turns = new AgentNativeChatTurnScopeRegistry();
         var destination = AgentOutputDestination.ProviderExternal(AgentProviderIds.GitHubCopilotSubscription);
         var permissions = AgentProviderPermissions.Default(AgentProviderIds.GitHubCopilotSubscription) with
         {
+            MaximumToolCallsPerTurn = maximumCalls,
             ExternalDestinationConsentAt = DateTimeOffset.UtcNow,
-            EnabledReadTools = [AgentToolRegistry.MongoFindToolName],
+            EnabledReadTools = [toolName],
             ConnectionScope = AgentConnectionScope.Selected,
             SelectedConnectionIds = [profile.Id],
             DataSending = new AgentDataSendingPermissions { MongoDocuments = true },
@@ -480,15 +801,17 @@ public sealed class AgentToolRegistryGateTests
         var plan = AgentModePolicy.Plan(AgentOperationMode.Agent, permissions, new AgentPlatformFacts(false, true, false));
         turns.Register(new AgentNativeChatTurnScope(SessionId, TurnId, AgentProviderIds.GitHubCopilotSubscription,
             plan, permissions, null) { ConversationId = Guid.NewGuid() });
-        policies.Set(InternalPrincipalId, 5, [.. new[] { AgentPermission.ExecuteReadQueries, AgentPermission.ReadDocuments }
+        var requiredPermissions = toolName == AgentToolRegistry.MongoExplainToolName && includeDiagnosticsGrant
+            ? ExplainPermissions : DocumentReadPermissions;
+        policies.Set(InternalPrincipalId, 5, [.. requiredPermissions
             .Select(permission => new AgentPermissionGrant(InternalPrincipalId,
                 AgentInvocationScope.ForTurn(SessionId, TurnId), profile.SourceGenerationId!.Value, permission,
                 AgentNamespaceScope.ForCollection(profile.Id, "app", "items"), destination,
                 AgentOutputDataScope.DocumentValues))]);
         var registry = new AgentToolRegistry(profiles, policies, new AgentPermissionEvaluator(policies), auditOverride ?? audit,
             metadata: new NoMetadata(), schemaSamplingConsent: new DenySchemaConsent(), find: find,
-            count: new CountingCount(), distinct: new CountingDistinct(), indexes: new NoIndexes(), explain: new NoExplain(),
-            exposure: AgentToolExposure.None, principalAuthority: new TestAgentPrincipalAuthority(),
+            count: new CountingCount(), distinct: distinct, indexes: new NoIndexes(), explain: explain,
+            exposure: AgentToolExposure.None, principalAuthority: principalAuthority ?? new TestAgentPrincipalAuthority(),
             sessionTools: new AgentSessionToolPorts(new AgentMcpSessionRegistry())
             {
                 NativeChatTurnScopes = turns,
@@ -496,11 +819,13 @@ public sealed class AgentToolRegistryGateTests
                 ApprovalTimeout = approvalTimeout ?? TimeSpan.FromSeconds(45)
             }, copilotExposure: AgentToolExposure.Through(AgentToolExposureStage.DerivedReads));
         var context = new AgentInvocationContext(AgentProviderIds.GitHubCopilotSubscription, null, SessionId, TurnId);
-        return new CopilotReadScenario(profile, destination, context, registry, find, audit, prompt as RecordingConfirmation);
+        return new CopilotReadScenario(profile, destination, context, registry, find, distinct, explain, audit,
+            prompt as RecordingConfirmation);
     }
 
     private sealed record CopilotReadScenario(ConnectionProfile Profile, AgentOutputDestination Destination,
-        AgentInvocationContext Context, AgentToolRegistry Registry, CountingFind Find, MemoryAudit Audit,
+        AgentInvocationContext Context, AgentToolRegistry Registry, CountingFind Find, CountingDistinct Distinct,
+        CountingExplain Explain, MemoryAudit Audit,
         RecordingConfirmation? Confirmation);
 
     private sealed class RecordingConfirmation(AgentToolConfirmationDecision decision) : IAgentToolConfirmationPrompt
@@ -521,6 +846,56 @@ public sealed class AgentToolRegistryGateTests
         {
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
             return AgentToolConfirmationDecision.ApprovedOnce;
+        }
+    }
+
+    private sealed class DelayedConfirmationRevalidation : IAgentPrincipalAuthority
+    {
+        private readonly TestAgentPrincipalAuthority _inner = new();
+        private int _promptReturned;
+
+        public TaskCompletionSource RevalidationEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource<bool> ReleaseRevalidation { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public void MarkPromptReturned() => Volatile.Write(ref _promptReturned, 1);
+
+        public Task<bool> IsCurrentAsync(AgentPrincipal principal, CancellationToken cancellationToken = default)
+        {
+            if (Volatile.Read(ref _promptReturned) != 0)
+            {
+                RevalidationEntered.TrySetResult();
+                return ReleaseRevalidation.Task; // Intentionally ignores cancellation to exercise the caller's bound.
+            }
+
+            return _inner.IsCurrentAsync(principal, cancellationToken);
+        }
+
+        public Task<AgentPrincipalIssueResult> IssueInternalAsync(CancellationToken cancellationToken = default) =>
+            _inner.IssueInternalAsync(cancellationToken);
+
+        public Task<Guid> GetInternalPrincipalIdAsync(CancellationToken cancellationToken = default) =>
+            _inner.GetInternalPrincipalIdAsync(cancellationToken);
+
+        public Task<AgentChannelEnrollmentResult> EnrollExternalChannelAsync(CancellationToken cancellationToken = default) =>
+            _inner.EnrollExternalChannelAsync(cancellationToken);
+
+        public Task<AgentPrincipalIssueResult> AuthenticateExternalAsync(Guid channelId, string proof,
+            CancellationToken cancellationToken = default) => _inner.AuthenticateExternalAsync(channelId, proof, cancellationToken);
+
+        public Task<AgentChannelRevocationStatus> RevokeExternalChannelAsync(Guid channelId,
+            CancellationToken cancellationToken = default) => _inner.RevokeExternalChannelAsync(channelId, cancellationToken);
+
+        public Task<int> RecoverPendingChannelsAsync(CancellationToken cancellationToken = default) =>
+            _inner.RecoverPendingChannelsAsync(cancellationToken);
+    }
+
+    private sealed class ApprovedOnceSignalingPrompt(DelayedConfirmationRevalidation authority) : IAgentToolConfirmationPrompt
+    {
+        public Task<AgentToolConfirmationDecision> ConfirmAsync(AgentToolConfirmationRequest request,
+            CancellationToken cancellationToken)
+        {
+            authority.MarkPromptReturned();
+            return Task.FromResult(AgentToolConfirmationDecision.ApprovedOnce);
         }
     }
 
@@ -792,13 +1167,18 @@ public sealed class AgentToolRegistryGateTests
     private sealed class CountingFind : IAgentMongoFindSource
     {
         public int Calls { get; private set; }
+        public int GeneralFindCalls { get; private set; }
+        public int ByIdCalls { get; private set; }
         public AgentMongoFindQuery? LastQuery { get; private set; }
+        public AgentMongoFindByIdQuery? LastByIdQuery { get; private set; }
         public IReadOnlyList<string> Documents { get; init; } = [];
+        public Func<ConnectionProfile, AgentMongoFindByIdQuery, CancellationToken, Task<AgentMongoFindPage>>? ByIdHandler { get; set; }
 
         public Task<AgentMongoFindPage> FindAsync(ConnectionProfile profile, AgentMongoFindQuery query,
             CancellationToken cancellationToken)
         {
             Calls++;
+            GeneralFindCalls++;
             LastQuery = query;
             return Task.FromResult(new AgentMongoFindPage(Documents, false, false, true, false));
         }
@@ -807,7 +1187,10 @@ public sealed class AgentToolRegistryGateTests
             CancellationToken cancellationToken)
         {
             Calls++;
-            return Task.FromResult(new AgentMongoFindPage(Documents, false, false, true, false));
+            ByIdCalls++;
+            LastByIdQuery = query;
+            return ByIdHandler?.Invoke(profile, query, cancellationToken) ??
+                Task.FromResult(new AgentMongoFindPage(Documents, false, false, true, false));
         }
     }
 
@@ -826,12 +1209,16 @@ public sealed class AgentToolRegistryGateTests
     private sealed class CountingDistinct : IAgentMongoDistinctSource
     {
         public int Calls { get; private set; }
+        public AgentMongoDistinctQuery? LastQuery { get; private set; }
+        public AgentMongoDistinctPage Page { get; set; } = new([], false, true, false);
+        public Func<CancellationToken, Task<AgentMongoDistinctPage>>? Handler { get; set; }
 
         public Task<AgentMongoDistinctPage> DistinctAsync(ConnectionProfile profile, AgentMongoDistinctQuery query,
             CancellationToken cancellationToken)
         {
             Calls++;
-            return Task.FromResult(new AgentMongoDistinctPage([], false, true, false));
+            LastQuery = query;
+            return Handler?.Invoke(cancellationToken) ?? Task.FromResult(Page);
         }
     }
 
@@ -846,6 +1233,22 @@ public sealed class AgentToolRegistryGateTests
     {
         public Task<AgentMongoExplainResult> ExplainAsync(ConnectionProfile profile, AgentMongoFindQuery query,
             CancellationToken cancellationToken) => throw new NotSupportedException();
+    }
+
+    private sealed class CountingExplain : IAgentMongoExplainSource
+    {
+        public const string Plan = "{\"stage\":\"IXSCAN\",\"indexName\":\"safe-index\"}";
+        public int Calls { get; private set; }
+        public AgentMongoFindQuery? LastQuery { get; private set; }
+        public Action? OnDispatch { get; set; }
+        public Task<AgentMongoExplainResult> ExplainAsync(ConnectionProfile profile, AgentMongoFindQuery query,
+            CancellationToken cancellationToken)
+        {
+            Calls++;
+            LastQuery = query;
+            OnDispatch?.Invoke();
+            return Task.FromResult(new AgentMongoExplainResult(Plan, true, false));
+        }
     }
 
     private sealed class DenySchemaConsent : IAgentSchemaSamplingConsentProvider

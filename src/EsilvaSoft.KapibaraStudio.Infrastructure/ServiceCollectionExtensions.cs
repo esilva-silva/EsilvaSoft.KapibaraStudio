@@ -150,10 +150,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(options);
         services.AddSingleton<MongoAgentFindSource>(provider => new MongoAgentFindSource(
             provider.GetRequiredService<IConnectionSecretStore>(), provider.GetService<IEnvironmentVaultRepository>(),
-            provider.GetRequiredService<MongoClientPool>()));
+            provider.GetRequiredService<IMongoClientPool>(), provider.GetRequiredService<ISecretStore>()));
         services.AddSingleton<MongoAgentExplainSource>(provider => new MongoAgentExplainSource(
             provider.GetRequiredService<IConnectionSecretStore>(), provider.GetService<IEnvironmentVaultRepository>(),
-            provider.GetRequiredService<MongoClientPool>()));
+            provider.GetRequiredService<IMongoClientPool>(), provider.GetRequiredService<ISecretStore>()));
         services.AddSingleton<IAgentSchemaSamplingConsentProvider, FailClosedAgentSchemaSamplingConsentProvider>();
         // The runtime host below uses options.Runtime; the same instance is registered, once, so the provider adapters
         // check their tool-result wait against exactly that budget (they refuse an ambiguous second registration).
@@ -178,7 +178,7 @@ public static class ServiceCollectionExtensions
         // ADR-056: get_indexes is part of the Metadata stage (allowlisted index metadata, no document or filter value).
         services.AddSingleton<MongoAgentIndexSource>(provider => new MongoAgentIndexSource(
             provider.GetRequiredService<IConnectionSecretStore>(), provider.GetService<IEnvironmentVaultRepository>(),
-            provider.GetRequiredService<MongoClientPool>()));
+            provider.GetRequiredService<IMongoClientPool>(), provider.GetRequiredService<ISecretStore>()));
         // Per-session channels of integrated providers (claude-code): scopes, ports and the lazy provisioner. The
         // Desktop ports (workspace snapshot, proposal sink, confirmation card) are optional: a missing port makes its
         // tool unavailable (or, for confirmations, every answer a denial). Nothing is started here.
