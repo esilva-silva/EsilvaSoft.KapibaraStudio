@@ -1,5 +1,7 @@
 # Roadmap de evolução do Kapibara Studio
 
+**F5-COP-PERM concluída — 06/10/2026:** correção de acesso às ferramentas e conexões aceita após confirmação do usuário de que seus testes manuais no client passaram. [Registro](phases/phase-05-v0.9.0/meta-permissoes-tools-copilot.md#aceite-manual-do-usuário--06102026). Este encerramento é do caso de acesso; não conclui a Fase 5 inteira nem altera a prioridade das demais fases.
+
 **F5-COP-PERM — configuração solicitada em 06/10/2026:** implementado no checkout o campo Copilot de chamadas por mensagem, padrão 100 e vazio ilimitado, com persistência v2 compatível com leitura v1 e captura por turno no runtime/registry. O incremento atende ao pedido do usuário e substitui os tetos fixos 20/32 para esses turnos. [Aceite e evidências](phases/phase-05-v0.9.0/meta-permissoes-tools-copilot.md#limite-configurável-solicitado-pelo-usuário--06102026); validação na aplicação permanece com o usuário.
 
 **F5-COP-PERM — novo retorno do client em 06/10/2026:** identificada recusa por cota, visível no cartão de `get_document` e relatada para `mongo_explain`; proposta não testada sem conteúdo autorizado. Próximo aceite manual: duas leituras em mensagens novas e proposta sobre o buffer anexado/autorizado. [Evidência e limites](phases/phase-05-v0.9.0/meta-permissoes-tools-copilot.md#novo-retorno-do-client--06102026); aceite integral da Fase 5 segue aberto.

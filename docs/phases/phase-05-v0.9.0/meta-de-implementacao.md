@@ -1,5 +1,7 @@
 # Meta da Fase 5 — integração completa GitHub Copilot e ferramentas do KapibaraStudio
 
+**Aceite de acesso F5-COP-PERM — 06/10/2026:** testes manuais de ferramentas e conexões no client aprovados pelo usuário. A [meta de correção de acesso está concluída](meta-permissoes-tools-copilot.md#aceite-manual-do-usuário--06102026); os relatos anteriores de bloqueio/validação pendente são histórico. Esse aceite funcional não encerra todos os requisitos e gates da presente meta de integração completa.
+
 **Cota configurável — 06/10/2026:** entregue no checkout o campo de chamadas por mensagem nas permissões Copilot, padrão 100 e vazio sem cota de quantidade. Persistência v2 compatível com leitura v1, captura por turno e limites alinhados em runtime/registry. [Evidências](meta-permissoes-tools-copilot.md#limite-configurável-solicitado-pelo-usuário--06102026); preservam-se consentimentos/confirmações e o aceite manual integral das tools.
 
 **F5-COP-PERM — novo retorno do client em 06/10/2026:** o cartão de `get_document` confirma recusa por limite de chamadas; `mongo_explain` tem o mesmo código no relato do agente. Proposta não testada sem conteúdo ativo autorizado. [Aceite restante por ferramenta](meta-permissoes-tools-copilot.md#novo-retorno-do-client--06102026): duas leituras em turnos novos e proposta com anexo autorizado, sob validação do usuário. O novo retorno esclarece a categoria da recusa e não encerra o aceite integral das 14 tools.

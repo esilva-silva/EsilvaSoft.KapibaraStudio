@@ -1,5 +1,7 @@
 # Catálogo funcional
 
+**F5-COP-PERM — validada manualmente em 06/10/2026:** o usuário confirmou funcionamento das ferramentas e aprovação dos testes de ferramentas e conexões no client. Encerrada a pendência de acesso desse caso; [aceite e alcance](phases/phase-05-v0.9.0/meta-permissoes-tools-copilot.md#aceite-manual-do-usuário--06102026). Demais requisitos e gates da integração permanecem com seu estado próprio.
+
 **Copilot: limite configurável — 06/10/2026:** a janela de permissões oferece o máximo de chamadas por mensagem, padrão 100 e vazio sem limite de quantidade. Salvamento por provider, aplicação nas próximas mensagens e validação de inteiro positivo; formato de permissões v2 lê v1 com padrão 100 e grava a atualização somente ao salvar. Runtime e registry usam o snapshot do turno. [Detalhes](phases/phase-05-v0.9.0/meta-permissoes-tools-copilot.md#limite-configurável-solicitado-pelo-usuário--06102026).
 
 **Novo retorno do client — 06/10/2026:** a captura confirma `get_document` recusada por limite de chamadas; o relato do agente informa o mesmo código para `mongo_explain`. Proposta não testada por falta de conteúdo ativo autorizado. Essas evidências esclarecem a categoria cota, sem comprovar execução das duas leituras ou recusa de permissão da proposta. [Registro e aceite manual restante](phases/phase-05-v0.9.0/meta-permissoes-tools-copilot.md#novo-retorno-do-client--06102026).

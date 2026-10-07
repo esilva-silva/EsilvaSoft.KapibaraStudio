@@ -1,5 +1,7 @@
 # Fase 5 — v0.9.0: GitHub Copilot e integração com agentes
 
+**F5-COP-PERM encerrada — 06/10/2026:** o usuário confirmou aprovação dos testes manuais de ferramentas e conexões no client. [Aceite funcional](meta-permissoes-tools-copilot.md#aceite-manual-do-usuário--06102026) substitui as pendências de acesso dos retornos anteriores. Os demais requisitos e gates da Fase 5 permanecem abertos conforme suas evidências; não se declara conclusão integral da integração.
+
 **Cota configurável — 06/10/2026:** o campo nas permissões Copilot usa padrão 100 e vazio ilimitado por mensagem, com persistência versionada e efeito nos próximos turnos. [Implementação, regressões e inspeção visual](meta-permissoes-tools-copilot.md#limite-configurável-solicitado-pelo-usuário--06102026). Esse incremento não encerra o aceite manual das 14 tools ou os demais gates da fase.
 
 **Novo retorno do client — 06/10/2026:** [captura e relato](meta-permissoes-tools-copilot.md#novo-retorno-do-client--06102026) identificam cota de chamadas nas duas leituras restantes; o cartão visível comprova `get_document`, e o agente relata o mesmo código para `mongo_explain`. Proposta não testada sem conteúdo autorizado. Leituras em novos turnos e proposta com anexo ativo permanecem no aceite manual do usuário; não há nova falha de permissão comprovada por esse retorno.
