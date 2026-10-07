@@ -19,6 +19,8 @@ foreach ($relative in $required) {
         throw "Arquivo obrigatório do release ausente ou vazio: $relative"
     }
 }
+$productLicense = Join-Path $packageRoot 'LICENSE'
+Assert-KapibaraProductLicense (Get-Content -LiteralPath $productLicense -Raw)
 $notices = Get-Content -LiteralPath (Join-Path $packageRoot 'THIRD-PARTY-NOTICES.md') -Raw
 Assert-KapibaraCopilotSdkNotice $notices
 Assert-KapibaraReleaseSbom $packageRoot

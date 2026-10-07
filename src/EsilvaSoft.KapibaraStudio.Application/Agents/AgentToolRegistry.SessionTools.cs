@@ -36,7 +36,7 @@ public sealed partial class AgentToolRegistry
         if (principal is { IsSessionChannel: true } && scope is null) return false;
         if (IsSessionTool(name))
             return scope?.Exposes(name) == true ||
-                name is GetWorkspaceContextToolName or GetCachedSchemaToolName or ProposeFileEditToolName &&
+                name is GetWorkspaceContextToolName or GetCachedSchemaToolName or ProposeFileEditToolName or GetQueryResultsToolName or GetQueryDiagnosticsToolName &&
                 IsSessionCallBound(principal, context, destination, outputScope, name, out _);
         if (principal?.Origin == AgentPrincipalOrigin.Internal && context?.SessionId is { } sessionId &&
             context.TurnId is { } turnId && _sessionTools?.NativeChatTurnScopes?.Find(sessionId, turnId) is { } native)
@@ -102,7 +102,7 @@ public sealed partial class AgentToolRegistry
         }
 
         // Native chat receives only the explicitly planned session tools from its exact active runtime turn.
-        if (name is not (GetWorkspaceContextToolName or GetCachedSchemaToolName or ProposeFileEditToolName) ||
+        if (name is not (GetWorkspaceContextToolName or GetCachedSchemaToolName or ProposeFileEditToolName or GetQueryResultsToolName or GetQueryDiagnosticsToolName) ||
             principal.Origin != AgentPrincipalOrigin.Internal ||
             destination.Kind != AgentOutputDestinationKind.ProviderExternal || context!.SessionId is not { } sessionId ||
             context.TurnId is not { } turnId || _sessionTools?.NativeChatTurnScopes?.Find(sessionId, turnId) is not { } native ||
@@ -110,6 +110,8 @@ public sealed partial class AgentToolRegistry
             !string.Equals(native.ProviderId, destination.ProviderId, StringComparison.Ordinal) ||
             !native.Plan.ProductTools.Contains(name, StringComparer.Ordinal) || native.Plan.IsBlocked ||
             !native.Permissions.IsWellFormed || !native.Permissions.HasExternalDestinationConsent ||
+            (name is GetQueryResultsToolName or GetQueryDiagnosticsToolName &&
+                (native.Permissions.DataSending?.MongoDocuments != true || native.Permissions.EnabledReadTools?.Contains(name, StringComparer.Ordinal) != true)) ||
             (name == GetWorkspaceContextToolName && native.Permissions.DataSending?.TabMetadata != true) ||
             (name == GetCachedSchemaToolName && (native.Permissions.EnabledReadTools?.Contains(name, StringComparer.Ordinal) != true ||
                 native.Permissions.DataSending?.InferredSchema != true)) ||

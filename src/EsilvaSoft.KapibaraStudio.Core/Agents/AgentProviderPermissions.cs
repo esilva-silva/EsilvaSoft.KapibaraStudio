@@ -21,7 +21,7 @@ public sealed record AgentDataSendingPermissions
     /// </summary>
     public bool InferredSchema { get; init; }
 
-    /// <summary>MongoDB document values returned by explicitly enabled read tools. Off by default.</summary>
+    /// <summary>Previously executed query results and diagnostics, read from the originating tab. Off by default.</summary>
     public bool MongoDocuments { get; init; }
 }
 
@@ -86,7 +86,7 @@ public sealed record AgentProviderPermissions
     /// </summary>
     public static IReadOnlyList<string> DefaultEnabledReadTools { get; } =
     [
-        "list_connections", "list_databases", "list_collections", "get_indexes", "get_cached_schema",
+        "list_connections", "list_databases", "list_collections", "get_indexes", "get_search_indexes", "get_cached_schema",
         "get_workspace_context",
     ];
 

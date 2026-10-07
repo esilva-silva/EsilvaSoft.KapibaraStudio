@@ -65,6 +65,9 @@ internal abstract class AgentSessionToolDoubles
 
     internal sealed class FakeIndexes : IAgentMongoIndexSource
     {
+        public Task<AgentMongoSearchIndexPage> GetSearchIndexesAsync(ConnectionProfile profile, string database,
+            string collection, TimeSpan maximumExecutionTime, CancellationToken cancellationToken) =>
+            Task.FromResult(new AgentMongoSearchIndexPage([new("search_items", "search", "READY", true, ["title"])], false, true));
         public Task<AgentMongoIndexPage> GetIndexesAsync(ConnectionProfile profile, string database, string collection,
             TimeSpan maximumExecutionTime, CancellationToken cancellationToken) =>
             Task.FromResult(new AgentMongoIndexPage(

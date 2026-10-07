@@ -1,5 +1,7 @@
 # Release e autenticação Copilot — revisão de 01/10/2026
 
+**Guarda de notices — 07/10/2026:** os verificadores de payload Windows/Linux e TAR Linux exigem o MIT integral do produto e do SDK. O bloco SDK também deve identificar a versão fixada pelo pin único `GitHub.Copilot.SDK` em `Directory.Packages.props`; uma atualização de dependência exige atualizar o aviso correspondente. Repro de versão divergente: oito verificadores aceitaram a fixture antes do fix; `eng/Test-ReleaseCopilotSdkNotice.ps1` passou **56/56** após a guarda. Isso verifica preservação e identidade do aviso já versionado; não verifica automaticamente todos os avisos transitivos/nativos nem aprova licenças. [Evidência e gates da fase](../phases/phase-05-v0.9.0/meta-de-implementacao.md).
+
 **Auditoria dos arquivos locais — 03/10/2026:** os ZIPs em `artifacts/release/0.11.0/` ainda são do empacotamento anterior: incluem runtime Copilot e proxy MCP, inclusive binários dentro do single-file, e não contêm `THIRD-PARTY-NOTICES.md`. As correções do checkout descritas abaixo não atualizam esses arquivos. A [revisão de licenças](windows-license-review-2026-10-03.md) cobre ambos os RIDs e registra também termos proprietários Windows ML, fontes OFL e avisos faltantes. Reconstrução e reauditoria dos pacotes permanecem pendentes.
 
 ## Correção anterior (histórico de 01/10/2026)

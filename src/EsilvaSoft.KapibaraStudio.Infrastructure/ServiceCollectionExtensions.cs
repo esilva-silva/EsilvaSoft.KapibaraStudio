@@ -148,27 +148,13 @@ public static class ServiceCollectionExtensions
         if (services.Any(descriptor => descriptor.ServiceType == typeof(IAgentToolRegistry)))
             throw new InvalidOperationException("O registry de tools de agentes já foi composto.");
         services.AddSingleton(options);
-        services.AddSingleton<MongoAgentFindSource>(provider => new MongoAgentFindSource(
-            provider.GetRequiredService<IConnectionSecretStore>(), provider.GetService<IEnvironmentVaultRepository>(),
-            provider.GetRequiredService<IMongoClientPool>(), provider.GetRequiredService<ISecretStore>()));
-        services.AddSingleton<MongoAgentExplainSource>(provider => new MongoAgentExplainSource(
-            provider.GetRequiredService<IConnectionSecretStore>(), provider.GetService<IEnvironmentVaultRepository>(),
-            provider.GetRequiredService<IMongoClientPool>(), provider.GetRequiredService<ISecretStore>()));
-        services.AddSingleton<IAgentSchemaSamplingConsentProvider, FailClosedAgentSchemaSamplingConsentProvider>();
         // The runtime host below uses options.Runtime; the same instance is registered, once, so the provider adapters
         // check their tool-result wait against exactly that budget (they refuse an ambiguous second registration).
         if (services.Any(descriptor => descriptor.ServiceType == typeof(AgentRuntimeOptions)))
             throw new InvalidOperationException("As opções do runtime de agentes já foram compostas.");
         services.AddSingleton(options.Runtime);
-        // Human approval chain for registry writes (lote 10), composed once and shared: the bridge breaks the cycle
-        // coordinator -> prompt -> runtime -> registry -> coordinator; the coordinator uses the runtime's approval
-        // window, so an unanswered request is audited as Expired, not Rejected. It is the registry's approval authority
-        // and the chat's trusted approval-details source. Writes stay closed: no IAgentMongoWriteSource is composed
-        // (MongoAgentWriteSource is not registered); even though the Copilot-only stage includes DerivedReads, no
-        // write tool can be exposed through this composition.
-        // Premise relied on by the runtime (a write that never reached its approval had no ticket, so it is reported as
-        // not sent) and by the interaction authority: registry, coordinator, bridge and runtime are these singletons.
-        // Any composition that swaps one of them must swap them together.
+        // Historical approval contracts remain shared with the runtime for compatibility. The registry has no
+        // write handlers or document-query sources, and no stage/approval can reintroduce them (ADR-066).
         services.AddSingleton<AgentRuntimeWriteApprovalBridge>();
         services.AddSingleton<AgentWriteApprovalCoordinator>(provider => new AgentWriteApprovalCoordinator(
             provider.GetRequiredService<AgentRuntimeWriteApprovalBridge>(),
@@ -187,14 +173,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IAgentNativeChatTurnScopes, AgentNativeChatTurnScopeRegistry>();
         services.AddSingleton<IAgentToolRegistry>(provider =>
         {
-            var copilotDerivedReads = options.CopilotToolExposureStage >= AgentToolExposureStage.DerivedReads;
-            var claudeDerivedReads = options.ClaudeToolExposureStage >= AgentToolExposureStage.DerivedReads;
             var maximumSessionStage = Math.Max(
                 Math.Max((int)options.ToolExposureStage, (int)options.InProcessToolExposureStage),
                 Math.Max((int)options.CopilotToolExposureStage, (int)options.ClaudeToolExposureStage));
-            var literalQueries = maximumSessionStage >= (int)AgentToolExposureStage.LiteralQueries
-                ? provider.GetRequiredService<MongoAgentFindSource>()
-                : null;
             var sessionTools = new AgentSessionToolPorts(provider.GetRequiredService<IAgentMcpSessionScopes>())
             {
                 NativeChatTurnScopes = provider.GetRequiredService<IAgentNativeChatTurnScopes>(),
@@ -214,18 +195,11 @@ public static class ServiceCollectionExtensions
                 provider.GetRequiredService<IAgentAuditRepository>(),
                 options.ToolExecutionTimeout,
                 metadata: provider.GetRequiredService<IMongoMetadataSource>(),
-                schemaSamplingConsent: provider.GetRequiredService<IAgentSchemaSamplingConsentProvider>(),
-                find: literalQueries,
-                count: literalQueries,
-                distinct: copilotDerivedReads || claudeDerivedReads ? literalQueries : null,
-                explain: copilotDerivedReads || claudeDerivedReads ? provider.GetRequiredService<MongoAgentExplainSource>() : null,
                 indexes: maximumSessionStage >= (int)AgentToolExposureStage.Metadata
                     ? provider.GetRequiredService<MongoAgentIndexSource>()
                     : null,
                 exposure: AgentToolExposure.Through(options.ToolExposureStage),
                 principalAuthority: provider.GetRequiredService<IAgentPrincipalAuthority>(),
-                write: null,
-                writeApprovals: provider.GetRequiredService<IAgentWriteApprovalAuthority>(),
                 sessionTools: sessionTools,
                 inProcessExposure: AgentToolExposure.Through(options.InProcessToolExposureStage),
                 copilotExposure: AgentToolExposure.Through(options.CopilotToolExposureStage),

@@ -20,6 +20,10 @@ public sealed record AgentWorkspaceContext(
     string? DatabaseName = null,
     string? CollectionName = null)
 {
+    /// <summary>Output captured before sending the turn; never part of a durable session/conversation snapshot.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public AgentQueryExecutionSnapshot? QueryExecution { get; init; }
+
     public override string ToString() =>
         $"{nameof(AgentWorkspaceContext)} {{ TabId = {TabId}, ActiveFileName = {ActiveFileName}, HasBuffer = {BufferText is not null} }}";
 }

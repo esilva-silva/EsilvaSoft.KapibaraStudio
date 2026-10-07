@@ -58,7 +58,7 @@ public sealed class NativeChatTurnPolicyProvider : IAgentAuthorizationPolicyProv
             var tools = turn.Plan.ProductTools.Where(enabled.Contains).ToHashSet(StringComparer.Ordinal);
             var metadata = tools.Overlaps([
                 AgentToolRegistry.ListConnectionsToolName, AgentToolRegistry.ListDatabasesToolName,
-                AgentToolRegistry.ListCollectionsToolName, AgentToolRegistry.GetIndexesToolName]);
+                AgentToolRegistry.ListCollectionsToolName, AgentToolRegistry.GetIndexesToolName, AgentToolRegistry.GetSearchIndexesToolName]);
             var schema = tools.Contains(AgentToolRegistry.GetCachedSchemaToolName) &&
                 turn.Permissions.DataSending?.InferredSchema == true;
             HashSet<string> documentTools = turn.Permissions.DataSending?.MongoDocuments == true
@@ -105,14 +105,10 @@ public sealed class NativeChatTurnPolicyProvider : IAgentAuthorizationPolicyProv
             grants.Where(grant => currentScopes.Contains(grant.InvocationScope)).Distinct());
     }
 
-    private static bool IsDocumentReadTool(string name) => name is
-        AgentToolRegistry.MongoFindToolName or AgentToolRegistry.MongoCountToolName or
-            AgentToolRegistry.SampleDocumentsToolName or AgentToolRegistry.MongoFindOneToolName or
-            AgentToolRegistry.GetDocumentToolName or AgentToolRegistry.MongoDistinctToolName or
-            AgentToolRegistry.MongoExplainToolName;
+    private static bool IsDocumentReadTool(string name) => AgentProductToolNames.IsMongoDocumentRead(name);
 
     private static IReadOnlyList<AgentPermission> RequiredPermissionsFor(string name) =>
-        name == AgentToolRegistry.MongoExplainToolName
-            ? [AgentPermission.ReadDiagnostics, AgentPermission.ExecuteReadQueries, AgentPermission.ReadDocuments]
-            : [AgentPermission.ExecuteReadQueries, AgentPermission.ReadDocuments];
+        name == AgentToolRegistry.GetQueryDiagnosticsToolName
+            ? [AgentPermission.ReadDiagnostics, AgentPermission.ReadDocuments]
+            : [AgentPermission.ReadDocuments];
 }

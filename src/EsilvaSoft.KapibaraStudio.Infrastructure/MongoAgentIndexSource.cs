@@ -19,6 +19,93 @@ public sealed class MongoAgentIndexSource(
     private const int MaximumDefinitionFields = 32;
     private const int MaximumKeyFields = 32;
 
+    public async Task<AgentMongoSearchIndexPage> GetSearchIndexesAsync(ConnectionProfile profile, string database,
+        string collection, TimeSpan maximumExecutionTime, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        ArgumentException.ThrowIfNullOrWhiteSpace(database);
+        ArgumentException.ThrowIfNullOrWhiteSpace(collection);
+        if (maximumExecutionTime <= TimeSpan.Zero || maximumExecutionTime > TimeSpan.FromSeconds(30))
+            throw new ArgumentOutOfRangeException(nameof(maximumExecutionTime));
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(maximumExecutionTime);
+        var token = deadline.Token;
+        if (profile.ConnectionString.Contains("${", StringComparison.Ordinal) ||
+            profile.ConnectionString.Contains("ENV.get(", StringComparison.OrdinalIgnoreCase) ||
+            profile.TargetHost?.Contains("${", StringComparison.Ordinal) == true ||
+            profile.TargetHost?.Contains("ENV.get(", StringComparison.OrdinalIgnoreCase) == true)
+            throw new InvalidOperationException("Dynamic targets are not supported for agent index reads.");
+        var context = await MongoOperationContext.PrepareAsync(profile, secrets, environments, clients,
+            token, credentialStore).ConfigureAwait(false);
+        var target = context.CreateClient().GetDatabase(database);
+        var originalUuid = await MongoMetadataSource.ReadConcreteCollectionUuidAsync(target, collection, token).ConfigureAwait(false);
+        if (originalUuid is null) return new([], false, false);
+        var indexes = new List<AgentMongoSearchIndexSummary>();
+        var rawBytes = 0;
+        var truncated = false;
+        // The driver builds a fixed $listSearchIndexes metadata pipeline. No user pipeline/filter is accepted.
+        using var cursor = await target.GetCollection<BsonDocument>(collection).SearchIndexes.ListAsync(
+            name: null, aggregateOptions: new AggregateOptions { BatchSize = 1, MaxTime = maximumExecutionTime }, cancellationToken: token)
+            .ConfigureAwait(false);
+        while (!truncated && await cursor.MoveNextAsync(token).ConfigureAwait(false))
+        {
+            foreach (var definition in cursor.Current)
+            {
+                token.ThrowIfCancellationRequested();
+                if (indexes.Count == MaximumIndexes) { truncated = true; break; }
+                var size = definition.ToBson().Length;
+                if (size > MaximumRawIndexBytes || rawBytes + size > MaximumRawTotalBytes)
+                    throw new FormatException("Search index metadata exceeds the byte limit.");
+                rawBytes += size;
+                indexes.Add(ProjectSearchIndex(definition));
+            }
+        }
+        var currentUuid = await MongoMetadataSource.ReadConcreteCollectionUuidAsync(target, collection, token).ConfigureAwait(false);
+        return currentUuid is not null && originalUuid.AsSpan().SequenceEqual(currentUuid)
+            ? new(indexes, truncated, true) : new([], false, false);
+    }
+
+    internal static AgentMongoSearchIndexSummary ProjectSearchIndex(BsonDocument definition)
+    {
+        var name = Text("name", null);
+        var type = Text("type", "search");
+        var status = Text("status", "UNKNOWN");
+        var paths = new HashSet<string>(StringComparer.Ordinal);
+        if (definition.GetValue("latestDefinition", BsonNull.Value) is BsonDocument config)
+        {
+            if (config.GetValue("mappings", BsonNull.Value) is BsonDocument mappings &&
+                mappings.GetValue("fields", BsonNull.Value) is BsonDocument fields)
+                CollectFields(fields, "", 0);
+            if (config.GetValue("fields", BsonNull.Value) is BsonArray vectorFields)
+                foreach (var field in vectorFields.OfType<BsonDocument>())
+                    if (field.GetValue("path", BsonNull.Value) is BsonString path) AddPath(path.AsString);
+        }
+        return new(name, type, status, Flag(definition, "queryable"), paths.Order(StringComparer.Ordinal).ToArray());
+
+        string Text(string key, string? fallback) => definition.GetValue(key, BsonNull.Value) is BsonString text
+            ? text.AsString : fallback ?? throw new FormatException("Invalid search index metadata.");
+        void AddPath(string path)
+        {
+            if (path.Length is < 1 or > 1024 || path.Any(char.IsControl) || paths.Count >= 200 && !paths.Contains(path))
+                throw new FormatException("Search index field paths exceed the limit.");
+            paths.Add(path);
+        }
+        void CollectFields(BsonDocument fields, string prefix, int depth)
+        {
+            if (depth > 8) throw new FormatException("Search index mapping exceeds the depth limit.");
+            foreach (var field in fields)
+            {
+                var path = prefix.Length == 0 ? field.Name : prefix + "." + field.Name;
+                AddPath(path);
+                IEnumerable<BsonDocument> mappings = field.Value is BsonDocument mapping ? [mapping]
+                    : field.Value is BsonArray list ? list.OfType<BsonDocument>() : [];
+                foreach (var mappingItem in mappings)
+                    if (mappingItem.GetValue("fields", BsonNull.Value) is BsonDocument nested)
+                        CollectFields(nested, path, depth + 1);
+            }
+        }
+    }
+
     public async Task<AgentMongoIndexPage> GetIndexesAsync(ConnectionProfile profile, string database,
         string collection, TimeSpan maximumExecutionTime, CancellationToken cancellationToken)
     {

@@ -220,22 +220,14 @@ public sealed class NativeChatTurnPolicyProviderTests
         var turn = Guid.NewGuid();
         var permissions = Permissions() with
         {
-            EnabledReadTools = [AgentToolRegistry.MongoFindToolName, AgentToolRegistry.MongoCountToolName,
-                AgentToolRegistry.SampleDocumentsToolName, AgentToolRegistry.MongoFindOneToolName,
-                AgentToolRegistry.GetDocumentToolName, AgentToolRegistry.MongoDistinctToolName,
-                AgentToolRegistry.MongoExplainToolName],
+            EnabledReadTools = [AgentToolRegistry.GetQueryResultsToolName, AgentToolRegistry.GetQueryDiagnosticsToolName],
             ConnectionScope = AgentConnectionScope.Selected,
             SelectedConnectionIds = [first.Id],
             DataSending = new AgentDataSendingPermissions { MongoDocuments = true }
         };
         var plan = Plan(permissions);
-        Assert.That(plan.ProductTools, Does.Contain(AgentToolRegistry.MongoFindToolName).And
-            .Contain(AgentToolRegistry.MongoCountToolName).And
-            .Contain(AgentToolRegistry.SampleDocumentsToolName).And
-            .Contain(AgentToolRegistry.MongoFindOneToolName).And
-            .Contain(AgentToolRegistry.GetDocumentToolName).And
-            .Contain(AgentToolRegistry.MongoDistinctToolName).And
-            .Contain(AgentToolRegistry.MongoExplainToolName));
+        Assert.That(plan.ProductTools, Is.EquivalentTo(new[]
+            { AgentToolRegistry.GetQueryResultsToolName, AgentToolRegistry.GetQueryDiagnosticsToolName, AgentToolRegistry.ProposeFileEditToolName }));
         Assert.That(turns.Register(new AgentNativeChatTurnScope(session, turn, ProviderId, plan, permissions, null)), Is.True);
         var policy = new NativeChatTurnPolicyProvider(repository, owner, turns,
             new Mcp.McpFixedProfiles(first, second));
@@ -245,9 +237,9 @@ public sealed class NativeChatTurnPolicyProviderTests
         Assert.Multiple(() =>
         {
             Assert.That(loaded!.Grants.Select(item => item.Permission), Does.Contain(AgentPermission.ReadDocuments));
-            Assert.That(loaded.Grants.Select(item => item.Permission), Does.Contain(AgentPermission.ExecuteReadQueries));
+            Assert.That(loaded.Grants.Select(item => item.Permission), Does.Not.Contain(AgentPermission.ExecuteReadQueries));
             Assert.That(loaded.Grants.Select(item => item.Permission), Does.Contain(AgentPermission.ReadDiagnostics));
-            Assert.That(loaded.Grants, Has.Count.EqualTo(3));
+            Assert.That(loaded.Grants, Has.Count.EqualTo(2));
             Assert.That(loaded.Grants.All(item => item.Scope.ConnectionId == first.Id), Is.True);
             Assert.That(loaded.Grants.All(item => item.OutputDataScope == AgentOutputDataScope.DocumentValues), Is.True);
             Assert.That(loaded.Grants.All(item => item.InvocationScope.Covers(
@@ -268,10 +260,10 @@ public sealed class NativeChatTurnPolicyProviderTests
         var turn = Guid.NewGuid();
         var permissions = Permissions() with
         {
-            EnabledReadTools = [AgentToolRegistry.MongoFindToolName],
+            EnabledReadTools = [AgentToolRegistry.GetQueryResultsToolName],
             DataSending = new AgentDataSendingPermissions { MongoDocuments = false }
         };
-        var plan = Plan(permissions) with { ProductTools = [AgentToolRegistry.MongoFindToolName] };
+        var plan = Plan(permissions) with { ProductTools = [AgentToolRegistry.GetQueryResultsToolName] };
         turns.Register(new AgentNativeChatTurnScope(session, turn, ProviderId, plan, permissions, null));
         var policy = new NativeChatTurnPolicyProvider(repository, owner, turns,
             new Mcp.McpFixedProfiles(profile));

@@ -62,6 +62,8 @@ public sealed class LocalCopilotCliConfiguration : ICopilotCliConfiguration
                 // Automatic discovery can examine the next native installation.
             }
         }
-        return LocalCopilotAccountCommands.FindCliExecutable(path, windows, fileExists, executableProbe);
+        // Keep a production discovery distinguishable from an injected file-existence test. Passing
+        // the default File.Exists delegate as an override would skip native PE/ELF validation.
+        return LocalCopilotAccountCommands.FindCliExecutable(path, windows, exists, executableProbe);
     }
 }

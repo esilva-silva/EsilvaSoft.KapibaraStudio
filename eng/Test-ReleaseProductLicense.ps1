@@ -56,7 +56,7 @@ function New-SyntheticLinuxArchive([string]$Source, [string]$Archive) {
 try {
     New-Item -ItemType Directory -Path $fixtureRoot -Force | Out-Null
     foreach ($rid in @('win-x64', 'win-arm64', 'linux-x64', 'linux-arm64')) {
-        foreach ($licenseState in @('present', 'missing', 'empty')) {
+        foreach ($licenseState in @('present', 'missing', 'empty', 'altered')) {
             $payload = Join-Path $fixtureRoot "$rid-$licenseState"
             New-Item -ItemType Directory -Path $payload | Out-Null
             $manifestDirectory = Join-Path $payload '_manifest/spdx_2.2'
@@ -68,6 +68,9 @@ try {
             }
             elseif ($licenseState -eq 'empty') {
                 [IO.File]::WriteAllBytes((Join-Path $payload 'LICENSE'), [byte[]]::new(0))
+            }
+            elseif ($licenseState -eq 'altered') {
+                [IO.File]::WriteAllText((Join-Path $payload 'LICENSE'), 'A nonempty license file that is not the product MIT license.')
             }
             if ($rid.StartsWith('win-')) {
                 # Nonempty placeholder: this validator checks packaging, not executable loading.
@@ -105,7 +108,7 @@ try {
     if (-not $copiesLicense) { $failures.Add('Desktop não declara LICENSE externo no publish.') }
     $failed = @($results | Where-Object { -not $_ }).Count
     if ($failed -ne 0) { throw "$failed/$($results.Count) fixtures falharam: $($failures -join '; ')" }
-    Write-Host "$($results.Count)/$($results.Count) fixtures aprovadas: LICENSE presente/ausente/vazio nos quatro RIDs e copy no projeto."
+    Write-Host "$($results.Count)/$($results.Count) fixtures aprovadas: conteúdo MIT presente, ausente, vazio ou alterado nos quatro RIDs/payload/TAR Linux e copy no projeto."
 }
 finally {
     $resolved = [IO.Path]::GetFullPath($fixtureRoot)

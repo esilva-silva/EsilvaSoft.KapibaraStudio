@@ -193,7 +193,8 @@ public sealed partial class AgentToolRegistry
         var prompt = _sessionTools?.ConfirmationPrompt;
         if (prompt is null)
         {
-            await TryAppendAuditAsync(ConfirmationTerminal(intent, AgentToolConfirmationDecision.Rejected, expired: false))
+            await TryAppendAuditAsync(ConfirmationTerminal(intent, AgentToolConfirmationDecision.Rejected, expired: false,
+                    unavailable: true))
                 .ConfigureAwait(false);
             return AgentToolInvocationResult.Failure(ConfirmationUnavailable, AgentAuditDecisionReason.PolicyUnavailable);
         }
@@ -201,6 +202,7 @@ public sealed partial class AgentToolRegistry
         using var window = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         window.CancelAfter(_sessionTools!.ApprovalTimeout);
         var expired = false;
+        var unavailable = false;
         AgentToolConfirmationDecision decision;
         try
         {
@@ -213,7 +215,7 @@ public sealed partial class AgentToolRegistry
                 .ConfigureAwait(false);
             throw;
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (window.IsCancellationRequested)
         {
             decision = AgentToolConfirmationDecision.Rejected;
             expired = true;
@@ -221,7 +223,7 @@ public sealed partial class AgentToolRegistry
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             decision = AgentToolConfirmationDecision.Rejected;
-            expired = true;
+            unavailable = true;
         }
 
         // Copilot can approve one invocation only. ApprovedThisSession is treated as a rejection here.
@@ -250,10 +252,12 @@ public sealed partial class AgentToolRegistry
         }
         var effective = approved ? AgentToolConfirmationDecision.ApprovedOnce : AgentToolConfirmationDecision.Rejected;
         if (!await TryAppendAuditAsync(ConfirmationTerminal(intent, effective, expired: expired ||
-                decision == AgentToolConfirmationDecision.ApprovedOnce && !approved)).ConfigureAwait(false))
+                decision == AgentToolConfirmationDecision.ApprovedOnce && !approved, unavailable: unavailable)).ConfigureAwait(false))
             return AgentToolInvocationResult.Failure(ConfirmationUnavailable, AgentAuditDecisionReason.PolicyUnavailable);
         if (!approved)
         {
+            if (unavailable)
+                return AgentToolInvocationResult.Failure(ConfirmationUnavailable, AgentAuditDecisionReason.PolicyUnavailable);
             if (expired)
                 return AgentToolInvocationResult.Failure(ConfirmationExpired, AgentAuditDecisionReason.ApprovalExpired);
             if (decision is AgentToolConfirmationDecision.Rejected or AgentToolConfirmationDecision.ApprovedThisSession)
@@ -410,7 +414,7 @@ public sealed partial class AgentToolRegistry
     }
 
     private static AgentAuditEvent? ConfirmationTerminal(AgentAuditEvent intent, AgentToolConfirmationDecision decision,
-        bool expired)
+        bool expired, bool unavailable = false)
     {
         try
         {
@@ -423,13 +427,15 @@ public sealed partial class AgentToolRegistry
             {
                 Id = Guid.NewGuid(),
                 OccurredAtUtc = completedAt,
-                Decision = approved ? AgentAuditDecision.ApprovedOnce : expired ? AgentAuditDecision.Denied : AgentAuditDecision.Rejected,
+                Decision = approved ? AgentAuditDecision.ApprovedOnce : expired || unavailable ? AgentAuditDecision.Denied : AgentAuditDecision.Rejected,
                 Outcome = approved ? AgentAuditOutcome.Succeeded : AgentAuditOutcome.Denied,
                 DurationMilliseconds = duration,
                 ItemCount = approved ? 1 : 0,
                 DecisionReason = approved ? AgentAuditDecisionReason.ApprovalGranted :
+                    unavailable ? AgentAuditDecisionReason.PolicyUnavailable :
                     expired ? AgentAuditDecisionReason.ApprovalExpired : AgentAuditDecisionReason.ApprovalRejected,
                 ApprovalState = approved ? AgentAuditApprovalState.ApprovedOnce :
+                    unavailable ? AgentAuditApprovalState.Pending :
                     expired ? AgentAuditApprovalState.Expired : AgentAuditApprovalState.Rejected,
                 ApprovedAtUtc = approved ? completedAt : null,
                 CompletedAtUtc = completedAt

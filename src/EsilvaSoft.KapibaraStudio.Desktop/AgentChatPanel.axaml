@@ -357,14 +357,15 @@
                   AutomationProperties.Name="{local:Loc Key=agentCopilotDataUseTitle}">
             <Button.Flyout>
               <Flyout>
-                <Border Width="320" MaxHeight="400" Padding="10" Background="{DynamicResource PanelBackground}">
-                  <ScrollViewer Width="300" MaxHeight="380" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                    <StackPanel Spacing="8">
+                <Border Width="280" MaxHeight="400" Padding="10" Background="{DynamicResource PanelBackground}">
+                  <ScrollViewer MaxHeight="380" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="8" Margin="0,0,12,0">
                       <TextBlock Text="{local:Loc Key=agentCopilotDataUseTitle}" FontWeight="SemiBold" TextWrapping="Wrap" />
                       <TextBlock Text="{local:Loc Key=agentCopilotDataUseSent}" Classes="metadata" TextWrapping="Wrap" />
                       <TextBlock Text="{local:Loc Key=agentCopilotDataUsePolicy}" Classes="metadata" TextWrapping="Wrap" />
                       <TextBlock Text="{local:Loc Key=agentCopilotDataUseLocal}" Classes="metadata" TextWrapping="Wrap" />
                       <TextBlock Text="{local:Loc Key=agentCopilotUsageNotice}" Classes="metadata" TextWrapping="Wrap" />
+                      <TextBlock Text="{local:Loc Key=agentCopilotOutputReview}" Classes="metadata" TextWrapping="Wrap" />
                       <HyperlinkButton x:Name="CopilotUsageLink"
                                        NavigateUri="https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing"
                                        Padding="0" HorizontalAlignment="Left"

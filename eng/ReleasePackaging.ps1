@@ -24,12 +24,53 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 '@
-    $sdkBlock = [regex]::Match($NoticeText, '(?ms)^### GitHub Copilot SDK [^\r\n]+\r?\n.*?^```text\r?\n(?<license>.*?)^```')
+    # The preserved text must also identify the centrally pinned SDK version. This is an identity check,
+    # not a claim that the package's transitive notices or the installed CLI license are complete.
+    [xml]$packageVersions = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../Directory.Packages.props') -Raw
+    $sdkPins = @($packageVersions.SelectNodes('//PackageVersion[@Include="GitHub.Copilot.SDK"]'))
+    if ($sdkPins.Count -ne 1 -or [string]::IsNullOrWhiteSpace($sdkPins[0].GetAttribute('Version'))) {
+        throw 'Pin único de versão do GitHub Copilot SDK ausente para conferir o aviso MIT.'
+    }
+    $sdkVersion = $sdkPins[0].GetAttribute('Version')
+    $sdkBlock = [regex]::Match($NoticeText, '(?ms)^### GitHub Copilot SDK (?<version>[^\s]+)[^\r\n]*\r?\n.*?^```text\r?\n(?<license>.*?)^```')
     $actual = [regex]::Replace($sdkBlock.Groups['license'].Value, '\s+', ' ').Trim()
     $canonical = [regex]::Replace($expected, '\s+', ' ').Trim()
     if (-not $NoticeText.Contains('GitHub.Copilot.SDK', [StringComparison]::Ordinal) -or
-        -not $sdkBlock.Success -or -not $actual.Equals($canonical, [StringComparison]::Ordinal)) {
-        throw 'Aviso MIT integral do GitHub Copilot SDK ausente ou alterado em THIRD-PARTY-NOTICES.md.'
+        -not $sdkBlock.Success -or $sdkBlock.Groups['version'].Value -cne $sdkVersion -or
+        -not $actual.Equals($canonical, [StringComparison]::Ordinal)) {
+        throw 'Aviso MIT integral do GitHub Copilot SDK ausente, alterado ou com versão divergente do pin em THIRD-PARTY-NOTICES.md.'
+    }
+}
+
+function Assert-KapibaraProductLicense([string]$LicenseText) {
+    # Presence alone is insufficient: reject a nonempty replacement that changes the product's declared MIT license.
+    $expected = @'
+MIT License
+
+Copyright (c) 2026 EsilvaSoft
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+'@
+    $actual = [regex]::Replace($LicenseText, '\s+', ' ').Trim()
+    $canonical = [regex]::Replace($expected, '\s+', ' ').Trim()
+    if (-not $actual.Equals($canonical, [StringComparison]::Ordinal)) {
+        throw 'LICENSE MIT do produto ausente ou alterada no payload do release.'
     }
 }
 
@@ -190,6 +231,7 @@ function Assert-KapibaraLinuxPayload([string]$SourceDir, [string]$Rid) {
     if (-not (Test-Path -LiteralPath $productLicense -PathType Leaf) -or (Get-Item -LiteralPath $productLicense).Length -eq 0) {
         throw 'LICENSE do produto ausente ou vazio no payload Linux.'
     }
+    Assert-KapibaraProductLicense (Get-Content -LiteralPath $productLicense -Raw)
     $notices = Join-Path $SourceDir 'THIRD-PARTY-NOTICES.md'
     if (-not (Test-Path -LiteralPath $notices -PathType Leaf) -or (Get-Item -LiteralPath $notices).Length -eq 0) {
         throw 'Avisos de terceiros, incluindo a licença MIT do Copilot SDK, ausentes no payload Linux.'
@@ -285,6 +327,12 @@ function Assert-KapibaraLinuxArchive([string]$Archive, [string]$Rid) {
                 try { $noticeText = $readerText.ReadToEnd() }
                 finally { $readerText.Dispose() }
                 Assert-KapibaraCopilotSdkNotice $noticeText
+            }
+            if ($entry.Name -eq 'LICENSE') {
+                $readerText = [IO.StreamReader]::new($entry.DataStream, [Text.Encoding]::UTF8, $true, 1024, $true)
+                try { $licenseText = $readerText.ReadToEnd() }
+                finally { $readerText.Dispose() }
+                Assert-KapibaraProductLicense $licenseText
             }
             if ($entry.Name -eq '_manifest/spdx_2.2/manifest.spdx.json') {
                 $readerText = [IO.StreamReader]::new($entry.DataStream, [Text.Encoding]::UTF8, $true, 1024, $true)

@@ -118,7 +118,10 @@ public sealed partial class WorkspaceViewModel : IAgentChatHost
             tab?.Profile?.Id.ToString("D"),
             tab?.Profile?.Name,
             string.IsNullOrWhiteSpace(tab?.Database) ? null : tab!.Database,
-            tab is { IsConsole: false } && !string.IsNullOrWhiteSpace(tab.Collection) ? tab.Collection : null);
+            tab is { IsConsole: false } && !string.IsNullOrWhiteSpace(tab.Collection) ? tab.Collection : null)
+        {
+            QueryExecution = tab?.LastAgentQueryExecution
+        };
         return context;
     }
 

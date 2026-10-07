@@ -677,6 +677,12 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
             case ExternalToolRequestedEvent tool when tool.Data is { } data:
                 turn.RequestTool(data, allowed);
                 break;
+            case SessionShutdownEvent:
+                // SDK termination is not proof that the current turn completed. Before idle, even a routine
+                // shutdown ends the stream ambiguously; never expose its reason or wait for a later host timeout.
+                turn.Emit(new AgentProviderEvent(AgentEventKind.AgentError, "CopilotSessionStreamFailed"));
+                turn.Complete();
+                break;
             case SessionErrorEvent error:
                 turn.Emit(new AgentProviderEvent(AgentEventKind.AgentError,
                     CopilotSessionErrorClassifier.FromSessionError(error.Data)));

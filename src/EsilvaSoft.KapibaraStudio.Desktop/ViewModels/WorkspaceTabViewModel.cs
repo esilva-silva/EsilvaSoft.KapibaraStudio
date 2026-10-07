@@ -93,6 +93,7 @@ public sealed partial class WorkspaceTabViewModel : ObservableObject, IDisposabl
     private void InvalidateDestinationResults()
     {
         if (IsRunning) return;
+        LastAgentQueryExecution = null;
         _resultRenderable = false;
         ClearResults(NotExecutedText);
         Metrics = ""; Messages = ""; Errors = "";
@@ -164,6 +165,13 @@ public sealed partial class WorkspaceTabViewModel : ObservableObject, IDisposabl
         var historyEnabled = HistoryEnabled && !ContainsResultData;
         var uuidPolicy = UuidPolicy;
         var executedAt = DateTimeOffset.UtcNow;
+        var executionId = Guid.NewGuid();
+        LastAgentQueryExecution = null;
+        string? executionErrorCode = null;
+        var executionOrigins = new List<EsilvaSoft.KapibaraStudio.Core.Agents.AgentQueryOrigin>
+        {
+            new(profile.Id, profile.SourceGenerationId, database, mode == "Console" ? null : collection)
+        };
         var started = System.Diagnostics.Stopwatch.GetTimestamp();
         using var operation = Operations.Begin(F("executingQuery", profile.Name, database), ApplicationOperationPriority.High);
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(operation.Token);
@@ -180,6 +188,9 @@ public sealed partial class WorkspaceTabViewModel : ObservableObject, IDisposabl
             if (mode == "Console")
             {
                 var result = await _workspace.ExecuteConsoleAsync(new(profile, database, text, Math.Clamp(limit, 1, 1000), Math.Clamp(maxTimeMs, 1, 300000), historyEnabled), ConfirmConsoleWrite, cancellation.Token);
+                executionErrorCode = result.ErrorCode;
+                foreach (var connectionId in result.ConnectionsUsed.Where(id => id != profile.Id))
+                    executionOrigins.Add(new(connectionId, result.ConnectionGenerations.GetValueOrDefault(connectionId), null, null));
                 _resultEmptyText = result.Results.Count == 0 ? T("consoleNoResult") : null;
                 _resultMetrics = F("consoleMetrics", result.Results.Count, result.Duration.TotalMilliseconds.ToString("F0", System.Globalization.CultureInfo.InvariantCulture), result.Environment, Math.Clamp(limit, 1, 1000));
                 await SetResultsAsync(() => result.Results.Select(item => StructuredResultSet.FromConsoleLocalized(item, LocalizationViewModel.Current.Resolve)).ToArray(), result.Results, cancellation.Token);
@@ -190,6 +201,7 @@ public sealed partial class WorkspaceTabViewModel : ObservableObject, IDisposabl
             else if (mode == "Script")
             {
                 var result = await _workspace.ExecuteScriptAsync(profile, text, input, database, cancellation.Token);
+                executionErrorCode = result.ExitCode == 0 ? null : result.ExitCode.ToString(System.Globalization.CultureInfo.InvariantCulture);
                 _resultEmptyText = result.Results.Count == 0 ? T("scriptNoDocuments") : null;
                 _resultMetrics = F("scriptMetrics", result.Results.Count, result.Duration.TotalMilliseconds.ToString("F0", System.Globalization.CultureInfo.InvariantCulture));
                 await SetResultsAsync(() => [StructuredResultSet.FromDocuments(1, new ResultOrigin(T("scriptMongosh"), profile.Id, profile, database, null), result.Results, false, ResultCompleteness.Unknown)], null, cancellation.Token);
@@ -227,6 +239,7 @@ public sealed partial class WorkspaceTabViewModel : ObservableObject, IDisposabl
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {
+            executionErrorCode = "Cancelled";
             Status = T("statusCancelled");
             if (!_resultRenderable) SetResultState(T("queryInterrupted"));
             Messages = T("writeEffectsNotReverted");
@@ -234,6 +247,7 @@ public sealed partial class WorkspaceTabViewModel : ObservableObject, IDisposabl
         }
         catch (Exception ex)
         {
+            executionErrorCode = ex.GetType().Name;
             Status = T("executionFailed");
             Errors = DesktopOperationErrorMessages.Describe(ex);
             if (!_resultRenderable) SetResultState(T("executionIncomplete"));
@@ -259,6 +273,8 @@ public sealed partial class WorkspaceTabViewModel : ObservableObject, IDisposabl
             operation.Complete(Status == T("statusCancelled") ? ApplicationOperationStatus.Cancelled : Errors.Length > 0 || Status == T("executionFailed") ? ApplicationOperationStatus.Error : ApplicationOperationStatus.Success,
                 $"{Status} — {profile.Name} › {database}");
             _cancellation = null; IsRunning = false; ApplyPendingUuidPolicy();
+            LastAgentQueryExecution = CaptureQueryExecution(executionId, executedAt, executionOrigins,
+                executionErrorCode, System.Diagnostics.Stopwatch.GetElapsedTime(started));
         }
     }
 

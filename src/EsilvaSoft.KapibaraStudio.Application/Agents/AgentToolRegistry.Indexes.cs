@@ -8,9 +8,13 @@ namespace EsilvaSoft.KapibaraStudio.Application.Agents;
 
 public sealed partial class AgentToolRegistry
 {
+    private const string GetSearchIndexesOutputSchema = """
+        {"type":"object","additionalProperties":false,"required":["indexes","truncated"],"properties":{"indexes":{"type":"array","maxItems":200,"items":{"type":"object","additionalProperties":false,"required":["name","type","status","queryable","fieldPaths"],"properties":{"name":{"type":"string"},"type":{"type":"string"},"status":{"type":"string"},"queryable":{"type":"boolean"},"fieldPaths":{"type":"array","maxItems":200,"items":{"type":"string"}}}}},"truncated":{"type":"boolean"}}}
+        """;
+
     private async Task<AgentToolInvocationResult> InvokeIndexesAsync(
         AgentPrincipal? principal, AgentInvocationContext? context, AgentOutputDestination? destination,
-        AgentOutputDataScope? outputScope, string? argumentsJson, CancellationToken cancellationToken)
+        AgentOutputDataScope? outputScope, string name, string? argumentsJson, CancellationToken cancellationToken)
     {
         if (!TryParseGetIndexesArguments(argumentsJson, out var connectionId, out var database, out var collection))
             return AgentToolInvocationResult.Failure(InvalidArguments);
@@ -73,6 +77,29 @@ public sealed partial class AgentToolRegistry
             return AgentToolInvocationResult.Failure(PermissionDenied, beforeRead.DenialReason);
         if (beforeRead.Policy.Revision != policy.Revision)
             return AgentToolInvocationResult.Failure(PermissionDenied, AgentAuditDecisionReason.PolicyRevisionMismatch);
+
+        if (name == GetSearchIndexesToolName)
+        {
+            AgentMongoSearchIndexPage searchPage;
+            try
+            {
+                searchPage = await AwaitWithCancellationAsync(_indexes.GetSearchIndexesAsync(profile, database!, collection!,
+                    _executionTimeout, cancellationToken), cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+            catch
+            {
+                return AgentToolInvocationResult.Failure(PermissionDenied, AgentAuditDecisionReason.ExecutionFailed);
+            }
+            if (searchPage is null || !searchPage.TargetVerified || searchPage.Indexes is null || searchPage.Indexes.Count > 200 ||
+                searchPage.Indexes.Any(index => index is null || !IsSafeIndexName(index.Name) ||
+                    !IsSafeIndexName(index.Type) || !IsSafeIndexName(index.Status) || index.FieldPaths is null ||
+                    index.FieldPaths.Count > 200 || index.FieldPaths.Any(field => !IsSafeIndexName(field))))
+                return AgentToolInvocationResult.Failure(PermissionDenied, AgentAuditDecisionReason.ValidationRejected);
+            var searchJson = JsonSerializer.Serialize(new { indexes = searchPage.Indexes, truncated = searchPage.Truncated }, SerializerOptions);
+            if (Utf8ByteCount(searchJson) > MaximumOutputBytes) return AgentToolInvocationResult.Failure(ResultTooLarge);
+            return AgentToolInvocationResult.Success(searchJson, profile);
+        }
 
         AgentMongoIndexPage page;
         try

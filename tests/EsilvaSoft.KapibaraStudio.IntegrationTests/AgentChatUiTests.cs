@@ -227,8 +227,9 @@ public sealed class AgentChatUiTests
         });
     }
 
-    [Test]
-    public async Task CopilotDataAndUsageDisclosureIsVisibleBeforeSendInAllSupportedLocales()
+    [TestCase(380, 820, 1)]
+    [TestCase(320, 620, 2)]
+    public async Task CopilotDataAndUsageDisclosureIsVisibleBeforeSendInAllSupportedLocales(int width, int height, double scale)
     {
         await RunOnUiAsync(async () =>
         {
@@ -241,8 +242,9 @@ public sealed class AgentChatUiTests
             var services = new AgentChatServices(runtime, new FakeAgentCatalog(provider), new FakeAgentContextProvider());
             var chat = new AgentChatViewModel(services, tab.Capture);
             var panel = new AgentChatPanel { DataContext = chat };
-            var window = new Window { Content = panel, Width = 380, Height = 820 };
+            var window = new Window { Content = panel, Width = width, Height = height };
             window.Show();
+            window.SetRenderScaling(scale);
             await chat.Initialization;
             try
             {
@@ -264,15 +266,46 @@ public sealed class AgentChatUiTests
                         LocalizationViewModel.Current.Language = language;
                         Avalonia.Application.Current!.RequestedThemeVariant = theme;
                         await PumpAsync(() => true);
+                        var content = (Control)((Flyout)disclosure.Flyout!).Content!;
+                        var scroll = content.GetVisualDescendants().OfType<ScrollViewer>().Single();
                         disclosure.Flyout!.ShowAt(disclosure);
                         await PumpAsync(() => true);
-                        Save(window, $"agent-copilot-data-use-{language}-{theme}.png");
+                        scroll.Offset = default;
+                        await PumpAsync(() => true);
+                        Save(window, $"agent-copilot-data-use-{language}-{theme}-{width}-{scale.ToString(CultureInfo.InvariantCulture)}.png");
+                        var presenter = content.GetVisualAncestors().OfType<FlyoutPresenter>().Single();
+                        var presenterScroll = presenter.GetVisualDescendants().OfType<ScrollViewer>()
+                            .First(viewer => !ReferenceEquals(viewer, scroll));
+                        Assert.That(presenterScroll.Extent.Width, Is.LessThanOrEqualTo(presenterScroll.Viewport.Width + 1),
+                            "The flyout must fit the minimum panel without an outer horizontal scrollbar.");
+                        var review = content.GetVisualDescendants().OfType<TextBlock>()
+                            .Single(block => block.Text == LocalizationViewModel.Current.Resolve("agentCopilotOutputReview"));
+                        Assert.Multiple(() =>
+                        {
+                            Assert.That(review.Text, Is.Not.Empty.And.Not.Contains("[["));
+                            Assert.That(review.TextLayout.Width, Is.LessThanOrEqualTo(review.Bounds.Width + 1),
+                                "The review guidance must wrap within the disclosure rather than overflow horizontally.");
+                            Assert.That(review.TextLayout.Height, Is.LessThanOrEqualTo(review.Bounds.Height + 1));
+                            Assert.That(runtime.LastRequest, Is.Null, "Reviewing generated-output guidance must not send a turn.");
+                        });
+                        scroll.ScrollToEnd();
+                        await PumpAsync(() => true);
+                        var reviewOrigin = review.TranslatePoint(new Point(), scroll)!.Value;
+                        Assert.That(reviewOrigin.Y, Is.GreaterThanOrEqualTo(0),
+                            "The start of the review guidance must be visible after scrolling to the links.");
+                        Assert.That(reviewOrigin.X + review.TextLayout.Width, Is.LessThanOrEqualTo(scroll.Viewport.Width + 1),
+                            "The scrollbar must not clip the review guidance at the viewport edge.");
+                        Assert.That(reviewOrigin.Y + review.Bounds.Height,
+                            Is.LessThanOrEqualTo(scroll.Bounds.Height + 1),
+                            "The complete review guidance must remain reachable through local scrolling.");
+                        Save(window, $"agent-copilot-data-use-review-{language}-{theme}-{width}-{scale.ToString(CultureInfo.InvariantCulture)}.png");
                         disclosure.Flyout.Hide();
                     }
             }
             finally
             {
                 LocalizationViewModel.Current.Language = "pt-BR";
+                window.SetRenderScaling(1);
                 await CloseAsync(window, chat, runtime);
             }
         });

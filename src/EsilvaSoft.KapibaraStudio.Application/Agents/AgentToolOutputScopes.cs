@@ -13,21 +13,15 @@ public static class AgentToolOutputScopes
     public static AgentOutputDataScope? For(string? toolName) => toolName switch
     {
         AgentToolRegistry.ListConnectionsToolName or AgentToolRegistry.ListDatabasesToolName or
-            AgentToolRegistry.ListCollectionsToolName or AgentToolRegistry.GetIndexesToolName =>
+            AgentToolRegistry.ListCollectionsToolName or AgentToolRegistry.GetIndexesToolName or AgentToolRegistry.GetSearchIndexesToolName =>
             AgentOutputDataScope.Metadata,
-        AgentToolRegistry.GetCollectionSchemaToolName or AgentToolRegistry.GetCachedSchemaToolName =>
+        AgentToolRegistry.GetCachedSchemaToolName =>
             AgentOutputDataScope.Schema,
         // Per-session tools without MongoDB data: workspace names, a proposal receipt, a confirmation answer.
         AgentToolRegistry.GetWorkspaceContextToolName or AgentToolRegistry.ProposeFileEditToolName or
             AgentToolRegistry.ApproveToolName => AgentOutputDataScope.Metadata,
-        AgentToolRegistry.MongoExplainToolName or AgentToolRegistry.MongoFindToolName or AgentToolRegistry.MongoCountToolName or
-            AgentToolRegistry.SampleDocumentsToolName or AgentToolRegistry.MongoFindOneToolName or
-            AgentToolRegistry.GetDocumentToolName or AgentToolRegistry.MongoDistinctToolName =>
+        AgentToolRegistry.GetQueryResultsToolName or AgentToolRegistry.GetQueryDiagnosticsToolName =>
             AgentOutputDataScope.DocumentValues,
-        // Lote 10: document writes return the document identifier (a value); index writes return only metadata.
-        AgentToolRegistry.InsertOneToolName or AgentToolRegistry.UpdateOneToolName or
-            AgentToolRegistry.DeleteOneToolName => AgentOutputDataScope.DocumentValues,
-        AgentToolRegistry.CreateIndexToolName or AgentToolRegistry.DropIndexToolName => AgentOutputDataScope.Metadata,
         _ => null
     };
 }

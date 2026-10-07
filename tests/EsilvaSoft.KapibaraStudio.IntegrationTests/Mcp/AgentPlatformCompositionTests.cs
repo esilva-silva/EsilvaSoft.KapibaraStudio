@@ -45,13 +45,12 @@ public sealed class AgentPlatformCompositionTests
             Assert.That(services.Any(item => item.ServiceType == typeof(AgentBrokerHost)), Is.False, "MCP continua opt-in.");
         });
 
-        var provider = services.BuildServiceProvider();
+        using var provider = services.BuildServiceProvider();
         var registry = provider.GetRequiredService<IAgentToolRegistry>();
         var runtime = provider.GetRequiredService<IAgentRuntime>();
         var host = provider.GetRequiredService<AgentRuntimeHost>();
         var catalog = provider.GetRequiredService<AgentProviderCatalog>();
         var authority = provider.GetRequiredService<IAgentInteractionAuthority>();
-        var consent = provider.GetRequiredService<IAgentSchemaSamplingConsentProvider>();
 
         Assert.Multiple(() =>
         {
@@ -63,30 +62,30 @@ public sealed class AgentPlatformCompositionTests
                 DefaultMetadataTools), "O canal autenticado pode anunciar as tools de metadados liberadas.");
             var claudeSessionTools = registry.GetSessionChannelDescriptors(AgentProviderIds.ClaudeCodeSubscription)
                 .Select(descriptor => descriptor.Name).ToArray();
-            Assert.That(claudeSessionTools, Does.Contain(AgentToolRegistry.MongoFindToolName),
-                "Claude recebe DerivedReads apenas no canal de sessão, com consentimento/grants ainda obrigatórios.");
+            Assert.That(claudeSessionTools, Does.Not.Contain(AgentToolRegistry.GetQueryResultsToolName),
+                "Captured outputs require Desktop workspace ports; infrastructure alone cannot expose them.");
             Assert.That(registry.GetSessionChannelDescriptors(ExternalProviderId).Select(descriptor => descriptor.Name),
-                Does.Not.Contain(AgentToolRegistry.MongoFindToolName),
+                Does.Not.Contain(AgentToolRegistry.GetQueryResultsToolName),
                 "Outro provider segue limitado ao estágio global.");
             Assert.That(registry.GetSessionChannelInputSchemaJson(AgentProviderIds.ClaudeCodeSubscription,
-                AgentToolRegistry.MongoFindToolName), Is.Not.Null);
-            Assert.That(registry.FindDescriptor(AgentToolRegistry.MongoFindToolName), Is.Null);
+                AgentToolRegistry.GetQueryResultsToolName), Is.Null);
+            Assert.That(registry.FindDescriptor(AgentToolRegistry.GetQueryResultsToolName), Is.Null);
             Assert.That(registry.FindInProcessDescriptor(AgentProviderIds.GitHubCopilotSubscription,
-                AgentToolRegistry.MongoFindToolName), Is.Not.Null,
-                "Copilot pode declarar consultas opt-in, ainda sujeitas a consentimento e grants do turno.");
+                AgentToolRegistry.GetQueryResultsToolName), Is.Null,
+                "Captured outputs require Desktop workspace ports.");
             Assert.That(AgentProductToolNames.ReadTools.Where(AgentProductToolNames.IsCopilotDocumentRead)
-                .All(name => registry.FindInProcessDescriptor(AgentProviderIds.GitHubCopilotSubscription, name) is not null),
-                Is.True, "A composição instala os handlers das leituras Copilot limitadas e opt-in.");
+                .All(name => registry.FindInProcessDescriptor(AgentProviderIds.GitHubCopilotSubscription, name) is null),
+                Is.True, "Infrastructure exposes no direct query; captured outputs wait for the Desktop ports.");
             Assert.That(registry.FindInProcessDescriptor(AgentProviderIds.GitHubCopilotSubscription,
                 AgentToolRegistry.GetCollectionSchemaToolName), Is.Null,
                 "A amostragem de schema permanece fechada sem consentimento local dedicado.");
-            Assert.That(registry.FindInProcessDescriptor(ExternalProviderId, AgentToolRegistry.MongoFindToolName), Is.Null,
+            Assert.That(registry.FindInProcessDescriptor(ExternalProviderId, AgentToolRegistry.GetQueryResultsToolName), Is.Null,
                 "A exposição interna de consultas Mongo não é compartilhada com outros providers.");
             Assert.That(AgentProductToolNames.ReadTools.Where(AgentProductToolNames.IsCopilotDocumentRead)
                 .All(name => registry.FindInProcessDescriptor(ExternalProviderId, name) is null), Is.True,
                 "Leituras de documentos não são herdadas por outros providers.");
             Assert.That(registry.GetChannelDescriptors().Select(descriptor => descriptor.Name),
-                Does.Not.Contain(AgentToolRegistry.MongoFindToolName),
+                Does.Not.Contain(AgentToolRegistry.GetQueryResultsToolName),
                 "A exposição interna não libera a consulta para o broker externo.");
             Assert.That(claudeSessionTools.Any(name => AgentToolExposure.WriteReleaseOf(name) != AgentWriteToolRelease.None),
                 Is.False, "Claude recebe apenas ferramentas de leitura.");
@@ -102,7 +101,6 @@ public sealed class AgentPlatformCompositionTests
             Assert.That(catalog.List().Select(entry => entry.Descriptor.ProviderId), Is.EqualTo(new[] { LocalAgentProvider.Id }));
             // P7-L10-WIRE: recognizes only approvals frozen by the write coordinator; everything else stays fail-closed.
             Assert.That(authority, Is.InstanceOf<AgentWriteApprovalInteractionAuthority>());
-            Assert.That(consent, Is.InstanceOf<FailClosedAgentSchemaSamplingConsentProvider>());
         });
 
         // The desktop disposes the container synchronously at exit; an async-only runtime must not break it.
@@ -227,7 +225,7 @@ public sealed class AgentPlatformCompositionTests
         var session = AgentSessionId.New();
         var turn = AgentTurnId.New();
 
-        var externalBinding = await bindings.ResolveAsync(session, turn, ExternalProviderId, AgentToolRegistry.MongoFindToolName, CancellationToken.None);
+        var externalBinding = await bindings.ResolveAsync(session, turn, ExternalProviderId, AgentToolRegistry.GetQueryResultsToolName, CancellationToken.None);
         var localBinding = await bindings.ResolveAsync(session, turn, "local-fixture", AgentToolRegistry.ListConnectionsToolName, CancellationToken.None);
         var unknownProvider = await bindings.ResolveAsync(session, turn, "other", AgentToolRegistry.ListConnectionsToolName, CancellationToken.None);
         var unknownTool = await bindings.ResolveAsync(session, turn, ExternalProviderId, "drop_database", CancellationToken.None);

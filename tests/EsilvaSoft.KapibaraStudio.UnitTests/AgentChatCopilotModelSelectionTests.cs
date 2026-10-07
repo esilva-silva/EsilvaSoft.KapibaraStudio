@@ -175,6 +175,89 @@ public sealed class AgentChatCopilotModelSelectionTests
         });
     }
 
+    [Test]
+    public async Task CopilotBecomingUnavailableAfterRefreshKeepsProviderAndRestoresEligibleModelOnRecovery()
+    {
+        await OnUiAsync(async () =>
+        {
+            var copilot = new ScriptedAgentProvider(Copilot);
+            var byok = new ScriptedAgentProvider("api-alternative");
+            await using var runtime = new AgentRuntime([copilot, byok], new AllowingInteractionAuthority());
+            var catalog = new RefreshableCatalog(Presentation("model-a", "model-b"),
+                FakeAgentCatalog.External(byok.ProviderId, "API"));
+            await using var chat = new AgentChatViewModel(new AgentChatServices(runtime, catalog, new FakeAgentContextProvider())
+            {
+                Permissions = new FakeAgentPermissionsRepository(Permissions),
+                Conversations = new Conversations(),
+            }, new AgentChatTabFixture(), new AgentPanelPreferences
+            {
+                SelectedProviderId = Copilot,
+                SelectedModelId = "model-b",
+            });
+            await chat.Initialization;
+            var conversationId = chat.ActiveConversation.Id;
+            chat.ComposerText = "oi";
+
+            catalog.OnRefresh = current => current.ProviderId == Copilot
+                ? current with { IsAvailable = false, Models = [], UnavailableReason = "CopilotCliNotInstalled" }
+                : current;
+            await chat.RefreshProvidersCommand.ExecuteAsync(null);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(catalog.Refreshes, Is.EqualTo(1));
+                Assert.That(chat.SelectedProvider?.ProviderId, Is.EqualTo(Copilot));
+                Assert.That(chat.SelectedProvider?.Presentation.IsAvailable, Is.False);
+                Assert.That(chat.SelectedModel, Is.Null, "An unavailable provider does not expose a selectable stale model.");
+                Assert.That(chat.ActiveConversation.Id, Is.EqualTo(conversationId));
+                Assert.That(chat.ActiveConversation.ProviderId, Is.EqualTo(Copilot));
+                Assert.That(chat.ActiveConversation.ModelId, Is.EqualTo("model-b"), "Keep the unavailable conversation's model in history.");
+                Assert.That(chat.State, Is.EqualTo(AgentChatState.ProviderUnavailable));
+                Assert.That(chat.SendCommand.CanExecute(null), Is.False);
+            });
+            await chat.SendCommand.ExecuteAsync(null);
+            Assert.That(copilot.Options, Is.Empty);
+            Assert.That(byok.Options, Is.Empty, "The failed Copilot refresh must never route this turn to the API provider.");
+
+            catalog.OnRefresh = current => current.ProviderId == Copilot
+                ? current with { IsAvailable = true, Models = ["model-a", "model-b"], UnavailableReason = null }
+                : current;
+            await chat.RefreshProvidersCommand.ExecuteAsync(null);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(chat.SelectedProvider?.ProviderId, Is.EqualTo(Copilot));
+                Assert.That(chat.SelectedModel, Is.EqualTo("model-b"));
+                Assert.That(chat.ActiveConversation.Id, Is.EqualTo(conversationId));
+                Assert.That(chat.ActiveConversation.ModelId, Is.EqualTo("model-b"));
+                Assert.That(chat.SendCommand.CanExecute(null), Is.True);
+            });
+            await chat.SendCommand.ExecuteAsync(null);
+            if (chat.CurrentTurnCompletion is { } completion) await completion;
+            Assert.That(copilot.Options.Single().ModelId, Is.EqualTo("model-b"));
+            Assert.That(byok.Options, Is.Empty);
+        });
+    }
+
+    private sealed class RefreshableCatalog(params AgentProviderPresentation[] providers) : IAgentProviderCatalog
+    {
+        private readonly List<AgentProviderPresentation> _providers = [.. providers];
+        public int Refreshes { get; private set; }
+        public Func<AgentProviderPresentation, AgentProviderPresentation>? OnRefresh { get; set; }
+
+        public IReadOnlyList<AgentProviderPresentation> List() => [.. _providers];
+
+        public Task RefreshAsync(CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Refreshes++;
+            if (OnRefresh is { } refresh)
+                for (var index = 0; index < _providers.Count; index++)
+                    _providers[index] = refresh(_providers[index]);
+            return Task.CompletedTask;
+        }
+    }
+
     private sealed class Accounts(Task gate) : IAgentAccountManager
     {
         public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);

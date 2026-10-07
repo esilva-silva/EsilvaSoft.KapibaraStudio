@@ -5,7 +5,7 @@ namespace EsilvaSoft.KapibaraStudio.Application.Agents;
 
 /// <summary>
 /// Dependencies of the per-session product tools (<c>get_cached_schema</c>, <c>get_workspace_context</c>,
-/// <c>propose_file_edit</c>, <c>approve</c>). They exist only for principals of a per-session channel
+/// <c>get_query_results</c>, <c>get_query_diagnostics</c>, <c>propose_file_edit</c>, <c>approve</c>). They exist only for principals of a per-session channel
 /// (<see cref="SessionScopes"/>); every missing port makes its tool unavailable (unknown), and a missing
 /// <see cref="ConfirmationPrompt"/> makes every confirmation a denial.
 /// </summary>

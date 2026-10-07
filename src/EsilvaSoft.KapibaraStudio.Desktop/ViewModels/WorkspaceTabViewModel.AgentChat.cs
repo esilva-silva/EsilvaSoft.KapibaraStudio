@@ -8,6 +8,26 @@ namespace EsilvaSoft.KapibaraStudio.Desktop.ViewModels;
 /// </summary>
 public sealed partial class WorkspaceTabViewModel
 {
+    /// <summary>Completed user execution only; transient and independent of presentation/selected result set.</summary>
+    public AgentQueryExecutionSnapshot? LastAgentQueryExecution { get; private set; }
+
+    private AgentQueryExecutionSnapshot CaptureQueryExecution(Guid executionId, DateTimeOffset startedAt,
+        List<AgentQueryOrigin> origins, string? errorCode, TimeSpan duration)
+    {
+        var primary = origins[0];
+        var results = ResultSets.Select(set =>
+        {
+            // A local Console expression inherits the execution's primary context. A known MongoDB result
+            // retains its own connection, generation and namespace, including scripts using another connection.
+            var origin = set.Origin.ProfileId is { } connectionId
+                ? new AgentQueryOrigin(connectionId, set.Origin.Profile?.SourceGenerationId,
+                    set.Origin.Database, set.Origin.Collection) : primary;
+            return new AgentQueryResultSnapshot(origin,
+                set.Documents?.Select(document => document.Json) ?? [set.Json], set.IsTruncated);
+        }).ToArray();
+        return new AgentQueryExecutionSnapshot(executionId, Id.ToString("N"), startedAt,
+            Status, errorCode, Messages, Errors, duration, origins, results);
+    }
     private long _editorRevision;
 
     /// <summary>
@@ -44,7 +64,7 @@ public sealed partial class WorkspaceTabViewModel
             ActiveFileName: string.IsNullOrWhiteSpace(FilePath) ? Title.TrimEnd(' ', '•') : Path.GetFileName(FilePath),
             TabId: Id.ToString("N"), DocumentVersion: EditorRevision, BufferText: Text,
             ConnectionId: Profile?.Id.ToString("D"), ConnectionName: Profile?.Name,
-            DatabaseName: database, CollectionName: collection);
+            DatabaseName: database, CollectionName: collection) { QueryExecution = LastAgentQueryExecution };
     }
 
 }

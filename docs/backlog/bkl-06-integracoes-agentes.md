@@ -1,5 +1,7 @@
 # Backlog — demais integrações de agentes
 
+**Política de tools vigente — 07/10/2026:** o backlog não altera a proibição compartilhada de query/escrita direta de agentes. Preservar providers/autenticação/canais existentes e limitar tools a metadados/índices e resultados/diagnósticos de execução humana capturados. [ADR-066 e contrato](../architecture/agent-tool-safety.md). As evidências de consultas/escritas anteriores são históricas.
+
 **Decisão de 03/10/2026:** a [Fase 5 / v0.9.0](../phases/phase-05-v0.9.0/README.md) passa a concentrar a conclusão completa de GitHub Copilot e da infraestrutura de agentes necessária a ele. As demais integrações externas antes agrupadas nessa fase ficam neste backlog, **sem fase ou versão comprometida**.
 
 ## Recortes adiados

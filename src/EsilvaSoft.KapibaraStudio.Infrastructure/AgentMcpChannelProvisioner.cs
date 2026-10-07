@@ -325,7 +325,8 @@ public sealed class AgentMcpChannelProvisioner : IAgentMcpChannelProvisioner, IA
     /// <summary>
     /// Grants of the turn: MongoDB metadata only for the planned connections (null = every connection with a stable
     /// generation, empty = none), bound to this channel's session and the MCP destination. Schema grants only when
-    /// <c>get_cached_schema</c> is planned. Nothing else (no document, write or sampling grant) is ever written.
+    /// <c>get_cached_schema</c> is planned; captured-output grants only for planned results/diagnostics tools.
+    /// No query-execution, write or sampling grant is issued.
     /// </summary>
     private async Task<IReadOnlyList<AgentPermissionGrant>> BuildGrantsAsync(Guid channelId, Guid principalId,
         AgentTurnPlan plan, CancellationToken cancellationToken)
@@ -333,9 +334,12 @@ public sealed class AgentMcpChannelProvisioner : IAgentMcpChannelProvisioner, IA
         var tools = plan.IsBlocked ? [] : plan.ProductTools;
         var metadata = tools.Any(static tool => tool is AgentToolRegistry.ListConnectionsToolName or
             AgentToolRegistry.ListDatabasesToolName or AgentToolRegistry.ListCollectionsToolName or
-            AgentToolRegistry.GetIndexesToolName);
+            AgentToolRegistry.GetIndexesToolName or AgentToolRegistry.GetSearchIndexesToolName);
         var schema = tools.Contains(AgentToolRegistry.GetCachedSchemaToolName, StringComparer.Ordinal);
-        if (!metadata && !schema) return [];
+        var documents = tools.Contains(AgentToolRegistry.GetQueryResultsToolName, StringComparer.Ordinal) ||
+            tools.Contains(AgentToolRegistry.GetQueryDiagnosticsToolName, StringComparer.Ordinal);
+        var diagnostics = tools.Contains(AgentToolRegistry.GetQueryDiagnosticsToolName, StringComparer.Ordinal);
+        if (!metadata && !schema && !documents) return [];
 
         var profiles = await _profiles.GetAllAsync(cancellationToken).ConfigureAwait(false) ?? [];
         var allowed = plan.AllowedConnectionIds is { } ids ? ids.ToHashSet() : null;
@@ -354,6 +358,12 @@ public sealed class AgentMcpChannelProvisioner : IAgentMcpChannelProvisioner, IA
             if (schema)
                 grants.Add(new AgentPermissionGrant(principalId, session, generation, AgentPermission.ReadSchema, scope,
                     McpDestination, AgentOutputDataScope.Schema));
+            if (documents)
+                grants.Add(new AgentPermissionGrant(principalId, session, generation, AgentPermission.ReadDocuments, scope,
+                    McpDestination, AgentOutputDataScope.DocumentValues));
+            if (diagnostics)
+                grants.Add(new AgentPermissionGrant(principalId, session, generation, AgentPermission.ReadDiagnostics, scope,
+                    McpDestination, AgentOutputDataScope.DocumentValues));
         }
         return grants;
     }

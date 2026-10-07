@@ -470,6 +470,9 @@ public sealed partial class AgentChatViewModel
                 throw new InvalidOperationException("CopilotHistoryContainsUnreadableSession");
             }
 
+            if (loaded is not null && string.Equals(providerId, AgentProviderIds.GitHubCopilotSubscription, StringComparison.Ordinal))
+                foreach (var volatileId in loaded.VolatileProviderSessionIds.ToArray())
+                    await DeleteNativeProviderSessionAsync(AgentProviderIds.GitHubCopilotSubscription, volatileId, _lifetime.Token);
             if (providerSessionId is not null && providerId is not null)
                 await DeleteNativeProviderSessionAsync(providerId, providerSessionId, _lifetime.Token);
         }
@@ -567,6 +570,8 @@ public sealed partial class AgentChatViewModel
             }
 
             foreach (var conversation in erased) await CloseSessionAsync(conversation);
+            foreach (var conversation in erased)
+                providerSessionIds.UnionWith(conversation.VolatileProviderSessionIds);
             foreach (var sessionId in providerSessionIds)
                 await DeleteNativeProviderSessionAsync(providerId, sessionId, _lifetime.Token);
         }
@@ -626,9 +631,10 @@ public sealed partial class AgentChatViewModel
     }
 
     /// <summary>
-    /// Copilot's SDK writes native session files even when its cross-session store is disabled. Reserve the
+    /// With history enabled, Copilot's SDK writes native session files even when its cross-session store is disabled. Reserve the
     /// native ID in the existing conversation repository before the SDK can create a session or receive a prompt.
     /// A failed or unreadable write leaves the turn blocked; the same in-memory ID can be retried safely.
+    /// History opt-out uses the provider's volatile store and does not reserve an ID in durable history.
     /// </summary>
     private async Task<bool> ReserveCopilotSessionAsync(AgentChatConversation conversation, CancellationToken cancellationToken)
     {
@@ -813,5 +819,12 @@ public sealed partial class AgentChatViewModel
         }
 
         conversation.ProviderSessionId = providerSessionId;
+    }
+
+    private static void ReportVolatileProviderSessionId(AgentChatConversation conversation, string providerSessionId)
+    {
+        if (!string.IsNullOrWhiteSpace(providerSessionId) && providerSessionId.Length <= 128 &&
+            !providerSessionId.Any(char.IsControl))
+            conversation.VolatileProviderSessionIds.Add(providerSessionId);
     }
 }

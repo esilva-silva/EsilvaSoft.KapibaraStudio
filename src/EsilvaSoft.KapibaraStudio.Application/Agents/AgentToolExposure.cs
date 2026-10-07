@@ -1,9 +1,8 @@
 namespace EsilvaSoft.KapibaraStudio.Application.Agents;
 
 /// <summary>
-/// Release stages of the catalog, in the order of the phase 7 plan (lotes 2 and 10). A later stage always includes the
-/// earlier ones. Each stage may be enabled only after its security gate has evidence; composing the registry in DI
-/// does not release anything by itself.
+/// Metadata and captured-output catalog. Historical stage values stay readable but never restore removed tools.
+/// Composing the registry in DI does not grant permissions by itself.
 /// </summary>
 public enum AgentToolExposureStage
 {
@@ -11,26 +10,24 @@ public enum AgentToolExposureStage
     None = 0,
 
     /// <summary>
-    /// <c>list_connections</c>, <c>list_databases</c>, <c>list_collections</c>, <c>get_indexes</c> and the per-session
-    /// tools <c>get_cached_schema</c>, <c>get_workspace_context</c>, <c>propose_file_edit</c> and <c>approve</c> (ADR-056).
+    /// Metadata tools, ordinary/Atlas indexes, cached schema, workspace context and captured execution outputs;
+    /// mediated proposals and permission prompts. No document query or MongoDB mutation.
     /// </summary>
     Metadata = 1,
 
-    /// <summary>Adds the literal query codec tools <c>mongo_find</c> and <c>mongo_count</c>.</summary>
+    /// <summary>Legacy value retained for compatibility; releases no additional tools.</summary>
     LiteralQueries = 2,
 
-    /// <summary>Adds schema sampling, sample, distinct, explain, find-one and get-document.</summary>
+    /// <summary>Legacy value retained for compatibility; releases no additional tools.</summary>
     DerivedReads = 3,
 
     /// <summary>
-    /// Lote 10: makes unitary writes and index tools eligible. Reaching this stage releases no write by itself: each
-    /// write tool must also be named in <see cref="AgentToolExposure.WriteTools"/>, and writes exist only for the
-    /// internal chat with human approval (never for the MCP ingress).
+    /// Legacy value retained for compatibility; even explicit write flags release no MongoDB tool.
     /// </summary>
     UnitaryWrites = 4
 }
 
-/// <summary>Write tools released one by one inside <see cref="AgentToolExposureStage.UnitaryWrites"/>.</summary>
+/// <summary>Historical flags retained for compatibility. They cannot release a removed tool.</summary>
 [Flags]
 public enum AgentWriteToolRelease
 {
@@ -62,7 +59,7 @@ public sealed class AgentToolExposure
 
     public AgentToolExposureStage Stage { get; }
 
-    /// <summary>Write tools individually released; effective only at <see cref="AgentToolExposureStage.UnitaryWrites"/>.</summary>
+    /// <summary>Historical flags retained for configuration compatibility; no MongoDB write tool is exposed.</summary>
     public AgentWriteToolRelease WriteTools { get; }
 
     public static AgentToolExposure Through(AgentToolExposureStage stage) =>
@@ -70,8 +67,7 @@ public sealed class AgentToolExposure
             : throw new ArgumentOutOfRangeException(nameof(stage));
 
     /// <summary>
-    /// Releases exactly the named write tools. Requires <see cref="AgentToolExposureStage.UnitaryWrites"/>, so a
-    /// read-stage composition can never expose a write by adding a flag.
+    /// Preserves historical flags and their validation; removed tool names remain unavailable at every stage.
     /// </summary>
     public AgentToolExposure WithWriteTools(AgentWriteToolRelease tools)
     {
@@ -85,18 +81,13 @@ public sealed class AgentToolExposure
     public static AgentToolExposureStage? StageOf(string? toolName) => toolName switch
     {
         // ADR-056: get_indexes is structured metadata (names, keys, flags, TTL, partial-filter field paths), no document.
-        // The per-session tools also belong here: they release no document and never write MongoDB or disk.
+        // Session tools may release captured output with opt-in; they never query documents or write MongoDB/disk.
         AgentToolRegistry.ListConnectionsToolName or AgentToolRegistry.ListDatabasesToolName or
             AgentToolRegistry.ListCollectionsToolName or AgentToolRegistry.GetIndexesToolName or
+            AgentToolRegistry.GetSearchIndexesToolName or AgentToolRegistry.GetQueryResultsToolName or
+            AgentToolRegistry.GetQueryDiagnosticsToolName or
             AgentToolRegistry.GetCachedSchemaToolName or AgentToolRegistry.GetWorkspaceContextToolName or
             AgentToolRegistry.ProposeFileEditToolName or AgentToolRegistry.ApproveToolName => AgentToolExposureStage.Metadata,
-        AgentToolRegistry.MongoFindToolName or AgentToolRegistry.MongoCountToolName =>
-            AgentToolExposureStage.LiteralQueries,
-        AgentToolRegistry.GetCollectionSchemaToolName or AgentToolRegistry.SampleDocumentsToolName or
-            AgentToolRegistry.MongoDistinctToolName or AgentToolRegistry.MongoExplainToolName or
-            AgentToolRegistry.MongoFindOneToolName or
-            AgentToolRegistry.GetDocumentToolName => AgentToolExposureStage.DerivedReads,
-        _ when WriteReleaseOf(toolName) is not AgentWriteToolRelease.None => AgentToolExposureStage.UnitaryWrites,
         _ => null
     };
 

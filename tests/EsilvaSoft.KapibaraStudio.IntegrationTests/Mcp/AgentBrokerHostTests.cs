@@ -17,8 +17,8 @@ namespace EsilvaSoft.KapibaraStudio.IntegrationTests.Mcp;
 [Category("Integration")]
 public sealed class AgentBrokerHostTests
 {
-    private static readonly string[] LiteralQueryTools =
-        ["list_connections", "list_databases", "list_collections", "mongo_find", "mongo_count"];
+    private static readonly string[] MetadataTools =
+        ["list_connections", "list_databases", "list_collections", "get_indexes", "get_search_indexes"];
 
     [Test]
     public async Task FailedFixtureProofCleanupPreservesWorkspaceForRecovery()
@@ -128,7 +128,7 @@ public sealed class AgentBrokerHostTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(tools?.Tools?.Select(tool => tool.Name), Is.EquivalentTo(LiteralQueryTools));
+            Assert.That(tools?.Tools?.Select(tool => tool.Name), Is.EquivalentTo(MetadataTools));
             Assert.That(tools!.Tools!.All(tool => tool.ReadOnly && !tool.Destructive), Is.True);
             Assert.That(JsonSerializer.Serialize(tools), Does.Not.Contain(McpBrokerFixture.UriCanary)
                 .And.Not.Contain(fixture.Profile.Name), "Descoberta estática, sem nomes de conexões.");
@@ -136,7 +136,7 @@ public sealed class AgentBrokerHostTests
     }
 
     [Test]
-    public async Task GrantedChannelReadsExtendedJsonUnchangedAndClientWithoutGrantIsDenied()
+    public async Task GrantedChannelReadsIndexMetadataAndClientWithoutGrantIsDenied()
     {
         await using var fixture = await StartAsync();
         var granted = await fixture.EnrollAsync();
@@ -151,20 +151,20 @@ public sealed class AgentBrokerHostTests
         Assert.That((await c.AuthenticateAsync(missingPolicy.ChannelId, await fixture.ProofAsync(missingPolicy)))?.Type,
             Is.EqualTo(AgentBrokerProtocol.MessageTypes.Authenticated), "Prova válida sem política ainda autentica.");
 
-        await Task.WhenAll(a.CallAsync(1, "mongo_find", fixture.FindArguments()),
-            b.CallAsync(1, "mongo_find", fixture.FindArguments()), c.CallAsync(1, "list_connections", "{}"));
+        await Task.WhenAll(a.CallAsync(1, "get_indexes", fixture.IndexArguments()),
+            b.CallAsync(1, "get_indexes", fixture.IndexArguments()), c.CallAsync(1, "list_connections", "{}"));
         var results = await Task.WhenAll(a.ReceiveAsync(), b.ReceiveAsync(), c.ReceiveAsync());
 
         Assert.Multiple(() =>
         {
             Assert.That(results[0]?.Status, Is.EqualTo(AgentBrokerMessage.SucceededStatus));
-            var documents = results[0]!.StructuredContent!.Value.GetProperty("documentsEjson");
-            Assert.That(documents[0].GetString(), Is.EqualTo(McpBrokerFixture.DocumentEjson),
-                "UUID subtipo 4 e Int64 > 2^53 preservados como Extended JSON.");
+            var indexes = results[0]!.StructuredContent!.Value.GetProperty("indexes");
+            Assert.That(indexes[0].GetProperty("ttlSeconds").GetInt64(), Is.EqualTo(9007199254740993L),
+                "Index TTL Int64 remains exact, without document reads.");
             Assert.That(results[1]?.ErrorCode, Is.EqualTo(AgentBrokerProtocol.ErrorCodes.PermissionDenied));
             Assert.That(results[2]?.ErrorCode, Is.EqualTo(AgentBrokerProtocol.ErrorCodes.PermissionDenied));
             Assert.That(results[2]?.Dispatched, Is.False);
-            Assert.That(fixture.Find.Calls, Is.EqualTo(1), "Só o canal com grant chega ao MongoDB.");
+            Assert.That(fixture.Indexes.Calls, Is.EqualTo(1), "Só o canal com grant chega ao MongoDB.");
             Assert.That(JsonSerializer.Serialize(results), Does.Not.Contain(McpBrokerFixture.UriCanary));
         });
     }
@@ -195,17 +195,17 @@ public sealed class AgentBrokerHostTests
         var channel = await fixture.EnrollAsync();
         await using var peer = await RawBrokerPeer.ConnectAsync(fixture.WorkspaceId);
         await peer.AuthenticateAsync(channel.ChannelId, await fixture.ProofAsync(channel));
-        fixture.Find.Block = true;
-        await peer.CallAsync(1, "mongo_find", fixture.FindArguments());
-        await fixture.Find.Started.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        fixture.Indexes.Block = true;
+        await peer.CallAsync(1, "get_indexes", fixture.IndexArguments());
+        await fixture.Indexes.Started.Task.WaitAsync(TimeSpan.FromSeconds(10));
         await peer.CallAsync(2, "list_connections", "{}");
         var second = await peer.ReceiveAsync();
         await peer.SendAsync(new AgentBrokerMessage { Type = AgentBrokerProtocol.MessageTypes.Cancel, Id = 1 });
         var first = await peer.ReceiveAsync();
         // A late or repeated cancel for a finished id must be ignored.
         await peer.SendAsync(new AgentBrokerMessage { Type = AgentBrokerProtocol.MessageTypes.Cancel, Id = 1 });
-        fixture.Find.Block = false;
-        await peer.CallAsync(3, "mongo_count", fixture.FindArguments().Replace(",\"limit\":5", "", StringComparison.Ordinal));
+        fixture.Indexes.Block = false;
+        await peer.CallAsync(3, "get_indexes", fixture.IndexArguments().Replace(",\"limit\":5", "", StringComparison.Ordinal));
         var third = await peer.ReceiveAsync();
 
         Assert.Multiple(() =>
@@ -214,11 +214,11 @@ public sealed class AgentBrokerHostTests
             Assert.That(second?.Status, Is.EqualTo(AgentBrokerMessage.SucceededStatus));
             Assert.That(first?.Id, Is.EqualTo(1));
             Assert.That(first?.ErrorCode, Is.EqualTo(AgentBrokerProtocol.ErrorCodes.Cancelled));
-            Assert.That(fixture.Find.Cancelled, Is.EqualTo(1));
+            Assert.That(fixture.Indexes.Cancelled, Is.EqualTo(1));
             Assert.That(third?.Id, Is.EqualTo(3));
-            Assert.That(third?.StructuredContent?.GetProperty("countEjson").GetString(),
-                Is.EqualTo("{\"$numberLong\":\"9007199254740993\"}"));
-            Assert.That(fixture.Find.Calls, Is.EqualTo(2), "find uma vez (cancelado) + count; sem replay.");
+            Assert.That(third?.StructuredContent?.GetProperty("indexes")[0].GetProperty("ttlSeconds").GetInt64(),
+                Is.EqualTo(9007199254740993L));
+            Assert.That(fixture.Indexes.Calls, Is.EqualTo(2), "One cancelled index read plus the recovered read; no replay.");
         });
     }
 
@@ -229,15 +229,15 @@ public sealed class AgentBrokerHostTests
         var channel = await fixture.EnrollAsync();
         await using var peer = await RawBrokerPeer.ConnectAsync(fixture.WorkspaceId);
         await peer.AuthenticateAsync(channel.ChannelId, await fixture.ProofAsync(channel));
-        await peer.CallAsync(7, "mongo_find", fixture.FindArguments());
+        await peer.CallAsync(7, "get_indexes", fixture.IndexArguments());
         Assert.That((await peer.ReceiveAsync())?.Status, Is.EqualTo(AgentBrokerMessage.SucceededStatus));
-        await peer.CallAsync(7, "mongo_find", fixture.FindArguments());
+        await peer.CallAsync(7, "get_indexes", fixture.IndexArguments());
 
         Assert.Multiple(async () =>
         {
             Assert.That((await peer.ReceiveAsync())?.ErrorCode, Is.EqualTo(AgentBrokerProtocol.ErrorCodes.ProtocolViolation));
             Assert.That(await peer.ReceiveAsync(), Is.Null);
-            Assert.That(fixture.Find.Calls, Is.EqualTo(1));
+            Assert.That(fixture.Indexes.Calls, Is.EqualTo(1));
         });
     }
 
@@ -252,7 +252,7 @@ public sealed class AgentBrokerHostTests
         Assert.That(await ((Application.IAgentPrincipalAuthority)fixture.Owner)
             .RevokeExternalChannelAsync(channel.ChannelId), Is.EqualTo(Application.AgentChannelRevocationStatus.Revoked));
 
-        await peer.CallAsync(1, "mongo_find", fixture.FindArguments());
+        await peer.CallAsync(1, "get_indexes", fixture.IndexArguments());
         var denied = await peer.ReceiveAsync();
         await using var again = await RawBrokerPeer.ConnectAsync(fixture.WorkspaceId);
         var reauthentication = await again.AuthenticateAsync(channel.ChannelId, proof);
@@ -262,7 +262,7 @@ public sealed class AgentBrokerHostTests
             Assert.That(denied?.ErrorCode, Is.EqualTo(AgentBrokerProtocol.ErrorCodes.AuthenticationRequired));
             Assert.That(await peer.ReceiveAsync(), Is.Null, "Revogação encerra a conexão.");
             Assert.That(reauthentication?.ErrorCode, Is.EqualTo(AgentBrokerProtocol.ErrorCodes.AuthenticationFailed));
-            Assert.That(fixture.Find.Calls, Is.Zero);
+            Assert.That(fixture.Indexes.Calls, Is.Zero);
         });
     }
 
@@ -275,18 +275,18 @@ public sealed class AgentBrokerHostTests
         await peer.AuthenticateAsync(channel.ChannelId, await fixture.ProofAsync(channel));
         await ((Application.Agents.IAgentAuthorizationPolicyRepository)fixture.Owner).SaveAsync(channel.PrincipalId, [], 1);
 
-        await peer.CallAsync(1, "mongo_find", fixture.FindArguments());
+        await peer.CallAsync(1, "get_indexes", fixture.IndexArguments());
         var denied = await peer.ReceiveAsync();
         await ((Application.Agents.IAgentAuthorizationPolicyRepository)fixture.Owner).SaveAsync(channel.PrincipalId,
             fixture.Grants(channel), 2);
-        await peer.CallAsync(2, "mongo_find", fixture.FindArguments());
+        await peer.CallAsync(2, "get_indexes", fixture.IndexArguments());
         var allowed = await peer.ReceiveAsync();
 
         Assert.Multiple(() =>
         {
             Assert.That(denied?.ErrorCode, Is.EqualTo(AgentBrokerProtocol.ErrorCodes.PermissionDenied));
             Assert.That(allowed?.Status, Is.EqualTo(AgentBrokerMessage.SucceededStatus));
-            Assert.That(fixture.Find.Calls, Is.EqualTo(1));
+            Assert.That(fixture.Indexes.Calls, Is.EqualTo(1));
         });
     }
 
@@ -297,16 +297,16 @@ public sealed class AgentBrokerHostTests
         var channel = await fixture.EnrollAsync();
         await using var peer = await RawBrokerPeer.ConnectAsync(fixture.WorkspaceId);
         await peer.AuthenticateAsync(channel.ChannelId, await fixture.ProofAsync(channel));
-        fixture.Find.Block = true;
-        await peer.CallAsync(1, "mongo_find", fixture.FindArguments());
-        await fixture.Find.Started.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        fixture.Indexes.Block = true;
+        await peer.CallAsync(1, "get_indexes", fixture.IndexArguments());
+        await fixture.Indexes.Started.Task.WaitAsync(TimeSpan.FromSeconds(10));
 
         await fixture.Host.StopAsync();
 
         Assert.Multiple(async () =>
         {
             Assert.That(await peer.ReceiveAsync(), Is.Null, "Sem resposta fabricada: EOF ao cliente.");
-            Assert.That(fixture.Find.Cancelled, Is.EqualTo(1));
+            Assert.That(fixture.Indexes.Cancelled, Is.EqualTo(1));
             Assert.That(fixture.Host.IsRunning, Is.False);
             Assert.ThrowsAsync<TimeoutException>(async () =>
             {
@@ -336,21 +336,21 @@ public sealed class AgentBrokerHostTests
         await using var second = await RawBrokerPeer.ConnectAsync(fixture.WorkspaceId);
         await first.AuthenticateAsync(channel.ChannelId, proof);
         await second.AuthenticateAsync(channel.ChannelId, proof);
-        fixture.Find.Block = true;
-        await first.CallAsync(1, "mongo_find", fixture.FindArguments());
-        await first.CallAsync(2, "mongo_find", fixture.FindArguments());
-        await WaitUntilAsync(() => fixture.Find.Calls == 2);
+        fixture.Indexes.Block = true;
+        await first.CallAsync(1, "get_indexes", fixture.IndexArguments());
+        await first.CallAsync(2, "get_indexes", fixture.IndexArguments());
+        await WaitUntilAsync(() => fixture.Indexes.Calls == 2);
 
         await first.CallAsync(3, "list_connections", "{}");
         var connectionLimit = await first.ReceiveAsync();
         await second.CallAsync(1, "list_connections", "{}");
         var sessionLimit = await second.ReceiveAsync();
-        var blockedCalls = fixture.Find.Calls;
+        var blockedCalls = fixture.Indexes.Calls;
 
         await first.SendAsync(new AgentBrokerMessage { Type = AgentBrokerProtocol.MessageTypes.Cancel, Id = 1 });
         await first.SendAsync(new AgentBrokerMessage { Type = AgentBrokerProtocol.MessageTypes.Cancel, Id = 2 });
         var cancelled = new[] { await first.ReceiveAsync(), await first.ReceiveAsync() };
-        fixture.Find.Block = false;
+        fixture.Indexes.Block = false;
         // Busy is retryable: once the slots drain, the same channel is admitted again.
         AgentBrokerMessage? recovered = null;
         for (var id = 2L; id < 20 && recovered?.Status != AgentBrokerMessage.SucceededStatus; id++)
@@ -393,7 +393,7 @@ public sealed class AgentBrokerHostTests
         await peer.AuthenticateAsync(channel.ChannelId, await fixture.ProofAsync(channel));
         await peer.SendAsync(new AgentBrokerMessage { Type = AgentBrokerProtocol.MessageTypes.ListTools, Id = 1 });
         var tools = await peer.ReceiveAsync();
-        await peer.CallAsync(2, "mongo_find", fixture.FindArguments());
+        await peer.CallAsync(2, "get_indexes", fixture.IndexArguments());
         var find = await peer.ReceiveAsync();
 
         Assert.Multiple(() =>
@@ -410,7 +410,7 @@ public sealed class AgentBrokerHostTests
             Assert.That(tools?.Tools, Is.Empty, "Estágio padrão não descobre nada.");
             Assert.That(find?.Status, Is.EqualTo(AgentBrokerMessage.FailedStatus));
             Assert.That(find?.ErrorCode, Is.EqualTo("UnknownTool"));
-            Assert.That(fixture.Find.Calls, Is.Zero);
+            Assert.That(fixture.Indexes.Calls, Is.Zero);
         });
     }
 

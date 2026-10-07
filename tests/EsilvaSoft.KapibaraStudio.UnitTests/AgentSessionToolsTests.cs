@@ -20,14 +20,14 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests;
 public sealed class AgentSessionToolsTests
 {
     private static readonly string[] MetadataStageTools =
-        ["list_connections", "list_databases", "list_collections", "get_indexes"];
+        ["list_connections", "list_databases", "list_collections", "get_indexes", "get_search_indexes"];
 
     private static readonly string[] OriginalHunkLines = ["linha 2"];
     private static readonly string[] ProposedHunkLines = ["linha dois", "linha 2b"];
     private static readonly string[] ConfirmationDecisions = ["Rejected", "ApprovedOnce", "ApprovedThisSession"];
 
     private static readonly string[] SessionTools =
-        ["get_cached_schema", "get_workspace_context", "propose_file_edit", "approve"];
+        ["get_cached_schema", "get_workspace_context", "propose_file_edit", "approve", "get_query_results", "get_query_diagnostics"];
 
     [Test]
     public void MetadataStageReleasesMetadataAndSessionToolsButNoDocumentOrWriteTool()
@@ -38,7 +38,7 @@ public sealed class AgentSessionToolsTests
         {
             Assert.That(AgentToolExposure.StageOf("get_indexes"), Is.EqualTo(AgentToolExposureStage.Metadata));
             Assert.That(SessionTools.Select(AgentToolExposure.StageOf), Is.All.EqualTo(AgentToolExposureStage.Metadata));
-            Assert.That(AgentToolExposure.StageOf("get_collection_schema"), Is.EqualTo(AgentToolExposureStage.DerivedReads));
+            Assert.That(AgentToolExposure.StageOf("get_collection_schema"), Is.Null);
             // In-process providers never see per-session tools; the MCP broker does and filters per channel.
             Assert.That(rig.Registry.GetDescriptors().Select(item => item.Name), Is.EquivalentTo(MetadataStageTools));
             Assert.That(rig.Registry.GetChannelDescriptors().Select(item => item.Name),

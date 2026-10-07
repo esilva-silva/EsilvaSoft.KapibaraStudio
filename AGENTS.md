@@ -16,6 +16,8 @@
 
 ## Invariantes
 
+- Tools de agentes nunca consultam documentos nem escrevem diretamente no MongoDB, mesmo com aprovação. Permitir metadados/índices comuns e Atlas Search; documentos, erros e logs somente de execuções humanas já capturadas (`docs/architecture/agent-tool-safety.md`, ADR-066).
+
 - Explorer navega; nunca executa automaticamente uma consulta ao selecionar ou abrir coleção.
 - Mudar seleção do explorer não redireciona abas abertas. Um resultado só atualiza a aba/solicitação que o originou.
 - Capturar perfil, banco, coleção, texto e opções antes de iniciar operações assíncronas.

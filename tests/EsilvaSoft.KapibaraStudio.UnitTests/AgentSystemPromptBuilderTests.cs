@@ -39,7 +39,7 @@ public sealed class AgentSystemPromptBuilderTests
         Assert.Multiple(() =>
         {
             Assert.That(Encoding.UTF8.GetByteCount(prompt), Is.LessThanOrEqualTo(AgentSystemPromptBuilder.MaximumUtf8Bytes));
-            Assert.That(prompt, Does.Contain("mongo_explain").And.Contain("propose_file_edit"));
+            Assert.That(prompt, Does.Contain("get_query_diagnostics").And.Contain("propose_file_edit"));
             Assert.That(prompt, Does.Contain("NotFound significa"));
         });
     }

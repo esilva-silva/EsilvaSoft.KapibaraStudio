@@ -11,7 +11,7 @@ public sealed class AgentModePolicyTests
     private static readonly AgentPlatformFacts Linux = new(HasWorkspaceFolder: true, ProductToolsAvailable: false);
 
     private static readonly string[] MetadataTools =
-        ["list_connections", "list_databases", "list_collections", "get_indexes", "get_workspace_context"];
+        ["list_connections", "list_databases", "list_collections", "get_indexes", "get_search_indexes", "get_workspace_context"];
 
     private static AgentProviderPermissions Consented() =>
         AgentProviderPermissions.Default("other-provider") with { ExternalDestinationConsentAt = DateTimeOffset.UnixEpoch };

@@ -24,7 +24,7 @@ public sealed class McpStdioProxyLinuxTests
 
         await proxy.InitializeLegacyAsync();
         var tools = await proxy.RequestAsync(1, "tools/list");
-        var call = await proxy.RequestAsync(2, "tools/call", StdioMcpProcess.Call("mongo_find", fixture.FindArguments()));
+        var call = await proxy.RequestAsync(2, "tools/call", StdioMcpProcess.Call("get_indexes", fixture.IndexArguments()));
         var exitCode = await proxy.CloseAndWaitAsync();
 
         Assert.Multiple(() =>
@@ -34,7 +34,7 @@ public sealed class McpStdioProxyLinuxTests
             Assert.That(call.GetProperty("result").GetProperty("content")[0].GetProperty("text").GetString(),
                 Does.StartWith("AuthenticationRequired"));
             Assert.That(fixture.Authority.Authentications, Is.Zero, "Nenhuma credencial chegou ao broker.");
-            Assert.That(fixture.Find.Calls, Is.Zero);
+            Assert.That(fixture.Indexes.Calls, Is.Zero);
             Assert.That(exitCode, Is.Zero, "Falha segura, sem crash.");
             Assert.That(proxy.Stderr, Is.Empty);
             Assert.That(proxy.AllOutput, Does.Not.Contain(proof).And.Not.Contain(McpBrokerFixture.UriCanary));

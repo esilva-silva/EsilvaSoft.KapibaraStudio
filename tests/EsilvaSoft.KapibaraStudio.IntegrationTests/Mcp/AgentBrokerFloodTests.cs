@@ -47,7 +47,7 @@ public sealed class AgentBrokerFloodTests
                 Is.EqualTo(AgentBrokerProtocol.MessageTypes.Authenticated));
             for (var id = 1L; id <= CallsPerConnection; id++)
             {
-                await peer.CallAsync(id, "mongo_find", fixture.FindArguments());
+                await peer.CallAsync(id, "get_indexes", fixture.IndexArguments());
                 var answer = await peer.ReceiveAsync();
                 if (answer?.Status == AgentBrokerMessage.SucceededStatus) succeeded++;
                 else if (answer?.ErrorCode == AgentBrokerProtocol.ErrorCodes.RateLimited)
@@ -78,7 +78,7 @@ public sealed class AgentBrokerFloodTests
             Assert.That(succeeded, Is.GreaterThanOrEqualTo(Burst).And.LessThanOrEqualTo(Burst + refillAllowance),
                 "Rajada inicial mais a recarga de 1/s durante o teste.");
             Assert.That(rateLimited, Is.EqualTo(Connections * CallsPerConnection - succeeded));
-            Assert.That(fixture.Find.Calls, Is.EqualTo(succeeded), "Nada limitado chega ao MongoDB.");
+            Assert.That(fixture.Indexes.Calls, Is.EqualTo(succeeded), "Nada limitado chega ao MongoDB.");
             Assert.That(events.Count, Is.EqualTo(2 * succeeded),
                 "Auditoria cresce só com chamadas admitidas (intenção + desfecho), não com cada tentativa.");
             Assert.That(events.All(item => item.Channel == AgentAuditChannel.McpExternal), Is.True);

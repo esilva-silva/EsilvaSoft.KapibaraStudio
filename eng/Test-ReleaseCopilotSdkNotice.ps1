@@ -17,7 +17,7 @@ function Test-ExpectedNotice([scriptblock]$Validate, [bool]$ShouldAccept, [strin
     try { & $Validate }
     catch { $failure = $_.Exception }
     if ($ShouldAccept -and $null -ne $failure) { $failures.Add("$Label rejeitou aviso integral: $($failure.Message)") }
-    elseif (-not $ShouldAccept -and $null -eq $failure) { $failures.Add("$Label aceitou aviso MIT truncado") }
+    elseif (-not $ShouldAccept -and $null -eq $failure) { $failures.Add("$Label aceitou aviso MIT truncado ou versão divergente") }
     elseif (-not $ShouldAccept -and -not $failure.Message.Contains('MIT', [StringComparison]::Ordinal)) {
         $failures.Add("$Label falhou por motivo diferente de MIT: $($failure.Message)")
     }
@@ -48,6 +48,7 @@ try {
         'missing-grant' = [regex]::Replace($notices, '(?s)Permission is hereby granted,.*?following conditions:', '')
         'missing-condition' = [regex]::Replace($notices, '(?s)The above copyright notice.*?portions of the Software\.', '')
         'missing-disclaimer' = [regex]::Replace($notices, '(?s)THE SOFTWARE IS PROVIDED.*?SOFTWARE\.', '')
+        'wrong-sdk-version' = [regex]::Replace($notices, '(?m)^### GitHub Copilot SDK [^\r\n]+', '### GitHub Copilot SDK 0.0.0-fixture — MIT')
         reflow = $notices.Replace('free of charge,', "free   of`ncharge,").Replace("`r`n", "`n")
     }
     foreach ($rid in @('win-x64', 'win-arm64', 'linux-x64', 'linux-arm64')) {
@@ -82,7 +83,7 @@ try {
         }
     }
     if ($failures.Count -ne 0) { throw "$($failures.Count)/$total fixtures falharam: $($failures -join '; ')" }
-    Write-Host "$total/$total fixtures aprovadas: MIT integral do SDK, truncamentos e whitespace nos quatro RIDs/payload/TAR."
+    Write-Host "$total/$total fixtures aprovadas: MIT integral do SDK, versão fixada, truncamentos e whitespace nos quatro RIDs/payload/TAR."
 }
 finally {
     $resolved = [IO.Path]::GetFullPath($fixtureRoot)

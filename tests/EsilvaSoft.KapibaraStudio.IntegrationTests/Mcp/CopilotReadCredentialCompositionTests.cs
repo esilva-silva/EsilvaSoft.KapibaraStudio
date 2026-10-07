@@ -11,14 +11,10 @@ namespace EsilvaSoft.KapibaraStudio.IntegrationTests.Mcp;
 [TestFixture, NonParallelizable, Category("Integration")]
 public sealed class CopilotReadCredentialCompositionTests
 {
+    [TestCase("get_search_indexes", true)]
+    [TestCase("get_search_indexes", false)]
     [TestCase("get_indexes", true)]
     [TestCase("get_indexes", false)]
-    [TestCase("mongo_count", true)]
-    [TestCase("mongo_count", false)]
-    [TestCase("get_document", true)]
-    [TestCase("get_document", false)]
-    [TestCase("mongo_explain", true)]
-    [TestCase("mongo_explain", false)]
     public async Task SelectedConnectionGatePrecedesCredentialAccessAndStoreFailureIsNotPermissionDenial(string tool, bool selected)
     {
         using var workspace = new McpTemporaryWorkspace();
@@ -94,13 +90,7 @@ public sealed class CopilotReadCredentialCompositionTests
     }
 
     [TestCase("get_indexes")]
-    [TestCase("mongo_find")]
-    [TestCase("mongo_find_one")]
-    [TestCase("sample_documents")]
-    [TestCase("get_document")]
-    [TestCase("mongo_count")]
-    [TestCase("mongo_distinct")]
-    [TestCase("mongo_explain")]
+    [TestCase("get_search_indexes")]
     public void ProductReadSourcesUseTheComposedConnectionCredentialStore(string tool)
     {
         using var workspace = new McpTemporaryWorkspace();
@@ -126,21 +116,11 @@ public sealed class CopilotReadCredentialCompositionTests
         });
     }
 
-    private static Task InvokeAsync(ServiceProvider container, string tool, ConnectionProfile profile) => tool switch
-    {
-        "get_indexes" => container.GetRequiredService<MongoAgentIndexSource>().GetIndexesAsync(profile,
-            "app", "items", TimeSpan.FromSeconds(1), CancellationToken.None),
-        "mongo_explain" => container.GetRequiredService<MongoAgentExplainSource>().ExplainAsync(profile,
-            new AgentMongoFindQuery("app", "items", "{}", null, null, 1, 0, 1_000), CancellationToken.None),
-        "mongo_count" => container.GetRequiredService<MongoAgentFindSource>().CountAsync(profile,
-            new AgentMongoCountQuery("app", "items", "{}", 1_000), CancellationToken.None),
-        "mongo_distinct" => container.GetRequiredService<MongoAgentFindSource>().DistinctAsync(profile,
-            new AgentMongoDistinctQuery("app", "items", "value", "{}", 10, 1_000), CancellationToken.None),
-        "get_document" => container.GetRequiredService<MongoAgentFindSource>().FindByIdAsync(profile,
-            new AgentMongoFindByIdQuery("app", "items", "{\"$numberLong\":\"7\"}", 1_000), CancellationToken.None),
-        _ => container.GetRequiredService<MongoAgentFindSource>().FindAsync(profile,
-            new AgentMongoFindQuery("app", "items", "{}", null, null, 1, 0, 1_000), CancellationToken.None)
-    };
+    private static Task InvokeAsync(ServiceProvider container, string tool, ConnectionProfile profile) => tool == "get_search_indexes"
+        ? container.GetRequiredService<MongoAgentIndexSource>().GetSearchIndexesAsync(profile,
+            "app", "items", TimeSpan.FromSeconds(1), CancellationToken.None)
+        : container.GetRequiredService<MongoAgentIndexSource>().GetIndexesAsync(profile,
+            "app", "items", TimeSpan.FromSeconds(1), CancellationToken.None);
 
     private sealed class DeniedCredentialStore : ISecretStore
     {

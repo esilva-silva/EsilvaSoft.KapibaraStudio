@@ -10,6 +10,50 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests;
 [TestFixture, Category("Unit")]
 public sealed class CopilotConfirmationAuditBoundaryTests
 {
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task FailedConfirmationBridgeReportsUnavailableAndOnlyExplicitRetryCanDispatch(bool bridgeCancellation)
+    {
+        var rig = new Rig(TimeSpan.FromSeconds(5));
+        using var caller = new CancellationTokenSource();
+        try
+        {
+            rig.Prompt.Failure = bridgeCancellation
+                ? new OperationCanceledException("private-bridge-canary")
+                : new IOException("private-bridge-canary");
+            var failed = await rig.InvokeAsync(caller.Token).WaitAsync(TimeSpan.FromSeconds(2));
+            Assert.Multiple(() =>
+            {
+                Assert.That(failed.ErrorCode, Is.EqualTo("ConfirmationUnavailable"));
+                Assert.That(failed.StructuredContentJson, Is.Null);
+                Assert.That(failed.AuditReason, Is.EqualTo(AgentAuditDecisionReason.PolicyUnavailable));
+                Assert.That(rig.Source.Calls, Is.Zero, "A failed bridge cannot authorize access or silently replay the call.");
+                Assert.That(rig.Prompt.Calls, Is.EqualTo(1));
+                Assert.That(caller.IsCancellationRequested, Is.False);
+                Assert.That(rig.Audit.Events, Has.Count.EqualTo(2));
+                Assert.That(rig.Audit.Events[1].DecisionReason, Is.EqualTo(AgentAuditDecisionReason.PolicyUnavailable));
+                Assert.That(rig.Audit.Events[1].ApprovalState, Is.EqualTo(AgentAuditApprovalState.Pending),
+                    "No human decision was received; the audit must not invent rejection or expiry.");
+                Assert.That(rig.Audit.Events[1].Outcome, Is.EqualTo(AgentAuditOutcome.Denied));
+                Assert.That(rig.Audit.Events[1].OutputBytes, Is.Zero);
+                Assert.That(JsonSerializer.Serialize(rig.Audit.Events), Does.Not.Contain("private-bridge-canary"));
+            });
+
+            rig.Prompt.Failure = null;
+            rig.Audit.Release.TrySetResult();
+            var recovered = await rig.InvokeAsync(caller.Token).WaitAsync(TimeSpan.FromSeconds(2));
+            Assert.Multiple(() =>
+            {
+                Assert.That(recovered.Succeeded, Is.True, recovered.ErrorCode);
+                Assert.That(rig.Prompt.Calls, Is.EqualTo(2), "The explicit retry requires a fresh human confirmation.");
+                Assert.That(rig.Source.Calls, Is.EqualTo(1));
+                Assert.That(rig.Audit.Events[3].ApprovalState, Is.EqualTo(AgentAuditApprovalState.ApprovedOnce));
+                Assert.That(rig.Audit.Events[1].ApprovalId, Is.Not.EqualTo(rig.Audit.Events[3].ApprovalId));
+            });
+        }
+        finally { rig.Prompt.Dispose(); }
+    }
+
     [TestCase(true, false)]
     [TestCase(false, false)]
     [TestCase(false, true)]
@@ -91,11 +135,11 @@ public sealed class CopilotConfirmationAuditBoundaryTests
             var permissions = AgentProviderPermissions.Default(AgentProviderIds.GitHubCopilotSubscription) with
             {
                 ExternalDestinationConsentAt = DateTimeOffset.UtcNow,
-                EnabledReadTools = [AgentToolRegistry.MongoFindToolName],
+                EnabledReadTools = [AgentToolRegistry.GetIndexesToolName],
                 ConnectionScope = AgentConnectionScope.Selected,
                 SelectedConnectionIds = [_profile.Id],
                 DataSending = new AgentDataSendingPermissions { MongoDocuments = true },
-                ConfirmationCategories = AgentConfirmationCategories.MongoDocumentRead
+                ConfirmationCategories = AgentConfirmationCategories.MongoMetadataRead
             };
             var scopes = new AgentNativeChatTurnScopeRegistry();
             scopes.Register(new(_session, _turn, AgentProviderIds.GitHubCopilotSubscription,
@@ -103,7 +147,7 @@ public sealed class CopilotConfirmationAuditBoundaryTests
                 permissions, null) { ConversationId = Guid.NewGuid() });
             RefreshGrants();
             _registry = new AgentToolRegistry(new Profiles(_profile), _policies, new AgentPermissionEvaluator(_policies),
-                Audit, find: Source, principalAuthority: new TestAgentPrincipalAuthority(),
+                Audit, indexes: Source, exposure: AgentToolExposure.Through(AgentToolExposureStage.Metadata), principalAuthority: new TestAgentPrincipalAuthority(),
                 sessionTools: new(new AgentMcpSessionRegistry())
                 {
                     NativeChatTurnScopes = scopes, ConfirmationPrompt = Prompt, ApprovalTimeout = timeout
@@ -112,16 +156,16 @@ public sealed class CopilotConfirmationAuditBoundaryTests
 
         public void RefreshGrants() => _policies.Set(_principal.Id, 191,
         [
-            Grant(AgentPermission.ExecuteReadQueries), Grant(AgentPermission.ReadDocuments)
+            Grant(AgentPermission.ReadMetadata)
         ]);
 
         private AgentPermissionGrant Grant(AgentPermission permission) => new(_principal.Id,
             AgentInvocationScope.ForTurn(_session, _turn), _profile.SourceGenerationId!.Value, permission,
-            AgentNamespaceScope.ForCollection(_profile.Id, "app", "people"), _destination, AgentOutputDataScope.DocumentValues);
+            AgentNamespaceScope.ForCollection(_profile.Id, "app", "people"), _destination, AgentOutputDataScope.Metadata);
 
         public Task<AgentToolInvocationResult> InvokeAsync(CancellationToken token) => _registry.InvokeAsync(_principal,
             new(AgentProviderIds.GitHubCopilotSubscription, null, _session, _turn), _destination,
-            AgentOutputDataScope.DocumentValues, AgentToolRegistry.MongoFindToolName,
+            AgentOutputDataScope.Metadata, AgentToolRegistry.GetIndexesToolName,
             JsonSerializer.Serialize(new { connectionId = _profile.Id, database = "app", collection = "people" }), token);
     }
 
@@ -130,9 +174,11 @@ public sealed class CopilotConfirmationAuditBoundaryTests
         private CancellationTokenRegistration _registration;
         public TaskCompletionSource Expired { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public int Calls { get; private set; }
+        public Exception? Failure { get; set; }
         public Task<AgentToolConfirmationDecision> ConfirmAsync(AgentToolConfirmationRequest request, CancellationToken token)
         {
             Calls++;
+            if (Failure is { } failure) return Task.FromException<AgentToolConfirmationDecision>(failure);
             _registration = token.Register(() => Expired.TrySetResult());
             return Task.FromResult(AgentToolConfirmationDecision.ApprovedOnce);
         }
@@ -167,15 +213,15 @@ public sealed class CopilotConfirmationAuditBoundaryTests
         public Task DeleteAsync(Guid profileId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
-    private sealed class FindSource : IAgentMongoFindSource
+    private sealed class FindSource : IAgentMongoIndexSource
     {
         public int Calls { get; private set; }
-        public Task<AgentMongoFindPage> FindAsync(ConnectionProfile profile, AgentMongoFindQuery query, CancellationToken token)
+        public Task<AgentMongoIndexPage> GetIndexesAsync(ConnectionProfile profile, string database, string collection,
+            TimeSpan maximumExecutionTime, CancellationToken token)
         {
             Calls++;
-            return Task.FromResult(new AgentMongoFindPage([], false, false, true, false));
+            return Task.FromResult(new AgentMongoIndexPage([], false, true));
         }
-        public Task<AgentMongoFindPage> FindByIdAsync(ConnectionProfile profile, AgentMongoFindByIdQuery query, CancellationToken token)
-            => throw new NotSupportedException();
+
     }
 }

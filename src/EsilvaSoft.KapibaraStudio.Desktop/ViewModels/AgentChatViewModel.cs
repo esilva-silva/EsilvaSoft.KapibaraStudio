@@ -519,6 +519,7 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
                 method is AgentAuthenticationMethod.OfficialCliDelegated or AgentAuthenticationMethod.OfficialAppServerDelegated) == true;
             var availability = selectedProviderId is null ? null : _services.Availability?.Current(selectedProviderId);
             var accountCheckPending = accountProvider && SelectedProvider?.Presentation.IsAvailable != true &&
+                _services.Availability is not null &&
                 (availability is null or { State: AgentProviderAvailabilityState.Checking or AgentProviderAvailabilityState.NotChecked });
             if (accountCheckPending && keep is { Length: > 0 } && !Models.Contains(keep))
             {
@@ -689,10 +690,14 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
         OnPropertyChanged(nameof(IsBusy));
         OnPropertyChanged(nameof(IsIdle));
         OnPropertyChanged(nameof(CanChangeProvider));
-        // Provider availability/auth refresh may finish while a turn is already connecting or streaming. Preserve that
-        // turn's visible state; the turn completion calls this method again after clearing its run handle.
+        // Provider availability/auth refresh may finish while a turn is already connecting or streaming. Restore the
+        // active conversation's own state when switching back to it; the turn completion calls this method again
+        // after clearing its run handle.
         if (ActiveConversation.Turn is not null)
         {
+            State = ActiveConversation.TurnState ?? AgentChatState.Connecting;
+            OnPropertyChanged(nameof(StatusText));
+            OnPropertyChanged(nameof(IsStatusError));
             return;
         }
 

@@ -14,6 +14,98 @@ public sealed class AgentChatTurnSnapshotTests
     private static readonly string[] ExpectedExclusions = ["blocked.txt"];
     private static readonly string[] ExpectedTools = [AgentToolRegistry.ListConnectionsToolName];
 
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task AttachmentPreparationCompletingAfterConversationSwitchCannotChangeNewDraft(bool fileRemoved)
+    {
+        var session = HeadlessUnitTestSession.GetOrStartForAssembly(typeof(UiTestApp).Assembly);
+        await session.Dispatch(async () =>
+        {
+            LocalizationViewModel.Current.Language = "pt-BR";
+            var root = SyntheticPaths.Combine("kapibara-memory", "origin-preparation");
+            var nextRoot = SyntheticPaths.Combine("kapibara-memory", "next-preparation");
+            var path = Path.Combine(root, "origin.txt");
+            var files = new MemoryAgentFiles();
+            files.AddDirectory(root);
+            files.AddDirectory(nextRoot);
+            files.Set(path, Encoding.UTF8.GetBytes("origin attachment"));
+            files.Set(Path.Combine(nextRoot, "next.txt"), Encoding.UTF8.GetBytes("next attachment"));
+            var reader = new GatedFileReader(files);
+            var permissions = AgentProviderPermissions.Default("local") with
+            {
+                ExternalDestinationConsentAt = DateTimeOffset.UnixEpoch,
+                AutomaticContext = new AgentAutomaticContextPermissions { ActiveFile = false, TabMetadata = false },
+            };
+            var runtime = new ChannelAgentRuntime();
+            var presentation = FakeAgentCatalog.Local("local", "Local de teste") with
+                { SupportsTurnPlan = true, SupportsToolCalling = true, SupportsNativeTools = true };
+            var host = new AgentChatTabFixture { WorkspaceFolder = root, Version = 7 };
+            await using var chat = new AgentChatViewModel(new AgentChatServices(runtime, new FakeAgentCatalog(presentation), null)
+                { Permissions = new FakeAgentPermissionsRepository(permissions), FileReader = reader, PathProbe = files }, host);
+            await chat.Initialization;
+            chat.Items.Add(new AgentChatMessageItem(AgentChatRole.User, "earlier message"));
+            var origin = chat.ActiveConversation;
+            var originChip = chat.AddWorkspaceFile(path)!;
+            Assert.That(originChip, Is.Not.Null);
+            chat.ComposerText = "origin prompt";
+            var send = chat.SendCommand.ExecuteAsync(null);
+            await reader.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            try
+            {
+                chat.NewConversationCommand.Execute(null);
+                Assert.That(chat.ActiveConversation, Is.Not.SameAs(origin));
+                var next = chat.ActiveConversation;
+                chat.RemoveChipCommand.Execute(originChip);
+                host.WorkspaceFolder = nextRoot;
+                host.Version = 8;
+                chat.OnWorkspaceContextChanged();
+                var nextChip = chat.AddWorkspaceFile(Path.Combine(nextRoot, "next.txt"))!;
+                Assert.That(nextChip, Is.Not.Null);
+                chat.ComposerText = "next draft";
+                chat.ActiveConversation = origin;
+                Assert.That(chat.State, Is.EqualTo(AgentChatState.Connecting),
+                    "Returning to a conversation with a pending attachment read must restore its in-flight state.");
+                chat.ActiveConversation = next;
+                Assert.That(chat.State, Is.EqualTo(AgentChatState.Ready),
+                    "Switching away again must restore the new conversation's idle state.");
+                if (fileRemoved) files.Remove(path);
+                reader.Release.TrySetResult();
+                if (!fileRemoved)
+                {
+                    await AgentChatWait.UntilAsync(() => runtime.LastRequest is not null);
+                    var request = runtime.LastRequest!;
+                    Assert.That(request.ConversationId, Is.EqualTo(origin.Id));
+                    Assert.That(request.WorkspaceContext!.WorkspaceFolder, Is.EqualTo(root));
+                    Assert.That(request.DocumentVersion, Is.EqualTo(7));
+                    Assert.That(request.Attachments.Single().Content, Is.EqualTo("origin attachment"));
+                    Assert.That(chat.State, Is.EqualTo(AgentChatState.Ready),
+                        "Preparing the background turn must not put the new conversation into Generating.");
+                    runtime.Push(request.TurnId, AgentEventKind.MessageDelta, "origin response", message: AgentMessageId.New());
+                    runtime.Push(request.TurnId, AgentEventKind.TaskCompleted, outcome: AgentTurnOutcome.Completed);
+                }
+                await send;
+                Assert.Multiple(() =>
+                {
+                    Assert.That(chat.Chips, Does.Contain(nextChip), "A completed older read cannot consume the new draft attachment.");
+                    Assert.That(nextChip.Error, Is.Null, "An older attachment failure cannot annotate the new draft chip by index.");
+                    Assert.That(chat.ComposerText, Is.EqualTo("next draft"));
+                    Assert.That(next.Items, Is.Empty, "Results remain in the originating conversation.");
+                    Assert.That(next.IsBusy, Is.False);
+                    if (fileRemoved) Assert.That(runtime.LastRequest, Is.Null);
+                    else Assert.That(origin.Items.OfType<AgentChatMessageItem>().Last().Content, Is.EqualTo("origin response"));
+                });
+            }
+            finally
+            {
+                reader.Release.TrySetResult();
+                if (runtime.LastRequest is { } pending)
+                    runtime.Push(pending.TurnId, AgentEventKind.TaskCompleted, outcome: AgentTurnOutcome.Completed);
+                await send.WaitAsync(TimeSpan.FromSeconds(5));
+            }
+            return true;
+        }, CancellationToken.None);
+    }
+
     [Test]
     public async Task RemovedWorkspaceFileAfterChipValidationIsNotSentToRuntime()
     {

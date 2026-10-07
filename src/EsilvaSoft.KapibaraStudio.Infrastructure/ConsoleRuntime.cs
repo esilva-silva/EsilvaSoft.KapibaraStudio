@@ -47,7 +47,8 @@ public sealed class ConsoleRuntime(IConnectionProfileRepository profiles, IEnvir
         var started = Stopwatch.GetTimestamp();
         var occurredAt = DateTimeOffset.UtcNow;
         var output = new List<ConsoleResultSet>(); var messages = new StringBuilder(); var used = new HashSet<Guid>();
-        string? error = null; var canceled = false; var timedOut = false;
+        string? error = null; string? errorCode = null; var canceled = false; var timedOut = false;
+        var generations = new Dictionary<Guid, Guid?>();
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(request.TimeoutMs);
         var token = timeout.Token;
@@ -98,6 +99,7 @@ public sealed class ConsoleRuntime(IConnectionProfileRepository profiles, IEnvir
                         if (resolutionErrors.TryGetValue(profile.Id, out var resolutionError)) throw new InvalidOperationException(resolutionError);
                         if (!ReadMethods.Contains(operation.Method) && !WriteMethods.Contains(operation.Method)) throw new InvalidOperationException(L("consoleUnsupportedMethod", "Método não suportado."));
                         used.Add(profile.Id);
+                        generations[profile.Id] = profile.SourceGenerationId;
                         var write = WriteMethods.Contains(operation.Method);
                         ConsoleDatabaseSession.Validate(operation, MongoDB.Bson.Serialization.BsonSerializer.Deserialize<MongoDB.Bson.BsonArray>(operation.ArgumentsJson), profile, _localize);
                         if (write)
@@ -120,7 +122,12 @@ public sealed class ConsoleRuntime(IConnectionProfileRepository profiles, IEnvir
                         return "{\"reply\":" + (replies.Count - 1).ToString(System.Globalization.CultureInfo.InvariantCulture) + ",\"result\":" + result + "}";
                     }
                     catch (OperationCanceledException) { throw; }
-                    catch (Exception ex) { return JsonSerializer.Serialize(new { error = OperationErrorMessages.Describe(ex, localize: _localize) }); }
+                    catch (Exception ex)
+                    {
+                        errorCode = ex is MongoDB.Driver.MongoCommandException command
+                            ? command.Code.ToString(System.Globalization.CultureInfo.InvariantCulture) : ex.GetType().Name;
+                        return JsonSerializer.Serialize(new { error = OperationErrorMessages.Describe(ex, localize: _localize) });
+                    }
                 }));
                 var size = 0;
                 engine.SetValue("__hostOutput", new Action<string>(json =>
@@ -177,6 +184,7 @@ public sealed class ConsoleRuntime(IConnectionProfileRepository profiles, IEnvir
         {
             canceled = cancellationToken.IsCancellationRequested;
             timedOut = !canceled && (token.IsCancellationRequested || ex is TimeoutException || ex.GetType().Name == "TimeoutException");
+            errorCode = canceled ? "Cancelled" : timedOut ? "DeadlineExceeded" : errorCode ?? ex.GetType().Name;
             error = canceled ? L("consoleExecutionCancelled", "Execução interrompida; efeitos no servidor não são revertidos.") : timedOut
                 ? L("consoleExecutionTimedOut", "Tempo limite excedido; efeitos enviados ao servidor não são revertidos.") : ex.Message;
         }
@@ -191,7 +199,11 @@ public sealed class ConsoleRuntime(IConnectionProfileRepository profiles, IEnvir
             }
             catch (Exception ex) { messages.AppendLine(L("consoleHistoryNotSaved", "Histórico não salvo: ") + ex.Message); }
         }
-        return new(output, messages.ToString(), error, duration, canceled, used.ToArray(), environment.Vault.Name) { IsTimedOut = timedOut };
+        return new(output, messages.ToString(), error, duration, canceled, used.ToArray(), environment.Vault.Name)
+        {
+            IsTimedOut = timedOut, ErrorCode = errorCode,
+            ConnectionGenerations = new System.Collections.ObjectModel.ReadOnlyDictionary<Guid, Guid?>(generations)
+        };
     }
 
     /// <summary>Metadata affected by a completed Console write. Inserts and updates can create collections implicitly.</summary>

@@ -20,7 +20,7 @@ namespace EsilvaSoft.KapibaraStudio.IntegrationTests.Mcp;
 public sealed class McpStdioProxyTests
 {
     private static readonly string[] ReleasedTools =
-        ["list_connections", "list_databases", "list_collections", "mongo_find", "mongo_count"];
+        ["list_connections", "list_databases", "list_collections", "get_indexes", "get_search_indexes"];
 
     [TestCase(StdioMcpProcess.Legacy)]
     [TestCase(StdioMcpProcess.Current)]
@@ -41,11 +41,11 @@ public sealed class McpStdioProxyTests
         }
         var tools = await proxy.RequestAsync(1, "tools/list", era: era);
         var connections = await proxy.RequestAsync(2, "tools/call", StdioMcpProcess.Call("list_connections", "{}"), era);
-        var find = await proxy.RequestAsync(3, "tools/call", StdioMcpProcess.Call("mongo_find", fixture.FindArguments()), era);
+        var find = await proxy.RequestAsync(3, "tools/call", StdioMcpProcess.Call("get_indexes", fixture.IndexArguments()), era);
         var javascript = await proxy.RequestAsync(4, "tools/call",
-            StdioMcpProcess.Call("mongo_find", fixture.FindArguments("{\"$where\":\"sleep(1000)\"}")), era);
+            StdioMcpProcess.Call("get_indexes", fixture.IndexArguments("{\"$where\":\"sleep(1000)\"}")), era);
         var envFilter = await proxy.RequestAsync(5, "tools/call",
-            StdioMcpProcess.Call("mongo_find", fixture.FindArguments("{\"a\":\"${ENV.SECRET}\"}")), era);
+            StdioMcpProcess.Call("get_indexes", fixture.IndexArguments("{\"a\":\"${ENV.SECRET}\"}")), era);
         var exitCode = await proxy.CloseAndWaitAsync();
 
         var listed = tools.GetProperty("result").GetProperty("tools").EnumerateArray().ToArray();
@@ -57,16 +57,16 @@ public sealed class McpStdioProxyTests
             Assert.That(connections.GetProperty("result").GetProperty("structuredContent").GetProperty("connections")[0]
                 .GetProperty("name").GetString(), Is.EqualTo($"Conexão {fixture.Profile.Id:D}"));
             Assert.That(findResult.GetProperty("isError").GetBoolean(), Is.False);
-            Assert.That(findResult.GetProperty("structuredContent").GetProperty("documentsEjson")[0].GetString(),
-                Is.EqualTo(McpBrokerFixture.DocumentEjson), "Extended JSON (UUID subtipo 4, Int64) intacto.");
+            Assert.That(findResult.GetProperty("structuredContent").GetProperty("indexes")[0].GetProperty("ttlSeconds").GetInt64(),
+                Is.EqualTo(9007199254740993L), "Index TTL remains Int64 without reading documents.");
             Assert.That(findResult.GetProperty("content")[0].GetProperty("text").GetString(),
                 Does.Not.Contain("9007199254740993"), "Texto não duplica documentos.");
             Assert.That(javascript.GetProperty("result").GetProperty("content")[0].GetProperty("text").GetString(),
                 Does.StartWith("InvalidArguments"), "JavaScript no filtro é negado antes do MongoDB.");
             Assert.That(envFilter.GetProperty("result").GetProperty("isError").GetBoolean(), Is.False);
-            Assert.That(fixture.Find.LastFilter, Does.Contain("${ENV.SECRET}"),
-                "Marcador ENV chega como texto literal, sem resolução de variáveis.");
-            Assert.That(fixture.Find.Calls, Is.EqualTo(2));
+            Assert.That(envFilter.GetProperty("result").GetProperty("isError").GetBoolean(), Is.True,
+                "Index tools never accept a document filter, even when it contains a literal ENV-looking string.");
+            Assert.That(fixture.Indexes.Calls, Is.EqualTo(2));
             Assert.That(exitCode, Is.Zero, "EOF do stdin encerra o proxy normalmente.");
             Assert.That(proxy.Stderr, Is.Empty);
             Assert.That(proxy.AllOutput, Does.Not.Contain(proof).And.Not.Contain(McpBrokerFixture.UriCanary)
@@ -83,7 +83,7 @@ public sealed class McpStdioProxyTests
         await using var proxy = StdioMcpProcess.Start(StdioMcpProcess.Arguments(fixture.WorkspaceId, channel));
         await proxy.InitializeLegacyAsync();
         var tools = await proxy.RequestAsync(1, "tools/list");
-        var call = await proxy.RequestAsync(2, "tools/call", StdioMcpProcess.Call("mongo_find", fixture.FindArguments()));
+        var call = await proxy.RequestAsync(2, "tools/call", StdioMcpProcess.Call("get_indexes", fixture.IndexArguments()));
 
         Assert.Multiple(() =>
         {
@@ -91,7 +91,7 @@ public sealed class McpStdioProxyTests
             Assert.That(call.GetProperty("result").GetProperty("isError").GetBoolean(), Is.True);
             Assert.That(call.GetProperty("result").GetProperty("content")[0].GetProperty("text").GetString(),
                 Does.StartWith("PermissionDenied"));
-            Assert.That(fixture.Find.Calls, Is.Zero);
+            Assert.That(fixture.Indexes.Calls, Is.Zero);
         });
     }
 
@@ -103,7 +103,7 @@ public sealed class McpStdioProxyTests
         await using var proxy = StdioMcpProcess.Start(StdioMcpProcess.Arguments(fixture.WorkspaceId, channel));
         await proxy.InitializeLegacyAsync();
         var tools = await proxy.RequestAsync(1, "tools/list");
-        var call = await proxy.RequestAsync(2, "tools/call", StdioMcpProcess.Call("mongo_find", fixture.FindArguments()));
+        var call = await proxy.RequestAsync(2, "tools/call", StdioMcpProcess.Call("get_indexes", fixture.IndexArguments()));
         var exitCode = await proxy.CloseAndWaitAsync();
 
         Assert.Multiple(() =>
@@ -176,14 +176,14 @@ public sealed class McpStdioProxyTests
         await Task.WhenAll(a.InitializeLegacyAsync(), b.RequestAsync(0, "server/discover", era: StdioMcpProcess.Current));
 
         var results = await Task.WhenAll(
-            a.RequestAsync(1, "tools/call", StdioMcpProcess.Call("mongo_find", fixture.FindArguments())),
-            b.RequestAsync(1, "tools/call", StdioMcpProcess.Call("mongo_find", fixture.FindArguments()), StdioMcpProcess.Current));
+            a.RequestAsync(1, "tools/call", StdioMcpProcess.Call("get_indexes", fixture.IndexArguments())),
+            b.RequestAsync(1, "tools/call", StdioMcpProcess.Call("get_indexes", fixture.IndexArguments()), StdioMcpProcess.Current));
 
         Assert.Multiple(() =>
         {
             Assert.That(results[0].GetProperty("result").GetProperty("isError").GetBoolean(), Is.False);
             Assert.That(results[1].GetProperty("result").GetProperty("isError").GetBoolean(), Is.True);
-            Assert.That(fixture.Find.Calls, Is.EqualTo(1));
+            Assert.That(fixture.Indexes.Calls, Is.EqualTo(1));
             Assert.That(fixture.Host.ActiveConnectionCount, Is.EqualTo(2));
         });
     }
@@ -204,8 +204,8 @@ public sealed class McpStdioProxyTests
 
         var revocation = await fixture.Authority.RevokeExternalChannelAsync(revoked.ChannelId);
         var results = await Task.WhenAll(
-            a.RequestAsync(2, "tools/call", StdioMcpProcess.Call("mongo_find", fixture.FindArguments())),
-            b.RequestAsync(2, "tools/call", StdioMcpProcess.Call("mongo_find", fixture.FindArguments())));
+            a.RequestAsync(2, "tools/call", StdioMcpProcess.Call("get_indexes", fixture.IndexArguments())),
+            b.RequestAsync(2, "tools/call", StdioMcpProcess.Call("get_indexes", fixture.IndexArguments())));
         var removedProof = await fixture.Secrets.GetAsync(revoked.ProofReference);
         await Task.WhenAll(a.CloseAndWaitAsync(), b.CloseAndWaitAsync());
 
@@ -218,7 +218,7 @@ public sealed class McpStdioProxyTests
             Assert.That(results[0].GetProperty("result").GetProperty("content")[0].GetProperty("text").GetString(),
                 Does.StartWith("AuthenticationRequired"));
             Assert.That(results[1].GetProperty("result").GetProperty("isError").GetBoolean(), Is.False);
-            Assert.That(fixture.Find.Calls, Is.EqualTo(1), "O canal revogado não chegou ao executor.");
+            Assert.That(fixture.Indexes.Calls, Is.EqualTo(1), "O canal revogado não chegou ao executor.");
             Assert.That(a.AllOutput + b.AllOutput, Does.Not.Contain(proof).And.Not.Contain(McpBrokerFixture.UriCanary));
         });
         a.AssertCleanStdout();
@@ -232,24 +232,24 @@ public sealed class McpStdioProxyTests
         var channel = await EnrollAsync(fixture);
         await using var proxy = StdioMcpProcess.Start(StdioMcpProcess.Arguments(fixture.WorkspaceId, channel));
         await proxy.InitializeLegacyAsync();
-        fixture.Find.Block = true;
+        fixture.Indexes.Block = true;
         await proxy.SendAsync(StdioMcpProcess.Request(5, "tools/call",
-            StdioMcpProcess.Call("mongo_find", fixture.FindArguments()), StdioMcpProcess.Legacy));
-        await fixture.Find.Started.Task.WaitAsync(TimeSpan.FromSeconds(15));
+            StdioMcpProcess.Call("get_indexes", fixture.IndexArguments()), StdioMcpProcess.Legacy));
+        await fixture.Indexes.Started.Task.WaitAsync(TimeSpan.FromSeconds(15));
         await proxy.SendAsync(new JsonObject
         {
             ["jsonrpc"] = "2.0", ["method"] = "notifications/cancelled",
             ["params"] = new JsonObject { ["requestId"] = 5, ["reason"] = "teste" }
         });
-        await WaitUntilAsync(() => fixture.Find.Cancelled == 1);
-        fixture.Find.Block = false;
+        await WaitUntilAsync(() => fixture.Indexes.Cancelled == 1);
+        fixture.Indexes.Block = false;
         var next = await proxy.RequestAsync(6, "tools/call", StdioMcpProcess.Call("list_connections", "{}"));
         await proxy.CloseAndWaitAsync();
 
         Assert.Multiple(() =>
         {
-            Assert.That(fixture.Find.Cancelled, Is.EqualTo(1), "O token da chamada 5 chegou ao executor.");
-            Assert.That(fixture.Find.Calls, Is.EqualTo(1), "Sem replay da chamada cancelada.");
+            Assert.That(fixture.Indexes.Cancelled, Is.EqualTo(1), "O token da chamada 5 chegou ao executor.");
+            Assert.That(fixture.Indexes.Calls, Is.EqualTo(1), "Sem replay da chamada cancelada.");
             Assert.That(next.GetProperty("result").GetProperty("isError").GetBoolean(), Is.False);
             Assert.That(proxy.StdoutLines.Any(line => line.Contains("\"id\":5", StringComparison.Ordinal) &&
                 line.Contains("documentsEjson", StringComparison.Ordinal)), Is.False, "Resultado tardio descartado.");
@@ -263,25 +263,25 @@ public sealed class McpStdioProxyTests
         var channel = await EnrollAsync(fixture);
         await using var proxy = StdioMcpProcess.Start(StdioMcpProcess.Arguments(fixture.WorkspaceId, channel));
         await proxy.InitializeLegacyAsync();
-        fixture.Find.Block = true;
+        fixture.Indexes.Block = true;
         await proxy.SendAsync(StdioMcpProcess.Request(1, "tools/call",
-            StdioMcpProcess.Call("mongo_find", fixture.FindArguments()), StdioMcpProcess.Legacy));
-        await fixture.Find.Started.Task.WaitAsync(TimeSpan.FromSeconds(15));
+            StdioMcpProcess.Call("get_indexes", fixture.IndexArguments()), StdioMcpProcess.Legacy));
+        await fixture.Indexes.Started.Task.WaitAsync(TimeSpan.FromSeconds(15));
         await fixture.Host.StopAsync(); // IDE/broker gone mid-call: EOF on the pipe
         var failed = await proxy.ReceiveAsync(1);
 
-        fixture.Find.Block = false;
+        fixture.Indexes.Block = false;
         await using var restarted = new AgentBrokerHost(fixture.Registry, fixture.Authority, fixture.Options, transport: new BrokerLocalTransport());
         await restarted.StartAsync();
         await Task.Delay(TimeSpan.FromSeconds(1)); // bounded reconnection backoff
-        var recovered = await proxy.RequestAsync(2, "tools/call", StdioMcpProcess.Call("mongo_find", fixture.FindArguments()));
+        var recovered = await proxy.RequestAsync(2, "tools/call", StdioMcpProcess.Call("get_indexes", fixture.IndexArguments()));
 
         Assert.Multiple(() =>
         {
             Assert.That(failed.GetProperty("result").GetProperty("content")[0].GetProperty("text").GetString(),
                 Does.StartWith("HostUnavailable"));
             Assert.That(recovered.GetProperty("result").GetProperty("isError").GetBoolean(), Is.False);
-            Assert.That(fixture.Find.Calls, Is.EqualTo(2), "A chamada interrompida não foi reenviada.");
+            Assert.That(fixture.Indexes.Calls, Is.EqualTo(2), "A chamada interrompida não foi reenviada.");
         });
     }
 
@@ -296,16 +296,16 @@ public sealed class McpStdioProxyTests
         await using var fixture = new McpBrokerFixture(RequireOsVault(), options);
         await fixture.Host.StartAsync();
         var channel = await EnrollAsync(fixture);
-        fixture.Find.Block = true;
+        fixture.Indexes.Block = true;
         await using var proxy = StdioMcpProcess.Start(StdioMcpProcess.Arguments(fixture.WorkspaceId, channel));
         await proxy.InitializeLegacyAsync();
-        var call = await proxy.RequestAsync(1, "tools/call", StdioMcpProcess.Call("mongo_find", fixture.FindArguments()));
+        var call = await proxy.RequestAsync(1, "tools/call", StdioMcpProcess.Call("get_indexes", fixture.IndexArguments()));
 
         Assert.Multiple(() =>
         {
             Assert.That(call.GetProperty("result").GetProperty("content")[0].GetProperty("text").GetString(),
                 Does.StartWith("DeadlineExceeded"));
-            Assert.That(fixture.Find.Calls, Is.EqualTo(1));
+            Assert.That(fixture.Indexes.Calls, Is.EqualTo(1));
         });
     }
 
@@ -324,7 +324,7 @@ public sealed class McpStdioProxyTests
         {
             Assert.That(exitCode, Is.EqualTo(4));
             Assert.That(proxy.Stderr, Does.Contain("acima do limite"));
-            Assert.That(fixture.Find.Calls, Is.Zero);
+            Assert.That(fixture.Indexes.Calls, Is.Zero);
         });
         proxy.AssertCleanStdout();
     }

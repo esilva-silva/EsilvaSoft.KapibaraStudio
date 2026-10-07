@@ -13,6 +13,11 @@ public sealed partial class AgentToolRegistry
         string name, string? argumentsJson, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        if (name is GetQueryResultsToolName or GetQueryDiagnosticsToolName)
+            return result.ReleaseWorkspaceContext is { } queryWorkspace
+                ? await ValidateQuerySnapshotReleaseAsync(principal, context, destination, outputScope, name,
+                    queryWorkspace, cancellationToken).ConfigureAwait(false)
+                : AgentToolInvocationResult.Failure(PermissionDenied, AgentAuditDecisionReason.ValidationRejected);
         // Per-session tools without a MongoDB namespace: only the channel and the turn plan can change.
         if (name == GetWorkspaceContextToolName)
         {

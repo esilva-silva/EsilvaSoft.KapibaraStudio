@@ -10,7 +10,7 @@ namespace EsilvaSoft.KapibaraStudio.IntegrationTests.Mcp;
 /// <summary>
 /// Real stack behind the broker: single LiteDB owner (channels, policies, audit), real registry with the MCP
 /// exposure stage and a real <see cref="AgentBrokerHost"/> on a random workspace endpoint. By default only MongoDB is
-/// replaced by a deterministic find source, and profiles by an in-memory list that carries a URI canary; the
+/// replaced by a deterministic index source, and profiles by an in-memory list that carries a URI canary; the
 /// <c>MongoReal</c> tests pass the production sources and a profile pointing at an ephemeral <c>mongod</c>.
 /// </summary>
 internal sealed class McpBrokerFixture : IAsyncDisposable
@@ -27,7 +27,7 @@ internal sealed class McpBrokerFixture : IAsyncDisposable
     private readonly List<Channel> _channels = [];
 
     public McpBrokerFixture(ISecretStore secrets, AgentBrokerOptions? options = null, ConnectionProfile? profile = null,
-        IAgentMongoFindSource? find = null, IAgentMongoCountSource? count = null, IMongoMetadataSource? metadata = null)
+        IMongoMetadataSource? metadata = null, IAgentMongoIndexSource? indexes = null)
     {
         Secrets = secrets;
         Owner = new LiteDbConnectionProfileRepository(_workspace.DatabasePath, secrets);
@@ -43,8 +43,8 @@ internal sealed class McpBrokerFixture : IAsyncDisposable
             HandshakeTimeout = TimeSpan.FromSeconds(2)
         };
         Registry = new AgentToolRegistry(Profiles, Owner, new AgentPermissionEvaluator(Owner), Owner,
-            Options.ToolExecutionTimeout, metadata: metadata ?? new UnusedMetadata(), find: find ?? Find,
-            count: count ?? Find, exposure: AgentToolExposure.Through(Options.Stage), principalAuthority: Authority);
+            Options.ToolExecutionTimeout, metadata: metadata ?? new UnusedMetadata(), indexes: indexes ?? Indexes,
+            exposure: AgentToolExposure.Through(Options.Stage), principalAuthority: Authority);
         Host = new AgentBrokerHost(Registry, Authority, Options, transport: new BrokerLocalTransport());
     }
 
@@ -55,7 +55,7 @@ internal sealed class McpBrokerFixture : IAsyncDisposable
     private CountingAuthority? _authority;
     public ConnectionProfile Profile { get; }
     public FixedProfiles Profiles { get; }
-    public BlockingFind Find { get; } = new();
+    public BlockingIndexes Indexes { get; } = new();
     public AgentBrokerOptions Options { get; }
     public AgentToolRegistry Registry { get; }
     public AgentBrokerHost Host { get; }
@@ -88,21 +88,13 @@ internal sealed class McpBrokerFixture : IAsyncDisposable
         return
         [
             new AgentPermissionGrant(channel.PrincipalId, session, generation, AgentPermission.ReadMetadata,
-                AgentNamespaceScope.ForConnection(Profile.Id), destination, AgentOutputDataScope.Metadata),
-            new AgentPermissionGrant(channel.PrincipalId, session, generation, AgentPermission.ExecuteReadQueries,
-                AgentNamespaceScope.ForCollection(Profile.Id, Database, Collection), destination,
-                AgentOutputDataScope.DocumentValues),
-            new AgentPermissionGrant(channel.PrincipalId, session, generation, AgentPermission.ReadDocuments,
-                AgentNamespaceScope.ForCollection(Profile.Id, Database, Collection), destination,
-                AgentOutputDataScope.DocumentValues)
+                AgentNamespaceScope.ForConnection(Profile.Id), destination, AgentOutputDataScope.Metadata)
         ];
     }
 
-    public string FindArguments(string filter = "{}") =>
-        System.Text.Json.JsonSerializer.Serialize(new
-        {
-            connectionId = Profile.Id, database = Database, collection = Collection, filterEjson = filter, limit = 5
-        });
+    public string IndexArguments(string filter = "{}") => filter == "{}"
+        ? System.Text.Json.JsonSerializer.Serialize(new { connectionId = Profile.Id, database = Database, collection = Collection })
+        : System.Text.Json.JsonSerializer.Serialize(new { connectionId = Profile.Id, database = Database, collection = Collection, filterEjson = filter });
 
     public async ValueTask DisposeAsync()
     {
@@ -168,21 +160,19 @@ internal sealed class McpBrokerFixture : IAsyncDisposable
     }
 
     /// <summary>Counts every dispatch; optionally blocks until cancelled to observe isolation and no replay.</summary>
-    internal sealed class BlockingFind : IAgentMongoFindSource, IAgentMongoCountSource
+    internal sealed class BlockingIndexes : IAgentMongoIndexSource
     {
         private int _calls;
         private int _cancelled;
         public int Calls => Volatile.Read(ref _calls);
         public int Cancelled => Volatile.Read(ref _cancelled);
         public volatile bool Block;
-        public string? LastFilter { get; private set; }
         public TaskCompletionSource Started { get; private set; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public async Task<AgentMongoFindPage> FindAsync(ConnectionProfile profile, AgentMongoFindQuery query,
-            CancellationToken cancellationToken)
+        public async Task<AgentMongoIndexPage> GetIndexesAsync(ConnectionProfile profile, string database, string collection,
+            TimeSpan maximumExecutionTime, CancellationToken cancellationToken)
         {
             Interlocked.Increment(ref _calls);
-            LastFilter = query.FilterEjson;
             Started.TrySetResult();
             if (Block)
             {
@@ -193,17 +183,7 @@ internal sealed class McpBrokerFixture : IAsyncDisposable
                     throw;
                 }
             }
-            return new AgentMongoFindPage([DocumentEjson], false, false, true, false);
-        }
-
-        public Task<AgentMongoFindPage> FindByIdAsync(ConnectionProfile profile, AgentMongoFindByIdQuery query,
-            CancellationToken cancellationToken) => throw new NotSupportedException();
-
-        public Task<AgentMongoCountResult> CountAsync(ConnectionProfile profile, AgentMongoCountQuery query,
-            CancellationToken cancellationToken)
-        {
-            Interlocked.Increment(ref _calls);
-            return Task.FromResult(new AgentMongoCountResult("{\"$numberLong\":\"9007199254740993\"}", true));
+            return new AgentMongoIndexPage([new("ttl_big", ["createdAt"], false, false, false) { TtlSeconds = 9007199254740993L }], false, true);
         }
 
         public void ResetStarted() => Started = new(TaskCreationOptions.RunContinuationsAsynchronously);

@@ -67,6 +67,12 @@ public sealed partial class AgentChatConversation : ObservableObject
 
     internal string? SessionModelId { get; set; }
 
+    /// <summary>Retention captured when the runtime session started; never persisted with conversation history.</summary>
+    internal bool? SessionPersistsProviderState { get; set; }
+
+    /// <summary>Volatile Copilot IDs for explicit cleanup only; never serialized, reserved or resumed.</summary>
+    internal HashSet<string> VolatileProviderSessionIds { get; } = new(StringComparer.Ordinal);
+
     internal string? SessionWorkingDirectory { get; set; }
 
     internal bool HasSessionWorkingDirectory { get; set; }

@@ -93,7 +93,8 @@ public sealed partial class AgentChatViewModel
         var context = _host.CaptureWorkspace();
         if (!permissions.Workspace.UseFilesFolder)
             context = context with { WorkspaceFolder = null };
-        var requests = Chips.Select(static chip => chip.ToRequest()).ToArray();
+        var capturedChips = Chips.ToArray();
+        var requests = capturedChips.Select(static chip => chip.ToRequest()).ToArray();
         var workingDirectory = context.WorkspaceFolder;
         var turnId = AgentTurnId.New();
         var facts = CapturePlatformFacts(workingDirectory);
@@ -111,6 +112,8 @@ public sealed partial class AgentChatViewModel
             Conversation = conversation,
         };
         conversation.Turn = run;
+        conversation.TurnState = AgentChatState.Connecting;
+        conversation.TurnDetail = null;
         conversation.ProviderId = provider.ProviderId;
         conversation.ModelId = modelId;
         conversation.Mode = mode;
@@ -120,26 +123,30 @@ public sealed partial class AgentChatViewModel
         State = AgentChatState.Connecting;
         ComposerFocusRequested?.Invoke(this, EventArgs.Empty);
         run.Completion = RunPreparedTurnAsync(run, provider.ProviderId, modelId, workingDirectory,
-            message, mode, permissions, plan, context, requests);
+            message, mode, permissions, plan, context, requests, capturedChips);
         await run.Completion;
     }
 
     private async Task RunPreparedTurnAsync(TurnRun run, string providerId, string? modelId, string? workingDirectory,
         string message, AgentOperationMode mode, AgentProviderPermissions permissions, AgentTurnPlan plan,
-        AgentWorkspaceContext context, IReadOnlyList<AgentAttachmentRequest> requests)
+        AgentWorkspaceContext context, IReadOnlyList<AgentAttachmentRequest> requests,
+        AgentContextChipViewModel[] capturedChips)
     {
         try
         {
             var resolution = await AgentAttachmentResolver.ResolveAsync(requests, context, permissions, message, run.Cancellation.Token, _services.FileReader, _services.PathProbe);
             if (!resolution.Succeeded)
             {
-                foreach (var failure in resolution.Failures)
-                    if (failure.RequestIndex < Chips.Count) Chips[failure.RequestIndex].Error = failure.Error;
+                // A background preparation owns its captured chips, never the current composer's indexes.
+                if (ReferenceEquals(ActiveConversation, run.Conversation))
+                    foreach (var failure in resolution.Failures)
+                        if (failure.RequestIndex < capturedChips.Length && Chips.Contains(capturedChips[failure.RequestIndex]))
+                            capturedChips[failure.RequestIndex].Error = failure.Error;
                 run.ErrorCode = "AttachmentsRefused";
                 Finish(run, AgentTurnOutcome.Failed);
                 return;
             }
-            foreach (var chip in Chips.Where(static chip => !chip.IsAutomatic).ToArray()) Chips.Remove(chip);
+            foreach (var chip in capturedChips.Where(static chip => !chip.IsAutomatic)) Chips.Remove(chip);
             OnPropertyChanged(nameof(HasChips));
             OnPropertyChanged(nameof(ContextSummary));
             var systemPrompt = AgentSystemPromptBuilder.Build(new AgentSystemPromptContext(plan,
@@ -155,15 +162,9 @@ public sealed partial class AgentChatViewModel
                 ContextMeasurement = AgentContextMeasurement.Capture(request),
             });
             var newCopilotReservation = false;
-            if (string.Equals(providerId, AgentProviderIds.GitHubCopilotSubscription, StringComparison.Ordinal))
+            if (permissions.KeepHistory &&
+                string.Equals(providerId, AgentProviderIds.GitHubCopilotSubscription, StringComparison.Ordinal))
             {
-                if (!permissions.KeepHistory)
-                {
-                    run.ErrorCode = "CopilotHistoryReservationRequired";
-                    Finish(run, AgentTurnOutcome.Failed);
-                    return;
-                }
-
                 newCopilotReservation = run.Conversation.ProviderSessionId is null;
                 if (!await ReserveCopilotSessionAsync(run.Conversation, run.Cancellation.Token))
                 {
@@ -213,7 +214,7 @@ public sealed partial class AgentChatViewModel
                 return;
             }
 
-            State = AgentChatState.Generating;
+            RefreshRunningState(run);
             await foreach (var item in runtime.RunTurnAsync(sessionId, request, run.Cancellation.Token))
             {
                 // Events of another session/turn, or arriving after this turn stopped being current, are discarded.
@@ -278,6 +279,8 @@ public sealed partial class AgentChatViewModel
     {
         if (conversation.SessionId is { } existing && conversation.SessionProviderId == providerId &&
             conversation.SessionModelId == modelId &&
+            (!string.Equals(providerId, AgentProviderIds.GitHubCopilotSubscription, StringComparison.Ordinal) ||
+                conversation.SessionPersistsProviderState == persistProviderSession) &&
             !(workingDirectory is null && conversation.SessionWorkingDirectory is not null))
         {
             return existing;
@@ -287,15 +290,24 @@ public sealed partial class AgentChatViewModel
         await CloseSessionAsync(conversation);
         var created = await runtime.StartSessionAsync(new AgentSessionOptions(providerId, modelId, workingDirectory)
         {
-            ResumeProviderSessionId = newCopilotReservation ? null : conversation.ProviderSessionId,
-            ReservedProviderSessionId = string.Equals(providerId, AgentProviderIds.GitHubCopilotSubscription,
+            ResumeProviderSessionId = newCopilotReservation ||
+                (!persistProviderSession && string.Equals(providerId, AgentProviderIds.GitHubCopilotSubscription,
+                    StringComparison.Ordinal)) ? null : conversation.ProviderSessionId,
+            ReservedProviderSessionId = persistProviderSession && string.Equals(providerId, AgentProviderIds.GitHubCopilotSubscription,
                 StringComparison.Ordinal) ? conversation.ProviderSessionId : null,
             ConversationId = conversation.Id,
             Mode = conversation.Mode,
             PersistProviderSession = persistProviderSession,
             ProviderSessionObserver = update => AgentUiDispatch.Post(() =>
             {
-                if (update.ProviderSessionId is { } id) ReportProviderSessionId(conversation, id);
+                if (update.ProviderSessionId is { } id)
+                {
+                    if (!persistProviderSession && string.Equals(providerId, AgentProviderIds.GitHubCopilotSubscription,
+                        StringComparison.Ordinal))
+                        ReportVolatileProviderSessionId(conversation, id);
+                    else
+                        ReportProviderSessionId(conversation, id);
+                }
                 if (update.Change == AgentProviderSessionChange.ResumeFallback)
                 {
                     conversation.ResumeLost = true;
@@ -313,6 +325,7 @@ public sealed partial class AgentChatViewModel
         RefreshReadScope();
         conversation.SessionProviderId = providerId;
         conversation.SessionModelId = modelId;
+        conversation.SessionPersistsProviderState = persistProviderSession;
         return created;
     }
 
@@ -544,6 +557,7 @@ public sealed partial class AgentChatViewModel
         conversation.SessionId = null;
         conversation.SessionProviderId = null;
         conversation.SessionModelId = null;
+        conversation.SessionPersistsProviderState = null;
         conversation.SessionWorkingDirectory = null;
         conversation.HasSessionWorkingDirectory = false;
         if (ReferenceEquals(ActiveConversation, conversation)) RefreshReadScope();

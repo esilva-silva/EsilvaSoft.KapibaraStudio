@@ -13,6 +13,9 @@ public static class AgentProductToolNames
     public const string ListDatabases = AgentToolRegistry.ListDatabasesToolName;
     public const string ListCollections = AgentToolRegistry.ListCollectionsToolName;
     public const string GetIndexes = AgentToolRegistry.GetIndexesToolName;
+    public const string GetSearchIndexes = AgentToolRegistry.GetSearchIndexesToolName;
+    public const string GetQueryResults = AgentToolRegistry.GetQueryResultsToolName;
+    public const string GetQueryDiagnostics = AgentToolRegistry.GetQueryDiagnosticsToolName;
     public const string GetCollectionSchema = AgentToolRegistry.GetCollectionSchemaToolName;
     public const string MongoFind = AgentToolRegistry.MongoFindToolName;
     public const string MongoCount = AgentToolRegistry.MongoCountToolName;
@@ -42,12 +45,12 @@ public static class AgentProductToolNames
 
     /// <summary>Product read tools in a stable order.</summary>
     public static IReadOnlyList<string> ReadTools { get; } =
-        [ListConnections, ListDatabases, ListCollections, GetIndexes, GetCollectionSchema, GetCachedSchema, GetWorkspaceContext,
-            MongoFind, MongoCount, SampleDocuments, MongoFindOne, GetDocument, MongoDistinct, MongoExplain];
+        [ListConnections, ListDatabases, ListCollections, GetIndexes, GetSearchIndexes, GetCachedSchema, GetWorkspaceContext,
+            GetQueryResults, GetQueryDiagnostics];
 
-    /// <summary>MongoDB document-value query tools require provider-specific exposure and separate data-sending consent.</summary>
+    /// <summary>Captured outputs can contain document values and require separate data-sending consent.</summary>
     public static bool IsMongoDocumentRead(string toolName) => toolName is
-        MongoFind or MongoCount or SampleDocuments or MongoFindOne or GetDocument or MongoDistinct or MongoExplain;
+        GetQueryResults or GetQueryDiagnostics;
 
     /// <summary>Compatibility name retained for existing Copilot policy and regression tests.</summary>
     public static bool IsCopilotDocumentRead(string toolName) => IsMongoDocumentRead(toolName);
@@ -63,7 +66,7 @@ public static class AgentProductToolNames
     public static AgentConfirmationCategories CategoryOf(string toolName) => toolName switch
     {
         var name when IsMongoDocumentRead(name) => AgentConfirmationCategories.MongoDocumentRead,
-        ListConnections or ListDatabases or ListCollections or GetIndexes or GetCollectionSchema or GetCachedSchema =>
+        ListConnections or ListDatabases or ListCollections or GetIndexes or GetSearchIndexes or GetCachedSchema =>
             AgentConfirmationCategories.MongoMetadataRead,
         GetWorkspaceContext => AgentConfirmationCategories.WorkspaceContextRead,
         ProposeFileEdit => AgentConfirmationCategories.EditProposal,

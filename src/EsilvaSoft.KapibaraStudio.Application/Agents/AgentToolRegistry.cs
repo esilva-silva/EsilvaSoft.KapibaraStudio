@@ -22,6 +22,9 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
     public const string GetDocumentToolName = "get_document";
     public const string MongoDistinctToolName = "mongo_distinct";
     public const string GetIndexesToolName = "get_indexes";
+    public const string GetSearchIndexesToolName = "get_search_indexes";
+    public const string GetQueryResultsToolName = "get_query_results";
+    public const string GetQueryDiagnosticsToolName = "get_query_diagnostics";
     public const string MongoExplainToolName = "mongo_explain";
 
     /// <summary>Per-session tool: reads the autocomplete schema cache only; never samples the database.</summary>
@@ -78,45 +81,6 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
     private const string NamesOutputSchema = """
         {"type":"object","additionalProperties":false,"required":["names","truncated"],"properties":{"names":{"type":"array","maxItems":200,"items":{"type":"string"}},"truncated":{"type":"boolean"}}}
         """;
-    private const string GetCollectionSchemaInputSchema = """
-        {"type":"object","additionalProperties":false,"required":["connectionId","database","collection"],"properties":{"connectionId":{"type":"string","format":"uuid"},"database":{"type":"string","minLength":1,"maxLength":255},"collection":{"type":"string","minLength":1,"maxLength":255},"sampleSize":{"type":"integer","minimum":1,"maximum":100,"default":20}}}
-        """;
-    private const string GetCollectionSchemaOutputSchema = """
-        {"type":"object","additionalProperties":false,"required":["fields","sampleSize","observedAt","source","isPartial"],"properties":{"fields":{"type":"array","maxItems":200,"items":{"type":"object","additionalProperties":false,"required":["path","bsonTypes","observedCount"],"properties":{"path":{"type":"string"},"bsonTypes":{"type":"array","items":{"type":"string"}},"observedCount":{"type":"integer","minimum":1}}}},"sampleSize":{"type":"integer","minimum":0,"maximum":100},"observedAt":{"type":"string","format":"date-time"},"source":{"type":"string","const":"sample"},"isPartial":{"type":"boolean"}}}
-        """;
-    private const string MongoFindInputSchema = """
-        {"type":"object","additionalProperties":false,"required":["connectionId","database","collection"],"properties":{"connectionId":{"type":"string","format":"uuid"},"database":{"type":"string","minLength":1,"maxLength":255},"collection":{"type":"string","minLength":1,"maxLength":255},"filterEjson":{"type":"string","maxLength":65536,"default":"{}"},"projectionEjson":{"type":"string","maxLength":65536},"sortEjson":{"type":"string","maxLength":65536},"limit":{"type":"integer","minimum":1,"maximum":100,"default":20},"skip":{"type":"integer","minimum":0,"maximum":10000,"default":0},"maxTimeMs":{"type":"integer","minimum":1,"maximum":30000,"default":5000}}}
-        """;
-    private const string MongoFindOutputSchema = """
-        {"type":"object","additionalProperties":false,"required":["documentsEjson","returnedCount","hasMore","truncated"],"properties":{"documentsEjson":{"type":"array","maxItems":100,"items":{"type":"string"}},"returnedCount":{"type":"integer","minimum":0,"maximum":100},"hasMore":{"type":"boolean"},"truncated":{"type":"boolean"},"truncationReason":{"type":"string","const":"OutputLimit"}}}
-        """;
-    private const string MongoCountInputSchema = """
-        {"type":"object","additionalProperties":false,"required":["connectionId","database","collection"],"properties":{"connectionId":{"type":"string","format":"uuid"},"database":{"type":"string","minLength":1,"maxLength":255},"collection":{"type":"string","minLength":1,"maxLength":255},"filterEjson":{"type":"string","maxLength":65536,"default":"{}"},"maxTimeMs":{"type":"integer","minimum":1,"maximum":30000,"default":5000}}}
-        """;
-    private const string MongoCountOutputSchema = """
-        {"type":"object","additionalProperties":false,"required":["countEjson","estimated"],"properties":{"countEjson":{"type":"string"},"estimated":{"type":"boolean","const":false}}}
-        """;
-    private const string SampleDocumentsInputSchema = """
-        {"type":"object","additionalProperties":false,"required":["connectionId","database","collection"],"properties":{"connectionId":{"type":"string","format":"uuid"},"database":{"type":"string","minLength":1,"maxLength":255},"collection":{"type":"string","minLength":1,"maxLength":255},"limit":{"type":"integer","minimum":1,"maximum":20,"default":5},"projectionEjson":{"type":"string","maxLength":65536}}}
-        """;
-    private const string SampleDocumentsOutputSchema = """
-        {"type":"object","additionalProperties":false,"required":["documentsEjson","returnedCount","hasMore","truncated"],"properties":{"documentsEjson":{"type":"array","maxItems":20,"items":{"type":"string"}},"returnedCount":{"type":"integer","minimum":0,"maximum":20},"hasMore":{"type":"boolean"},"truncated":{"type":"boolean"},"truncationReason":{"type":"string","const":"OutputLimit"}}}
-        """;
-    private const string MongoFindOneInputSchema = """
-        {"type":"object","additionalProperties":false,"required":["connectionId","database","collection"],"properties":{"connectionId":{"type":"string","format":"uuid"},"database":{"type":"string","minLength":1,"maxLength":255},"collection":{"type":"string","minLength":1,"maxLength":255},"filterEjson":{"type":"string","maxLength":65536,"default":"{}"},"projectionEjson":{"type":"string","maxLength":65536},"sortEjson":{"type":"string","maxLength":65536},"maxTimeMs":{"type":"integer","minimum":1,"maximum":30000,"default":5000}}}
-        """;
-    private const string MongoFindOneOutputSchema = """
-        {"type":"object","additionalProperties":false,"required":["documentEjson"],"properties":{"documentEjson":{"type":["string","null"]}}}
-        """;
-    private const string GetDocumentInputSchema = """
-        {"type":"object","additionalProperties":false,"required":["connectionId","database","collection","idEjson"],"properties":{"connectionId":{"type":"string","format":"uuid"},"database":{"type":"string","minLength":1,"maxLength":255},"collection":{"type":"string","minLength":1,"maxLength":255},"idEjson":{"type":"string","maxLength":65536}}}
-        """;
-    private const string MongoDistinctInputSchema = """
-        {"type":"object","additionalProperties":false,"required":["connectionId","database","collection","field"],"properties":{"connectionId":{"type":"string","format":"uuid"},"database":{"type":"string","minLength":1,"maxLength":255},"collection":{"type":"string","minLength":1,"maxLength":255},"field":{"type":"string","minLength":1,"maxLength":1024},"filterEjson":{"type":"string","maxLength":65536,"default":"{}"},"maximumValues":{"type":"integer","minimum":1,"maximum":100,"default":20},"maxTimeMs":{"type":"integer","minimum":1,"maximum":30000,"default":5000}}}
-        """;
-    private const string MongoDistinctOutputSchema = """
-        {"type":"object","additionalProperties":false,"required":["valuesEjson","truncated"],"properties":{"valuesEjson":{"type":"array","maxItems":100,"items":{"type":"string"}},"truncated":{"type":"boolean"},"truncationReason":{"type":"string","enum":["ValueLimit","OutputLimit"]}}}
-        """;
     private const string GetIndexesInputSchema = """
         {"type":"object","additionalProperties":false,"required":["connectionId","database","collection"],"properties":{"connectionId":{"type":"string","format":"uuid"},"database":{"type":"string","minLength":1,"maxLength":255},"collection":{"type":"string","minLength":1,"maxLength":255}}}
         """;
@@ -125,33 +89,13 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
     private const string GetIndexesOutputSchema = """
         {"type":"object","additionalProperties":false,"required":["indexes","truncated"],"properties":{"indexes":{"type":"array","maxItems":200,"items":{"type":"object","additionalProperties":false,"required":["name","keyFields","unique","sparse","hidden"],"properties":{"name":{"type":"string"},"keyFields":{"type":"array","items":{"type":"string"}},"keyDirections":{"type":"array","items":{"type":"string"}},"unique":{"type":"boolean"},"sparse":{"type":"boolean"},"hidden":{"type":"boolean"},"ttlSeconds":{"type":"integer","minimum":0},"partialFilterFields":{"type":"array","maxItems":32,"items":{"type":"string"}}}}},"truncated":{"type":"boolean"},"truncationReason":{"type":"string","const":"OutputLimit"}}}
         """;
-    private const string MongoExplainInputSchema = MongoFindInputSchema;
-    private const string MongoExplainOutputSchema = """
-        {"type":"object","additionalProperties":false,"required":["planEjson","verbosity"],"properties":{"planEjson":{"type":"string"},"verbosity":{"type":"string","const":"queryPlanner"}}}
-        """;
 
     private static readonly ReadOnlyCollection<AgentToolDescriptor> Descriptors = Array.AsReadOnly(
         [new AgentToolDescriptor(ListConnectionsToolName, 1, AgentToolRisk.ReadOnly, [AgentPermission.ReadMetadata]),
          new AgentToolDescriptor(ListDatabasesToolName, 1, AgentToolRisk.ReadOnly, [AgentPermission.ReadMetadata]),
          new AgentToolDescriptor(ListCollectionsToolName, 1, AgentToolRisk.ReadOnly, [AgentPermission.ReadMetadata]),
-         new AgentToolDescriptor(GetCollectionSchemaToolName, 1, AgentToolRisk.ReadOnly,
-             [AgentPermission.ReadSchema, AgentPermission.ExecuteReadQueries]),
-         new AgentToolDescriptor(MongoFindToolName, 1, AgentToolRisk.ReadOnly,
-             [AgentPermission.ExecuteReadQueries, AgentPermission.ReadDocuments]),
-         new AgentToolDescriptor(MongoCountToolName, 1, AgentToolRisk.ReadOnly,
-             [AgentPermission.ExecuteReadQueries, AgentPermission.ReadDocuments]),
-         new AgentToolDescriptor(SampleDocumentsToolName, 1, AgentToolRisk.ReadOnly,
-             [AgentPermission.ExecuteReadQueries, AgentPermission.ReadDocuments]),
-         new AgentToolDescriptor(MongoFindOneToolName, 1, AgentToolRisk.ReadOnly,
-             [AgentPermission.ExecuteReadQueries, AgentPermission.ReadDocuments]),
-         new AgentToolDescriptor(GetDocumentToolName, 1, AgentToolRisk.ReadOnly,
-             [AgentPermission.ExecuteReadQueries, AgentPermission.ReadDocuments]),
-         new AgentToolDescriptor(MongoDistinctToolName, 1, AgentToolRisk.ReadOnly,
-             [AgentPermission.ExecuteReadQueries, AgentPermission.ReadDocuments]),
          new AgentToolDescriptor(GetIndexesToolName, 2, AgentToolRisk.ReadOnly,
              [AgentPermission.ReadMetadata]),
-         new AgentToolDescriptor(MongoExplainToolName, 1, AgentToolRisk.ReadOnly,
-             [AgentPermission.ReadDiagnostics, AgentPermission.ExecuteReadQueries, AgentPermission.ReadDocuments]),
          // Per-session tools (ADR-056): exposed only to the principal of a per-session channel and only when its turn
          // plan names them. None of them writes to MongoDB or to disk, so they are ReadOnly for the MongoDB risk model.
          // The workspace/proposal/confirmation tools touch no namespace; ReadMetadata is their audit classification.
@@ -159,13 +103,9 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
          new AgentToolDescriptor(GetWorkspaceContextToolName, 1, AgentToolRisk.ReadOnly, [AgentPermission.ReadMetadata]),
          new AgentToolDescriptor(ProposeFileEditToolName, 1, AgentToolRisk.ReadOnly, [AgentPermission.ReadMetadata]),
          new AgentToolDescriptor(ApproveToolName, 1, AgentToolRisk.ReadOnly, [AgentPermission.ReadMetadata]),
-         // Lote 10: each write is released separately (AgentToolExposure.WithWriteTools) and only for the
-         // internal chat under a human, operation-bound approval.
-         new AgentToolDescriptor(InsertOneToolName, 1, AgentToolRisk.Write, [AgentPermission.InsertDocuments]),
-         new AgentToolDescriptor(UpdateOneToolName, 1, AgentToolRisk.Write, [AgentPermission.UpdateDocuments]),
-         new AgentToolDescriptor(DeleteOneToolName, 1, AgentToolRisk.Destructive, [AgentPermission.DeleteDocuments]),
-         new AgentToolDescriptor(CreateIndexToolName, 1, AgentToolRisk.Write, [AgentPermission.CreateIndexes]),
-         new AgentToolDescriptor(DropIndexToolName, 1, AgentToolRisk.Destructive, [AgentPermission.DropIndexes])]);
+         new AgentToolDescriptor(GetQueryResultsToolName, 1, AgentToolRisk.ReadOnly, [AgentPermission.ReadDocuments]),
+         new AgentToolDescriptor(GetQueryDiagnosticsToolName, 1, AgentToolRisk.ReadOnly, [AgentPermission.ReadDiagnostics, AgentPermission.ReadDocuments]),
+         new AgentToolDescriptor(GetSearchIndexesToolName, 1, AgentToolRisk.ReadOnly, [AgentPermission.ReadMetadata])]);
 
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
@@ -174,14 +114,7 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
     private readonly IAgentPermissionEvaluator _permissions;
     private readonly IAgentAuditRepository _audit;
     private readonly IMongoMetadataSource? _metadata;
-    private readonly IAgentSchemaSamplingConsentProvider? _schemaSamplingConsent;
-    private readonly IAgentMongoFindSource? _find;
-    private readonly IAgentMongoCountSource? _count;
-    private readonly IAgentMongoDistinctSource? _distinct;
     private readonly IAgentMongoIndexSource? _indexes;
-    private readonly IAgentMongoExplainSource? _explain;
-    private readonly IAgentMongoWriteSource? _write;
-    private readonly IAgentWriteApprovalAuthority? _writeApprovals;
     private readonly AgentToolInvocationQuota _quota = new();
     private readonly AsyncLocal<AgentToolInvocationQuota.Lease?> _activeQuotaLease = new();
     private readonly TimeSpan _executionTimeout;
@@ -219,14 +152,9 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
         _permissions = permissions ?? throw new ArgumentNullException(nameof(permissions));
         _audit = audit ?? throw new ArgumentNullException(nameof(audit));
         _metadata = metadata;
-        _schemaSamplingConsent = schemaSamplingConsent;
-        _find = find;
-        _count = count;
-        _distinct = distinct;
         _indexes = indexes;
-        _explain = explain;
-        _write = write;
-        _writeApprovals = writeApprovals;
+        // Legacy source/approval parameters remain source-compatible for test and migration callers only.
+        // They are deliberately neither stored nor executed; removed tool names have no catalog entry.
         // Closed by default: a registry exposes nothing until its composition names an approved stage.
         _exposure = exposure ?? AgentToolExposure.None;
         _principalAuthority = principalAuthority;
@@ -269,7 +197,7 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
 
     /// <summary>Tools that exist only for the principal of a per-session channel.</summary>
     public static bool IsSessionTool(string? name) =>
-        name is GetCachedSchemaToolName or GetWorkspaceContextToolName or ProposeFileEditToolName or ApproveToolName;
+        name is GetCachedSchemaToolName or GetWorkspaceContextToolName or ProposeFileEditToolName or ApproveToolName or GetQueryResultsToolName or GetQueryDiagnosticsToolName;
 
     public AgentToolDescriptor? FindDescriptor(string? name) =>
         IsAvailable(name)
@@ -332,8 +260,7 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
             name == ProposeFileEditToolName);
 
     private static bool IsCopilotDocumentTool(string? name) =>
-        name is MongoFindToolName or MongoCountToolName or SampleDocumentsToolName or MongoFindOneToolName or
-            GetDocumentToolName or MongoDistinctToolName or MongoExplainToolName;
+        name is GetQueryResultsToolName or GetQueryDiagnosticsToolName;
 
     // A tool is discoverable only when its stage is released, the channel authority that issues and revalidates
     // principals was composed, and its handler dependencies exist.
@@ -344,21 +271,14 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
     {
         ListConnectionsToolName => true,
         ListDatabasesToolName or ListCollectionsToolName => _metadata is not null,
-        GetCollectionSchemaToolName => _metadata is not null && _schemaSamplingConsent is not null,
-        MongoFindToolName or SampleDocumentsToolName or MongoFindOneToolName or GetDocumentToolName =>
-            _find is not null,
-        MongoCountToolName => _count is not null,
-        MongoDistinctToolName => _distinct is not null,
-        GetIndexesToolName => _indexes is not null,
-        MongoExplainToolName => _explain is not null,
+        GetIndexesToolName or GetSearchIndexesToolName => _indexes is not null,
+        GetQueryResultsToolName or GetQueryDiagnosticsToolName => _sessionTools?.WorkspaceContext is not null,
         GetCachedSchemaToolName => _sessionTools?.MetadataCache is not null,
         GetWorkspaceContextToolName => _sessionTools?.WorkspaceContext is not null,
         ProposeFileEditToolName => _sessionTools is { WorkspaceContext: not null, ProposalSink: not null },
         // Available with the session scopes alone: a missing confirmation port answers deny; it never hides the tool
         // the CLI was told to call.
         ApproveToolName => _sessionTools is not null,
-        // A write needs both its source and the approval authority; without either it stays unknown.
-        _ when IsWriteTool(name) => _write is not null && _writeApprovals is not null,
         _ => false
     };
 
@@ -392,24 +312,13 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
             ListConnectionsToolName => ListConnectionsInputSchema,
             ListDatabasesToolName => ListDatabasesInputSchema,
             ListCollectionsToolName => ListCollectionsInputSchema,
-            GetCollectionSchemaToolName => GetCollectionSchemaInputSchema,
-            MongoFindToolName => MongoFindInputSchema,
-            MongoCountToolName => MongoCountInputSchema,
-            SampleDocumentsToolName => SampleDocumentsInputSchema,
-            MongoFindOneToolName => MongoFindOneInputSchema,
-            GetDocumentToolName => GetDocumentInputSchema,
-            MongoDistinctToolName => MongoDistinctInputSchema,
-            GetIndexesToolName => GetIndexesInputSchema,
-            MongoExplainToolName => MongoExplainInputSchema,
+            GetIndexesToolName or GetSearchIndexesToolName => GetIndexesInputSchema,
+            GetQueryResultsToolName => GetQueryResultsInputSchema,
+            GetQueryDiagnosticsToolName => ListConnectionsInputSchema,
             GetCachedSchemaToolName => GetIndexesInputSchema,
             GetWorkspaceContextToolName => ListConnectionsInputSchema,
             ProposeFileEditToolName => ProposeFileEditInputSchema,
             ApproveToolName => ApproveInputSchema,
-            InsertOneToolName => InsertOneInputSchema,
-            UpdateOneToolName => UpdateOneInputSchema,
-            DeleteOneToolName => DeleteOneInputSchema,
-            CreateIndexToolName => CreateIndexInputSchema,
-            DropIndexToolName => DropIndexInputSchema,
             _ => null
         };
 
@@ -418,20 +327,14 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
         {
             ListConnectionsToolName => ListConnectionsOutputSchema,
             ListDatabasesToolName or ListCollectionsToolName => NamesOutputSchema,
-            GetCollectionSchemaToolName => GetCollectionSchemaOutputSchema,
-            MongoFindToolName => MongoFindOutputSchema,
-            MongoCountToolName => MongoCountOutputSchema,
-            SampleDocumentsToolName => SampleDocumentsOutputSchema,
-            MongoFindOneToolName => MongoFindOneOutputSchema,
-            GetDocumentToolName => MongoFindOneOutputSchema,
-            MongoDistinctToolName => MongoDistinctOutputSchema,
             GetIndexesToolName => GetIndexesOutputSchema,
-            MongoExplainToolName => MongoExplainOutputSchema,
+            GetSearchIndexesToolName => GetSearchIndexesOutputSchema,
+            GetQueryResultsToolName => GetQueryResultsOutputSchema,
+            GetQueryDiagnosticsToolName => GetQueryDiagnosticsOutputSchema,
             GetCachedSchemaToolName => GetCachedSchemaOutputSchema,
             GetWorkspaceContextToolName => GetWorkspaceContextOutputSchema,
             ProposeFileEditToolName => ProposeFileEditOutputSchema,
             ApproveToolName => ApproveOutputSchema,
-            _ when IsWriteTool(name) => WriteOutputSchema,
             _ => null
         };
 
@@ -465,11 +368,6 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
         if (confirmationFailure is not null) return confirmationFailure;
         var missingConfirmation = ConsumeRequiredConfirmation(principal, name, argumentsJson);
         if (missingConfirmation is not null) return missingConfirmation;
-        // Writes follow their own pipeline: durable intent, human approval with a separate budget, single-use
-        // consumption and uncertain outcome. They never reach the read path below.
-        if (invocationDescriptor is { Risk: not AgentToolRisk.ReadOnly } writeDescriptor)
-            return await InvokeWriteAsync(principal, invocationContext, destination, outputDataScope, writeDescriptor,
-                argumentsJson, cancellationToken).ConfigureAwait(false);
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(_executionTimeout);
         // Only a trusted principal and a complete invocation can identify an auditable operation.
@@ -632,27 +530,9 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
         Guid connectionId;
         string? database;
         bool parsed;
-        if (name == MongoFindToolName)
-            parsed = TryParseFindArguments(argumentsJson, out connectionId, out database, out _, out _);
-        else if (name == MongoCountToolName)
-            parsed = TryParseCountArguments(argumentsJson, out connectionId, out database, out _, out _);
-        else if (name == SampleDocumentsToolName)
-            parsed = TryParseSampleDocumentsArguments(argumentsJson, out connectionId, out database, out _, out _);
-        else if (name == MongoFindOneToolName)
-            parsed = TryParseFindOneArguments(argumentsJson, out connectionId, out database, out _, out _);
-        else if (name == GetDocumentToolName)
-            parsed = TryParseGetDocumentArguments(argumentsJson, out connectionId, out database, out _, out _);
-        else if (name == MongoDistinctToolName)
-            parsed = TryParseDistinctArguments(argumentsJson, out connectionId, out database, out _, out _);
-        else if (name == GetIndexesToolName)
+        if (name is GetIndexesToolName or GetSearchIndexesToolName or GetCachedSchemaToolName)
             parsed = TryParseGetIndexesArguments(argumentsJson, out connectionId, out database, out _);
-        else if (name == MongoExplainToolName)
-            parsed = TryParseFindArguments(argumentsJson, out connectionId, out database, out _, out _);
-        else if (name == GetCollectionSchemaToolName)
-            parsed = TryParseSchemaArguments(argumentsJson, out connectionId, out database, out _, out _);
-        else if (name == GetCachedSchemaToolName)
-            parsed = TryParseGetIndexesArguments(argumentsJson, out connectionId, out database, out _);
-        else if (name is GetWorkspaceContextToolName or ProposeFileEditToolName)
+        else if (IsSessionTool(name))
         {
             parsed = false;
             connectionId = Guid.Empty;
@@ -662,15 +542,9 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
             parsed = TryParseMetadataArguments(name, argumentsJson, out connectionId, out database, out _);
         var permission = name switch
         {
-            GetCollectionSchemaToolName => AgentPermission.ReadSchema,
             GetCachedSchemaToolName => AgentPermission.ReadSchema,
-            MongoFindToolName => AgentPermission.ReadDocuments,
-            MongoCountToolName => AgentPermission.ReadDocuments,
-            SampleDocumentsToolName => AgentPermission.ReadDocuments,
-            MongoFindOneToolName => AgentPermission.ReadDocuments,
-            GetDocumentToolName => AgentPermission.ReadDocuments,
-            MongoDistinctToolName => AgentPermission.ReadDocuments,
-            MongoExplainToolName => AgentPermission.ReadDiagnostics,
+            GetQueryResultsToolName => AgentPermission.ReadDocuments,
+            GetQueryDiagnosticsToolName => AgentPermission.ReadDiagnostics,
             _ => AgentPermission.ReadMetadata
         };
         return new AgentAuditEvent(Guid.NewGuid(), AgentAuditEvent.CurrentSchemaVersion, startedAt,
@@ -719,20 +593,13 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
             {
                 outputBytes = Encoding.UTF8.GetByteCount(json);
                 using var document = JsonDocument.Parse(json);
-                itemCount = intent.ToolName is MongoCountToolName or MongoExplainToolName or
-                    GetWorkspaceContextToolName or ProposeFileEditToolName ? 1 :
-                    intent.ToolName is MongoFindOneToolName or GetDocumentToolName
-                        ? document.RootElement.GetProperty("documentEjson").ValueKind == JsonValueKind.Null ? 0 : 1
-                        :
+                itemCount = intent.ToolName is GetQueryDiagnosticsToolName or GetWorkspaceContextToolName or ProposeFileEditToolName ? 1 :
                     document.RootElement.GetProperty(intent.ToolName switch
                     {
                         ListConnectionsToolName => "connections",
-                        GetCollectionSchemaToolName => "fields",
                         GetCachedSchemaToolName => "fields",
-                        MongoFindToolName => "documentsEjson",
-                        SampleDocumentsToolName => "documentsEjson",
-                        MongoDistinctToolName => "valuesEjson",
-                        GetIndexesToolName => "indexes",
+                        GetQueryResultsToolName => "results",
+                        GetIndexesToolName or GetSearchIndexesToolName => "indexes",
                         _ => "names"
                     }).GetArrayLength();
             }
@@ -795,33 +662,12 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
         if (name is ListDatabasesToolName or ListCollectionsToolName)
             return await InvokeMetadataAsync(principal, invocationContext, destination, outputDataScope,
                 name, argumentsJson, cancellationToken).ConfigureAwait(false);
-        if (name == GetCollectionSchemaToolName)
-            return await InvokeSchemaAsync(principal, invocationContext, destination, outputDataScope,
+        if (name is GetQueryResultsToolName or GetQueryDiagnosticsToolName)
+            return await InvokeQuerySnapshotAsync(principal, invocationContext, destination, outputDataScope, name,
                 argumentsJson, cancellationToken).ConfigureAwait(false);
-        if (name == MongoFindToolName)
-            return await InvokeFindAsync(principal, invocationContext, destination, outputDataScope,
-                name, argumentsJson, cancellationToken).ConfigureAwait(false);
-        if (name == SampleDocumentsToolName)
-            return await InvokeFindAsync(principal, invocationContext, destination, outputDataScope,
-                name, argumentsJson, cancellationToken).ConfigureAwait(false);
-        if (name == MongoFindOneToolName)
-            return await InvokeFindAsync(principal, invocationContext, destination, outputDataScope,
-                name, argumentsJson, cancellationToken).ConfigureAwait(false);
-        if (name == GetDocumentToolName)
-            return await InvokeFindAsync(principal, invocationContext, destination, outputDataScope,
-                name, argumentsJson, cancellationToken).ConfigureAwait(false);
-        if (name == MongoDistinctToolName)
-            return await InvokeDistinctAsync(principal, invocationContext, destination, outputDataScope,
-                argumentsJson, cancellationToken).ConfigureAwait(false);
-        if (name == GetIndexesToolName)
+        if (name is GetIndexesToolName or GetSearchIndexesToolName)
             return await InvokeIndexesAsync(principal, invocationContext, destination, outputDataScope,
-                argumentsJson, cancellationToken).ConfigureAwait(false);
-        if (name == MongoExplainToolName)
-            return await InvokeExplainAsync(principal, invocationContext, destination, outputDataScope,
-                argumentsJson, cancellationToken).ConfigureAwait(false);
-        if (name == MongoCountToolName)
-            return await InvokeCountAsync(principal, invocationContext, destination, outputDataScope,
-                argumentsJson, cancellationToken).ConfigureAwait(false);
+                name, argumentsJson, cancellationToken).ConfigureAwait(false);
         if (!IsClosedEmptyObject(argumentsJson)) return AgentToolInvocationResult.Failure(InvalidArguments);
         if (principal is null) return AgentToolInvocationResult.Failure(PermissionDenied);
         if (!IsCompleteInvocationContext(invocationContext) || destination is null ||

@@ -4,14 +4,9 @@ namespace EsilvaSoft.KapibaraStudio.Infrastructure;
 
 /// <summary>
 /// Composition options of the agent platform shared by every ingress (native chat runtime and the opt-in MCP broker).
-/// The registry is always composed. <see cref="ToolExposureStage"/> defaults to <see cref="AgentToolExposureStage.Metadata"/>
-/// (ADR-056: metadata reads and the per-session tools of the integrated Claude Code agent); releasing a stage still
-/// authorizes nothing by itself, and <see cref="AgentToolExposureStage.None"/> keeps everything closed. The shared
-/// external and generic in-process stages stop at <see cref="AgentToolExposureStage.LiteralQueries"/>; the Copilot-only
-/// native stage and Claude session-channel stage may reach <see cref="AgentToolExposureStage.DerivedReads"/> behind
-/// individual opt-ins. Releasing a stage still grants nothing: every call needs a persisted grant for its principal.
-/// Write tools stay closed independently of the stage: no <see cref="IAgentMongoWriteSource"/> is composed yet
-/// (lote 10), so the registry never exposes them even though the approval chain is wired.
+/// The registry is always composed; defaults release metadata and captured execution outputs only.
+/// Historical higher-stage option values remain accepted for configuration compatibility, but have no
+/// additional document-query/write tools. Every call still requires the active plan, consent and scoped grants.
 /// </summary>
 public sealed record AgentPlatformOptions
 {
@@ -26,16 +21,16 @@ public sealed record AgentPlatformOptions
     /// <summary>
     /// Additional stage available only to the GitHub Copilot subscription adapter. The tools still require explicit
     /// per-provider opt-ins and turn-scoped grants; the external MCP registry is unaffected. The default includes
-    /// bounded derived reads; schema sampling remains absent until its separate local-consent UI is composed.
+    /// metadata and captured execution outputs; schema sampling and direct queries are unavailable.
     /// </summary>
-    public AgentToolExposureStage CopilotToolExposureStage { get; init; } = AgentToolExposureStage.DerivedReads;
+    public AgentToolExposureStage CopilotToolExposureStage { get; init; } = AgentToolExposureStage.Metadata;
 
     /// <summary>
     /// Additional stage available only to Claude Code's authenticated per-session MCP channel. Other providers and
-    /// unscoped/external MCP clients continue to use <see cref="ToolExposureStage"/>. Every query still needs the
+    /// unscoped/external MCP clients continue to use <see cref="ToolExposureStage"/>. Every output still needs the
     /// provider opt-in, data consent, a turn plan, connection scope, and grants.
     /// </summary>
-    public AgentToolExposureStage ClaudeToolExposureStage { get; init; } = AgentToolExposureStage.DerivedReads;
+    public AgentToolExposureStage ClaudeToolExposureStage { get; init; } = AgentToolExposureStage.Metadata;
 
     /// <summary>Registry execution ceiling (the registry itself caps at 30 s).</summary>
     public TimeSpan ToolExecutionTimeout { get; init; } = TimeSpan.FromSeconds(30);

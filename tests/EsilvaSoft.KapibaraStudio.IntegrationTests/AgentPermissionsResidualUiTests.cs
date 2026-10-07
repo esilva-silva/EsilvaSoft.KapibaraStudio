@@ -226,10 +226,10 @@ public sealed class AgentPermissionsResidualUiTests
         Assert.That(vm.HasConsent, Is.False);
         Assert.That(vm.ShowMongoDocumentConsent, Is.False);
         Assert.That(vm.ShowNativeToolOptions, Is.True);
-        Assert.That(vm.ReadTools.Select(tool => tool.Name), Does.Not.Contain(AgentProductToolNames.MongoFind));
-        Assert.That(vm.ReadTools.Select(tool => tool.Name), Does.Not.Contain(AgentProductToolNames.MongoCount));
-        Assert.That(vm.ProductToolsStatus, Does.Not.Contain(AgentProductToolNames.MongoFind));
-        Assert.That(vm.ProductToolsStatus, Does.Not.Contain(AgentProductToolNames.MongoCount));
+        Assert.That(vm.ReadTools.Select(tool => tool.Name), Does.Not.Contain(AgentProductToolNames.GetQueryResults));
+        Assert.That(vm.ReadTools.Select(tool => tool.Name), Does.Not.Contain(AgentProductToolNames.GetQueryDiagnostics));
+        Assert.That(vm.ProductToolsStatus, Does.Not.Contain(AgentProductToolNames.GetQueryResults));
+        Assert.That(vm.ProductToolsStatus, Does.Not.Contain(AgentProductToolNames.GetQueryDiagnostics));
     }
 
     [Test]
@@ -247,12 +247,12 @@ public sealed class AgentPermissionsResidualUiTests
         Assert.That(vm.ShowNativeToolOptions, Is.False,
             "Copilot uses product registry tools and must not present unavailable native CLI permissions.");
         Assert.That(vm.MongoDocuments, Is.False);
-        Assert.That(vm.ReadTools.Select(tool => tool.Name), Does.Contain(AgentProductToolNames.MongoFind));
-        Assert.That(vm.ReadTools.Select(tool => tool.Name), Does.Contain(AgentProductToolNames.MongoCount));
+        Assert.That(vm.ReadTools.Select(tool => tool.Name), Does.Contain(AgentProductToolNames.GetQueryResults));
+        Assert.That(vm.ReadTools.Select(tool => tool.Name), Does.Contain(AgentProductToolNames.GetQueryDiagnostics));
         Assert.That(vm.ReadTools.Select(tool => tool.Name), Does.Not.Contain(AgentProductToolNames.GetCollectionSchema),
             "Copilot must not offer live sampling before its dedicated local-consent UI exists.");
-        Assert.That(vm.ProductToolsStatus, Does.Contain(AgentProductToolNames.MongoFind));
-        Assert.That(vm.ProductToolsStatus, Does.Contain(AgentProductToolNames.MongoCount));
+        Assert.That(vm.ProductToolsStatus, Does.Contain(AgentProductToolNames.GetQueryResults));
+        Assert.That(vm.ProductToolsStatus, Does.Contain(AgentProductToolNames.GetQueryDiagnostics));
         vm.MongoDocuments = true;
         await vm.SaveCommand.ExecuteAsync(null);
 
@@ -276,21 +276,21 @@ public sealed class AgentPermissionsResidualUiTests
             Assert.That(vm.ShowMongoDocumentConsent, Is.True);
             Assert.That(vm.ShowNativeToolOptions, Is.True, "A allowlist nativa do Claude continua editável.");
             Assert.That(vm.MongoDocuments, Is.False, "Consentimento é opt-in e começa desligado.");
-            Assert.That(vm.ReadTools.Select(tool => tool.Name), Does.Contain(AgentProductToolNames.MongoFind));
-            Assert.That(vm.ReadTools.Select(tool => tool.Name), Does.Contain(AgentProductToolNames.MongoExplain));
+            Assert.That(vm.ReadTools.Select(tool => tool.Name), Does.Contain(AgentProductToolNames.GetQueryResults));
+            Assert.That(vm.ReadTools.Select(tool => tool.Name), Does.Contain(AgentProductToolNames.GetQueryDiagnostics));
             Assert.That(vm.ReadTools.Select(tool => tool.Name), Does.Not.Contain(AgentProductToolNames.GetCollectionSchema),
                 "A amostragem ao vivo permanece fechada até a UI obter consentimento local delimitado.");
         });
 
         vm.MongoDocuments = true;
-        vm.ReadTools.Single(tool => tool.Name == AgentProductToolNames.MongoFind).IsEnabled = true;
+        vm.ReadTools.Single(tool => tool.Name == AgentProductToolNames.GetQueryResults).IsEnabled = true;
         await vm.SaveCommand.ExecuteAsync(null);
 
         Assert.Multiple(() =>
         {
             Assert.That(repository.Saved!.ProviderId, Is.EqualTo(AgentProviderIds.ClaudeCodeSubscription));
             Assert.That(repository.Saved.DataSending.MongoDocuments, Is.True);
-            Assert.That(repository.Saved.EnabledReadTools, Does.Contain(AgentProductToolNames.MongoFind));
+            Assert.That(repository.Saved.EnabledReadTools, Does.Contain(AgentProductToolNames.GetQueryResults));
         });
     }
 

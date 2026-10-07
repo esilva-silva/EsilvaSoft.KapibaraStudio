@@ -8,6 +8,10 @@ public interface IAgentMongoIndexSource
 {
     Task<AgentMongoIndexPage> GetIndexesAsync(ConnectionProfile profile, string database,
         string collection, TimeSpan maximumExecutionTime, CancellationToken cancellationToken);
+
+    Task<AgentMongoSearchIndexPage> GetSearchIndexesAsync(ConnectionProfile profile, string database,
+        string collection, TimeSpan maximumExecutionTime, CancellationToken cancellationToken) =>
+        throw new NotSupportedException("Consulta de índices Atlas Search indisponível nesta fonte.");
 }
 
 public sealed record AgentMongoIndexSummary(string Name, IReadOnlyList<string> KeyFields,
@@ -27,4 +31,11 @@ public sealed record AgentMongoIndexSummary(string Name, IReadOnlyList<string> K
 }
 
 public sealed record AgentMongoIndexPage(IReadOnlyList<AgentMongoIndexSummary> Indexes,
+    bool Truncated, bool TargetVerified);
+
+/// <summary>Atlas index metadata only; no collection documents or arbitrary aggregate input.</summary>
+public sealed record AgentMongoSearchIndexSummary(string Name, string Type, string Status, bool Queryable,
+    IReadOnlyList<string> FieldPaths);
+
+public sealed record AgentMongoSearchIndexPage(IReadOnlyList<AgentMongoSearchIndexSummary> Indexes,
     bool Truncated, bool TargetVerified);

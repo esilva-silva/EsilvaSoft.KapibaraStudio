@@ -47,6 +47,46 @@ internal sealed class CopilotEventReplayTests
     }
 
     [Test]
+    public void ReplayedOfficialUsageEventIsPublishedOnceAndLateUsageCannotUpdateTheCompletedTurn()
+    {
+        using var turn = CreateTurn();
+        var usage = new AssistantUsageEvent
+        {
+            Id = Guid.NewGuid(),
+            Data = new AssistantUsageData
+            {
+                ApiCallId = "model-call-usage-1",
+                Model = "fixture-model",
+                InputTokens = 0,
+                OutputTokens = null,
+                CacheReadTokens = null,
+            },
+        };
+        Dispatch(turn, usage);
+        Dispatch(turn, usage);
+        Dispatch(turn, Idle());
+        Dispatch(turn, new AssistantUsageEvent
+        {
+            Id = Guid.NewGuid(),
+            Data = new AssistantUsageData
+            { ApiCallId = "late-model-call", Model = "fixture-model", InputTokens = 77, OutputTokens = 2 },
+        });
+
+        var events = ReadEvents(turn);
+        var metric = events.Single();
+        Assert.Multiple(() =>
+        {
+            Assert.That(metric.Kind, Is.EqualTo(AgentEventKind.UsageUpdated));
+            Assert.That(metric.Usage!.ObservationId, Is.EqualTo("model-call-usage-1"));
+            Assert.That(metric.Usage.Scope, Is.EqualTo(AgentUsageScope.CallTotal));
+            Assert.That(metric.Usage.InputTokens, Is.Zero, "A reported zero is known, not missing.");
+            Assert.That(metric.Usage.OutputTokens, Is.Null, "An absent field remains unknown.");
+            Assert.That(metric.Usage.CacheReadTokens, Is.Null, "Missing cache data remains unknown.");
+            Assert.That(Done(turn).IsCompleted, Is.True);
+        });
+    }
+
+    [Test]
     public async Task ConcurrentReplaysAreMappedOnce()
     {
         using var turn = CreateTurn();

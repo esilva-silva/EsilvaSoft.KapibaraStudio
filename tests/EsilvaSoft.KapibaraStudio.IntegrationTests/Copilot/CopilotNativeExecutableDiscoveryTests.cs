@@ -119,6 +119,27 @@ public sealed class CopilotNativeExecutableDiscoveryTests
     }
 
     [Test]
+    public void AutomaticPathDiscoverySkipsShimAndContinuesToNativeExecutable()
+    {
+        var shimDirectory = Path.Combine(_root, "shim");
+        var nativeDirectory = Path.Combine(_root, "native");
+        Directory.CreateDirectory(shimDirectory);
+        Directory.CreateDirectory(nativeDirectory);
+        var executableName = OperatingSystem.IsWindows() ? "copilot.exe" : "copilot";
+        var shim = Path.Combine(shimDirectory, executableName);
+        var native = Path.Combine(nativeDirectory, executableName);
+        File.WriteAllText(shim, "#!/bin/sh\nprintf 'must-not-run'\n");
+        File.Copy(Environment.ProcessPath!, native);
+
+        var resolved = LocalCopilotCliConfiguration.Resolve(null,
+            string.Join(Path.PathSeparator, shimDirectory, nativeDirectory), null,
+            OperatingSystem.IsWindows(), executableProbe: _ => true);
+
+        Assert.That(resolved, Is.EqualTo(native),
+            "Automatic PATH discovery must reject a non-native shim and continue to a later valid executable.");
+    }
+
+    [Test]
     public void MalformedOrInaccessiblePathEntryDoesNotHideLaterCandidate()
     {
         var inaccessible = Path.Combine(_root, "inaccessible");
