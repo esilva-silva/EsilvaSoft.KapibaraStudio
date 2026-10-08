@@ -13,6 +13,7 @@ public sealed record AgentSessionToolPorts(IAgentMcpSessionScopes SessionScopes)
 {
     /// <summary>Bounded file reads for proposals; absence refuses disk targets without native fallback.</summary>
     public IAgentBoundedFileReader? FileReader { get; init; }
+    public IAgentWorkspaceFileCreator? FileCreator { get; init; }
     public IAgentWorkspacePathProbe? PathProbe { get; init; }
     /// <summary>Native chat scopes are keyed by the exact runtime session and turn, not by principal.</summary>
     public IAgentNativeChatTurnScopes? NativeChatTurnScopes { get; init; }

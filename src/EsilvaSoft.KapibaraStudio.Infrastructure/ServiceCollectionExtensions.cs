@@ -30,6 +30,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IModelDirectoryService, LocalModelDirectoryService>();
         services.TryAddSingleton<ILocalDirectoryLauncher, LocalDirectoryLauncher>();
         services.TryAddSingleton<IAgentBoundedFileReader, LocalAgentBoundedFileReader>();
+        services.TryAddSingleton<IAgentWorkspaceFileCreator, LocalAgentWorkspaceFileCreator>();
         services.TryAddSingleton<IAgentWorkspacePathProbe, LocalAgentWorkspacePathProbe>();
         services.TryAddSingleton<IAgentWorkspaceFileCatalog, LocalAgentWorkspaceFileCatalog>();
         services.TryAddSingleton<IHostEnvironmentSnapshot, LocalHostEnvironmentSnapshot>();
@@ -180,6 +181,7 @@ public static class ServiceCollectionExtensions
             {
                 NativeChatTurnScopes = provider.GetRequiredService<IAgentNativeChatTurnScopes>(),
                 FileReader = provider.GetRequiredService<IAgentBoundedFileReader>(),
+                FileCreator = provider.GetRequiredService<IAgentWorkspaceFileCreator>(),
                 PathProbe = provider.GetRequiredService<IAgentWorkspacePathProbe>(),
                 MetadataCache = provider.GetService<IMetadataCache>(),
                 LearnedSchemas = provider.GetService<ILearnedSchemaRepository>(),

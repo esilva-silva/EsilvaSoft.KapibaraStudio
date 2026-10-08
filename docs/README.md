@@ -49,6 +49,7 @@ A internacionalização da interface está concluída no recorte automatizado pa
 | Editor e exploração | [19 — Explorer](19-database-explorer.md), [20 — Console](20-console.md), [22 — Highlighting](22-syntax-highlighting.md) |
 | Inteligência opcional | [21 — Autocomplete local](21-autocomplete-local.md), [23 — ONNX/chat](23-onnx-slopcoder.md), [26 — IA local multimodelo](26-ia-local-multimodelo.md), [Autocomplete MongoDB — padrão e plano](auto-complite/README.md) |
 | Claude, autenticação e ferramentas | [Claude no KapibaraStudio](backlog/integracoes-agentes/historico-integracoes.md#plano-e-andamento) |
+| Criação de arquivos por agentes | [Workspace, opt-in e confirmação — ADR-067](architecture/workspace-file-creation.md) |
 | Segurança das ferramentas de agentes | [Metadados, índices e saídas já executadas — ADR-066](architecture/agent-tool-safety.md) |
 | Planejamento e histórico | [03 — Catálogo funcional](03-catalogo-funcional.md), [09 — Roadmap](09-plano-de-implementacao.md), [12 — Acompanhamento](12-acompanhamento-da-implementacao.md), [24 — Inventário](24-inventario-roadmap.md) |
 | Qualidade e validação | [08 — Testes](08-testes-e-qualidade.md), [11 — Fontes/evidências](11-fontes-e-evidencias.md), [15 — Matriz de validação](15-matriz-de-validacao.md), [16 — Checklist de homologação](16-checklist-homologacao.md) |

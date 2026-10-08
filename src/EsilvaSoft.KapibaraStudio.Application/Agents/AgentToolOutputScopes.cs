@@ -18,7 +18,7 @@ public static class AgentToolOutputScopes
         AgentToolRegistry.GetCachedSchemaToolName =>
             AgentOutputDataScope.Schema,
         // Per-session tools without MongoDB data: workspace names, a proposal receipt, a confirmation answer.
-        AgentToolRegistry.GetWorkspaceContextToolName or AgentToolRegistry.ProposeFileEditToolName or
+        AgentToolRegistry.CreateWorkspaceFileToolName or AgentToolRegistry.GetWorkspaceContextToolName or AgentToolRegistry.ProposeFileEditToolName or
             AgentToolRegistry.ApproveToolName => AgentOutputDataScope.Metadata,
         AgentToolRegistry.GetQueryResultsToolName or AgentToolRegistry.GetQueryDiagnosticsToolName =>
             AgentOutputDataScope.DocumentValues,

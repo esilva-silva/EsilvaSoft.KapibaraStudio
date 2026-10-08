@@ -7,7 +7,8 @@ public static class AgentPermissionRiskCompatibility
     {
         AgentPermission.ReadMetadata or AgentPermission.ReadSchema or AgentPermission.ReadDiagnostics or
             AgentPermission.ExecuteReadQueries or AgentPermission.ReadDocuments => risk == AgentToolRisk.ReadOnly,
-        AgentPermission.InsertDocuments or AgentPermission.UpdateDocuments or AgentPermission.CreateIndexes => risk == AgentToolRisk.Write,
+        AgentPermission.InsertDocuments or AgentPermission.UpdateDocuments or AgentPermission.CreateIndexes or
+            AgentPermission.CreateWorkspaceFiles => risk == AgentToolRisk.Write,
         AgentPermission.DeleteDocuments or AgentPermission.DropIndexes => risk == AgentToolRisk.Destructive,
         AgentPermission.AdministrativeOperations => risk == AgentToolRisk.Administrative,
         _ => false

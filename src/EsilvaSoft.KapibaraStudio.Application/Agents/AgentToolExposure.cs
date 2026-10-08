@@ -11,7 +11,7 @@ public enum AgentToolExposureStage
 
     /// <summary>
     /// Metadata tools, ordinary/Atlas indexes, cached schema, workspace context and captured execution outputs;
-    /// mediated proposals and permission prompts. No document query or MongoDB mutation.
+    /// mediated proposals, opt-in create-only workspace files and permission prompts. No document query or MongoDB mutation.
     /// </summary>
     Metadata = 1,
 
@@ -81,13 +81,13 @@ public sealed class AgentToolExposure
     public static AgentToolExposureStage? StageOf(string? toolName) => toolName switch
     {
         // ADR-056: get_indexes is structured metadata (names, keys, flags, TTL, partial-filter field paths), no document.
-        // Session tools may release captured output with opt-in; they never query documents or write MongoDB/disk.
+        // Session tools release captured output or create a new workspace file with opt-in; none queries documents or writes MongoDB.
         AgentToolRegistry.ListConnectionsToolName or AgentToolRegistry.ListDatabasesToolName or
             AgentToolRegistry.ListCollectionsToolName or AgentToolRegistry.GetIndexesToolName or
             AgentToolRegistry.GetSearchIndexesToolName or AgentToolRegistry.GetQueryResultsToolName or
             AgentToolRegistry.GetQueryDiagnosticsToolName or
             AgentToolRegistry.GetCachedSchemaToolName or AgentToolRegistry.GetWorkspaceContextToolName or
-            AgentToolRegistry.ProposeFileEditToolName or AgentToolRegistry.ApproveToolName => AgentToolExposureStage.Metadata,
+            AgentToolRegistry.CreateWorkspaceFileToolName or AgentToolRegistry.ProposeFileEditToolName or AgentToolRegistry.ApproveToolName => AgentToolExposureStage.Metadata,
         _ => null
     };
 

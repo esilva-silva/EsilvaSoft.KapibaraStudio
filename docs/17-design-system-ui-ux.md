@@ -1,5 +1,7 @@
 # Design system e revisão de UI/UX
 
+**Criação de arquivos por agentes — 07/10/2026 (ADR-067):** `create_workspace_file` grava conteúdo UTF-8 em arquivo novo da workspace, sem sobrescrita, com opt-in de escrita e confirmação pontual obrigatória. Editar arquivos existentes continua usando propostas; consultas diretas/escritas MongoDB permanecem removidas. [Contrato, uso e validação](architecture/workspace-file-creation.md).
+
 **Tools seguras — 07/10/2026 (política vigente; ADR-066):** Permissões substituem leitura direta por envio de resultados, erros e logs de consultas já executadas na aba; consentimento e confirmação de valores continuam separados e desligados por padrão. A lista mostra `get_search_indexes`, `get_query_results` e `get_query_diagnostics`, sem queries/escritas antigas. Preservar rolagem local, quebra de texto, categorias semânticas e localização pt-BR/en/es/zh-CN. Captura pertence à aba/execução originadora, sem redirecionamento ao mudar a seleção. [Contratos, compatibilidade e validação](architecture/agent-tool-safety.md).
 
 **Inspeção visual do catálogo seguro — 07/10/2026:** PNGs Headless reais pt-BR (Copilot claro/Claude escuro, 660×760) e catálogo zh-CN escuro (960×760, escala 2) conferidos: rótulo de resultados/erros/logs legível, opt-in desligado, nomes com quebra de linha e rolagem/rodapé preservados. [Frames, matriz gerada e limites da inspeção](architecture/agent-tool-safety.md#inspeção-visual). Diálogo nativo e leitor de tela permanecem separados.

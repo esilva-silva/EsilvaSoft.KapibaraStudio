@@ -1,5 +1,11 @@
 # Acompanhamento da implementação
 
+**Fase 5 — homologação manual em 07/10/2026:** testes funcionais das tools vigentes (metadados, saídas capturadas, proposta e criação de arquivos) e conexão MongoDB homologados por aceite explícito do usuário. [Registro, catálogo e alcance](phases/phase-05-v0.9.0/meta-permissoes-tools-copilot.md#homologação-manual-do-usuário--07102026). Cenários técnicos específicos, acessibilidade, Linux e release mantêm seus gates próprios.
+
+**Criação de arquivos por agentes — 07/10/2026 (ADR-067):** `create_workspace_file` grava conteúdo UTF-8 em arquivo novo da workspace, sem sobrescrita, com opt-in de escrita e confirmação pontual obrigatória. Editar arquivos existentes continua usando propostas; consultas diretas/escritas MongoDB permanecem removidas. [Contrato, uso e validação](architecture/workspace-file-creation.md).
+
+**Validação da criação — 07/10/2026:** build 0 avisos/erros, unidade 3.460 aprovados/20 ignorados e foco de integração 26/26 (I/O real, SDK/runtime e permissões). A integração integral anterior teve duas falhas de cleanup de fixtures existentes; o foco posterior passou, sem encerrar a intermitência. [Comandos/TRXs, PNGs e limites](architecture/workspace-file-creation.md#evidências-windows--07102026).
+
 **Tools seguras — 07/10/2026 (política vigente; ADR-066):** Handlers de consulta direta/amostragem/escrita foram retirados. Foram implementados índices Atlas Search e tools de resultados/diagnósticos capturados, com paginação EJSON e gates de consentimento/escopo/geração. Os registros antigos TOOL-07..13 e lote 10 passam a evidência histórica, não disponibilidade atual. [Contratos, compatibilidade e validação](architecture/agent-tool-safety.md).
 
 **Validação do catálogo seguro — 07/10/2026:** build 0 avisos/erros; Agents 403/403 e UnitTests 3.442 aprovados/20 ignorados. Na integração, 1.018 passaram e houve uma falha de teardown LiteDB no teste existente `EncodedCanaryIsDetected`; os novos focos passaram 20/20 e 2/2. [Evidências integrais, inspeção dos PNGs e limites](architecture/agent-tool-safety.md#evidência-automatizada--windows-07102026). Reexecução completa da integração: **1.019 aprovados/5 ignorados/0 falhas**, sem encerrar a investigação do bloqueio anterior.

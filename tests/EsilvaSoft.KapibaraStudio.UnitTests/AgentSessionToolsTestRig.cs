@@ -27,7 +27,7 @@ internal sealed class AgentSessionToolsTestRig : AgentSessionToolDoubles, IDispo
         Func<AgentProviderPermissions, AgentProviderPermissions>? permissions = null, bool withConfirmationPort = true,
         TimeSpan? approvalTimeout = null, IAgentEditProposalSink? proposalSink = null, MemoryAgentFiles? files = null,
         IAgentBoundedFileReader? proposalFileReader = null, IAgentWorkspacePathProbe? pathProbe = null,
-        TimeSpan? executionTimeout = null, params ConnectionProfile[] extraProfiles)
+        TimeSpan? executionTimeout = null, IAgentWorkspaceFileCreator? fileCreator = null, params ConnectionProfile[] extraProfiles)
     {
         Files = files ?? new MemoryAgentFiles();
         Files.AddDirectory(_workspace);
@@ -62,6 +62,7 @@ internal sealed class AgentSessionToolsTestRig : AgentSessionToolDoubles, IDispo
                 WorkspaceContext = Workspace,
                 NativeChatTurnScopes = NativeChatScopes,
                 FileReader = proposalFileReader ?? Files,
+                FileCreator = fileCreator,
                 PathProbe = pathProbe ?? Files,
                 ProposalSink = ProposalSink,
                 ConfirmationPrompt = Confirmation,

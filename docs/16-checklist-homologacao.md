@@ -1,5 +1,7 @@
 # Checklist de homologação — Fase 10 / v0.14.0
 
+**Fase 5 — homologação manual em 07/10/2026:** testes funcionais das tools vigentes (metadados, saídas capturadas, proposta e criação de arquivos) e conexão MongoDB homologados por aceite explícito do usuário. [Registro, catálogo e alcance](phases/phase-05-v0.9.0/meta-permissoes-tools-copilot.md#homologação-manual-do-usuário--07102026). Cenários técnicos específicos, acessibilidade, Linux e release mantêm seus gates próprios.
+
 Este checklist é o único critério de validação manual do roadmap. Ele concentra os cenários de ambiente, hardware e operação humana transferidos das fases funcionais; sua conclusão não altera retrospectivamente a evidência histórica das versões anteriores.
 
 ## Revisão UI/UX — evidência automatizada
@@ -141,7 +143,8 @@ Evidência e limites em [25 — Auditoria](done/release_v0.5.0/25-auditoria-mvp-
 
 O código da Fase 5 já oferece Copilot por assinatura de forma limitada no Windows. O próximo pacote 0.11.x deve continuar marcado como **pré-release**, e a página [P7-COP](phases/phase-05-v0.9.0/README.md) é a fonte do comportamento presente, testes executados e limitações. Antes de publicar qualquer tag, executar o workflow `ci.yml`/`release.yml` no commit exato e inspecionar os quatro artefatos e checksums. Estes itens permanecem gates de homologação e impedem declarar suporte completo ou estável:
 
-- [ ] Runtime oficial do Copilot chama ferramentas de leitura em MongoDB de teste com limites/Extended JSON, autorização escopada e sem expor segredos.
+- [x] Tools vigentes e conexão MongoDB: homologação funcional por aceite do usuário em 07/10/2026, conforme registro da Fase 5; sem busca direta de documentos ou escrita MongoDB pelas tools.
+- [ ] Evidências detalhadas por cenário de limites/Extended JSON, autorização e ausência de segredos no runtime oficial, incluindo topologias MongoDB/Atlas aplicáveis.
 - [ ] Runtime oficial cobre negação, revogação, falha de auditoria, timeout, concorrência e recuperação sem repetir efeitos.
 - [ ] Conta oficial, indisponibilidade e erro de autenticação não bloqueiam a IDE nem acionam fallback de API.
 - [ ] Caixa de confirmação nativa e navegação por teclado/leitor de tela homologadas; renderização Headless é evidência complementar.

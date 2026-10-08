@@ -1,6 +1,12 @@
 # Meta da Fase 5 — integração completa GitHub Copilot e ferramentas do KapibaraStudio
 
-**Catálogo seguro — 07/10/2026:** ADR-066 remove queries diretas, schema sampling e escritas dos agentes. Os registros TOOL-07..13 abaixo passam a históricos. Aceite vigente: metadados, índices Atlas Search e resultados/diagnósticos capturados da execução humana. [Contrato e evidências](../../architecture/agent-tool-safety.md).
+**Homologação vigente — 07/10/2026:** testes funcionais das tools e conexão MongoDB **homologados por aceite do usuário**. A [consolidação e o alcance do aceite](meta-permissoes-tools-copilot.md#homologação-manual-do-usuário--07102026) abrangem o catálogo seguro, os resultados/diagnósticos capturados, o diagnóstico de `EditNotApplicable` e `create_workspace_file`. Os registros datados abaixo preservam o histórico; o estado vigente está no registro de homologação vinculado acima.
+
+**Criação de arquivos por agentes — 07/10/2026 (ADR-067):** `create_workspace_file` grava conteúdo UTF-8 em arquivo novo da workspace, sem sobrescrita, com opt-in de escrita e confirmação pontual obrigatória. Editar arquivos existentes continua usando propostas; consultas diretas/escritas MongoDB permanecem removidas. [Contrato, uso e validação](../../architecture/workspace-file-creation.md).
+
+**Validação da criação — 07/10/2026:** build 0 avisos/erros, unidade 3.460 aprovados/20 ignorados e foco de integração 26/26 (I/O real, SDK/runtime e permissões). A integração integral anterior teve duas falhas de cleanup de fixtures existentes; o foco posterior passou, sem encerrar a intermitência. [Comandos/TRXs, PNGs e limites](../../architecture/workspace-file-creation.md#evidências-windows--07102026).
+
+**Catálogo seguro — 07/10/2026:** ADR-066 remove queries diretas, schema sampling e escritas MongoDB dos agentes. Os registros TOOL-07..13 abaixo passam a históricos. Aceite vigente: metadados, índices Atlas Search e resultados/diagnósticos capturados da execução humana. [Contrato e evidências](../../architecture/agent-tool-safety.md).
 
 **Validação do catálogo seguro — 07/10/2026:** [contratos, comandos, TRX e inspeção de PNGs](../../architecture/agent-tool-safety.md#validação). Asserções de saída, falha de auditoria/geração e recuperação passaram 20/20; captura concorrente Desktop e falha/recuperação passaram 2/2. UnitTests 3.442 aprovados e Agents 403/403. Integração integral conserva uma falha de teardown LiteDB, sem atribuição do handle nem alegação de suíte verde. Reexecução completa da integração: **1.019 aprovados/5 ignorados/0 falhas**, sem encerrar a investigação do bloqueio anterior.
 
@@ -20,7 +26,7 @@
 
 ## Objetivo e fronteira do compromisso
 
-Concluir todos os requisitos aplicáveis à integração desktop GitHub Copilot: instalação e compatibilidade, conta oficial, modelos, conversa, contexto, ferramentas, autorização, sessões, recuperação, uso, experiência, termos e distribuição. Validar individualmente **as 14 ferramentas que o plano Copilot pode liberar**, com parâmetros, limites, permissões, resultado e cenários de recusa.
+Concluir todos os requisitos aplicáveis à integração desktop GitHub Copilot: instalação e compatibilidade, conta oficial, modelos, conversa, contexto, ferramentas, autorização, sessões, recuperação, uso, experiência, termos e distribuição. Validar individualmente **as 11 ferramentas vigentes que o plano Copilot pode liberar (TOOL-01..06/14..18)**, com parâmetros, limites, permissões, resultado e cenários de recusa.
 
 O [README da fase](README.md) define o escopo; esta meta é seu detalhamento executável. Claude, Codex, APIs externas e clientes MCP externos continuam no [bkl-06](../../backlog/bkl-06-integracoes-agentes.md). IA local/workflow e a prioridade da Fase 8 permanecem. O complemento não altera código, catálogo, permissões, autenticação ou disponibilidade.
 
@@ -78,11 +84,13 @@ Cada linha exige resultado observável e referência de evidência. **Contrato e
 
 ## Catálogo completo liberável ao Copilot
 
-São **9 leituras selecionáveis + 1 proposta condicionada ao modo/permissões**, sem autorização por padrão para resultados/diagnósticos. O catálogo compartilhado tem **11 descriptors**; o SDK recebe somente a interseção do plano, exposição Copilot, disponibilidade do registry e schemas válidos. Checkbox salva intenção persistente; não substitui grants, consentimento ou confirmação.
+**Homologação funcional: aprovada pelo usuário em 07/10/2026 para todas as 11 tools vigentes e para a conexão MongoDB.** [Aceite e alcance](meta-permissoes-tools-copilot.md#homologação-manual-do-usuário--07102026). A última coluna preserva a evidência automatizada e as lacunas de cenários específicos; referências a V8/V9 pendentes não anulam esse aceite funcional nem homologam a matriz completa.
+
+São **9 leituras selecionáveis + 1 proposta + 1 criação de arquivo condicionadas ao modo/permissões**, sem autorização por padrão para resultados/diagnósticos. O catálogo compartilhado tem **12 descriptors**; o SDK recebe somente a interseção do plano, exposição Copilot, disponibilidade do registry e schemas válidos. Checkbox salva intenção persistente; não substitui grants, consentimento ou confirmação.
 
 **N** significa `connectionId`, `database`, `collection`; **M** exige `ReadMetadata`/saída Metadata; **S**, `ReadSchema`/saída Schema e `DataSending.InferredSchema`; **D**, `ReadDocuments`, saída DocumentValues e `DataSending.MongoDocuments`, somente para saídas já executadas. M/S/D respeitam conexão permitida/geração do perfil, grants transitórios do turno e categoria de confirmação configurada. `get_query_diagnostics` acrescenta `ReadDiagnostics`; não há grant de execução de queries. Todas as leituras exigem checkbox individual e consentimento externo. Tools de sessão exigem binding do snapshot.
 
-| ID | Tool / entrada | Finalidade e saída permitida | Condições / limites específicos | Aceite individual adicional |
+| ID | Tool / entrada | Finalidade e saída permitida | Condições / limites específicos | Evidência automatizada e cenários técnicos adicionais |
 | --- | --- | --- | --- | --- |
 | F5-TOOL-01 | `list_connections` — `{}` | IDs, alias externo do perfil e readOnly, com truncamento; sem URI/senha/identidade real do host/conta. | M; até 200 perfis; somente conexões autorizadas. | Testes novos comprovam 200 autorizados + perfil sem grant (sem sinalizar outros perfis), e 201 autorizados (página 200 + `truncated=true`); alias sem URI/host/conta/canários no output ou auditoria; zero chamadas às fontes Mongo. Filtro focado 36/36, evidência V2/V3/V5/V6 parcial. V1–V7 integral, runtime V8 e UI V9 pendentes. |
 | F5-TOOL-02 | `list_databases` — `connectionId`, `skip` opcional | Nomes de bancos e truncamento. | M; até 200 nomes/página; skip 0..10.000. | Revalida perfil e revisão da policy depois de carregar o perfil e antes de enumerar; catálogo vazio, conexão ausente e mudanças de geração/URI/policy durante enumeração têm cobertura; revogação bloqueia antes da origem, sem retry. Paginação prova zero chamadas a listagem de coleções. Novo V7 parametrizado combina cancelamento/deadline com resultado/falha tardios de origem que ignora o token; uma chamada, nenhuma saída, auditoria Intent/Cancelled sem canário. Casos novos **4/4**; foco metadata/paginação/source anterior **27/27**. Comportamento contra Mongo real, runtime V8 e UI V9 pendentes. |
@@ -101,6 +109,7 @@ São **9 leituras selecionáveis + 1 proposta condicionada ao modo/permissões**
 | F5-TOOL-15 | `get_search_indexes` — N | Metadados Atlas Search/vectorSearch; sem documentos/embeddings. | M; pipeline fixo de listagem, 200 índices/caminhos, limites bytes/profundidade e UUID estável. | Projeção sem valores/storedSource, escopo, falha sanitizada e roundtrip sintético; Atlas real e V8/V9 pendentes. |
 | F5-TOOL-16 | `get_query_results` — resultIndex/skip/limit opcionais | EJSON dos conjuntos capturados da aba; execução identificada, paginação local. | D; 1..100 valores, padrão 20; 256 KiB; sem filtro/código/conexão fornecidos pelo modelo. | Ausência sem consulta, EJSON, limites, conexão secundária/geração, revogação, concorrência e recuperação; confirmação/runtime nativos pendentes. |
 | F5-TOOL-17 | `get_query_diagnostics` — `{}` | Status, código de erro, mensagens/logs e erros da mesma execução capturada. | D + ReadDiagnostics; textos redigidos/limitados; nenhuma consulta nova. | Falha/ausência, logs com valores, consentimento e origens; auditoria sem conteúdo; CLI/UI nativas pendentes. |
+| F5-TOOL-18 | `create_workspace_file` — `path`, `content` | Criação exclusiva de arquivo UTF-8 na workspace; nenhum MongoDB. | Escrita de arquivos + confirmação pontual obrigatória, pasta capturada/exclusões/geração; sem overwrite. | Concorrência, cancelamento, revogação e auditoria; [contrato](../../architecture/workspace-file-creation.md). |
 
 
 Demais descriptors atuais são **v1**. Schemas do registry são a fonte para campos, tipos e propriedades adicionais; a tabela não cria parâmetros. Nomes de namespace têm tamanho 1..255 nos contratos MongoDB pertinentes. JSON válido sozinho não autoriza operação.
@@ -119,7 +128,7 @@ Demais descriptors atuais são **v1**. Schemas do registry são a fonte para cam
 | --- | --- |
 | `get_collection_schema` | Removida por ADR-066; schema em cache não permite amostragem nova. |
 | `approve` | Controle de outros ingressos; não é tool oferecida ao modelo Copilot. Prompt do produto libera só a chamada correta. |
-| `insert_one`, `update_one`, `delete_one`, `create_index`, `drop_index` | Fora do plano; grants de leitura/propostas não autorizam escrita. Testar não descoberta/negação; implementações compartilhadas intactas. |
+| `insert_one`, `update_one`, `delete_one`, `create_index`, `drop_index` | Removidas pelo ADR-066: sem descriptor/schema/handler nem fonte de escrita composta. Configuração legada não reativa; nomes retornam `UnknownTool`. |
 | Read/Glob/Grep/Bash/Edit/Write/WebSearch/WebFetch e equivalentes do runtime | NativeTools vazio: sem shell/arquivos/rede nativos. Anexos/propostas mediados pelo app não concedem essas permissões. |
 | Built-in agents e descoberta/execução fora do plano | Lista vazia confirmada antes de envio/create/resume; RPC/contrato ausente bloqueia. Interrupt posterior não é veto preventivo. |
 
@@ -146,7 +155,7 @@ O [índice de recursos](https://github.com/github/copilot-sdk/blob/main/docs/fea
 
 ## Matriz de validação para cada ferramenta
 
-As 14 linhas F5-TOOL exigem V1..V9 aplicáveis. Não aplicável precisa de motivo/contrato; ignorado ou ambiente ausente não é aprovação.
+As 11 linhas vigentes F5-TOOL-01..06/14..18 exigem V1..V9 aplicáveis; F5-TOOL-07..13 são registros históricos removidos. Não aplicável precisa de motivo/contrato; ignorado ou ambiente ausente não é aprovação.
 
 | Cenário | Resultado obrigatório |
 | --- | --- |
@@ -162,9 +171,11 @@ As 14 linhas F5-TOOL exigem V1..V9 aplicáveis. Não aplicável precisa de motiv
 
 ### Evidências existentes e lacunas
 
+**Estado vigente:** tools e conexão MongoDB homologadas pelo usuário em 07/10/2026. Os parágrafos seguintes distinguem evidência histórica e lacunas técnicas específicas.
+
 O [histórico](../../backlog/integracoes-agentes/historico-integracoes.md#meta-p7-cop--github-copilot-por-assinatura) registra chamadas oficiais sintéticas de get_workspace_context, list_connections e propose_file_edit, e get_document contra fonte fake após decisão controlada ApprovedOnce. São evidências parciais, não V1..V9 integral por tool. As demais não recebem homologação por analogia.
 
-[OfficialModelReadsDisposableMongoDocumentWithOneCallApproval](../../../tests/EsilvaSoft.KapibaraStudio.IntegrationTests/Copilot/CopilotProductToolManualTests.MongoReal.cs) existe, mas execução real continua pendente no registro da fase. Não cobre sozinho sete leituras nem decisão humana na janela nativa. Usa `SLOP_CONSOLE_MONGOD` e MongoDB loopback descartável; nunca substituir por perfil/URI do usuário. Completar V8 por ferramenta, um cenário oficial de cada vez, sem prompts em CI.
+**Histórico do catálogo removido:** `OfficialModelReadsDisposableMongoDocumentWithOneCallApproval` pertencia à fixture de leitura direta, excluída pelo ADR-066; sua existência anterior não era execução aprovada. Não recriar leitura de documentos para concluir V8. O aceite funcional vigente de tools e conexão MongoDB está [homologado pelo usuário](meta-permissoes-tools-copilot.md#homologação-manual-do-usuário--07102026); os cenários técnicos específicos V1–V9 conservam suas evidências próprias.
 
 Bases existentes: [CopilotProductToolRuntimeTests](../../../tests/EsilvaSoft.KapibaraStudio.UnitTests/CopilotProductToolRuntimeTests.cs), [NativeChatTurnPolicyProviderTests](../../../tests/EsilvaSoft.KapibaraStudio.UnitTests/NativeChatTurnPolicyProviderTests.cs), [AgentToolRegistryTests](../../../tests/EsilvaSoft.KapibaraStudio.UnitTests/AgentToolRegistryTests.cs), [AgentToolRegistryGateTests](../../../tests/EsilvaSoft.KapibaraStudio.UnitTests/AgentToolRegistryGateTests.cs), [CopilotFakeStdioRuntimeTests](../../../tests/EsilvaSoft.KapibaraStudio.IntegrationTests/Copilot/CopilotFakeStdioRuntimeTests.cs), [CopilotProductToolManualTests](../../../tests/EsilvaSoft.KapibaraStudio.IntegrationTests/Copilot/CopilotProductToolManualTests.cs) e [CopilotOfficialRuntimeManualTests](../../../tests/EsilvaSoft.KapibaraStudio.IntegrationTests/Copilot/CopilotOfficialRuntimeManualTests.cs). Reusar fixtures pertinentes, sem copiar implementação para fabricar aprovação.
 
@@ -174,7 +185,7 @@ Bases existentes: [CopilotProductToolRuntimeTests](../../../tests/EsilvaSoft.Kap
 
 O roundtrip `FourteenPlannedToolsDispatchThroughRealRegistryAndReturnToTheirOwnNativeRequestIds` exercita as 14 tools com SDK fixado, processo PowerShell fake, runtime/registry do produto e fontes sintéticas. Isso comprova partes do pipeline local e da correlação, mas **nenhum desses casos encerra V8**, que exige modelo/CLI oficiais e, para leituras MongoDB, servidor descartável. A existência de fixture `Explicit` também não constitui execução aprovada. Nesta revisão nenhuma conta, CLI oficial, credencial ou inferência remota foi usada.
 
-| Tool | Fixture individual oficial existente | Próximo passo de V8 ainda necessário |
+| Tool histórica | Fixture individual oficial naquele catálogo | Plano de V8 registrado antes do ADR-066 |
 | --- | --- | --- |
 | `list_connections` | `OfficialModelCallsMongoMetadataToolWithScopedPermission` | Executar cenário individual com perfis sintéticos e confirmar ausência de MongoDB/URI/identidade real; ampliar negativos aplicáveis. |
 | `list_databases` | Ausente | Criar/executar fixture individual com fonte Mongo de produção e servidor descartável; paginação, vazio e recusa. |
@@ -191,7 +202,7 @@ O roundtrip `FourteenPlannedToolsDispatchThroughRealRegistryAndReturnToTheirOwnN
 | `mongo_explain` | Ausente; novo cenário individual local descrito abaixo é fake STDIO | Criar/executar fixture individual oficial com MongoDB descartável, `ReadDiagnostics`, confirmação e `queryPlanner`; não elevar para `executionStats`. |
 | `propose_file_edit` | `OfficialModelProposesEditToSyntheticActiveBuffer`; `OfficialModelProposesEditIntoActiveWorkspaceViewModelStore` | Executar/ampliar cenário individual sem save; aplicação/Undo/diálogo no editor nativo permanece V9. |
 
-As fixtures nomeadas estão em `CopilotProductToolManualTests.cs`/`.MongoReal.cs` e permanecem `Explicit`; a fixture de ferramenta sintética genérica não substitui qualquer uma das 14 tools do produto. Novos cenários oficiais devem ser individuais, com plano de uma tool, consentimentos/grants delimitados, ledger/auditoria e cleanup, sem prompts no CI. O recorte desta fase continua Windows; atributos históricos portáveis das fixtures não homologam Linux.
+**Inventário histórico:** as fixtures então nomeadas estavam em `CopilotProductToolManualTests.cs`/`.MongoReal.cs` e eram `Explicit`; a fixture de ferramenta sintética genérica não substituía as 14 tools daquele catálogo. A fixture `.MongoReal.cs` de leitura direta foi removida pelo ADR-066. Novos cenários oficiais devem ser individuais, com plano de uma tool, consentimentos/grants delimitados, ledger/auditoria e cleanup, sem prompts no CI. O recorte desta fase continua Windows; atributos históricos portáveis das fixtures não homologam Linux.
 
 ### TOOL-12 — mongo_distinct individual pelo pipeline sintético — 07/10/2026
 
@@ -253,7 +264,7 @@ Os testes foram executados serialmente fora do sandbox para permitir a conexão 
 | --- | --- | --- |
 | F5-L01 — baseline/conta | GH-01..09/26..28 | Matriz versão/protocolo/instalação/conta/plano; decisões de termos/licenças e UX pendente identificadas. |
 | F5-L02 — conversa/contexto/isolamento | GH-10..14/19..22 | Stream/sessão confiáveis, snapshot, agents/tools bloqueados e recovery/retenção com evidência por camada. |
-| F5-L03 — ferramentas completas | GH-15..18 e TOOL-01..14 | V1..V9 por tool, casos negativos das sete tools compartilhadas bloqueadas e caminho oficial Windows com fixture apropriada. |
+| F5-L03 — ferramentas completas | GH-15..18 e TOOL-01..06/14..18 | Catálogo seguro e conexão MongoDB homologados funcionalmente pelo usuário em 07/10/2026. Completar cenários técnicos V1..V9 aplicáveis, rejeição dos 13 nomes removidos e evidências específicas do runtime oficial. |
 | F5-L04 — experiência/uso/privacidade | GH-23..25/29 | Modos/contexto/métricas/permissões/confirmações/propostas revisados, PNGs inspecionados, pendências nativas explícitas. |
 | F5-L05 — consolidação/release | GH-30 e revisão dos anteriores | Checks, documentação/pacote no commit exato; aceite automatizável separado dos gates reais da Fase 10. |
 
@@ -349,7 +360,9 @@ TRXs em `artifacts/phase5-gh20-optout/`: reprodução inicial `gh20-before-outsi
 ## Definição de concluído
 
 - [ ] GH-01..30 com evidência ou não aplicabilidade fundamentada, distinguindo feature opcional de requisito cumprido.
-- [ ] TOOL-01..14 com V1..V9 aplicável; ferramentas bloqueadas/nativas com recusa preventiva.
+- [x] Testes funcionais das tools vigentes TOOL-01..06/14..18 homologados pelo usuário em 07/10/2026.
+- [x] Conexão MongoDB homologada pelo usuário em 07/10/2026; consultas diretas/escritas MongoDB removidas do catálogo de agentes.
+- [ ] Cenários técnicos específicos V1..V9 aplicáveis às tools vigentes; nomes removidos/nativas com recusa preventiva.
 - [ ] Falhas/concorrência/cancelamento/retenção/recovery/conflitos com evidência proporcional, incluindo runtime oficial quando requerido.
 - [ ] Instalação/conta/privacidade/uso e termos/licenças/notices alinhados ao pacote/versões efetivos.
 - [ ] README, ADRs, design system, guia, catálogo, matriz/acompanhamento distinguem implementação, testes e homologação real.

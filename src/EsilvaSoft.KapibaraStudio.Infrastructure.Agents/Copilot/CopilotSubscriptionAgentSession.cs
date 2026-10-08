@@ -622,6 +622,7 @@ internal sealed class CopilotSubscriptionAgentSession : IAgentSession
             "Retorna valores distintos limitados de um campo autorizado, com filtro Extended JSON literal. Esses valores podem conter dados; exige consentimento MongoDB e ferramenta ativados.",
         AgentToolRegistry.MongoExplainToolName =>
             "Retorna somente o estágio queryPlanner de explain para uma consulta de leitura limitada; não executa a consulta nem inclui documentos. Exige ferramenta ativada, consentimento MongoDB e grants de diagnóstico/leitura.",
+        AgentToolRegistry.CreateWorkspaceFileToolName => "Cria um arquivo novo na workspace com path relativo e content UTF-8. Nunca sobrescreve, exige pasta existente e confirmação pontual. FileCreatedAuditIncomplete significa que o arquivo foi criado mas a auditoria final falhou; não repita automaticamente.",
         AgentToolRegistry.ProposeFileEditToolName =>
             "Registra uma proposta de edição para revisão no editor, sem gravar em disco. Para a consulta ou aba já aberta, use target=active_buffer sem path e baseie old_text no conteúdo autorizado e enviado como anexo; o trecho deve corresponder exatamente ao buffer redigido. Para arquivo do workspace, use path. Não alegue falta de editor ao receber EditNotApplicable: esse código indica texto ausente, ambíguo ou alteração insegura.",
         AgentToolRegistry.GetWorkspaceContextToolName =>

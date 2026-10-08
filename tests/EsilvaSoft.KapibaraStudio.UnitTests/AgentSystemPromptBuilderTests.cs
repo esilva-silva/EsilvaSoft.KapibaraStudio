@@ -29,6 +29,7 @@ public sealed class AgentSystemPromptBuilderTests
         {
             ExternalDestinationConsentAt = DateTimeOffset.UnixEpoch,
             EnabledReadTools = AgentProductToolNames.ReadTools,
+            NativeFileWrite = true,
             DataSending = new AgentDataSendingPermissions
             {
                 ActiveFile = true, WorkspaceFiles = true, InferredSchema = true, MongoDocuments = true
@@ -39,7 +40,7 @@ public sealed class AgentSystemPromptBuilderTests
         Assert.Multiple(() =>
         {
             Assert.That(Encoding.UTF8.GetByteCount(prompt), Is.LessThanOrEqualTo(AgentSystemPromptBuilder.MaximumUtf8Bytes));
-            Assert.That(prompt, Does.Contain("get_query_diagnostics").And.Contain("propose_file_edit"));
+            Assert.That(prompt, Does.Contain("get_query_diagnostics").And.Contain("propose_file_edit").And.Contain("create_workspace_file"));
             Assert.That(prompt, Does.Contain("NotFound significa"));
         });
     }

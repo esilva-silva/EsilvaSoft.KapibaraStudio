@@ -4,7 +4,7 @@ namespace EsilvaSoft.KapibaraStudio.Application.Agents;
 
 /// <summary>
 /// Registry names of the product tools that an integrated agent may see through the local MCP proxy (without the MCP
-/// server prefix), and the provider-native file read tools. Read tools only, plus the proposal tool; MongoDB write
+/// server prefix), and the provider-native file read tools. Reads, mediated proposals and opt-in create-only files; MongoDB write
 /// tools are deliberately absent. The registry lote owns the implementations of the new names.
 /// </summary>
 public static class AgentProductToolNames
@@ -32,6 +32,7 @@ public static class AgentProductToolNames
     public const string GetWorkspaceContext = "get_workspace_context";
 
     /// <summary>Registers an edit proposal for review; never writes to disk.</summary>
+    public const string CreateWorkspaceFile = AgentToolRegistry.CreateWorkspaceFileToolName;
     public const string ProposeFileEdit = "propose_file_edit";
 
     public const string NativeRead = "Read";
@@ -69,6 +70,7 @@ public static class AgentProductToolNames
         ListConnections or ListDatabases or ListCollections or GetIndexes or GetSearchIndexes or GetCachedSchema =>
             AgentConfirmationCategories.MongoMetadataRead,
         GetWorkspaceContext => AgentConfirmationCategories.WorkspaceContextRead,
+        CreateWorkspaceFile => AgentConfirmationCategories.NativeFileWrite,
         ProposeFileEdit => AgentConfirmationCategories.EditProposal,
         NativeRead or NativeGlob or NativeGrep => AgentConfirmationCategories.NativeFileRead,
         NativeBash => AgentConfirmationCategories.NativeCommand,

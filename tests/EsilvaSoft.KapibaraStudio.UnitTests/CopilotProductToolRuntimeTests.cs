@@ -141,6 +141,7 @@ public sealed class CopilotProductToolRuntimeTests
     [TestCase(false, "failure", 1, "ConfirmationUnavailable", "Failed")]
     [TestCase(false, "failure", 1, "ExecutionFailed", "Failed")]
     [TestCase(false, "denied", 1, "ToolCallLimitExceeded", "Denied")]
+    [TestCase(false, "failure", 1, "FileCreatedAuditIncomplete", "OutcomeUnknown")]
     public async Task ProductToolResultPassesThroughRuntimeBindingAndRegistry(
         bool denyBinding, string expectedResultType, int expectedInvocations, string? registryErrorCode,
         string expectedStatus)

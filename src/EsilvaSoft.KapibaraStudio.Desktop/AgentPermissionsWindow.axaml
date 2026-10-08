@@ -30,6 +30,9 @@
             <TextBlock Text="{local:Loc Key=agentPermissionsNativeWriteUnavailable}" Classes="metadata" TextWrapping="Wrap" IsVisible="{Binding ShowNativeToolOptions}"/>
             <TextBlock Text="{local:Loc Key=agentPermissionsExclusions}" Classes="metadata" TextWrapping="Wrap" IsVisible="{Binding ShowNativeToolOptions}"/>
             <CheckBox Content="{local:Loc Key=agentPermissionsEditActive}" IsChecked="{Binding EditActiveFile}"/>
+            <CheckBox IsChecked="{Binding NativeFileWrite}" IsVisible="{Binding ShowFileCreation}" AutomationProperties.Name="{local:Loc Key=agentPermissionsCreateFile}">
+              <TextBlock Text="{local:Loc Key=agentPermissionsCreateFile}" TextWrapping="Wrap"/>
+            </CheckBox>
             <CheckBox Content="{local:Loc Key=agentPermissionsEditOther}" IsChecked="{Binding EditOtherFiles}"/>
           </StackPanel>
         </Border>

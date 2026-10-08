@@ -32,6 +32,7 @@ internal sealed class CopilotProductToolTestRig : AgentSessionToolDoubles, IDisp
                 MetadataCache = new FakeMetadataCache(), LearnedSchemas = new FakeLearned(),
                 WorkspaceContext = new FakeWorkspace { Context = new AgentWorkspaceContext(DateTimeOffset.UtcNow, WorkspaceFolder) },
                 NativeChatTurnScopes = NativeChatScopes, ProposalSink = new FakeSink(), ConfirmationPrompt = Confirmation,
+                FileCreator = new EsilvaSoft.KapibaraStudio.SystemAdapters.LocalAgentWorkspaceFileCreator(),
                 PathProbe = new EsilvaSoft.KapibaraStudio.SystemAdapters.LocalAgentWorkspacePathProbe()
             });
     }

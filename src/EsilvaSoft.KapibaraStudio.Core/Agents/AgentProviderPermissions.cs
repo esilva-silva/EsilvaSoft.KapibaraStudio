@@ -110,7 +110,7 @@ public sealed record AgentProviderPermissions
     /// <summary>Native shell/command tool; every call requires individual approval by default.</summary>
     public bool NativeCommandExecution { get; init; }
 
-    /// <summary>Native file edit/write tools; every call requires individual approval by default.</summary>
+    /// <summary>Allows product creation of new workspace files; every call requires individual approval. Native Edit/Write remain unavailable.</summary>
     public bool NativeFileWrite { get; init; }
 
     /// <summary>Native network tools; every call requires individual approval by default.</summary>

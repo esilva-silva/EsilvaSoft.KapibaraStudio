@@ -337,10 +337,11 @@ public sealed partial class AgentRuntime
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(turn.Token);
         // A write waits for a human. With the bridge, the approval re-arms this deadline around the wait (window + stop
         // grace) and again for execution, so before the approval starts only the intent + preflight budget applies
-        // (ToolTimeout): the whole call stays within AgentRuntimeOptions.MaxToolCallDuration. Without the bridge the
+        // (ToolTimeout): the whole call stays within AgentRuntimeOptions.MaxToolCallDuration. Workspace file creation
+        // uses the inline confirmation path, so it keeps the combined approval/execution budget even with this bridge. Without the bridge the
         // approval is not announced here, so the combined budget of contract 03 (approval window + execution) covers
         // it. Every phase stays bounded, and by the turn token.
-        deadline.CancelAfter(!tool.IsWrite || _writeApprovalsBridged
+        deadline.CancelAfter(!tool.IsWrite || _writeApprovalsBridged && tool.DescriptorName != AgentToolRegistry.CreateWorkspaceFileToolName
             ? _options.ToolTimeout
             : _options.ToolTimeout + _options.ApprovalTimeout);
         try
@@ -399,7 +400,7 @@ public sealed partial class AgentRuntime
         {
             // Once dispatched, a cancelled call may still have run: report OutcomeUnknown, never a rollback. A write
             // whose human approval was pending or refused could not have been sent (the registry holds no ticket).
-            result = MayHaveBeenSent(started, write)
+            result = MayHaveBeenSent(started, write, tool.DescriptorName == AgentToolRegistry.CreateWorkspaceFileToolName)
                 ? ToolFailure(turn, callId, AgentToolResultStatus.OutcomeUnknown, ToolOutcomeUnknownCode)
                 : turn.Token.IsCancellationRequested
                     ? ToolFailure(turn, callId, AgentToolResultStatus.Cancelled, "ToolCancelled")
@@ -407,7 +408,7 @@ public sealed partial class AgentRuntime
         }
         catch (Exception)
         {
-            result = MayHaveBeenSent(started, write)
+            result = MayHaveBeenSent(started, write, tool.DescriptorName == AgentToolRegistry.CreateWorkspaceFileToolName)
                 ? ToolFailure(turn, callId, AgentToolResultStatus.OutcomeUnknown, ToolOutcomeUnknownCode)
                 : ToolFailure(turn, callId, AgentToolResultStatus.Failed, "ToolDispatchFailed");
         }
@@ -452,10 +453,11 @@ public sealed partial class AgentRuntime
     /// denied (no single-use ticket was issued, so the registry cannot have dispatched it). With the bridge composed, a
     /// write that never reached its approval (<see cref="WriteApprovalPhase.None"/>: intent or preflight still running)
     /// has no ticket either, because the coordinator on the same bridge only issues tickets through this runtime's
-    /// approval. Without the bridge an unseen approval may have produced a ticket, so it stays uncertain.
+    /// approval. Workspace file creation uses another confirmation path, so a started call remains conservative.
+    /// Without the bridge an unseen approval may have produced a ticket, so it stays uncertain.
     /// </summary>
-    private bool MayHaveBeenSent(bool started, WriteCallState? write) =>
-        started && (write is null || write.Phase == WriteApprovalPhase.Granted ||
+    private bool MayHaveBeenSent(bool started, WriteCallState? write, bool workspaceFileCreation) =>
+        started && (workspaceFileCreation || write is null || write.Phase == WriteApprovalPhase.Granted ||
                     (write.Phase == WriteApprovalPhase.None && !_writeApprovalsBridged));
 
     private static WriteCallState? TryEnterWrite(
@@ -566,7 +568,7 @@ public sealed partial class AgentRuntime
                 ToolFailure(turn, callId, AgentToolResultStatus.Denied, code),
             RegistryOutcomeUnknownCode =>
                 ToolFailure(turn, callId, AgentToolResultStatus.OutcomeUnknown, ToolOutcomeUnknownCode),
-            AppliedAuditPendingCode or AppliedOutputWithheldCode =>
+            AppliedAuditPendingCode or AppliedOutputWithheldCode or "FileCreatedAuditIncomplete" =>
                 ToolFailure(turn, callId, AgentToolResultStatus.OutcomeUnknown, code),
             _ => ToolFailure(turn, callId, AgentToolResultStatus.Failed, code),
         };

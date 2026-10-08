@@ -23,6 +23,7 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
     public const string MongoDistinctToolName = "mongo_distinct";
     public const string GetIndexesToolName = "get_indexes";
     public const string GetSearchIndexesToolName = "get_search_indexes";
+    public const string CreateWorkspaceFileToolName = "create_workspace_file";
     public const string GetQueryResultsToolName = "get_query_results";
     public const string GetQueryDiagnosticsToolName = "get_query_diagnostics";
     public const string MongoExplainToolName = "mongo_explain";
@@ -103,6 +104,7 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
          new AgentToolDescriptor(GetWorkspaceContextToolName, 1, AgentToolRisk.ReadOnly, [AgentPermission.ReadMetadata]),
          new AgentToolDescriptor(ProposeFileEditToolName, 1, AgentToolRisk.ReadOnly, [AgentPermission.ReadMetadata]),
          new AgentToolDescriptor(ApproveToolName, 1, AgentToolRisk.ReadOnly, [AgentPermission.ReadMetadata]),
+         new AgentToolDescriptor(CreateWorkspaceFileToolName, 1, AgentToolRisk.Write, [AgentPermission.CreateWorkspaceFiles]),
          new AgentToolDescriptor(GetQueryResultsToolName, 1, AgentToolRisk.ReadOnly, [AgentPermission.ReadDocuments]),
          new AgentToolDescriptor(GetQueryDiagnosticsToolName, 1, AgentToolRisk.ReadOnly, [AgentPermission.ReadDiagnostics, AgentPermission.ReadDocuments]),
          new AgentToolDescriptor(GetSearchIndexesToolName, 1, AgentToolRisk.ReadOnly, [AgentPermission.ReadMetadata])]);
@@ -197,7 +199,7 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
 
     /// <summary>Tools that exist only for the principal of a per-session channel.</summary>
     public static bool IsSessionTool(string? name) =>
-        name is GetCachedSchemaToolName or GetWorkspaceContextToolName or ProposeFileEditToolName or ApproveToolName or GetQueryResultsToolName or GetQueryDiagnosticsToolName;
+        name is CreateWorkspaceFileToolName or GetCachedSchemaToolName or GetWorkspaceContextToolName or ProposeFileEditToolName or ApproveToolName or GetQueryResultsToolName or GetQueryDiagnosticsToolName;
 
     public AgentToolDescriptor? FindDescriptor(string? name) =>
         IsAvailable(name)
@@ -257,7 +259,7 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
     private static bool IsCopilotProductTool(string? name) =>
         name is not null && name != GetCollectionSchemaToolName &&
             (AgentProductToolNames.ReadTools.Contains(name, StringComparer.Ordinal) ||
-            name == ProposeFileEditToolName);
+            name is ProposeFileEditToolName or CreateWorkspaceFileToolName);
 
     private static bool IsCopilotDocumentTool(string? name) =>
         name is GetQueryResultsToolName or GetQueryDiagnosticsToolName;
@@ -275,6 +277,7 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
         GetQueryResultsToolName or GetQueryDiagnosticsToolName => _sessionTools?.WorkspaceContext is not null,
         GetCachedSchemaToolName => _sessionTools?.MetadataCache is not null,
         GetWorkspaceContextToolName => _sessionTools?.WorkspaceContext is not null,
+        CreateWorkspaceFileToolName => _sessionTools is { WorkspaceContext: not null, FileCreator: not null },
         ProposeFileEditToolName => _sessionTools is { WorkspaceContext: not null, ProposalSink: not null },
         // Available with the session scopes alone: a missing confirmation port answers deny; it never hides the tool
         // the CLI was told to call.
@@ -313,6 +316,7 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
             ListDatabasesToolName => ListDatabasesInputSchema,
             ListCollectionsToolName => ListCollectionsInputSchema,
             GetIndexesToolName or GetSearchIndexesToolName => GetIndexesInputSchema,
+            CreateWorkspaceFileToolName => CreateWorkspaceFileInputSchema,
             GetQueryResultsToolName => GetQueryResultsInputSchema,
             GetQueryDiagnosticsToolName => ListConnectionsInputSchema,
             GetCachedSchemaToolName => GetIndexesInputSchema,
@@ -329,6 +333,7 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
             ListDatabasesToolName or ListCollectionsToolName => NamesOutputSchema,
             GetIndexesToolName => GetIndexesOutputSchema,
             GetSearchIndexesToolName => GetSearchIndexesOutputSchema,
+            CreateWorkspaceFileToolName => CreateWorkspaceFileOutputSchema,
             GetQueryResultsToolName => GetQueryResultsOutputSchema,
             GetQueryDiagnosticsToolName => GetQueryDiagnosticsOutputSchema,
             GetCachedSchemaToolName => GetCachedSchemaOutputSchema,
@@ -368,6 +373,9 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
         if (confirmationFailure is not null) return confirmationFailure;
         var missingConfirmation = ConsumeRequiredConfirmation(principal, name, argumentsJson);
         if (missingConfirmation is not null) return missingConfirmation;
+        if (name == CreateWorkspaceFileToolName)
+            return await InvokeCreateWorkspaceFileAuditedAsync(principal!, invocationContext!, destination!,
+                outputDataScope, argumentsJson, cancellationToken).ConfigureAwait(false);
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(_executionTimeout);
         // Only a trusted principal and a complete invocation can identify an auditable operation.

@@ -1,5 +1,9 @@
 # Roadmap de evolução do Kapibara Studio
 
+**Fase 5 — homologação manual em 07/10/2026:** testes funcionais das tools vigentes (metadados, saídas capturadas, proposta e criação de arquivos) e conexão MongoDB homologados por aceite explícito do usuário. [Registro, catálogo e alcance](phases/phase-05-v0.9.0/meta-permissoes-tools-copilot.md#homologação-manual-do-usuário--07102026). Cenários técnicos específicos, acessibilidade, Linux e release mantêm seus gates próprios.
+
+**Criação de arquivos por agentes — 07/10/2026 (ADR-067):** `create_workspace_file` grava conteúdo UTF-8 em arquivo novo da workspace, sem sobrescrita, com opt-in de escrita e confirmação pontual obrigatória. Editar arquivos existentes continua usando propostas; consultas diretas/escritas MongoDB permanecem removidas. [Contrato, uso e validação](architecture/workspace-file-creation.md).
+
 **Tools seguras — 07/10/2026 (política vigente; ADR-066):** O escopo de tools da infraestrutura compartilhada/Fase 5 passa a metadados e resultados/diagnósticos já executados pelo usuário. A liberação de consultas diretas e escrita não é mais meta. Validar negação dos nomes antigos, captura por turno, ausência de execução, consentimentos, revogação, recuperação e índices Atlas Search; os gates reais/nativos permanecem separados. [Contratos, compatibilidade e validação](architecture/agent-tool-safety.md).
 
 **F5-COP-PERM concluída — 06/10/2026:** correção de acesso às ferramentas e conexões aceita após confirmação do usuário de que seus testes manuais no client passaram. [Registro](phases/phase-05-v0.9.0/meta-permissoes-tools-copilot.md#aceite-manual-do-usuário--06102026). Este encerramento é do caso de acesso; não conclui a Fase 5 inteira nem altera a prioridade das demais fases.

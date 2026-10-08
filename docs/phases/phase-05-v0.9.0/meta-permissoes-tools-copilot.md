@@ -1,8 +1,10 @@
 # Meta F5-COP-PERM — corrigir acesso às tools do GitHub Copilot
 
+**Criação de arquivos por agentes — 07/10/2026 (ADR-067):** `create_workspace_file` grava conteúdo UTF-8 em arquivo novo da workspace, sem sobrescrita, com opt-in de escrita e confirmação pontual obrigatória. Editar arquivos existentes continua usando propostas; consultas diretas/escritas MongoDB permanecem removidas. [Contrato, uso e validação](../../architecture/workspace-file-creation.md).
+
 **Tools seguras — 07/10/2026 (política vigente; ADR-066):** A lista de permissões não permite consultar documentos nem escrever no MongoDB. `get_query_results`/`get_query_diagnostics` têm seleção individual e usam o consentimento existente de envio de valores, agora rotulado como resultados, erros e logs já executados. Permissões antigas não reativam tools removidas nem selecionam automaticamente as substitutas. O aceite de 06/10 sobre acesso às tools antigas permanece histórico. [Contratos, compatibilidade e validação](../../architecture/agent-tool-safety.md).
 
-**Registro:** 05/10/2026; retomada e encerramento em 06/10/2026. **Estado:** concluída para o problema de acesso às tools e conexões. Correções e validação automática registradas; o usuário confirmou que realizou os testes manuais no client e que as ferramentas e conexões passaram. Essa confirmação substitui as pendências dos retornos anteriores. [Aceite manual](#aceite-manual-do-usuário--06102026). Esta conclusão não encerra os demais gates da Fase 5.
+**Registro:** 05/10/2026; retomada e encerramento em 06/10/2026; catálogo vigente e conexão MongoDB homologados pelo usuário em 07/10/2026. [Aceite atualizado](#homologação-manual-do-usuário--07102026). **Estado:** concluída para o problema de acesso às tools e conexões. Correções e validação automática registradas; o usuário confirmou que realizou os testes manuais no client e que as ferramentas e conexões passaram. Essa confirmação substitui as pendências dos retornos anteriores. [Aceite manual](#aceite-manual-do-usuário--06102026). Esta conclusão não encerra os demais gates da Fase 5.
 
 **Vínculo:** Fase 5 / v0.9.0, P7-COP-04/05/06/07 e [meta de implementação](meta-de-implementacao.md), especialmente autorização, contexto do turno, confirmação e propostas. Esta meta não encerra os aceites existentes nem altera a prioridade da Fase 8.
 
@@ -38,9 +40,9 @@ A inspeção inicial do código confirma caminhos distintos: `NativeChatTurnPoli
 | F5-COP-PERM-05 | Diagnóstico correto no cartão | Distinguir permissão persistente ausente, contexto inválido, conexão não autorizada/obsoleta, confirmação recusada/expirada, falha da fonte e falha de auditoria. Aproveitar motivos tipados existentes, com orientação sanitizada e localizada. `Permissões…` deve ser útil para a causa; não oferecer essa ação como solução para toda falha. |
 | F5-COP-PERM-06 | Coerência de workspace/proposta | Revisar captura do workspace e chips, `AgentToolRegistry.ProposeFileEdit`, `AgentWorkspacePaths`, store/applier e descrição/schema enviado ao modelo. Reproduzir a divergência entre pasta exibida e snapshot do turno. Buffer ativo autorizado usa `target=active_buffer`; arquivo existente autorizado usa caminho dentro da raiz. Arquivo inexistente mantém recusa explicável; a tool atual não cria arquivos. Tornar explícito esse limite para evitar tentativas de criação e diagnóstico falso de editor indisponível. |
 
-A criação de arquivos novos não faz parte desta correção. Se o diagnóstico exigir mudar contratos públicos, permissões, migração ou semântica de revogação, registrar a decisão e seu aceite antes de incorporar a alteração. Correções de carregamento/persistência devem usar o proprietário LiteDB registrado em DI, com migração aditiva/versionada quando necessária.
+**Escopo original de 05/10/2026:** a criação de arquivos novos não fazia parte desta correção. O pedido posterior de 07/10/2026 foi implementado separadamente pelo ADR-067 em `create_workspace_file`. Se o diagnóstico exigir mudar contratos públicos, permissões, migração ou semântica de revogação, registrar a decisão e seu aceite antes de incorporar a alteração. Correções de carregamento/persistência devem usar o proprietário LiteDB registrado em DI, com migração aditiva/versionada quando necessária.
 
-## Matriz de regressão e aceite
+## Matriz de regressão e aceite da correção original — histórico de 05/10/2026
 
 | Cenário | Evidência exigida |
 | --- | --- |
@@ -168,3 +170,31 @@ O usuário confirmou: **as ferramentas funcionaram e os testes manuais de ferram
 - [x] Resultado manual registrado separadamente dos testes automáticos, com encerramento desta meta de correção de acesso.
 
 O usuário não forneceu inventário por chamada, versões de CLI/SDK, parâmetros ou uma nova matriz por sistema operacional; esses detalhes não foram inventados. A confirmação não acrescenta prova manual específica de cada valor da cota configurável, leitor de tela, teclado, Linux, outras integrações ou dos demais gates da Fase 5. A cobertura automática do campo de cota permanece registrada na seção anterior. Esta atualização altera somente a documentação; não executa novamente as ferramentas nem os testes do produto.
+
+## Homologação manual do usuário — 07/10/2026
+
+**Estado: homologado por aceite explícito do usuário nesta conversa.** O usuário solicitou: “pode atualisar a fase 5 coim todas essas alteraçoes, alem disso pode marcar como homologado os testes dos tools e com a conexão do mongo db.” O registro abrange o catálogo vigente após ADR-066/067 e a conexão MongoDB utilizada na aplicação. É aceite manual declarado pelo usuário; os testes automatizados anteriores conservam seus resultados e limites próprios.
+
+| Escopo vigente | Estado | Referência |
+| --- | --- | --- |
+| Descoberta e metadados: `list_connections`, `list_databases`, `list_collections`, `get_indexes`, `get_search_indexes` | Homologado pelo usuário | TOOL-01..04/15; metadados de índices comuns e Atlas Search/vectorSearch, sem busca de documentos. |
+| Cache/contexto: `get_cached_schema`, `get_workspace_context` | Homologado pelo usuário | TOOL-05/06; cache existente e contexto capturado, sem amostragem nova. |
+| Saídas executadas: `get_query_results`, `get_query_diagnostics` | Homologado pelo usuário | TOOL-16/17; documentos EJSON, status, códigos de erro e logs da execução concluída na aba de origem. |
+| Arquivos: `propose_file_edit`, `create_workspace_file` | Homologado pelo usuário | TOOL-14/18; proposta para arquivo existente e criação UTF-8 sem sobrescrita, com opt-in e confirmação por chamada. |
+| Conexão MongoDB na aplicação | Homologado pelo usuário | Aceite funcional da conexão e das tools autorizadas que consultam metadados. |
+
+- [x] Testes funcionais das tools vigentes homologados por aceite do usuário em 07/10/2026.
+- [x] Conexão MongoDB homologada por aceite do usuário em 07/10/2026.
+- [x] Fase 5 consolidada com remoção de consultas/escritas diretas, resultados/diagnósticos capturados e criação de arquivos na workspace.
+
+Não foram informados versão do executável/CLI/servidor, topologia MongoDB/Atlas, parâmetros por chamada ou novos logs. O aceite foi registrado sem atribuir essas informações ou uma execução real a este agente. O aceite genérico das tools não comprova todas as topologias Atlas nem a matriz técnica V1–V9 integral. Negação/revogação/expiração, falhas de auditoria, concorrência/recuperação no runtime oficial, aplicação/Undo/conflitos específicos, teclado/leitor de tela, Linux, release e revisão de termos/licenças mantêm suas evidências e pendências próprias. A intermitência de cleanup LiteDB também permanece aberta.
+
+### Alterações consolidadas nesta homologação
+
+- ADR-066 retirou os 13 nomes de consulta direta/amostragem/escrita: `mongo_find`, `mongo_count`, `sample_documents`, `mongo_find_one`, `get_document`, `mongo_distinct`, `mongo_explain`, `get_collection_schema`, `insert_one`, `update_one`, `delete_one`, `create_index` e `drop_index`. Não há descriptor/schema/handler nem fonte direta composta em DI; permissões e identificadores legados não os reativam.
+- `get_search_indexes` consulta somente metadados de índices Atlas Search/vectorSearch. `get_cached_schema` consulta o cache existente. `get_query_results`/`get_query_diagnostics` leem a saída concluída capturada da aba; não executam uma consulta. Consentimento de valores, seleção individual, conexão/geração e grants continuam obrigatórios. Resultados e credenciais não são persistidos nos snapshots nem no conteúdo da auditoria.
+- O erro `EditNotApplicable` visto na captura de `propose_file_edit` indica que a alteração proposta não pôde ser aplicada à base (trecho ausente/ambíguo, sem mudança ou linha redigida). A captura não contém argumentos suficientes para escolher a causa. A proposta continua exigindo base existente; criação usa a tool separada.
+- ADR-067 adicionou `create_workspace_file` com `path` relativo e `content`. Exige pasta pai existente, respeita raiz/exclusões/links e autorização capturada, grava UTF-8 sem BOM e recusa sobrescrita. O opt-in existente `NativeFileWrite` inicia desligado; a confirmação pontual é obrigatória inclusive no modo Automático. Edit/Write nativos continuam desabilitados. `FileCreatedAuditIncomplete` informa arquivo criado com auditoria final incompleta, sem replay.
+- O catálogo Copilot contém até **11 tools** (9 leituras, proposta e criação), conforme modo/permissões; o registry compartilhado contém **12 descriptors**, incluindo `approve`, que não é exposta ao modelo Copilot. Cota de chamadas permanece configurável: padrão 100, vazio sem limite de quantidade, capturada por turno.
+
+Contratos: [tools seguras](../../architecture/agent-tool-safety.md), [criação de arquivos](../../architecture/workspace-file-creation.md), [catálogo e matriz da Fase 5](meta-de-implementacao.md). Restore/build, testes dirigidos, I/O real e inspeção dos PNGs estão registrados nesses documentos; esta consolidação documental não executa novas suites ou serviços reais.

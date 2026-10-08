@@ -23,16 +23,18 @@ public sealed class CopilotRegistryRoundtripTests
     private static readonly string[] ConfirmedTools = ["get_query_results", "get_query_diagnostics"];
     private static readonly string[] MetadataCalls = ["list_databases", "list_collections"];
 
-    [TestCase(false, TestName = "SixPlannedToolsDispatchThroughRealRegistryAndReturnToTheirOwnNativeRequestIds")]
-    [TestCase(true, TestName = "TenPlannedToolsDispatchThroughRealRegistryAndReturnToTheirOwnNativeRequestIds")]
-    public async Task PlannedToolsDispatchThroughRealRegistryAndReturnToTheirOwnNativeRequestIds(bool includeDerivedReads)
+    [TestCase(false, false, TestName = "SixPlannedToolsDispatchThroughRealRegistryAndReturnToTheirOwnNativeRequestIds")]
+    [TestCase(true, false, TestName = "TenPlannedToolsDispatchThroughRealRegistryAndReturnToTheirOwnNativeRequestIds")]
+    [TestCase(false, true, TestName = "NewWorkspaceFileIsCreatedThroughSdkRuntimeRegistryAndOneShotConfirmation")]
+    public async Task PlannedToolsDispatchThroughRealRegistryAndReturnToTheirOwnNativeRequestIds(bool includeDerivedReads, bool includeCreation)
     {
         var sources = new SyntheticReads();
         using var rig = includeDerivedReads
             ? new CopilotProductToolTestRig(sources)
             : new CopilotProductToolTestRig();
         sources.Rig = rig;
-        var tools = includeDerivedReads ? ToolNames.Concat(DerivedToolNames).ToArray() : ToolNames;
+        var tools = (includeDerivedReads ? ToolNames.Concat(DerivedToolNames) : ToolNames.AsEnumerable())
+            .Concat(includeCreation ? [AgentToolRegistry.CreateWorkspaceFileToolName] : []).ToArray();
         const string original = "db.items.find({}).limit(10);";
         const string proposed = "db.items.find({}).limit(5);";
         var calls = tools.Select(name => new
@@ -44,6 +46,7 @@ public sealed class CopilotRegistryRoundtripTests
                 "list_databases" => new { connectionId = rig.Profile.Id },
                 "list_collections" => new { connectionId = rig.Profile.Id, database = "app" },
                 "get_query_results" or "get_query_diagnostics" => new { } as object,
+                "create_workspace_file" => new { path = "created.json", content = "{\"valor\":42}" },
                 "propose_file_edit" => new { target = "active_buffer", new_content = proposed },
                 _ => new { connectionId = rig.Profile.Id, database = "app", collection = "items" },
             },
@@ -57,27 +60,28 @@ public sealed class CopilotRegistryRoundtripTests
         await using var runtime = new AgentRuntime([provider],
             options: AgentRuntimeOptions.Default with { MaxConcurrentToolsPerSession = 1, MaxConcurrentToolsGlobal = 1 },
             toolRegistry: tracking, toolBindings: new Binding(principal),
-            principalAuthority: new TestAgentPrincipalAuthority(), nativeChatTurnScopes: rig.NativeChatScopes);
+            principalAuthority: new TestAgentPrincipalAuthority(), nativeChatTurnScopes: rig.NativeChatScopes,
+            writeApprovalBridge: includeCreation ? new AgentRuntimeWriteApprovalBridge() : null);
         var sessionId = await runtime.StartSessionAsync(new(provider.ProviderId, "fake-model", rig.WorkspaceFolder), CancellationToken.None);
         var turnId = AgentTurnId.New();
         var sessionKey = Guid.ParseExact(sessionId.Value, "N");
         var turnKey = Guid.ParseExact(turnId.Value, "N");
         var destination = AgentOutputDestination.ProviderExternal(provider.ProviderId);
-        rig.Policies.Set(principal.Id, 1, tools.SelectMany(name =>
+        rig.Policies.Set(principal.Id, 1, tools.Where(name => name != AgentToolRegistry.CreateWorkspaceFileToolName).SelectMany(name =>
             rig.Registry.FindDescriptor(name)!.RequiredPermissions.Select(permission => new AgentPermissionGrant(principal.Id,
                 AgentInvocationScope.ForTurn(sessionKey, turnKey), rig.Profile.SourceGenerationId!.Value, permission,
                 AgentNamespaceScope.ForConnection(rig.Profile.Id), destination, AgentToolOutputScopes.For(name)!.Value)))
             .DistinctBy(grant => (grant.Permission, grant.OutputDataScope)));
         var permissions = AgentProviderPermissions.Default(provider.ProviderId) with
         {
-            ExternalDestinationConsentAt = DateTimeOffset.UtcNow,
+            ExternalDestinationConsentAt = DateTimeOffset.UtcNow, NativeFileWrite = includeCreation,
             EnabledReadTools = tools.Where(name => name != "propose_file_edit").ToArray(),
             ConnectionScope = AgentConnectionScope.Selected, SelectedConnectionIds = [rig.Profile.Id],
             DataSending = new AgentDataSendingPermissions
                 { TabMetadata = true, ActiveFile = true, InferredSchema = true, MongoDocuments = includeDerivedReads },
             ConfirmationCategories = includeDerivedReads ? AgentConfirmationCategories.MongoDocumentRead : AgentConfirmationCategories.None,
         };
-        var plan = AgentModePolicy.Plan(AgentOperationMode.Agent, permissions, new(false, true, false));
+        var plan = AgentModePolicy.Plan(AgentOperationMode.Agent, permissions, new(includeCreation, true, false));
         Assert.That(plan.ProductTools, Is.EquivalentTo(tools));
         var request = new AgentTurnRequest(turnId, "Execute only the planned synthetic product calls.", "origin-tab", 7)
         {
@@ -133,7 +137,9 @@ public sealed class CopilotRegistryRoundtripTests
                 using var dispatchedArguments = JsonDocument.Parse(tracking.Arguments[call.toolName]);
                 Assert.That(JsonElement.DeepEquals(dispatchedArguments.RootElement, sentArguments.RootElement), Is.True, call.toolName);
                 Assert.That(rig.Audit.Events.Count(entry => entry.ToolName == call.toolName && entry.Outcome == AgentAuditOutcome.Succeeded &&
-                    entry.ApprovalState == AgentAuditApprovalState.NotRequired), Is.EqualTo(1));
+                    (call.toolName == AgentToolRegistry.CreateWorkspaceFileToolName
+                        ? entry.Permission == AgentPermission.CreateWorkspaceFiles
+                        : entry.ApprovalState == AgentAuditApprovalState.NotRequired)), Is.EqualTo(1));
             });
         }
         Assert.Multiple(() =>
@@ -146,6 +152,12 @@ public sealed class CopilotRegistryRoundtripTests
             Assert.That(tracking.Results["propose_file_edit"].StructuredContentJson, Does.Contain("registered"));
             Assert.That(JsonSerializer.Serialize(rig.Audit.Events), Does.Not.Contain(original).And.Not.Contain("synthetic.invalid"));
         });
+        if (includeCreation)
+        {
+            Assert.That(File.ReadAllText(Path.Combine(rig.WorkspaceFolder, "created.json")), Is.EqualTo("{\"valor\":42}"));
+            Assert.That(rig.Confirmation.Requests.Single().Category, Is.EqualTo(AgentConfirmationCategories.NativeFileWrite));
+            foreach (var entry in rig.Audit.Events) Assert.That(() => entry.Validate(), Throws.Nothing);
+        }
         if (includeDerivedReads)
         {
             Assert.Multiple(() =>

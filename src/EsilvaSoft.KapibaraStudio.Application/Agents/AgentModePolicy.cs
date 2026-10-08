@@ -113,6 +113,12 @@ public static class AgentModePolicy
             }
         }
 
+        if (facts.ProductToolsAvailable && facts.HasWorkspaceFolder && mode != AgentOperationMode.Planning &&
+            permissions.NativeFileWrite && permissions.Workspace.UseFilesFolder &&
+            permissions.Workspace.EffectiveExclusions.All(AgentWorkspaceExclusions.IsValidPattern) &&
+            permissions.ProviderId is AgentProviderIds.GitHubCopilotSubscription or AgentProviderIds.ClaudeCodeSubscription)
+            product.Add(AgentProductToolNames.CreateWorkspaceFile);
+
         var handling = !product.Contains(AgentProductToolNames.ProposeFileEdit)
             ? AgentProposalHandling.Disabled
             : mode == AgentOperationMode.Automatic
