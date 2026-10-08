@@ -1,5 +1,7 @@
 # Roadmap de evolução do Kapibara Studio
 
+**Agentes em Release — 08/10/2026:** por decisão do usuário, o Desktop compilado em Release oferece somente GitHub Copilot no painel Agente IA e em Configurar agentes. O catálogo e o runtime recebem apenas esse provider; handlers de conta Codex e slots de API Key também ficam fora dessa composição. Debug conserva IA local, OpenAI API, Codex e Claude Code conforme os gates existentes. Autocomplete e infraestrutura de IA local permanecem independentes; a prioridade da Fase 8 e o backlog das demais integrações não mudam. Registros anteriores de disponibilidade são históricos para Release. Evidências e limites: [release-copilot](architecture/release-copilot.md).
+
 **Meta F5-CLOSE — 07/10/2026:** [plano residual da Fase 5](phases/phase-05-v0.9.0/meta-de-encerramento.md), com lotes, dependências, orquestração Luna/Sol 6.1 e critérios distintos para encerramento automatizável e integração completa Windows. Preserva prioridade da Fase 8 e aceite funcional vigente; nenhuma implementação iniciada nesta revisão.
 
 **Fase 5 — homologação manual em 07/10/2026:** testes funcionais das tools vigentes (metadados, saídas capturadas, proposta e criação de arquivos) e conexão MongoDB homologados por aceite explícito do usuário. [Registro, catálogo e alcance](phases/phase-05-v0.9.0/meta-permissoes-tools-copilot.md#homologação-manual-do-usuário--07102026). Cenários técnicos específicos, acessibilidade, Linux e release mantêm seus gates próprios.

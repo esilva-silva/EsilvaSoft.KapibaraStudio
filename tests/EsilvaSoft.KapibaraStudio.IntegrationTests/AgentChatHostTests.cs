@@ -1,6 +1,9 @@
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using Avalonia.Headless;
+using Avalonia.Controls;
+using Avalonia.Styling;
+using Avalonia.Threading;
 using EsilvaSoft.KapibaraStudio.Application;
 using EsilvaSoft.KapibaraStudio.Application.Agents;
 using EsilvaSoft.KapibaraStudio.Core;
@@ -50,6 +53,9 @@ public sealed class AgentChatHostTests
             services.AddKapibaraStudioInfrastructure(workspace.Path);
             services.AddKapibaraStudioLocalAiInfrastructure();
             services.AddSingleton<ISecretStore>(vault);
+            // With Copilot as the sole Release option, refresh checks its selected account automatically.
+            // Keep this composition test independent of the developer's installed CLI and account.
+            services.AddSingleton<ICopilotAccountCommands>(new MissingCopilotAccountCommands());
             App.AddDesktopAgentServices(services, new LocalWorkspacePaths(workspace.Path));
             // Debug substitutes an in-memory Claude adapter; Release must not compose this integration at all.
             if (App.IsClaudeCodeIntegrationEnabled)
@@ -110,11 +116,25 @@ public sealed class AgentChatHostTests
                         AgentToolRegistry.ProposeFileEditToolName, AgentToolRegistry.ApproveToolName }));
                 var expectedProviders = new List<string>
                 {
+#if DEBUG
                     LocalAgentProvider.Id, OpenAiAgentProvider.Id, CodexSubscriptionAgentProvider.Id,
+#endif
                     CopilotSubscriptionAgentProvider.Id,
                 };
                 if (App.IsClaudeCodeIntegrationEnabled) expectedProviders.Add(ClaudeCodeAgentProvider.Id);
                 Assert.That(chat.Providers.Select(option => option.ProviderId), Is.EquivalentTo(expectedProviders));
+                Assert.That(chat.CreateSettingsViewModel().Providers.Select(option => option.ProviderId),
+                    Is.EquivalentTo(expectedProviders));
+                Assert.That(provider.GetRequiredService<AgentProviderCatalog>().List().Select(entry => entry.Descriptor.ProviderId),
+                    Is.EquivalentTo(expectedProviders));
+                Assert.That(provider.GetServices<IAgentProvider>().Select(agent => agent.ProviderId),
+                    Is.EquivalentTo(expectedProviders));
+#if !DEBUG
+                Assert.That(provider.GetServices<IAgentAccountHandler>().Select(handler => handler.GetType()),
+                    Is.EqualTo(new[] { typeof(App.CopilotAccountHandler) }));
+                Assert.That(provider.GetServices<IAgentCliAccountPresentationHandler>().Select(handler => handler.GetType()),
+                    Is.EqualTo(new[] { typeof(App.CopilotAccountHandler) }));
+#endif
                 Assert.That(chat.Providers.Select(option => option.ProviderId), Does.Not.Contain("claude"),
                     "O painel Claude não expõe mais o transporte HTTP direto.");
                 Assert.That(chat.Providers.All(option => option.IsNotChecked), Is.True, "Listing is cache-only before a check.");
@@ -122,13 +142,38 @@ public sealed class AgentChatHostTests
                 Assert.That(AgentSlotReads(), Is.Zero, "Opening the panel lists without reading the vault.");
             });
 
+            // Real controls consume the production catalog in both surfaces, before any account check.
+            foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+            {
+                Avalonia.Application.Current!.RequestedThemeVariant = theme;
+                foreach (var (width, height, scale) in new[] { (320, 620, 2d), (380, 820, 1.5d), (560, 960, 1d) })
+                {
+                    var window = new Window
+                    {
+                        Content = new AgentChatPanel { DataContext = chat }, Width = width, Height = height,
+                    };
+                    window.Show();
+                    window.SetRenderScaling(scale);
+                    Capture(window, $"agent-catalog-chat-{theme}-{width}-{scale}.png");
+                    window.Close();
+                }
+                var settingsWindow = new AgentSettingsWindow { DataContext = chat.CreateSettingsViewModel() };
+                settingsWindow.Show();
+                Capture(settingsWindow, $"agent-catalog-settings-{theme}.png");
+                settingsWindow.Close();
+            }
+
             await chat.RefreshProvidersCommand.ExecuteAsync(null);
+#if DEBUG
             Assert.That(AgentSlotReads(), Is.GreaterThan(0), "The explicit check reads vault presence.");
             var openAi = chat.Providers.Single(option => option.ProviderId == OpenAiAgentProvider.Id);
             Assert.Multiple(() =>
             {
                 Assert.That(openAi.Presentation.AuthState, Is.EqualTo(AgentProviderAuthState.NotConfigured));
             });
+#else
+            Assert.That(AgentSlotReads(), Is.Zero, "Release must not check the hidden providers' credentials.");
+#endif
             if (App.IsClaudeCodeIntegrationEnabled)
             {
                 var claudeCode = chat.Providers.Single(option => option.ProviderId == ClaudeCodeAgentProvider.Id);
@@ -159,6 +204,25 @@ public sealed class AgentChatHostTests
 
             vm.Dispose();
         });
+    }
+
+    private static void Capture(Window window, string fileName)
+    {
+        window.UpdateLayout();
+        Dispatcher.UIThread.RunJobs();
+        var directory = UiEvidenceDirectory.Current();
+        Directory.CreateDirectory(directory);
+        using var frame = window.CaptureRenderedFrame();
+        Assert.That(frame, Is.Not.Null);
+        frame!.Save(Path.Combine(directory, fileName), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+        TestContext.AddTestAttachment(Path.Combine(directory, fileName));
+    }
+
+    private sealed class MissingCopilotAccountCommands : ICopilotAccountCommands
+    {
+        public bool IsCliInstalled() => false;
+        public Task<CopilotAccountCommandState> RunVisibleAsync(string action, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("Composition tests must not launch an account command.");
     }
 
     [Test]

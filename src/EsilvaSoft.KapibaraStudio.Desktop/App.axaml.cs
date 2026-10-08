@@ -87,6 +87,7 @@ public partial class App : Avalonia.Application
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(workspacePaths);
         services.TryAddSingleton<IExternalUriLauncher, LocalExternalUriLauncher>();
+#if DEBUG
         services.AddKapibaraStudioOpenAiAgentProvider();
 #if ENABLE_CLAUDE_CODE_PANEL
         // All Claude panel traffic uses the user's own official Claude Code binary (ADR-053). Its built-in
@@ -106,6 +107,11 @@ public partial class App : Avalonia.Application
 #endif
         services.AddKapibaraStudioCodexSubscriptionAgentProvider(new CodexSubscriptionAgentProviderOptions(
             Path.Combine(Path.GetDirectoryName(workspacePaths.GetDatabasePath())!, "codex-subscription")));
+#else
+        // Infrastructure registers the local agent for other hosts. Desktop Release exposes only Copilot,
+        // consistently to the runtime, catalog, settings and availability checks.
+        services.RemoveAll<IAgentProvider>();
+#endif
         // Copilot shares the official CLI account and its explicitly refreshed eligible-model catalog.
         services.AddKapibaraStudioCopilotSubscriptionAgentProvider();
         // Production, provider-neutral view for the chat UI (AC-04/AC-09): built only from the shared
@@ -129,17 +135,23 @@ public partial class App : Avalonia.Application
         services.AddSingleton<ClaudeCodeAccountHandler>();
 #endif
         services.AddSingleton<CopilotAccountHandler>();
+#if DEBUG
         services.AddSingleton<CodexAccountHandler>();
+#endif
 #if ENABLE_CLAUDE_CODE_PANEL
         services.AddSingleton<IAgentAccountHandler>(provider => provider.GetRequiredService<ClaudeCodeAccountHandler>());
 #endif
         services.AddSingleton<IAgentAccountHandler>(provider => provider.GetRequiredService<CopilotAccountHandler>());
+#if DEBUG
         services.AddSingleton<IAgentAccountHandler>(provider => provider.GetRequiredService<CodexAccountHandler>());
+#endif
 #if ENABLE_CLAUDE_CODE_PANEL
         services.AddSingleton<IAgentCliAccountPresentationHandler>(provider => provider.GetRequiredService<ClaudeCodeAccountHandler>());
 #endif
         services.AddSingleton<IAgentCliAccountPresentationHandler>(provider => provider.GetRequiredService<CopilotAccountHandler>());
+#if DEBUG
         services.AddSingleton<IAgentCliAccountPresentationHandler>(provider => provider.GetRequiredService<CodexAccountHandler>());
+#endif
         services.AddSingleton<DesktopAgentAccountManager>();
         services.AddSingleton<IAgentAccountManager>(provider => provider.GetRequiredService<DesktopAgentAccountManager>());
         services.AddSingleton<IAgentCliAccountPresentation>(provider => provider.GetRequiredService<DesktopAgentAccountManager>());
@@ -149,7 +161,9 @@ public partial class App : Avalonia.Application
             provider.GetRequiredService<ISecretStore>(),
             new Dictionary<string, SecretReference>(StringComparer.Ordinal)
             {
+#if DEBUG
                 [OpenAiAgentProvider.Id] = OpenAiAgentProviderOptions.DefaultCredentialReference,
+#endif
             }));
         services.AddSingleton<DesktopAgentWorkspaceContextSource>();
         services.AddSingleton<IAgentWorkspaceContextSource>(provider => provider.GetRequiredService<DesktopAgentWorkspaceContextSource>());
