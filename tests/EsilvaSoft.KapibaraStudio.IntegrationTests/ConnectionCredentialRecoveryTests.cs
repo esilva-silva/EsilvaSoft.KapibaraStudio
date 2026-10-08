@@ -497,7 +497,7 @@ public sealed class ConnectionCredentialRecoveryTests
 
         public void Dispose()
         {
-            if (Directory.Exists(_directory)) Directory.Delete(_directory, true);
+            if (Directory.Exists(_directory)) LiteDbTeardownDiagnostics.DeleteDirectory(_directory);
         }
     }
 }

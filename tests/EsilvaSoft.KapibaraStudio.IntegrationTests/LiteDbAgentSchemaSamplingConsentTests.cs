@@ -736,7 +736,7 @@ public sealed class LiteDbAgentSchemaSamplingConsentTests
         }
         public void Dispose()
         {
-            if (Directory.Exists(_directory)) Directory.Delete(_directory, recursive: true);
+            if (Directory.Exists(_directory)) LiteDbTeardownDiagnostics.DeleteDirectory(_directory);
         }
     }
 }

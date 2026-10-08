@@ -330,9 +330,10 @@ public sealed class LegacyConnectionCredentialMigrationTests
                 throw new InvalidOperationException("A limpeza deve ficar na pasta sintética do teste.");
 
             var started = System.Diagnostics.Stopwatch.GetTimestamp();
+            var failureObserved = false;
             while (Directory.Exists(target))
             {
-                try { Directory.Delete(target, true); return; }
+                try { LiteDbTeardownDiagnostics.DeleteDirectory(target, ref failureObserved); return; }
                 // Only transient Windows sharing/lock violations during artifact cleanup may be retried.
                 // Owners are already disposed; permission errors and persistent locks must still fail the test.
                 catch (IOException ex) when (OperatingSystem.IsWindows() && (ex.HResult & 0xffff) is 32 or 33

@@ -1,5 +1,7 @@
 # Meta da Fase 5 — integração completa GitHub Copilot e ferramentas do KapibaraStudio
 
+**Plano de encerramento — 07/10/2026:** [F5-CLOSE](meta-de-encerramento.md) detalha execução residual, dependências, divisão Luna/Sol 6.1 e Marcos A/B, preservando os requisitos e lotes desta meta. L00 registra a matriz e testes IntegrationTests executados fora do sandbox: migração 8/8, dois casos de teardown 2/2 e suíte integral 1.026 aprovados/0 falhas; a causa histórica do handle temporário continua sem comprovação e os gates restantes permanecem abertos.
+
 **Homologação vigente — 07/10/2026:** testes funcionais das tools e conexão MongoDB **homologados por aceite do usuário**. A [consolidação e o alcance do aceite](meta-permissoes-tools-copilot.md#homologação-manual-do-usuário--07102026) abrangem o catálogo seguro, os resultados/diagnósticos capturados, o diagnóstico de `EditNotApplicable` e `create_workspace_file`. Os registros datados abaixo preservam o histórico; o estado vigente está no registro de homologação vinculado acima.
 
 **Criação de arquivos por agentes — 07/10/2026 (ADR-067):** `create_workspace_file` grava conteúdo UTF-8 em arquivo novo da workspace, sem sobrescrita, com opt-in de escrita e confirmação pontual obrigatória. Editar arquivos existentes continua usando propostas; consultas diretas/escritas MongoDB permanecem removidas. [Contrato, uso e validação](../../architecture/workspace-file-creation.md).

@@ -1,5 +1,7 @@
 # Acompanhamento da implementação
 
+**F5-CLOSE / L00 em andamento — 07/10/2026:** [meta de encerramento](phases/phase-05-v0.9.0/meta-de-encerramento.md) e [matriz GH/TOOL residual](phases/phase-05-v0.9.0/l00-matriz-residual.md) organizam a execução por responsável. Fora do sandbox passaram o foco de migração 8/8, os dois testes de teardown 2/2 e a suíte integral IntegrationTests (1.026 aprovados/0 falhas; TRX registra 76 NotExecuted). O log de diagnóstico mostrou que o sandbox impedia a conexão loopback do testhost. A falha histórica de remoção de `WORKSPACE-LOG.DB.tmp` não se reproduziu nem teve causa LiteDB identificada; nenhum fix aplicado. Aceite funcional das tools/conexão preservado; gates oficiais/nativos seguem explícitos.
+
 **Fase 5 — homologação manual em 07/10/2026:** testes funcionais das tools vigentes (metadados, saídas capturadas, proposta e criação de arquivos) e conexão MongoDB homologados por aceite explícito do usuário. [Registro, catálogo e alcance](phases/phase-05-v0.9.0/meta-permissoes-tools-copilot.md#homologação-manual-do-usuário--07102026). Cenários técnicos específicos, acessibilidade, Linux e release mantêm seus gates próprios.
 
 **Criação de arquivos por agentes — 07/10/2026 (ADR-067):** `create_workspace_file` grava conteúdo UTF-8 em arquivo novo da workspace, sem sobrescrita, com opt-in de escrita e confirmação pontual obrigatória. Editar arquivos existentes continua usando propostas; consultas diretas/escritas MongoDB permanecem removidas. [Contrato, uso e validação](architecture/workspace-file-creation.md).
