@@ -9,7 +9,8 @@ namespace EsilvaSoft.KapibaraStudio.Application.Agents;
 /// the destination comes from the registered provider's <see cref="IAgentProvider.IsLocal"/> declaration, the same
 /// source the runtime uses; the output scope comes from <see cref="AgentToolOutputScopes"/>, the same table the MCP
 /// broker uses. Issuing a principal grants nothing: the registry still requires a grant for this exact principal,
-/// session, destination and scope. For Copilot, only an empty durable policy may anchor transient turn grants.
+/// session, destination and scope. In-process providers use only an empty durable policy as the anchor for transient
+/// turn grants.
 /// Any doubt returns <see langword="null"/>, which denies the call.
 /// </summary>
 public sealed class InternalAgentToolBindingProvider : IAgentToolBindingProvider
@@ -59,7 +60,7 @@ public sealed class InternalAgentToolBindingProvider : IAgentToolBindingProvider
         {
             issued = await _principals.IssueInternalAsync(cancellationToken).ConfigureAwait(false);
             if (issued.Status == AgentPrincipalIssueStatus.PolicyMissing && _policies is not null &&
-                providerId == AgentProviderIds.GitHubCopilotSubscription)
+                IsProductInProcessProvider(providerId))
             {
                 var principalId = await _principals.GetInternalPrincipalIdAsync(cancellationToken).ConfigureAwait(false);
                 var existing = await _policies.LoadAsync(principalId, cancellationToken).ConfigureAwait(false);
@@ -91,7 +92,7 @@ public sealed class InternalAgentToolBindingProvider : IAgentToolBindingProvider
             return null;
         }
 
-        if (_policies is not null && providerId == AgentProviderIds.GitHubCopilotSubscription)
+        if (_policies is not null && IsProductInProcessProvider(providerId))
         {
             AgentAuthorizationPolicySnapshot? policy;
             try
@@ -123,4 +124,7 @@ public sealed class InternalAgentToolBindingProvider : IAgentToolBindingProvider
 
         return new AgentToolBinding(principal, destination, scope);
     }
+
+    private static bool IsProductInProcessProvider(string providerId) =>
+        providerId is AgentProviderIds.GitHubCopilotSubscription or "local";
 }

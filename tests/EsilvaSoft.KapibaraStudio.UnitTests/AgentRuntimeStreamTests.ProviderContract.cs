@@ -14,6 +14,7 @@ public sealed partial class AgentRuntimeStreamTests
 {
     private static readonly string[] UnconfirmedPair = ["ObservedToolUnconfirmed", "ObservedToolUnconfirmed"];
     private static readonly string[] ExpectedPublishedCodes = ["ClaudeCodeNotLoggedIn", "ProviderError", "ProviderError"];
+    private static readonly AgentEventKind[] ExpectedReasoningEvents = [AgentEventKind.ReasoningStarted, AgentEventKind.ReasoningCompleted];
 
     [Test]
     public async Task DeclaredNativeToolObservationsArePublishedWithNameAndStateOnlyUnderRuntimeIds()
@@ -180,6 +181,42 @@ public sealed partial class AgentRuntimeStreamTests
     }
 
     [Test]
+    public async Task CancellationClosesAnOpenReasoningBlockBeforeTheTurnTerminal()
+    {
+        var provider = new ContractProvider(_ => OpenReasoningThenWait());
+        await using var runtime = new AgentRuntime([provider]);
+        var sessionId = await runtime.StartSessionAsync(new("contract"), CancellationToken.None);
+        var turn = AgentTurnId.New();
+        var stream = runtime.RunTurnAsync(sessionId, Request(turn), CancellationToken.None).GetAsyncEnumerator();
+        var events = new List<AgentEvent>();
+        while (await stream.MoveNextAsync())
+        {
+            events.Add(stream.Current);
+            if (stream.Current.Kind == AgentEventKind.ReasoningStarted) break;
+        }
+        Assert.That(events.Last().Kind, Is.EqualTo(AgentEventKind.ReasoningStarted));
+
+        await runtime.CancelTurnAsync(sessionId, turn, CancellationToken.None);
+        while (await stream.MoveNextAsync()) events.Add(stream.Current);
+        await stream.DisposeAsync();
+        var reasoningEvents = events.Where(item => item.Kind is AgentEventKind.ReasoningStarted or AgentEventKind.ReasoningCompleted).ToArray();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(reasoningEvents.Select(item => item.Kind), Is.EqualTo(ExpectedReasoningEvents));
+            Assert.That(reasoningEvents[^1].Outcome, Is.EqualTo(AgentTurnOutcome.Cancelled));
+            Assert.That(events.Last().Outcome, Is.EqualTo(AgentTurnOutcome.Cancelled));
+        });
+
+        static async IAsyncEnumerable<AgentProviderEvent> OpenReasoningThenWait(
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            yield return new(AgentEventKind.ReasoningStarted);
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+        }
+    }
+
+    [Test]
     public async Task ThrowingReportIsConservativeAndConsumerCancellationAlsoHonorsTheReport()
     {
         var throwing = new ContractProvider(Hang, report: _ => throw new InvalidOperationException("SECRET"));
@@ -312,6 +349,8 @@ public sealed partial class AgentRuntimeStreamTests
         Func<AgentTurnId, AgentTurnCancellationReport>? report) : IAgentSession
     {
         private readonly List<AgentTurnId> _reported = [];
+
+        public bool SupportsReasoning => true;
 
         public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 

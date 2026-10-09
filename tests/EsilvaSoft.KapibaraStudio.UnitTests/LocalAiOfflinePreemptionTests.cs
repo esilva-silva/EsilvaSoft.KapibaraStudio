@@ -20,7 +20,7 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests;
 public sealed class LocalAiOfflinePreemptionTests
 {
     private static readonly TimeSpan Wait = TimeSpan.FromSeconds(5);
-    private static readonly AutocompleteSettings Selected = new() { ModelPath = "model" };
+    private static readonly AutocompleteSettings Selected = new() { ModelPath = "models" };
 
     private static AgentTurnRequest Turn(string message = "liste os clientes") => new(AgentTurnId.New(), message, "tab-1", 1);
     private static ModelGenerationRequest Request(LocalModelDefinition model) => new("db.", "", 512, 8);

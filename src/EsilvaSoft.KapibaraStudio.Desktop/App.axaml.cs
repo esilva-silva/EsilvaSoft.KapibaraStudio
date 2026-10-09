@@ -108,9 +108,10 @@ public partial class App : Avalonia.Application
         services.AddKapibaraStudioCodexSubscriptionAgentProvider(new CodexSubscriptionAgentProviderOptions(
             Path.Combine(Path.GetDirectoryName(workspacePaths.GetDatabasePath())!, "codex-subscription")));
 #else
-        // Infrastructure registers the local agent for other hosts. Desktop Release exposes only Copilot,
-        // consistently to the runtime, catalog, settings and availability checks.
+        // Infrastructure registers the local agent for other hosts. Release exposes only the existing local
+        // provider plus Copilot, consistently to the runtime, catalog, settings and availability checks.
         services.RemoveAll<IAgentProvider>();
+        services.AddSingleton<IAgentProvider>(provider => provider.GetRequiredService<LocalAgentProvider>());
 #endif
         // Copilot shares the official CLI account and its explicitly refreshed eligible-model catalog.
         services.AddKapibaraStudioCopilotSubscriptionAgentProvider();
@@ -122,6 +123,7 @@ public partial class App : Avalonia.Application
                 new Dictionary<string, string>(StringComparer.Ordinal)
                 {
                     [OpenAiAgentProvider.Id] = "OpenAI",
+                    [LocalAgentProvider.Id] = "IA local",
 #if ENABLE_CLAUDE_CODE_PANEL
                     [ClaudeCodeAgentProvider.Id] = "Claude",
 #endif

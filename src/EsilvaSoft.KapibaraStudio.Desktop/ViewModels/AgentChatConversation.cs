@@ -44,6 +44,13 @@ public sealed partial class AgentChatConversation : ObservableObject
 
     public bool IsEmpty => Items.Count == 0;
 
+    /// <summary>Sticky taint: once a captured result or diagnostic tool appears, reasoning is never retained.</summary>
+    internal bool HasCapturedDocumentTool => Items.OfType<AgentToolCallItem>().Any(static tool =>
+        tool.ToolName is "get_query_results" or "get_query_diagnostics");
+
+    /// <summary>Refreshed from current provider permissions before each save; prevents stale turns re-adding opt-out text.</summary>
+    internal bool AllowReasoningPersistence { get; set; }
+
     /// <summary>Provider of the conversation. Changing provider on a non-empty conversation starts another one.</summary>
     [ObservableProperty] private string _providerId;
 
@@ -119,6 +126,8 @@ public sealed partial class AgentChatConversation : ObservableObject
     public AgentConversation ToRecord(DateTimeOffset now)
     {
         var entries = new List<AgentConversationEntry>(Items.Count);
+        var hasReasoningNotSavedNotice = Items.OfType<AgentChatNoticeItem>()
+            .Any(static notice => notice.PersistenceKey == AgentChatNoticeItem.ReasoningNotSavedKey);
         foreach (var item in Items)
         {
             switch (item)
@@ -140,13 +149,31 @@ public sealed partial class AgentChatConversation : ObservableObject
                     });
                     break;
                 case AgentChatNoticeItem notice:
-                    entries.Add(new AgentConversationEntry(AgentConversationEntryKind.Notice, notice.Content, notice.Timestamp));
+                    entries.Add(new AgentConversationEntry(AgentConversationEntryKind.Notice, notice.Content, notice.Timestamp)
+                    {
+                        ToolName = notice.PersistenceKey,
+                    });
                     break;
                 case AgentEditProposalCardItem proposal:
                     entries.Add(new AgentConversationEntry(AgentConversationEntryKind.EditProposal, proposal.PersistedSummary, proposal.Timestamp)
                     {
                         ProposalId = proposal.ProposalId,
                     });
+                    break;
+                case AgentReasoningItem reasoning:
+                    if (AllowReasoningPersistence && !reasoning.IsStreaming && reasoning.IsRetentionEligible &&
+                        !HasCapturedDocumentTool && reasoning.RetentionExpiresAtUtc is { } expiresAt && expiresAt > now)
+                    {
+                        entries.Add(new AgentConversationEntry(AgentConversationEntryKind.ReasoningText, reasoning.Content, reasoning.Timestamp)
+                        {
+                            ExpiresAtUtc = expiresAt,
+                        });
+                    }
+                    else if (!reasoning.IsStreaming && !hasReasoningNotSavedNotice)
+                    {
+                        entries.Add(ReasoningNotSavedNotice(reasoning.Timestamp));
+                        hasReasoningNotSavedNotice = true;
+                    }
                     break;
             }
         }
@@ -156,7 +183,8 @@ public sealed partial class AgentChatConversation : ObservableObject
     }
 
     /// <summary>Rebuilds a stored conversation (no session: a new one resumes by <see cref="ProviderSessionId"/>).</summary>
-    public static AgentChatConversation FromRecord(AgentConversation record, Func<Guid, Desktop.Agents.AgentEditProposalEntry?> proposals)
+    public static AgentChatConversation FromRecord(AgentConversation record, Func<Guid, Desktop.Agents.AgentEditProposalEntry?> proposals,
+        DateTimeOffset? now = null)
     {
         ArgumentNullException.ThrowIfNull(record);
         var conversation = new AgentChatConversation(record.Id, record.ProviderId, record.ModelId, record.Mode, record.CreatedAt)
@@ -166,6 +194,8 @@ public sealed partial class AgentChatConversation : ObservableObject
             Revision = record.Revision,
             UpdatedAt = record.UpdatedAt,
         };
+        var instant = now ?? DateTimeOffset.UtcNow;
+        DateTimeOffset? discardedReasoningAt = null;
         foreach (var entry in record.Entries ?? [])
         {
             AgentChatItemViewModel? item = entry.Kind switch
@@ -173,8 +203,12 @@ public sealed partial class AgentChatConversation : ObservableObject
                 AgentConversationEntryKind.UserMessage => new AgentChatMessageItem(AgentChatRole.User, entry.Text, null, entry.Attachments),
                 AgentConversationEntryKind.AssistantMessage => new AgentChatMessageItem(AgentChatRole.Agent, entry.Text),
                 AgentConversationEntryKind.ToolCall => AgentToolCallItem.Restored(entry.ToolName, entry.ToolOutcome),
+                AgentConversationEntryKind.Notice when entry.ToolName == AgentChatNoticeItem.ReasoningNotSavedKey =>
+                    new AgentChatNoticeItem(entry.Text, isWarning: true, persistenceKey: AgentChatNoticeItem.ReasoningNotSavedKey),
                 AgentConversationEntryKind.Notice => new AgentChatNoticeItem(entry.Text, isWarning: true),
                 AgentConversationEntryKind.EditProposal when entry.ProposalId is { } id => RestoreProposal(id, entry.Text, proposals(id)),
+                AgentConversationEntryKind.ReasoningText when entry.ExpiresAtUtc is { } expiresAt && expiresAt > instant =>
+                    AgentReasoningItem.Restore(entry.Text, entry.Timestamp, expiresAt),
                 _ => null,
             };
             if (item is not null)
@@ -182,10 +216,28 @@ public sealed partial class AgentChatConversation : ObservableObject
                 item.Timestamp = entry.Timestamp;
                 conversation.Items.Add(item);
             }
+            else if (entry.Kind == AgentConversationEntryKind.ReasoningText)
+            {
+                discardedReasoningAt ??= entry.Timestamp;
+            }
+        }
+
+        if (discardedReasoningAt is { } discardedAt && !conversation.Items.OfType<AgentChatNoticeItem>()
+                .Any(static notice => notice.PersistenceKey == AgentChatNoticeItem.ReasoningNotSavedKey))
+        {
+            var notice = new AgentChatNoticeItem(Text.Resolve("agentReasoningNotSaved"), isWarning: true,
+                persistenceKey: AgentChatNoticeItem.ReasoningNotSavedKey) { Timestamp = discardedAt };
+            conversation.Items.Add(notice);
         }
 
         return conversation;
     }
+
+    private static AgentConversationEntry ReasoningNotSavedNotice(DateTimeOffset timestamp) =>
+        new(AgentConversationEntryKind.Notice, Text.Resolve("agentReasoningNotSaved"), timestamp)
+        {
+            ToolName = AgentChatNoticeItem.ReasoningNotSavedKey,
+        };
 
     private static AgentEditProposalCardItem RestoreProposal(Guid id, string summary, Desktop.Agents.AgentEditProposalEntry? live)
     {

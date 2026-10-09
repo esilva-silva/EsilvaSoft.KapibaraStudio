@@ -16,6 +16,7 @@ public sealed partial class AgentChatViewModel
 
     private IReadOnlyList<AgentHistoryItemViewModel> _history = [];
     private readonly ConcurrentDictionary<Guid, byte> _erasedConversationIds = new();
+    private Task? _reasoningRetentionCleanupTask;
 
     // ---- Lifecycle. ----
 
@@ -31,6 +32,11 @@ public sealed partial class AgentChatViewModel
         {
             await EnsurePermissionsAsync(provider.ProviderId);
         }
+
+        await EnsurePermissionsAsync(LocalAgentProvider.Id);
+
+        await CleanupExpiredReasoningAsync();
+        _reasoningRetentionCleanupTask = RunReasoningRetentionCleanupAsync();
 
         if (_initialPreferences?.ActiveConversationId is { } conversationId && _services.Conversations is not null)
         {
@@ -79,6 +85,7 @@ public sealed partial class AgentChatViewModel
         SelectedModelId = SelectedModel,
         SelectedMode = SelectedMode.Mode,
         ActiveConversationId = ActiveConversation.Revision > 0 ? ActiveConversation.Id : null,
+        ReasoningByProvider = _reasoningPreferences.Count == 0 ? null : new(_reasoningPreferences, StringComparer.Ordinal),
     };
 
     private AgentChatConversation CreateConversation(string providerId, string? modelId)
@@ -229,6 +236,7 @@ public sealed partial class AgentChatViewModel
         IsHistoryLoading = true;
         try
         {
+            await CleanupExpiredReasoningAsync();
             var result = await repository.ListAsync(null, _lifetime.Token);
             if (!result.Succeeded)
             {
@@ -367,7 +375,8 @@ public sealed partial class AgentChatViewModel
         }
 
         var conversation = AgentChatConversation.FromRecord(result.Value!,
-            proposalId => _services.Proposals is { } store && store.TryGet(proposalId, out var entry) ? entry : null);
+            proposalId => _services.Proposals is { } store && store.TryGet(proposalId, out var entry) ? entry : null,
+            _services.Clock.GetUtcNow());
         foreach (var card in conversation.Items.OfType<AgentEditProposalCardItem>())
         {
             card.ReviewHandler = ReviewProposalAsync;
@@ -690,6 +699,20 @@ public sealed partial class AgentChatViewModel
             return;
         }
 
+        var preference = _reasoningPreferences.GetValueOrDefault(conversation.ProviderId);
+        conversation.AllowReasoningPersistence = string.Equals(conversation.ProviderId, LocalAgentProvider.Id, StringComparison.Ordinal) &&
+            preference?.Persist == true &&
+            _permissions.TryGetValue(conversation.ProviderId, out var permissionSlot) && permissionSlot.Value?.KeepHistory == true;
+        if (conversation.AllowReasoningPersistence && preference is { } reasoningPreference)
+        {
+            foreach (var reasoning in conversation.Items.OfType<AgentReasoningItem>())
+            {
+                if (reasoning.RetentionExpiresAtUtc is { } expiry &&
+                    expiry > MaximumReasoningExpiry(reasoning.Timestamp, reasoningPreference.RetentionDays))
+                    reasoning.RetentionExpiresAtUtc = MaximumReasoningExpiry(reasoning.Timestamp, reasoningPreference.RetentionDays);
+            }
+        }
+
         if (conversation.IsWriteBlocked)
         {
             return;
@@ -820,6 +843,89 @@ public sealed partial class AgentChatViewModel
 
         conversation.ProviderSessionId = providerSessionId;
     }
+
+    private async Task RunReasoningRetentionCleanupAsync()
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromHours(1));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(_lifetime.Token))
+                await CleanupExpiredReasoningAsync();
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+        }
+    }
+
+    private async Task CleanupExpiredReasoningAsync()
+    {
+        if (_services.Conversations is not { } repository || _disposed) return;
+        var preference = _reasoningPreferences.GetValueOrDefault(LocalAgentProvider.Id);
+        try
+        {
+            var permissionKnown = _permissions.TryGetValue(LocalAgentProvider.Id, out var permissionSlot) && permissionSlot.Value is not null;
+            if (!permissionKnown)
+            {
+                // Unknown permission state must fail closed for writes but must not be mistaken for a user opt-out
+                // that deletes already-retained content. Continue expiry-only maintenance using the owner's gate.
+                var prune = await repository.PruneExpiredReasoningAsync(_services.Clock.GetUtcNow(), 30, _lifetime.Token);
+                if (!prune.Succeeded)
+                    SetPersistence(ActiveConversation, Text.Resolve("agentReasoningCleanupFailed"), isError: true);
+                return;
+            }
+
+            var keepHistory = permissionSlot!.Value!.KeepHistory;
+            var enabled = preference?.Persist == true && keepHistory;
+            var retentionDays = preference?.RetentionDays ?? 7;
+            var policyResult = await repository.SetReasoningRetentionPolicyAsync(enabled, retentionDays, _lifetime.Token);
+            if (!policyResult.Succeeded)
+            {
+                SetPersistence(ActiveConversation, Text.Resolve("agentReasoningCleanupFailed"), isError: true);
+                return;
+            }
+            var result = enabled
+                ? await repository.PruneExpiredReasoningAsync(_services.Clock.GetUtcNow(), retentionDays, _lifetime.Token)
+                : await repository.PurgeReasoningAsync(LocalAgentProvider.Id, _lifetime.Token);
+            if (!result.Succeeded)
+            {
+                SetPersistence(ActiveConversation, Text.Resolve("agentReasoningCleanupFailed"), isError: true);
+                return;
+            }
+
+            var now = _services.Clock.GetUtcNow();
+            foreach (var reasoning in _conversations.Values.SelectMany(static conversation => conversation.Items)
+                         .OfType<AgentReasoningItem>()
+                         .Where(item => item.RetentionExpiresAtUtc is { } expiry && expiry <= now).ToArray())
+            {
+                var conversation = _conversations.Values.FirstOrDefault(candidate => candidate.Items.Contains(reasoning));
+                conversation?.Items.Remove(reasoning);
+            }
+            if (!enabled && permissionKnown)
+            {
+                foreach (var conversation in _conversations.Values.Where(item =>
+                             string.Equals(item.ProviderId, LocalAgentProvider.Id, StringComparison.Ordinal)))
+                {
+                    if (conversation.Turn is { } turn)
+                    {
+                        turn.PersistReasoning = false;
+                        foreach (var reasoning in turn.Conversation.Items.OfType<AgentReasoningItem>())
+                            reasoning.IsRetentionEligible = false;
+                    }
+                }
+            }
+            if (ActiveConversation.PersistenceText == Text.Resolve("agentReasoningCleanupFailed"))
+                SetPersistence(ActiveConversation, null, isError: false);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+        }
+        catch (Exception)
+        {
+            SetPersistence(ActiveConversation, Text.Resolve("agentReasoningCleanupFailed"), isError: true);
+        }
+    }
+
+    private Task PurgeRetainedReasoningAsync() => CleanupExpiredReasoningAsync();
 
     private static void ReportVolatileProviderSessionId(AgentChatConversation conversation, string providerSessionId)
     {

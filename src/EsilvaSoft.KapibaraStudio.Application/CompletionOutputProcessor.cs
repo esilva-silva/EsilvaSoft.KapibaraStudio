@@ -19,6 +19,11 @@ namespace EsilvaSoft.KapibaraStudio.Application;
 /// </remarks>
 public static class CompletionOutputProcessor
 {
+    private static readonly string[] AgentMarkers =
+    [
+        "<tool_call>", "</tool_call>", "<tool_response>", "</tool_response>",
+        "<think>", "</think>", "<tools>", "</tools>"
+    ];
     /// <summary>Acima disto a saída não é uma sugestão de editor e é descartada inteira.</summary>
     public const int MaximumCandidateLength = 8192;
 
@@ -31,7 +36,8 @@ public static class CompletionOutputProcessor
     {
         ArgumentNullException.ThrowIfNull(source);
         return CompletionPrivacy.ContainsSensitiveText(source)
-            || source.Contains("<|", StringComparison.Ordinal) || source.Contains("<｜", StringComparison.Ordinal);
+            || source.Contains("<|", StringComparison.Ordinal) || source.Contains("<｜", StringComparison.Ordinal)
+            || AgentMarkers.Any(marker => source.Contains(marker, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>

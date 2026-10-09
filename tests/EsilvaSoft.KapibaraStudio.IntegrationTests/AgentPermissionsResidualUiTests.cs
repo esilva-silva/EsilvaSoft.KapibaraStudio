@@ -295,6 +295,46 @@ public sealed class AgentPermissionsResidualUiTests
     }
 
     [Test]
+    public async Task LocalAgentGetsExistingProductToolPermissionsWithoutExternalDestinationConsent()
+    {
+        var repository = new PermissionsRepository
+        {
+            LoadResult = AgentPersistenceResult.Failure<AgentProviderPermissions>(AgentPersistenceStatus.NotFound),
+        };
+        var vm = new AgentPermissionsViewModel(repository, null, LocalAgentProvider.Id, "IA local", null, [],
+            productToolsAvailable: true, clock: TimeProvider.System);
+
+        await vm.LoadTask;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(vm.ShowMongoDocumentConsent, Is.True);
+            Assert.That(vm.ShowFileCreation, Is.True);
+            Assert.That(vm.ShowNativeToolOptions, Is.False, "Local chat uses the product registry, never native tools.");
+            Assert.That(vm.ShowExternalDestinationConsent, Is.False, "An in-process provider has no external destination to authorize.");
+            Assert.That(vm.ShowToolCallLimit, Is.True);
+            Assert.That(vm.ReadTools.Select(tool => tool.Name), Does.Contain(AgentProductToolNames.GetQueryResults));
+            Assert.That(vm.ReadTools.Select(tool => tool.Name), Does.Contain(AgentProductToolNames.GetQueryDiagnostics));
+            Assert.That(vm.ReadTools.Select(tool => tool.Name), Does.Not.Contain(AgentProductToolNames.GetCollectionSchema));
+            Assert.That(vm.MongoDocuments, Is.False, "Document result transfer stays opt-in even for local inference.");
+            Assert.That(vm.NativeFileWrite, Is.False, "File creation stays opt-in.");
+        });
+
+        vm.MongoDocuments = true;
+        vm.ReadTools.Single(tool => tool.Name == AgentProductToolNames.GetQueryResults).IsEnabled = true;
+        vm.NativeFileWrite = true;
+        await vm.SaveCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(repository.Saved!.ProviderId, Is.EqualTo(LocalAgentProvider.Id));
+            Assert.That(repository.Saved.DataSending.MongoDocuments, Is.True);
+            Assert.That(repository.Saved.EnabledReadTools, Does.Contain(AgentProductToolNames.GetQueryResults));
+            Assert.That(repository.Saved.NativeFileWrite, Is.True);
+        });
+    }
+
+    [Test]
     public async Task NoProviderSeesLiveSchemaSamplingWithoutItsDedicatedConsentFlow()
     {
         foreach (var provider in new[] { AgentProviderIds.GitHubCopilotSubscription, AgentProviderIds.ClaudeCodeSubscription, "other-provider" })

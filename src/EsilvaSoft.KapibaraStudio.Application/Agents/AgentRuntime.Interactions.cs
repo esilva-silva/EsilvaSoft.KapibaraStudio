@@ -265,7 +265,7 @@ public sealed partial class AgentRuntime
             try
             {
                 // Only a registry-known canonical name is ever published; raw model text is not echoed.
-                var descriptor = session.ProviderId == AgentProviderIds.GitHubCopilotSubscription
+                var descriptor = session.ProviderId is AgentProviderIds.GitHubCopilotSubscription or "local"
                     ? _toolRegistry!.FindInProcessDescriptor(session.ProviderId, item.ToolName)
                     : _toolRegistry!.FindDescriptor(item.ToolName);
                 descriptorName = descriptor?.Name;

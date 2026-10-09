@@ -5,12 +5,20 @@ public sealed record ModelGenerationRequest(string Prefix, string Suffix, int Co
     /// <summary>Zero keeps greedy decoding.</summary>
     public double Temperature { get; init; }
 
+    /// <summary>Optional nucleus and candidate limits for model packages that declare sampling defaults.</summary>
+    public double? TopP { get; init; }
+    public int? TopK { get; init; }
+    public int? Seed { get; init; }
+
     /// <summary>
     /// Prompt já tokenizado, no formato do modelo carregado (marcadores FIM inclusos). Quando presente, o runtime o
     /// usa como está e não tokeniza <see cref="Prefix"/>/<see cref="Suffix"/> de novo — quem montou o contexto na
     /// Fase 3 já pagou esse custo. O runtime continua validando se o prompt cabe na janela do modelo.
     /// </summary>
     public IReadOnlyList<int>? PromptTokens { get; init; }
+
+    /// <summary>Chat renderizado pelo adapter enquanto o modelo está sob a mesma operação de geração.</summary>
+    public ModelChatPrompt? ChatPrompt { get; init; }
 
     /// <summary>
     /// Sequências de parada por texto, além dos tokens de parada do próprio modelo. A geração para no primeiro passo

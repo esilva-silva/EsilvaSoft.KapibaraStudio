@@ -13,6 +13,26 @@
         <CheckBox Content="{local:Loc Key=useEditorHistoryContext}" IsChecked="{Binding UseEditorContext}"/>
         <CheckBox Content="{local:Loc Key=acceptPartialTab}" IsChecked="{Binding IncrementalTab}"/>
         <CheckBox Content="{local:Loc Key=useLocalModelAssistant}" IsChecked="{Binding ChatEnabled}"/>
+        <TextBlock Text="{local:Loc Key=localAgentModel}" IsVisible="{Binding ChatEnabled}"/>
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" IsVisible="{Binding ChatEnabled}">
+          <ComboBox ItemsSource="{Binding AgentModels}" SelectedValueBinding="{Binding Reference}" SelectedValue="{Binding ChatModel, Mode=TwoWay}" PlaceholderText="{local:Loc Key=followAutocompleteModel}" HorizontalAlignment="Stretch" AutomationProperties.Name="{local:Loc Key=localAgentModel}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:LocalModelOption">
+                <StackPanel Spacing="1">
+                  <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis"/>
+                  <TextBlock Text="{Binding Subtitle}" Classes="metadata" TextTrimming="CharacterEllipsis" IsVisible="{Binding HasSubtitle}"/>
+                </StackPanel>
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+            <ComboBox.SelectionBoxItemTemplate>
+              <DataTemplate x:DataType="vm:LocalModelOption">
+                <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis"/>
+              </DataTemplate>
+            </ComboBox.SelectionBoxItemTemplate>
+          </ComboBox>
+          <Button Grid.Column="1" Content="{local:Loc Key=useAutocompleteModel}" Command="{Binding UseAutocompleteModelForAgentCommand}"/>
+        </Grid>
+        <TextBlock Text="{local:Loc Key=localAgentModelNote}" Classes="metadata" TextWrapping="Wrap" IsVisible="{Binding ChatEnabled}"/>
 
         <TextBlock Text="{local:Loc Key=inlineSuggestion}" Classes="section-title"/>
         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">

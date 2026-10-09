@@ -9,6 +9,8 @@ namespace EsilvaSoft.KapibaraStudio.LocalAi.Core;
 /// <param name="IsFinal">Verdadeiro apenas no último pedaço, que sempre é emitido e carrega as medições.</param>
 public sealed record GeneratedChunk(string Text, int GeneratedTokens, bool IsFinal)
 {
+    /// <summary>Generated token for this chunk when the runtime exposes it; null on aggregate/final chunks.</summary>
+    public int? TokenId { get; init; }
     /// <summary>Tempo desde o início da geração; preenchido no pedaço final.</summary>
     public TimeSpan Elapsed { get; init; }
 

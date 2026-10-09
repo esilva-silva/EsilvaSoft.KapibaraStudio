@@ -46,6 +46,30 @@ public sealed class LocalModelCatalogIntegrationTests
     }
 
     [Test]
+    public async Task Qwen3AgentMetadataIsAcceptedWithoutFallingBackToFim()
+    {
+        using var models = new SyntheticDirectory();
+        var path = CreateQwen3AgentModel(models.Path, "Qwen3-Agent");
+        var catalog = new LocalModelCatalog(models.Path, fileAccess: new LocalModelFileAccess());
+
+        var valid = await catalog.ValidateAsync(path);
+        var tokenizerPath = Path.Combine(path, "tokenizer.json");
+        await File.WriteAllTextAsync(tokenizerPath, "{\"added_tokens\":[{\"content\":\"<|im_start|>\",\"id\":151644}]}");
+        var invalid = await catalog.ValidateAsync(path);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(valid.Validity, Is.EqualTo(LocalModelValidity.Valid));
+            Assert.That(valid.Model!.PromptFormat, Is.EqualTo(LocalModelPromptFormats.Qwen3ChatMlTools));
+            Assert.That(valid.Model.Capabilities.HasFlag(LocalModelCapabilities.Agent), Is.True);
+            Assert.That(valid.Model.Capabilities.HasFlag(LocalModelCapabilities.Tools), Is.True);
+            Assert.That(valid.Model.Capabilities.HasFlag(LocalModelCapabilities.Fim), Is.False);
+            Assert.That(valid.Model.Metadata!.Agent!.MaxToolCallsPerTurn, Is.EqualTo(4));
+            Assert.That(invalid.Validity, Is.EqualTo(LocalModelValidity.Unsupported));
+        });
+    }
+
+    [Test]
     public async Task ModelExposesContextWindowAndAutocompleteGenerationLimit()
     {
         using var models = new SyntheticDirectory();

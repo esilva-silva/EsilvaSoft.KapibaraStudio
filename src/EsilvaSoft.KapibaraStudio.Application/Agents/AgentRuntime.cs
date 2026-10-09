@@ -134,6 +134,7 @@ public sealed partial class AgentRuntime : IAgentRuntime, IAsyncDisposable
             {
                 ObservableNativeTools = SnapshotObservableTools(providerSession),
                 ProviderErrorCodes = SnapshotProviderErrorCodes(providerSession),
+                SupportsReasoning = providerSession.SupportsReasoning,
             }))
         {
             await providerSession.DisposeAsync().ConfigureAwait(false);

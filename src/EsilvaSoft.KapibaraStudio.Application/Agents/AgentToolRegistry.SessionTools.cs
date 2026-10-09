@@ -41,13 +41,16 @@ public sealed partial class AgentToolRegistry
         if (principal?.Origin == AgentPrincipalOrigin.Internal && context?.SessionId is { } sessionId &&
             context.TurnId is { } turnId && _sessionTools?.NativeChatTurnScopes?.Find(sessionId, turnId) is { } native)
             return !native.Plan.IsBlocked && native.Permissions.IsWellFormed &&
-                native.Permissions.HasExternalDestinationConsent &&
-                native.Permissions.EnabledReadTools?.Contains(name!, StringComparer.Ordinal) == true &&
+                string.Equals(native.Permissions.ProviderId, native.ProviderId, StringComparison.Ordinal) &&
+                IsConsentSatisfied(native.ProviderId, native.Permissions) &&
+                (!AgentProductToolNames.ReadTools.Contains(name!, StringComparer.Ordinal) ||
+                 native.Permissions.EnabledReadTools?.Contains(name!, StringComparer.Ordinal) == true) &&
                 native.Plan.ProductTools.Contains(name!, StringComparer.Ordinal) &&
                 string.Equals(native.ProviderId, context.ProviderId, StringComparison.Ordinal) &&
-                (!IsCopilotDocumentTool(name) ||
-                 string.Equals(native.ProviderId, AgentProviderIds.GitHubCopilotSubscription, StringComparison.Ordinal) &&
-                 native.Permissions.DataSending.MongoDocuments && _copilotExposure.Exposes(name));
+                (!AgentProductToolNames.IsMongoDocumentRead(name!) ||
+                 (native.ProviderId is AgentProviderIds.GitHubCopilotSubscription or "local") &&
+                 native.Permissions.DataSending.MongoDocuments &&
+                 InProcessExposureFor(native.ProviderId)?.Exposes(name!) == true);
         return scope is null || scope.Exposes(name);
     }
 
@@ -104,19 +107,21 @@ public sealed partial class AgentToolRegistry
         // Native chat receives only the explicitly planned session tools from its exact active runtime turn.
         if (name is not (CreateWorkspaceFileToolName or GetWorkspaceContextToolName or GetCachedSchemaToolName or ProposeFileEditToolName or GetQueryResultsToolName or GetQueryDiagnosticsToolName) ||
             principal.Origin != AgentPrincipalOrigin.Internal ||
-            destination.Kind != AgentOutputDestinationKind.ProviderExternal || context!.SessionId is not { } sessionId ||
+            !NativeDestinationMatches(destination, context!.ProviderId!) || context.SessionId is not { } sessionId ||
             context.TurnId is not { } turnId || _sessionTools?.NativeChatTurnScopes?.Find(sessionId, turnId) is not { } native ||
             !string.Equals(native.ProviderId, context.ProviderId, StringComparison.Ordinal) ||
-            !string.Equals(native.ProviderId, destination.ProviderId, StringComparison.Ordinal) ||
+            !NativeDestinationMatches(destination, native.ProviderId) ||
             !native.Plan.ProductTools.Contains(name, StringComparer.Ordinal) || native.Plan.IsBlocked ||
-            !native.Permissions.IsWellFormed || !native.Permissions.HasExternalDestinationConsent ||
+            !native.Permissions.IsWellFormed ||
+            !string.Equals(native.Permissions.ProviderId, native.ProviderId, StringComparison.Ordinal) ||
+            !IsConsentSatisfied(native.ProviderId, native.Permissions) ||
             (name is GetQueryResultsToolName or GetQueryDiagnosticsToolName &&
                 (native.Permissions.DataSending?.MongoDocuments != true || native.Permissions.EnabledReadTools?.Contains(name, StringComparer.Ordinal) != true)) ||
             (name == GetWorkspaceContextToolName && native.Permissions.DataSending?.TabMetadata != true) ||
             (name == GetCachedSchemaToolName && (native.Permissions.EnabledReadTools?.Contains(name, StringComparer.Ordinal) != true ||
                 native.Permissions.DataSending?.InferredSchema != true)) ||
             (name == GetWorkspaceContextToolName && native.Permissions.EnabledReadTools?.Contains(name, StringComparer.Ordinal) != true) ||
-            (name == CreateWorkspaceFileToolName && (native.ProviderId != AgentProviderIds.GitHubCopilotSubscription ||
+            (name == CreateWorkspaceFileToolName && (native.ProviderId is not (AgentProviderIds.GitHubCopilotSubscription or "local") ||
                 !native.Permissions.NativeFileWrite || native.Permissions.Workspace?.UseFilesFolder != true ||
                 native.Plan.Mode == AgentOperationMode.Planning ||
                 (native.Plan.ConfirmationCategories & AgentConfirmationCategories.NativeFileWrite) == 0)) ||
@@ -136,6 +141,12 @@ public sealed partial class AgentToolRegistry
         };
         return true;
     }
+
+    private static bool NativeDestinationMatches(AgentOutputDestination destination, string providerId) =>
+        providerId == "local"
+            ? destination.Kind == AgentOutputDestinationKind.Local
+            : destination.Kind == AgentOutputDestinationKind.ProviderExternal &&
+              string.Equals(destination.ProviderId, providerId, StringComparison.Ordinal);
 
     private AgentToolInvocationResult InvokeWorkspaceContext(
         AgentPrincipal? principal, AgentInvocationContext? context, AgentOutputDestination? destination,

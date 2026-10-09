@@ -41,7 +41,7 @@ Campos aditivos em `AutocompleteSettings`, dentro de `WorkspacePreferences` (ses
 | `IncludeInputJsonInLocalAiContext` | `false` | Opt-in separado para incluir o JSON da aba Input; respeita o limite de 8.192 caracteres |
 | `Acceleration` | `Auto` | Automático, CPU, GPU ou NPU |
 
-A estrutura conceitual `Ai { Enabled, ModelDirectory, SelectedModel, Hardware, Autocomplete, Chat }` foi mapeada nesses campos, em vez de um novo documento, para manter a migração aditiva e o versionamento existentes. `ChatModel` já é respeitado pelo serviço, mas ainda não tem controle na UI. Um modelo de embeddings existe apenas como capacidade declarável.
+A estrutura conceitual `Ai { Enabled, ModelDirectory, SelectedModel, Hardware, Autocomplete, Chat }` foi mapeada nesses campos, em vez de um novo documento, para manter a migração aditiva e o versionamento existentes. `ChatModel` é configurado em Preferências → Autocomplete e IA local, na seção do agente, quando `ChatEnabled` está ativo. Campo vazio reutiliza o modelo do autocomplete. Um modelo de embeddings existe apenas como capacidade declarável.
 
 O contexto do Assistente exige consentimento global e por conexão; `UseEditorContext` e `UseResultPanelContext` controlam suas fontes, e Input JSON permanece em opt-in separado. Resultado contribui somente nomes de campos inferidos, nunca valores. Antes da inferência manual, a pessoa revisa uma prévia do snapshot limitado que o pedido carregará; editar instrução, código, destino, conexão ou política invalida a revisão e exige nova prévia. Propostas continuam efêmeras, ligadas à revisão de origem, com diff revalidado, confirmação explícita e undo. Ver [ADR-052](10-decisoes-arquiteturais.md#adr-052--consentimento-local-e-prévia-do-contexto-de-chat-22092026).
 
@@ -163,7 +163,7 @@ Salva as preferências, descarrega a sessão atual e executa: pasta e arquivos �
 ## Limites e pendências
 
 - Sem `FileSystemWatcher` e sem "Adicionar ao catálogo"; **Atualizar** é o mecanismo do MVP.
-- `ChatModel` sem controle na UI; embeddings apenas como capacidade declarável.
+- embeddings apenas como capacidade declarável.
 - NPU preparado na seleção e na sonda, mas nenhum build distribui QNN/OpenVINO/VitisAI e nada foi executado em NPU.
 - Uma exportação carregar em DirectML não prova geração correta em GPU; homologar por pacote (evidência abaixo).
 - Metadata não é verificação de integridade ou licença dos pesos.

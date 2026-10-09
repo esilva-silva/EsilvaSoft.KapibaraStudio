@@ -21,6 +21,8 @@ public sealed partial class AgentRuntime
         }
 
         var session = FindSession(sessionId);
+        if (request.Reasoning is not null && !session.SupportsReasoning)
+            throw new AgentRuntimeException("ReasoningUnavailable", "Reasoning is unavailable for this provider.");
         var turn = new TurnState(sessionId, session, request, _options);
         lock (session.Gate)
         {
@@ -264,6 +266,14 @@ public sealed partial class AgentRuntime
                 turn.Finalizing = true;
                 turn.Finalized = true;
                 var terminals = new List<Func<long, AgentEvent>>();
+                if (turn.ReasoningOpen)
+                {
+                    turn.ReasoningOpen = false;
+                    var reasoningOutcome = naturalEnd || turn.FailureCode is not null
+                        ? AgentTurnOutcome.Failed
+                        : turn.Reason == TurnCancelReason.TimedOut ? AgentTurnOutcome.TimedOut : AgentTurnOutcome.Cancelled;
+                    terminals.Add(sequence => turn.Create(sequence, AgentEventKind.ReasoningCompleted, outcome: reasoningOutcome));
+                }
                 foreach (var message in turn.Messages.Values.Where(static item => item.Open))
                 {
                     message.Open = false;
@@ -414,6 +424,33 @@ public sealed partial class AgentRuntime
 
         switch (item.Kind)
         {
+            case AgentEventKind.ReasoningStarted or AgentEventKind.ReasoningDelta or AgentEventKind.ReasoningCompleted:
+                if (!session.SupportsReasoning) return true;
+                if (item.Text is { Length: > 262_144 } || item.ReasoningTokens is < 0
+                    || item.ReasoningDurationMs is < 0 || item.ReasoningOutcome is { } outcome && !Enum.IsDefined(outcome))
+                {
+                    turn.Fail("ProviderProtocolViolation");
+                    return false;
+                }
+                var published = await PublishFlowAsync(turn, sequence => turn.Create(sequence, item.Kind, item.Text,
+                    outcome: item.ReasoningOutcome) with
+                {
+                    ReasoningTokens = item.ReasoningTokens,
+                    ReasoningDurationMs = item.ReasoningDurationMs,
+                    ReasoningTruncatedByBudget = item.ReasoningTruncatedByBudget,
+                }, null, null).ConfigureAwait(false);
+                if (published)
+                {
+                    lock (turn.Gate)
+                    {
+                        if (!turn.Finalizing)
+                        {
+                            if (item.Kind == AgentEventKind.ReasoningStarted) turn.ReasoningOpen = true;
+                            else if (item.Kind == AgentEventKind.ReasoningCompleted) turn.ReasoningOpen = false;
+                        }
+                    }
+                }
+                return published;
             case AgentEventKind.UsageUpdated:
                 // Display-only data. Invalid, duplicate and older observations neither end a turn nor grant access.
                 if (item.Usage is not { IsWellFormed: true } usage) return true;

@@ -9,6 +9,8 @@ internal sealed class OnnxModelTokenizer(Model model) : ITokenizer, IDisposable
     private readonly Tokenizer _native = new(model);
     public IReadOnlyList<int> Encode(string text) { using var sequences = _native.Encode(text); return sequences[0].ToArray(); }
     public string Decode(IEnumerable<int> tokens) => _native.Decode(tokens.ToArray());
+    internal string ApplyChatTemplate(string template, string messagesJson, string toolsJson, bool addGenerationPrompt) =>
+        _native.ApplyChatTemplate(template, messagesJson, toolsJson, addGenerationPrompt);
     /// <summary>O GenAI expõe <c>TokenizerStream</c>, que mantém no nativo os bytes de um caractere ainda incompleto.</summary>
     public IIncrementalDecoder CreateIncrementalDecoder() => new NativeStreamDecoder(_native.CreateStream());
     public void Dispose() => _native.Dispose();

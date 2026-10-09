@@ -2,20 +2,24 @@
 
 **Título:** preparação do EsilvaSoft.KapibaraStudio para KapiCoder-Mongo.
 **Data:** 09/10/2026.
-**Estado:** planejada; execução de código não iniciada por esta meta.
+**Estado:** implementação parcial em andamento no checkout Windows, dividida entre frentes Sol (contratos/provider local) e Luna (tools/registry). Não é aceite integral dos 78 itens.
 **Vínculo:** ADV-09 e EDT-02, preparação da Fase 8 / v0.12.0; sem release própria.
 
 ## Resultado esperado
 
 Integrar os contratos necessários aos modelos KapiCoder-Mongo sem regredir autocomplete determinístico, pacotes SlopCoder/DeepSeek, isolamento de contexto ou segurança das tools. Concluir o `LocalAgentProvider` existente para pacotes Qwen3 de agente, com geração limitada, retomada controlada, permissões e propostas revisáveis. Disponibilizar contratos reproduzíveis para treino e avaliação externos. Aceitar NPU somente com prova no dispositivo alvo.
 
-O usuário confirmou a preparação documental e depois aprovou Release com Copilot + IA local, texto de raciocínio com retenção/orçamento configuráveis e todas as tools locais com permissões. A ADR-070 registra essas decisões. As demais recomendações externas continuam propostas; esta entrega não altera binários nem declara capacidade homologada.
+O usuário confirmou a preparação documental e depois aprovou Release com Copilot + IA local, texto de raciocínio com retenção/orçamento configuráveis e todas as tools locais com permissões. A ADR-070 registra essas decisões. As demais recomendações externas continuam propostas; esta execução não publica novos binários/pacotes nem declara capacidade homologada.
+
+### Escopo desta meta de chat
+
+Implementar e validar os itens que possam ser exercitados neste checkout Windows. A validação manual em ambiente Linux foi excluída expressamente pelo usuário e deverá ser realizada manualmente fora desta meta. NPU/dispositivo, avaliação de hardware e smoke com pesos/pacotes externos não disponíveis também não recebem aceite. A UI de raciocínio é transitória por padrão; U7 agora tem retenção opt-in configurável local, subordinada a KeepHistory, com prazo de 1/7/30 dias e política persistida pelo proprietário LiteDB. O owner aplica essa política dentro do mesmo gate dos saves para filtrar autosaves já enfileirados após opt-out; se a gravação da política falhar, o owner falha fechado em memória. Expirações são preservadas e limitadas entre autosaves; limpeza/purge são executados pelo owner registrado. Conversas que solicitam resultados/diagnósticos capturados não retêm raciocínio. A tela de permissões agora oferece ao provider local consentimento de envio de resultados/diagnósticos, tools atuais do registry por seleção, criação de arquivo opt-in e limite de chamadas, ocultando consentimento de destino externo e opções de tool nativa. A migração v1→v2 é aditiva. As suítes UnitTests e IntegrationTests passaram nesta máquina; isso não equivale a homologação com modelo real ou hardware.
 
 ## Fonte e baseline
 
 Fonte: [kapibara-studio-ajustes.md](C:/IA/models/KapibaraStudio.MongoIA/docs/kapibara-studio-ajustes.md), backlog externo consultado em 09/10/2026, que cita auditoria no commit `dba8546` de 08/10/2026. Os marcadores `[F]` e `[H]` pertencem à auditoria externa; não são comprovação nova no checkout. A [rastreabilidade](rastreabilidade-f7a.md) preserva IDs, prioridades, dependências e estimativas das linhas, com enquadramento nesta meta.
 
-Verificações pontuais desta preparação confirmaram: três pacotes GenAI fixados em `0.15.2` em `Directory.Packages.props`; `LocalAgentProvider` ainda exige FIM/chat para propostas e rejeita `SubmitToolResultAsync`; `App.axaml.cs` remove providers no ramo Release antes da composição Copilot. Não foi encontrado KapiLab em `tools/`. Esse recorte não substitui a auditoria completa F7A-00.
+Verificações pontuais desta preparação confirmaram: três pacotes GenAI fixados em `0.15.2` em `Directory.Packages.props`; `LocalAgentProvider` ainda exige FIM/chat para propostas e rejeita `SubmitToolResultAsync`; `App.axaml.cs` originalmente removia providers no ramo Release; o estado atual registra Copilot + local. Não foi encontrado KapiLab em `tools/`. Esse recorte não substitui a auditoria completa F7A-00.
 
 O checkout já contém alterações da Fase 6. A execução futura deve registrar o baseline sobre esse estado e preservar trabalho alheio. Restore/build/test não foram executados nesta entrega documental.
 
@@ -69,7 +73,7 @@ Cada lote termina com diff revisável, testes proporcionais e registro dos itens
 | F7A-08 | Composição A8/E2 | D2 aprovada (ADR-070); capacidades e testes | Release com Copilot + IA local; sem pacote, estado indisponível sem anunciar capacidades ausentes; validar Debug; guarda Claude Release intacta |
 | F7A-09 | Legado PC1/TE5/TE6; downloads S3/DL1; papéis S1/S2/U5; Lite A15/TE3; TE1/TE2/TE7 | Pacotes; provider; D5; Q6/Q7 | Testes por pacote/hardware; download seguro/recuperação; duas versões sem sobrescrita; recomendação sem troca automática; Lite limitado ao perfil aprovado |
 | F7A-10 | NPU R1/R9/R2/R3/R4/C1/C5b/R6/U8/DL2/TA8/TE4/R10; R5 condicional | R0 aprovado; decisão runtime/EP; R7 para contratos usados | Upgrade sem regressão; pipeline contido; EP por ação explícita; offline/cancelamento; NPU explícita sem fallback; geração real no dispositivo |
-| F7A-11 | U7 obrigatório; C6/A4 condicionais, M1 opcional, K3/superfícies KapiLab e E4; console na 7B | Retenção aprovada; decisões técnicas; lotes aplicáveis | Retenção configurável com migração/limpeza/expiração/exclusão; orçamento limitado pelo pacote; superfícies estáveis; documentação e notices; aceite por item |
+| F7A-11 | U7 parcialmente implementado nesta execução; C6/A4 condicionais, M1 opcional, K3/superfícies KapiLab e E4; console na 7B | Retenção aprovada; decisões técnicas; lotes aplicáveis | Retenção configurável com migração/limpeza/expiração/purge implementada; ainda falta validar execução, falhas/concorrência/recuperação e inspeção visual; orçamento limitado pelo pacote; superfícies estáveis; documentação e notices; aceite por item |
 
 Sequência T4: F7A-00 → 01 → 02 → 03/04/05 → 06 → 07 → 08 → 09. Interseções de geração e metadata devem ser integradas antes do provider. K1/K2 exigem descritores reais; romper o ciclo A13d↔K2 definindo primeiro política e descritores, depois goldens, depois verificação de equivalência. Não fabricar catálogo do treino para justificar liberação.
 
@@ -120,4 +124,14 @@ A fonte declara 78 itens e 136–171 pessoa-dia, incluindo opcionais, condiciona
 
 **Marco B — homologação real:** R0/R7 e TE aplicáveis aceitos com pacote/hash/provider/dispositivo, gates de qualidade e desempenho definidos sem conflito, jornadas nativas e recuperação verificadas. A Fase 10 concentra a homologação; ausência de TE1/TE2/TE3 bloqueia anúncio de agente/Lite homologado, ausência de TE4 bloqueia NPU. Não transferir defeitos automatizáveis para homologação manual.
 
-No fechamento atualizar catálogo, plano, guia de uso, IA multimodelo/ONNX, acompanhamento, matriz e índice offline; ADR/design system quando decisão ou comportamento mudar. A rastreabilidade começa **planejada** para todos os itens. Itens não adotados devem registrar motivo, decisão e impacto; não contar como implementados.
+No fechamento atualizar catálogo, plano, guia de uso, IA multimodelo/ONNX, acompanhamento, matriz e índice offline; ADR/design system quando decisão ou comportamento mudar. O planejamento inicial partiu de todos os itens como **planejados**; a tabela e o registro atuais refletem a implementação parcial desta execução. Itens não adotados devem registrar motivo, decisão e impacto; não contar como implementados.
+
+### Registro desta meta de chat — 09/10/2026
+
+- Implementados parcialmente: F7A-02/03 (contratos/metadata e adapter Qwen3), F7A-05/06 (tools locais mediadas pelo registry e provider), F7A-07 (controles/apresentação de raciocínio), F7A-08 (composição Release Copilot + local) e seletor de modelo Agent em preferências (U5). U7 também entrou parcialmente: opt-in local, política de retenção no owner LiteDB, 1/7/30 dias, expiração e purge específicos, exclusão de raciocínio em conversas que solicitaram dados/diagnósticos capturados e migração aditiva v1→v2. A restauração sinaliza raciocínio descartado sem guardar seu conteúdo. A13d/U4 agora apresentam tools de documentos capturados e criação de arquivo para IA local sob consentimentos separados e limite por turno. A14 fecha um item de raciocínio aberto no cancelamento pelo runtime com conclusão `Cancelled`; TA3/TA4 receberam cenário determinístico sem pesos. O catálogo ganhou fixture Qwen3 de agente sem FIM e cobertura de rejeição de tokenizer incompleto; R6 agora reconhece variantes QNN/OpenVINO e W4A16/W8A16. A cobertura exata por ID está parcial; isto não fecha os respectivos lotes por completo.
+- Build integral Windows da solução, com `-p:UsedAvaloniaProducts= -m:1`: **passou, 0 avisos/0 erros**. Build dos projetos IntegrationTests e UnitTests também passou, **0 avisos/0 erros**.
+- UnitTests via VSTest fora do sandbox: **3.748 aprovados, 20 ignorados, 0 falhas**. IntegrationTests: **1.049 aprovados, 20 ignorados, 0 falhas**. O VSTest requer loopback; dentro do sandbox o testhost não conecta, então as execuções foram feitas fora dele. Os ignorados são dependentes de ambiente/configuração explicitamente skipados.
+- Testes do parser cobrem envelope dividido em fragmentos, schema/nome estritos, truncamento, profundidade e tamanho; os casos foram executados dentro da suíte aprovada.
+- A tela Preferências → Autocomplete e IA local, incluindo seletor do modelo Agent, foi renderizada e inspecionada em Light/Dark por teste headless; a inspeção não cobre todas as telas/estados da Fase 7A.
+- Validação manual Linux: **excluída da meta por solicitação do usuário**. R7/TE com pesos reais, NPU, inspeção de PNGs reais, acessibilidade/leitores de tela e diálogos nativos permanecem pendentes e não são aceites por builds Windows.
+- O fechamento do orçamento de raciocínio ainda usa nova chamada de geração em vez de `Generator.AppendTokens` no mesmo estado/KV; a equivalência ao treino depende de smoke R7 e permanece pendente (A11).

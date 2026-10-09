@@ -21,6 +21,9 @@ public enum AgentEventKind
     AgentError,
     SessionCompleted,
     UsageUpdated,
+    ReasoningStarted,
+    ReasoningDelta,
+    ReasoningCompleted,
 }
 
 /// <summary>Turn terminal state. Cancellation never implies rollback of an operation already dispatched.</summary>
@@ -57,6 +60,11 @@ public sealed record AgentEvent(
     AgentToolResultStatus? ToolStatus = null)
 {
     public AgentUsageMetrics? Usage { get; init; }
+
+    /// <summary>Only for ReasoningCompleted; missing values are not zero.</summary>
+    public int? ReasoningTokens { get; init; }
+    public long? ReasoningDurationMs { get; init; }
+    public bool? ReasoningTruncatedByBudget { get; init; }
 
     /// <summary>
     /// Sanitized destination of a tool call's output (Local/External only, no provider or client identifier), set by

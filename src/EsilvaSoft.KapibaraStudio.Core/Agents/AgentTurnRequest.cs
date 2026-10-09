@@ -39,4 +39,7 @@ public sealed record AgentTurnRequest(
 
     /// <summary>Immutable workspace snapshot captured when this turn was sent; never recaptured from the active tab.</summary>
     public AgentWorkspaceContext? WorkspaceContext { get; init; }
+
+    /// <summary>Optional local reasoning choice. Providers without Reasoning must reject a supplied choice.</summary>
+    public AgentReasoningOptions? Reasoning { get; init; }
 }

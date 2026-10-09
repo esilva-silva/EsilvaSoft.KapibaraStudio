@@ -49,10 +49,11 @@ public sealed class NativeChatTurnPolicyProvider : IAgentAuthorizationPolicyProv
         var grants = new List<AgentPermissionGrant>();
         foreach (var turn in turns)
         {
-            if (turn.ProviderId != AgentProviderIds.GitHubCopilotSubscription ||
+            var isLocal = turn.ProviderId == "local";
+            if (turn.ProviderId is not (AgentProviderIds.GitHubCopilotSubscription or "local") ||
                 turn.Plan.IsBlocked || !turn.Permissions.IsWellFormed ||
                 !string.Equals(turn.Permissions.ProviderId, turn.ProviderId, StringComparison.Ordinal) ||
-                !turn.Permissions.HasExternalDestinationConsent ||
+                (!isLocal && !turn.Permissions.HasExternalDestinationConsent) ||
                 turn.Permissions.EnabledReadTools is null) continue;
             var enabled = (turn.Permissions.EnabledReadTools ?? []).ToHashSet(StringComparer.Ordinal);
             var tools = turn.Plan.ProductTools.Where(enabled.Contains).ToHashSet(StringComparer.Ordinal);
@@ -69,7 +70,7 @@ public sealed class NativeChatTurnPolicyProvider : IAgentAuthorizationPolicyProv
             var selected = turn.Permissions.ConnectionScope == AgentConnectionScope.Selected
                 ? (turn.Permissions.SelectedConnectionIds ?? []).ToHashSet() : null;
             var allowed = turn.Plan.AllowedConnectionIds is { } ids ? ids.ToHashSet() : null;
-            var destination = AgentOutputDestination.ProviderExternal(turn.ProviderId);
+            var destination = isLocal ? AgentOutputDestination.Local() : AgentOutputDestination.ProviderExternal(turn.ProviderId);
             var invocation = AgentInvocationScope.ForTurn(turn.SessionId, turn.TurnId);
             foreach (var profile in profiles)
             {

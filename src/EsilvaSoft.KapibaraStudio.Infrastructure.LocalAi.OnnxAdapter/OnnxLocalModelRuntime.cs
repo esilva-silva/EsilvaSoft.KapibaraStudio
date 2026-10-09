@@ -24,6 +24,7 @@ public sealed class OnnxLocalModelRuntime(IAutocompleteDiagnostics? diagnostics 
     private static readonly AiProviderCandidate CpuCandidate = new(AiAccelerationMode.Cpu, "CPU", "cpu", null);
     private Model? _model;
     private ITokenizer? _tokenizer;
+    private IChatPromptFormatter? _chatPromptFormatter;
     private ICompletionPromptBuilder _promptBuilder = new QwenFimPromptBuilder();
     private IReadOnlySet<int> _stops = new HashSet<int>();
     private AiProviderCandidate _provider = CpuCandidate;
@@ -200,7 +201,8 @@ public sealed class OnnxLocalModelRuntime(IAutocompleteDiagnostics? diagnostics 
         try
         {
             _tokenizer = adapter.CreateTokenizer(_model, model.Path);
-            _ = _promptBuilder.Build("", "", 64, _tokenizer);
+            _chatPromptFormatter = adapter.CreateChatPromptFormatter(_tokenizer, model.Path, model.Metadata);
+            if (_chatPromptFormatter is null) _ = _promptBuilder.Build("", "", 64, _tokenizer);
             _stops = adapter.GetStopTokens(_tokenizer);
         }
         catch (Exception ex)
@@ -249,6 +251,15 @@ public sealed class OnnxLocalModelRuntime(IAutocompleteDiagnostics? diagnostics 
     private int[] BuildPrompt(ModelGenerationRequest request, ITokenizer tokenizer)
     {
         if (request.MaximumTokens < 1) throw new LocalModelContextException(L("aiContextWindowInsufficient", "Janela de contexto insuficiente."));
+        if (request.ChatPrompt is { } chat)
+        {
+            if (request.PromptTokens is not null) throw new InvalidOperationException("Escolha um único formato de prompt.");
+            var formatter = _chatPromptFormatter ?? throw new NotSupportedException("Este modelo não oferece template de chat.");
+            var chatTokens = formatter.RenderTokens(chat).ToArray();
+            if (chatTokens.Length + request.MaximumTokens > _contextLength)
+                throw new LocalModelContextException(L("aiContextExceedsWindow", "O contexto completo excede a janela do modelo."));
+            return chatTokens;
+        }
         if (request.PromptTokens is { Count: > 0 } supplied)
         {
             var tokens = supplied.ToArray();
@@ -279,6 +290,9 @@ public sealed class OnnxLocalModelRuntime(IAutocompleteDiagnostics? diagnostics 
         parameters.SetSearchOption("max_length", input.Length + request.MaximumTokens);
         parameters.SetSearchOption("do_sample", request.Temperature > 0);
         if (request.Temperature > 0) parameters.SetSearchOption("temperature", request.Temperature);
+        if (request.TopP is { } topP && double.IsFinite(topP) && topP is > 0 and <= 1) parameters.SetSearchOption("top_p", topP);
+        if (request.TopK is { } topK && topK > 0) parameters.SetSearchOption("top_k", topK);
+        if (request.Seed is { } seed) parameters.SetSearchOption("random_seed", seed);
         using var generator = new Generator(model, parameters);
         using var decoder = tokenizer.CreateIncrementalDecoder();
         var watch = Stopwatch.StartNew();
@@ -303,7 +317,8 @@ public sealed class OnnxLocalModelRuntime(IAutocompleteDiagnostics? diagnostics 
                 if (stops.Contains(id)) { stopped = true; break; }
                 generated++;
                 var piece = decoder.Append(id);
-                if (piece.Length > 0) writer.TryWrite(new GeneratedChunk(piece, generated, false));
+                // Empty text still carries a token boundary (UTF-8 fragments and reasoning delimiters).
+                writer.TryWrite(new GeneratedChunk(piece, generated, false) { TokenId = id });
                 if (stopTexts.Length == 0) continue;
                 // Só a cauda importa: uma ocorrência nova termina dentro do pedaço recém-decodificado.
                 tail += piece;
@@ -339,6 +354,6 @@ public sealed class OnnxLocalModelRuntime(IAutocompleteDiagnostics? diagnostics 
         return L("aiProviderFailure", "Falha do provider {0}: {1}", candidate.Provider, line);
     }
 
-    private void Release() { (_tokenizer as IDisposable)?.Dispose(); _tokenizer = null; _model?.Dispose(); _model = null; }
+    private void Release() { _chatPromptFormatter = null; (_tokenizer as IDisposable)?.Dispose(); _tokenizer = null; _model?.Dispose(); _model = null; }
     public ValueTask DisposeAsync() { Release(); return ValueTask.CompletedTask; }
 }

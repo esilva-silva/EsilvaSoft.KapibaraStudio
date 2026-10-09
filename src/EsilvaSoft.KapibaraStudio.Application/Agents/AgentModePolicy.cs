@@ -116,7 +116,7 @@ public static class AgentModePolicy
         if (facts.ProductToolsAvailable && facts.HasWorkspaceFolder && mode != AgentOperationMode.Planning &&
             permissions.NativeFileWrite && permissions.Workspace.UseFilesFolder &&
             permissions.Workspace.EffectiveExclusions.All(AgentWorkspaceExclusions.IsValidPattern) &&
-            permissions.ProviderId is AgentProviderIds.GitHubCopilotSubscription or AgentProviderIds.ClaudeCodeSubscription)
+            permissions.ProviderId is AgentProviderIds.GitHubCopilotSubscription or AgentProviderIds.ClaudeCodeSubscription or LocalAgentProvider.Id)
             product.Add(AgentProductToolNames.CreateWorkspaceFile);
 
         var handling = !product.Contains(AgentProductToolNames.ProposeFileEdit)
@@ -200,7 +200,8 @@ public static class AgentModePolicy
         AgentProductToolNames.GetWorkspaceContext => permissions.DataSending.TabMetadata,
         var name when AgentProductToolNames.IsMongoDocumentRead(name) =>
             (permissions.ProviderId == AgentProviderIds.GitHubCopilotSubscription ||
-             permissions.ProviderId == AgentProviderIds.ClaudeCodeSubscription) && permissions.DataSending.MongoDocuments,
+             permissions.ProviderId == AgentProviderIds.ClaudeCodeSubscription ||
+             permissions.ProviderId == LocalAgentProvider.Id) && permissions.DataSending.MongoDocuments,
         _ => true,
     };
 }

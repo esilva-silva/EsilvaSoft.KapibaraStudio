@@ -22,4 +22,6 @@ public interface IModelAdapter
     ICompletionPromptBuilder CreatePromptBuilder();
     ITokenizer CreateTokenizer(Model model, string root);
     IReadOnlySet<int> GetStopTokens(ITokenizer tokenizer);
+    /// <summary>Null for legacy FIM adapters; called only after the tokenizer is loaded.</summary>
+    IChatPromptFormatter? CreateChatPromptFormatter(ITokenizer tokenizer, string root, LocalModelMetadata? metadata) => null;
 }

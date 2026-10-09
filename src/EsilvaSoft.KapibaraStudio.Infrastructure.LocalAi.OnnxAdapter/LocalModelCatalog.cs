@@ -11,6 +11,8 @@ public sealed class LocalModelCatalog(string? defaultDirectory = null, IReadOnly
     ILocalModelFileAccess? fileAccess = null, ILocalWorkspacePaths? workspacePaths = null) : ILocalModelCatalog
 {
     private const int MaximumCandidates = 100;
+    // Kept in sync with the centrally pinned GenAI packages in Directory.Packages.props.
+    private static readonly Version GenAiPackageVersion = new(0, 15, 2);
     private readonly ILocalModelFileAccess _fileAccess = fileAccess ?? throw new ArgumentNullException(nameof(fileAccess));
     private readonly IReadOnlyList<IModelAdapter> _adapters = adapters ?? ModelAdapters.CreateDefault(fileAccess ?? throw new ArgumentNullException(nameof(fileAccess)));
     private Func<string, string>? _localize;
@@ -79,9 +81,16 @@ public sealed class LocalModelCatalog(string? defaultDirectory = null, IReadOnly
             if (metadata?.ContextContract is { } contract && !LocalModelContextContracts.IsSupported(contract))
                 return Rejected(LocalModelState.Invalid,
                     F("aiCatalogContextContract", "Modelo requer contrato de contexto \"{0}\", não suportado por esta versão do aplicativo. Contratos suportados: {1}.", contract, string.Join(", ", LocalModelContextContracts.Supported)));
+            if (metadata?.MinimumGenAi is { } minimum && minimum > GenAiPackageVersion)
+                return Rejected(LocalModelState.Unsupported,
+                    F("aiCatalogMinimumGenAi", "Modelo requer ONNX Runtime GenAI {0}; esta versão inclui {1}.", minimum, GenAiPackageVersion));
+            if (metadata?.Capabilities is { } flags &&
+                (flags.HasFlag(LocalModelCapabilities.Agent) || flags.HasFlag(LocalModelCapabilities.Tools)
+                    || flags.HasFlag(LocalModelCapabilities.Reasoning)) && type != "qwen3")
+                return Rejected(LocalModelState.Unsupported, "Capacidades de agente local exigem pacote qwen3 compatível.");
             using var tokenizer = ReadModelJson(Path.Combine(root, "tokenizer.json"));
             using (ReadModelJson(Path.Combine(root, "tokenizer_config.json"))) { }
-            if (adapter.Validate(new(root, type, decoderPath, tokenizer.RootElement)) is { } failure) return Rejected(failure.State, failure.Message);
+            if (adapter.Validate(new(root, type, decoderPath, tokenizer.RootElement, metadata)) is { } failure) return Rejected(failure.State, failure.Message);
             token.ThrowIfCancellationRequested();
             var name = string.IsNullOrWhiteSpace(metadata?.Name) ? folder : metadata.Name;
             var definition = new LocalModelDefinition(folder, name, root, adapter.Architecture, Path.Combine(root, "tokenizer.json"))

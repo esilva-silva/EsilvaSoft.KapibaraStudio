@@ -100,9 +100,10 @@ public sealed partial class AgentToolRegistry
                 ReferenceEquals(_sessionTools.NativeChatTurnScopes?.Find(context.SessionId!.Value, context.TurnId!.Value), native));
     }
 
-    private static bool CanCreate(AgentMcpSessionScope scope) => scope.Permissions is { IsWellFormed: true, HasExternalDestinationConsent: true, NativeFileWrite: true, Workspace.UseFilesFolder: true } &&
+    private static bool CanCreate(AgentMcpSessionScope scope) => scope.Permissions is { IsWellFormed: true, NativeFileWrite: true, Workspace.UseFilesFolder: true } permissions &&
+        IsConsentSatisfied(scope.ProviderId, permissions) &&
         scope.Permissions.Workspace.EffectiveExclusions.All(AgentWorkspaceExclusions.IsValidPattern) &&
-        scope.ProviderId is AgentProviderIds.GitHubCopilotSubscription or AgentProviderIds.ClaudeCodeSubscription &&
+        scope.ProviderId is AgentProviderIds.GitHubCopilotSubscription or AgentProviderIds.ClaudeCodeSubscription or "local" &&
         scope.Plan is { Mode: not AgentOperationMode.Planning } plan &&
         (plan.ConfirmationCategories & AgentConfirmationCategories.NativeFileWrite) != 0;
 

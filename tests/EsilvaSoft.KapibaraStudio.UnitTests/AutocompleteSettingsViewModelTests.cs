@@ -2,6 +2,8 @@ using EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi;
 using EsilvaSoft.KapibaraStudio.Core;
 using EsilvaSoft.KapibaraStudio.Desktop.ViewModels;
 using EsilvaSoft.KapibaraStudio.Infrastructure;
+using EsilvaSoft.KapibaraStudio.LocalAi.Core;
+using EsilvaSoft.KapibaraStudio.Testing;
 using System.Text.Json;
 
 namespace EsilvaSoft.KapibaraStudio.UnitTests;
@@ -29,6 +31,39 @@ public sealed class AutocompleteSettingsViewModelTests
         var restored = JsonSerializer.Deserialize<AutocompleteSettings>(JsonSerializer.Serialize(optedIn));
         Assert.That(restored, Is.EqualTo(optedIn));
     }
+
+    [Test]
+    public void LocalAgentModelSelectionIsIndependentAndEmptyFollowsAutocomplete()
+    {
+        var preferences = new AutocompleteSettingsViewModel(new CompletionServiceFake(), catalog: null, save: _ => Task.CompletedTask);
+        preferences.Load(new() { SelectedModel = "autocomplete-small", ChatModel = "agent-qwen" });
+
+        Assert.That(preferences.ChatModel, Is.EqualTo("agent-qwen"));
+        Assert.That(preferences.Snapshot().ChatModel, Is.EqualTo("agent-qwen"));
+
+        preferences.UseAutocompleteModelForAgentCommand.Execute(null);
+        Assert.That(preferences.ChatModel, Is.Empty);
+        Assert.That(preferences.Snapshot().ChatModel, Is.Empty);
+
+        preferences.ChatModel = "agent-qwen";
+        preferences.Load(preferences.Snapshot());
+        Assert.That(preferences.ChatModel, Is.EqualTo("agent-qwen"));
+    }
+
+    [Test]
+    public async Task RefreshKeepsAnUnavailableSavedAgentModelVisible()
+    {
+        var preferences = new AutocompleteSettingsViewModel(new CompletionServiceFake(), new CompletionCatalogFake(),
+            save: _ => Task.CompletedTask);
+        preferences.Load(new() { ChatModel = "agent-qwen" });
+
+        await preferences.RefreshModelsCommand.ExecuteAsync(null);
+
+        var savedModel = preferences.AgentModels.Single(option => option.Reference == "agent-qwen");
+        Assert.That(preferences.ChatModel, Is.EqualTo("agent-qwen"));
+        Assert.That(savedModel.Validation?.Status.State, Is.EqualTo(LocalModelState.NotInstalled));
+    }
+
     [Test]
     public async Task UntouchedInlineFlagsStayAbsentAndFollowTheirLiveDefaults()
     {

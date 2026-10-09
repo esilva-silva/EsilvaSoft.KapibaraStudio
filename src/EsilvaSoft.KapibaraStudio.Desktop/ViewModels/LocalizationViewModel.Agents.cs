@@ -5,6 +5,20 @@ public sealed partial class LocalizationViewModel
     /// <summary>Native agent chat, settings and approval texts (phase 7, lote 6). Order: key, en, pt-BR, es, zh-CN.</summary>
     private static readonly (string Key, string En, string Pt, string Es, string Zh)[] AgentTranslations =
     [
+        ("agentReasoningStreaming", "Reasoning…", "Raciocinando…", "Razonando…", "正在推理…"),
+        ("agentReasoningCompleted", "Reasoning · {0} tokens · {1} s", "Raciocínio · {0} tokens · {1} s", "Razonamiento · {0} tokens · {1} s", "推理 · {0} 个 token · {1} 秒"),
+        ("agentReasoningSafetyNotice", "Generated locally; may be wrong; this is not the answer.", "Gerado localmente; pode conter erros; não é a resposta.", "Generado localmente; puede contener errores; no es la respuesta.", "本地生成；可能有误；这不是答案。"),
+        ("agentReasoningBudgetReached", "Reasoning budget reached.", "Orçamento de raciocínio atingido.", "Se alcanzó el presupuesto de razonamiento.", "已达到推理预算。"),
+        ("agentReasoningToggle", "Reasoning", "Raciocínio", "Razonamiento", "推理"),
+        ("agentReasoningBudget", "Token budget", "Orçamento de tokens", "Presupuesto de tokens", "Token 预算"),
+        ("agentReasoningRetainToggle", "Keep reasoning in local history", "Reter raciocínio no histórico local", "Conservar razonamiento en el historial local", "在本地历史中保留推理"),
+        ("agentReasoningRetentionDays", "Delete after (days)", "Excluir após (dias)", "Eliminar después de (días)", "删除期限（天）"),
+        ("agentReasoningCleanupFailed", "Expired reasoning could not be removed from local history.", "Não foi possível remover raciocínio expirado do histórico local.", "No se pudo eliminar el razonamiento caducado del historial local.", "无法从本地历史记录中删除过期推理。"),
+        ("agentReasoningNotSaved", "Reasoning was not retained in this conversation.", "O raciocínio não foi guardado nesta conversa.", "El razonamiento no se guardó en esta conversación.", "此对话未保留推理内容。"),
+        ("localAgentModel", "Agent model", "Modelo do agente", "Modelo del agente", "智能体模型"),
+        ("followAutocompleteModel", "Use autocomplete model", "Usar o modelo do autocomplete", "Usar el modelo de autocompletado", "使用自动补全模型"),
+        ("useAutocompleteModel", "Use autocomplete model", "Usar modelo do autocomplete", "Usar modelo de autocompletado", "使用自动补全模型"),
+        ("localAgentModelNote", "Choose a separate installed model for the local agent. Leaving this empty follows the autocomplete model.", "Escolha outro modelo instalado para o agente local. Se ficar vazio, o agente usa o modelo do autocomplete.", "Elija otro modelo instalado para el agente local. Si queda vacío, el agente usa el modelo de autocompletado.", "为本地智能体选择另一个已安装模型。留空时使用自动补全模型。"),
         ("agentContextDetails", "Context details", "Detalhes do contexto", "Detalles del contexto", "上下文详情"),
         ("agentUsage", "Usage", "Uso", "Uso", "用量"),
         ("agentContextSizeSummary", "Context: {0} items · {1:N1} KiB", "Contexto: {0} itens · {1:N1} KiB", "Contexto: {0} elementos · {1:N1} KiB", "上下文：{0} 项 · {1:N1} KiB"),

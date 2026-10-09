@@ -93,6 +93,59 @@ public sealed partial class AgentChatMessageItem : AgentChatItemViewModel
     internal void Append(string fragment) => Content += fragment;
 }
 
+/// <summary>Conteúdo local de raciocínio; histórico apenas com opt-in e prazo explícito.</summary>
+public sealed partial class AgentReasoningItem : AgentChatItemViewModel
+{
+    [ObservableProperty] private string _content = "";
+    [ObservableProperty] private bool _isExpanded = true;
+    [ObservableProperty] private bool _isStreaming = true;
+    [ObservableProperty] private int? _reasoningTokens;
+    [ObservableProperty] private long? _durationMs;
+    [ObservableProperty] private bool _truncatedByBudget;
+
+    /// <summary>Turnos que leram resultados/logs de execução humana não podem reter reasoning.</summary>
+    internal bool IsRetentionEligible { get; set; }
+
+    /// <summary>Expiração definida ao iniciar a geração; autosaves não estendem o prazo.</summary>
+    internal DateTimeOffset? RetentionExpiresAtUtc { get; set; }
+
+    public string Header => IsStreaming
+        ? Text.Resolve("agentReasoningStreaming")
+        : Text.Format("agentReasoningCompleted", ReasoningTokens ?? 0, Math.Max(0, (DurationMs ?? 0) / 1000));
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "Avalonia bindings require instance properties for localized notices.")]
+    public string SafetyNotice => Text.Resolve("agentReasoningSafetyNotice");
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "Avalonia bindings require instance properties for localized notices.")]
+    public string BudgetNotice => Text.Resolve("agentReasoningBudgetReached");
+
+    [RelayCommand]
+    private void ToggleExpanded() => IsExpanded = !IsExpanded;
+
+    internal void Append(string fragment) => Content += fragment;
+
+    internal void Complete(int? tokens, long? durationMs, bool truncated)
+    {
+        IsStreaming = false;
+        ReasoningTokens = tokens;
+        DurationMs = durationMs;
+        TruncatedByBudget = truncated;
+        IsExpanded = false;
+        OnPropertyChanged(nameof(Header));
+    }
+
+    internal static AgentReasoningItem Restore(string content, DateTimeOffset timestamp, DateTimeOffset expiresAtUtc) =>
+        new()
+        {
+            Content = content,
+            Timestamp = timestamp,
+            RetentionExpiresAtUtc = expiresAtUtc,
+            IsRetentionEligible = true,
+            IsStreaming = false,
+            IsExpanded = false,
+        };
+
+    partial void OnIsStreamingChanged(bool value) => OnPropertyChanged(nameof(Header));
+}
+
 public enum AgentToolCallState
 {
     Requested,
@@ -557,9 +610,16 @@ public sealed partial class AgentEditProposalCardItem : AgentChatItemViewModel
     private Task RevertAsync() => RevertHandler?.Invoke(this) ?? Task.CompletedTask;
 }
 
-public sealed class AgentChatNoticeItem(string content, bool isError = false, bool isWarning = false) : AgentChatItemViewModel
+public sealed class AgentChatNoticeItem(string content, bool isError = false, bool isWarning = false, string? persistenceKey = null) : AgentChatItemViewModel
 {
-    public string Content { get; } = content;
+    public const string ReasoningNotSavedKey = "reasoning-not-saved";
+
+    private readonly string _content = content;
+
+    public string Content => PersistenceKey == ReasoningNotSavedKey ? Text.Resolve("agentReasoningNotSaved") : _content;
+
+    /// <summary>Stable discriminator for localized notices that must survive language changes.</summary>
+    internal string? PersistenceKey { get; } = persistenceKey;
 
     public string TimeText => Timestamp.UtcDateTime.ToString("HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture);
 

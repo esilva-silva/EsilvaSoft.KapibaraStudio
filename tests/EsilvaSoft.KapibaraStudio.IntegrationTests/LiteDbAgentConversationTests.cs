@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using System.Text.Json;
 using EsilvaSoft.KapibaraStudio.Application.Agents;
 using EsilvaSoft.KapibaraStudio.Core.Agents;
 using EsilvaSoft.KapibaraStudio.Infrastructure;
@@ -14,6 +15,8 @@ public sealed class LiteDbAgentConversationTests
     private const string CollectionName = "agentConversations";
     private const string Provider = "claude-code";
     private static readonly string Hash = new('a', 64);
+    private static readonly string[] ExpectedPrunedEntries = ["pergunta", "recente"];
+    private static readonly AgentConversationEntryKind[] ExpectedUserEntry = [AgentConversationEntryKind.UserMessage];
 
     [Test]
     public async Task SavedConversationRoundTripsAcrossOwnerInstancesWithNextRevision()
@@ -394,6 +397,187 @@ public sealed class LiteDbAgentConversationTests
     }
 
     [Test]
+    public async Task ExpirationPrunesOnlyExpiredReasoningUnderTheRegisteredOwner()
+    {
+        using var fixture = new Workspace();
+        using var owner = new LiteDbConnectionProfileRepository(fixture.Path);
+        var repository = Repository(owner);
+        Assert.That((await repository.SetReasoningRetentionPolicyAsync(true, 7, default)).Succeeded, Is.True);
+        var conversation = Conversation("local", "Retenção") with
+        {
+            Entries =
+            [
+                new(AgentConversationEntryKind.UserMessage, "pergunta", Now),
+                new(AgentConversationEntryKind.ReasoningText, "antigo", Now) { ExpiresAtUtc = Now.AddSeconds(1).ToUniversalTime() },
+                new(AgentConversationEntryKind.ReasoningText, "recente", Now) { ExpiresAtUtc = Now.AddDays(3).ToUniversalTime() },
+            ],
+        };
+        Assert.That((await repository.SaveAsync(conversation, 0, default)).Succeeded, Is.True);
+
+        var pruned = await repository.PruneExpiredReasoningAsync(Now.AddSeconds(2), 7, default);
+        var loaded = await repository.GetAsync(conversation.Id, default);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(pruned.Value, Is.EqualTo(1));
+            Assert.That(loaded.Value!.Revision, Is.EqualTo(2));
+            Assert.That(loaded.Value.Entries.Select(entry => entry.Text), Is.EqualTo(ExpectedPrunedEntries));
+            Assert.That(loaded.Value.Entries[1].ExpiresAtUtc, Is.EqualTo(Now.AddDays(3).ToUniversalTime()));
+        });
+    }
+
+    [Test]
+    public async Task ReasoningPersistenceRequiresTheLocalOwnerOptInPolicy()
+    {
+        using var fixture = new Workspace();
+        using var owner = new LiteDbConnectionProfileRepository(fixture.Path);
+        var repository = Repository(owner);
+        var reasoning = new AgentConversationEntry(AgentConversationEntryKind.ReasoningText, "private", Now)
+        {
+            ExpiresAtUtc = Now.AddDays(7).ToUniversalTime(),
+        };
+        var localConversation = Conversation("local", "Default disabled") with { Entries = [reasoning] };
+        var externalConversation = Conversation(Provider, "Local-only guard") with { Entries = [reasoning] };
+        var taintedConversation = Conversation("local", "Captured documents") with
+        {
+            Entries =
+            [
+                new(AgentConversationEntryKind.ToolCall, string.Empty, Now) { ToolName = AgentProductToolNames.GetQueryResults },
+                reasoning,
+            ],
+        };
+
+        var localSave = await repository.SaveAsync(localConversation, 0, default);
+        var localLoaded = await repository.GetAsync(localConversation.Id, default);
+        var externalSave = await repository.SaveAsync(externalConversation, 0, default);
+        var taintedSave = await repository.SaveAsync(taintedConversation, 0, default);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(localSave.Succeeded, Is.True);
+            Assert.That(localLoaded.Value!.Entries, Is.Empty, "The storage owner filters reasoning until explicit opt-in is recorded.");
+            Assert.That(externalSave.Status, Is.EqualTo(AgentPersistenceStatus.Invalid));
+            Assert.That(taintedSave.Status, Is.EqualTo(AgentPersistenceStatus.Invalid), "Captured document tools cannot coexist with persisted reasoning.");
+        });
+    }
+
+    [Test]
+    public async Task DisablingRetentionPurgesReasoningOnlyAndLeavesConversationHistory()
+    {
+        using var fixture = new Workspace();
+        using var owner = new LiteDbConnectionProfileRepository(fixture.Path);
+        var repository = Repository(owner);
+        Assert.That((await repository.SetReasoningRetentionPolicyAsync(true, 7, default)).Succeeded, Is.True);
+        var conversation = Conversation("local", "Purge") with
+        {
+            Entries =
+            [
+                new(AgentConversationEntryKind.UserMessage, "pergunta", Now),
+                new(AgentConversationEntryKind.ReasoningText, "privado", Now) { ExpiresAtUtc = Now.AddDays(7).ToUniversalTime() },
+            ],
+        };
+        await repository.SaveAsync(conversation, 0, default);
+
+        var purged = await repository.PurgeReasoningAsync("local", default);
+        var loaded = await repository.GetAsync(conversation.Id, default);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(purged.Value, Is.EqualTo(1));
+            Assert.That(loaded.Value!.Entries.Select(entry => entry.Kind), Is.EqualTo(ExpectedUserEntry));
+            Assert.That(loaded.Value.Revision, Is.EqualTo(2));
+        });
+    }
+
+    [Test]
+    public async Task AQueuedAutosaveCannotRestoreReasoningAfterTheOwnerPolicyIsDisabled()
+    {
+        using var fixture = new Workspace();
+        using var owner = new LiteDbConnectionProfileRepository(fixture.Path);
+        var repository = Repository(owner);
+        Assert.That((await repository.SetReasoningRetentionPolicyAsync(true, 7, default)).Succeeded, Is.True);
+        var entry = new AgentConversationEntry(AgentConversationEntryKind.ReasoningText, "privado", Now)
+        {
+            ExpiresAtUtc = Now.AddDays(7).ToUniversalTime(),
+        };
+        var conversation = Conversation("local", "Opt-out sob corrida") with { Entries = [entry] };
+        Assert.That((await repository.SaveAsync(conversation, 0, default)).Succeeded, Is.True);
+
+        Assert.That((await repository.SetReasoningRetentionPolicyAsync(false, 7, default)).Succeeded, Is.True);
+        var staleSave = await repository.SaveAsync(conversation with { Entries = [entry, new(AgentConversationEntryKind.UserMessage, "continuação", Now)] }, 1, default);
+        var purged = await repository.PurgeReasoningAsync("local", default);
+        var loaded = await repository.GetAsync(conversation.Id, default);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(staleSave.Succeeded, Is.True);
+            Assert.That(purged.Succeeded, Is.True);
+            Assert.That(loaded.Value!.Entries.Any(item => item.Kind == AgentConversationEntryKind.ReasoningText), Is.False);
+            Assert.That(loaded.Value.Entries.Any(item => item.Text == "continuação"), Is.True);
+        });
+    }
+
+    [Test]
+    public async Task ConversationAutosaveCannotExtendAnExistingReasoningExpiry()
+    {
+        using var fixture = new Workspace();
+        using var owner = new LiteDbConnectionProfileRepository(fixture.Path);
+        var repository = Repository(owner);
+        var originalExpiry = Now.AddDays(7).ToUniversalTime();
+        var reasoning = new AgentConversationEntry(AgentConversationEntryKind.ReasoningText, "raciocínio", Now)
+        {
+            ExpiresAtUtc = originalExpiry,
+        };
+        Assert.That((await repository.SetReasoningRetentionPolicyAsync(true, 7, default)).Succeeded, Is.True);
+        var conversation = Conversation("local", "Sem extensão") with { Entries = [reasoning] };
+        Assert.That((await repository.SaveAsync(conversation, 0, default)).Succeeded, Is.True);
+
+        var loaded = await repository.GetAsync(conversation.Id, default);
+        var renewed = reasoning with { ExpiresAtUtc = Now.AddDays(30).ToUniversalTime() };
+        var saved = await repository.SaveAsync(loaded.Value! with { Entries = [renewed] }, loaded.Value!.Revision, default);
+        var afterSave = await repository.GetAsync(conversation.Id, default);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(saved.Succeeded, Is.True);
+            Assert.That(afterSave.Value!.Entries.Single().ExpiresAtUtc, Is.EqualTo(originalExpiry));
+        });
+    }
+
+    [Test]
+    public async Task VersionOneConversationReadsAndMigratesAdditivelyOnNextWrite()
+    {
+        using var fixture = new Workspace();
+        var conversation = (Conversation(Provider, "V1") with { Revision = 1, FormatVersion = 1 });
+        var jsonNode = JsonNode.Parse(System.Text.Json.JsonSerializer.Serialize(conversation, AgentPersistenceJson.Conversation))!.AsObject();
+        foreach (var entry in jsonNode["Entries"]!.AsArray())
+            entry!.AsObject().Remove("ExpiresAtUtc");
+        var json = jsonNode.ToJsonString(AgentPersistenceJson.Conversation);
+        using (var raw = fixture.OpenOffline())
+        {
+            var document = StoredDocument(conversation.Id, conversation.ProviderId, json);
+            document["formatVersion"] = 1;
+            document["revision"] = 1L;
+            document["updatedAtUtc"] = conversation.UpdatedAt.UtcDateTime;
+            document["title"] = conversation.Title;
+            raw.GetCollection(CollectionName).Insert(document);
+        }
+
+        using var owner = new LiteDbConnectionProfileRepository(fixture.Path);
+        var repository = Repository(owner);
+        var loaded = await repository.GetAsync(conversation.Id, default);
+        var migrated = await repository.SaveAsync(loaded.Value!, loaded.Value!.Revision, default);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(loaded.Succeeded, Is.True);
+            Assert.That(loaded.Value!.FormatVersion, Is.EqualTo(AgentConversation.CurrentFormatVersion));
+            Assert.That(migrated.Succeeded, Is.True);
+            Assert.That(migrated.Value!.Revision, Is.EqualTo(2));
+        });
+    }
+
+    [Test]
     public async Task UnknownMembersAndTamperedMetadataMakeTheDocumentUnreadable()
     {
         using var fixture = new Workspace();
@@ -542,7 +726,7 @@ public sealed class LiteDbAgentConversationTests
         });
     }
 
-    private static readonly DateTimeOffset Now = new(2026, 9, 26, 12, 30, 15, 123, TimeSpan.FromHours(-3));
+    private static readonly DateTimeOffset Now = DateTimeOffset.UtcNow;
 
     private static readonly string[] ExpectedMine = ["Recente", "Antiga"];
     private static readonly string[] ExpectedAll = ["Recente", "Outro", "Antiga"];

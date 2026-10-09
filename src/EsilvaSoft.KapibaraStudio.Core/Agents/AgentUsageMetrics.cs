@@ -10,10 +10,13 @@ public sealed record AgentUsageMetrics(
     long? CacheReadTokens = null, long? CacheWriteTokens = null,
     decimal? Cost = null, string? Currency = null, string? Model = null, bool IsPartial = false)
 {
+    public long? ReasoningTokens { get; init; }
+
     public bool IsWellFormed => Enum.IsDefined(Scope) && Revision >= 0 &&
         Safe(ObservationId, 160) && Safe(Source, 120) && (Model is null || Safe(Model, 160)) &&
         InputTokens is null or >= 0 && OutputTokens is null or >= 0 &&
         CacheReadTokens is null or >= 0 && CacheWriteTokens is null or >= 0 &&
+        ReasoningTokens is null or >= 0 &&
         Cost is null or >= 0 && (Cost is null ? Currency is null : Currency is { Length: 3 } && Currency.All(char.IsAsciiLetterUpper));
 
     private static bool Safe(string value, int max) => !string.IsNullOrWhiteSpace(value) && value.Length <= max &&

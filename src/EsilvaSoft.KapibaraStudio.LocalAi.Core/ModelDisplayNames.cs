@@ -8,8 +8,14 @@ namespace EsilvaSoft.KapibaraStudio.LocalAi.Core;
 /// </summary>
 public static class ModelDisplayNames
 {
-    private static readonly string[] Precisions = ["INT4", "INT8", "FP16", "FP32", "BF16"];
-    private static readonly (string Prefix, string Provider)[] GpuProviders = [("DML", "DirectML"), ("CUDA", "CUDA")];
+    private static readonly string[] Precisions = ["INT4", "INT8", "FP16", "FP32", "BF16", "W4A16", "W8A16"];
+    private static readonly (string Prefix, AiAccelerationMode Hardware, string Provider)[] Providers =
+    [
+        ("DML", AiAccelerationMode.Gpu, "DirectML"),
+        ("CUDA", AiAccelerationMode.Gpu, "CUDA"),
+        ("QNN", AiAccelerationMode.Npu, "QNN"),
+        ("OPENVINO", AiAccelerationMode.Gpu, "OpenVINO")
+    ];
 
     /// <summary><c>dml-fp16</c> → GPU DirectML FP16; <c>int4</c> → CPU INT4; any other name → null.</summary>
     public static ModelFlavor? ParseVariant(string variant)
@@ -20,8 +26,8 @@ public static class ModelDisplayNames
         var precision = parts[^1].ToUpperInvariant();
         if (!Precisions.Contains(precision)) return null;
         if (parts.Length == 1) return new(AiAccelerationMode.Cpu, null, precision);
-        var provider = GpuProviders.FirstOrDefault(entry => string.Equals(entry.Prefix, parts[0], StringComparison.OrdinalIgnoreCase)).Provider;
-        return provider is null ? null : new(AiAccelerationMode.Gpu, provider, precision);
+        var provider = Providers.FirstOrDefault(entry => string.Equals(entry.Prefix, parts[0], StringComparison.OrdinalIgnoreCase));
+        return provider.Provider is null ? null : new(provider.Hardware, provider.Provider, precision);
     }
 
     public static string HardwareText(ModelFlavor flavor)
@@ -30,7 +36,7 @@ public static class ModelDisplayNames
         return flavor.Hardware switch
         {
             AiAccelerationMode.Gpu => flavor.Provider is null ? "GPU" : "GPU " + flavor.Provider,
-            AiAccelerationMode.Npu => "NPU",
+            AiAccelerationMode.Npu => flavor.Provider is null ? "NPU" : "NPU " + flavor.Provider,
             _ => "CPU"
         };
     }

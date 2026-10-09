@@ -7,7 +7,7 @@ public static class ModelAdapters
 {
     /// <summary>Order matters: a llama export is DeepSeek only when its manifest is present.</summary>
     public static IReadOnlyList<IModelAdapter> CreateDefault(ILocalModelFileAccess fileAccess) =>
-        [new DeepSeekCoderModelAdapter(fileAccess), new QwenCoderModelAdapter()];
+        [new DeepSeekCoderModelAdapter(fileAccess), new QwenCoderModelAdapter(), new Qwen3ModelAdapter(fileAccess)];
 
     public static IModelAdapter For(LocalModelDefinition model, IReadOnlyList<IModelAdapter> adapters)
     {

@@ -41,6 +41,12 @@ public sealed record AgentProviderStatus
 
     public string? UnavailableCode { get; }
 
+    /// <summary>Optional package defaults for a provider capability, never content or a request override.</summary>
+    public bool? ReasoningDefaultEnabled { get; init; }
+    public int? ReasoningDefaultBudgetTokens { get; init; }
+    public int? ReasoningMinimumBudgetTokens { get; init; }
+    public int? ReasoningMaximumBudgetTokens { get; init; }
+
     /// <summary>Status of a provider that does not report one. Fails closed: unavailable, nothing declared.</summary>
     public static AgentProviderStatus NotReported { get; } =
         new(false, AgentProviderAuthState.Unknown, AgentProviderCapabilities.None, unavailableCode: "StatusNotReported");

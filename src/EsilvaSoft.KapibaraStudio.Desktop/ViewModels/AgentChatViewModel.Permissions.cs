@@ -259,6 +259,9 @@ public sealed partial class AgentChatViewModel
         {
             _ = SaveConversationAsync(conversation);
         }
+
+        if (string.Equals(providerId, LocalAgentProvider.Id, StringComparison.Ordinal))
+            _ = CleanupExpiredReasoningAsync();
     }
 
     public AgentPermissionsViewModel CreatePermissionsViewModel(string? providerId = null, string? section = null)

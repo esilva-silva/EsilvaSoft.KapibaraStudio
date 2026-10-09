@@ -75,6 +75,9 @@ public sealed partial class AgentRuntime
         /// <summary>Typed adapter error codes forwarded as-is (sanitized snapshot taken when the session starts).</summary>
         public HashSet<string> ProviderErrorCodes { get; init; } = new HashSet<string>(StringComparer.Ordinal);
 
+        /// <summary>Snapshot of the local provider's proven capability; never inferred from an event.</summary>
+        public bool SupportsReasoning { get; init; }
+
         public long NextSequence() => Interlocked.Increment(ref _sequence);
     }
 
@@ -242,7 +245,7 @@ public sealed partial class AgentRuntime
             SessionId = sessionId;
             Session = session;
             Request = request;
-            MaximumToolCalls = session.ProviderId == AgentProviderIds.GitHubCopilotSubscription &&
+            MaximumToolCalls = (session.ProviderId is AgentProviderIds.GitHubCopilotSubscription or "local") &&
                 request.Plan is { IsBlocked: false } && request.Permissions is { IsWellFormed: true } permissions &&
                 permissions.ProviderId == session.ProviderId
                 ? permissions.MaximumToolCallsPerTurn : options.MaxToolCallsPerTurn;
@@ -273,6 +276,9 @@ public sealed partial class AgentRuntime
         public object Gate { get; } = new();
 
         public Dictionary<string, MessageState> Messages { get; } = new(StringComparer.Ordinal);
+
+        /// <summary>Runtime-owned open reasoning block; terminal publication closes it if provider delivery is cancelled.</summary>
+        public bool ReasoningOpen { get; set; }
 
         public Dictionary<AgentToolCallId, ToolCallState> Tools { get; } = [];
 

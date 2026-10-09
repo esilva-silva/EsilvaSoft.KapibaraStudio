@@ -45,7 +45,12 @@ public sealed record AgentProviderPresentation(
     string? FamilyName = null,
     bool SupportsTurnPlan = false,
     bool IsExperimental = false,
-    bool SupportsNativeTools = false)
+    bool SupportsNativeTools = false,
+    bool SupportsReasoning = false,
+    bool ReasoningDefaultEnabled = false,
+    int? ReasoningDefaultBudgetTokens = null,
+    int? ReasoningMinimumBudgetTokens = null,
+    int? ReasoningMaximumBudgetTokens = null)
 {
     /// <summary>
     /// Builds the view from promoted contracts. Destination comes from the catalog entry (provider <c>IsLocal</c>), the
@@ -64,7 +69,12 @@ public sealed record AgentProviderPresentation(
             // TurnPlan (ADR-056): what the provider declares, narrowed by the live status once it was checked.
             descriptor.Capabilities.TurnPlan && (!status.IsAvailable || status.Capabilities.TurnPlan),
             IsExperimental: false,
-            SupportsNativeTools: descriptor.Capabilities.NativeTools && (!status.IsAvailable || status.Capabilities.NativeTools));
+            SupportsNativeTools: descriptor.Capabilities.NativeTools && (!status.IsAvailable || status.Capabilities.NativeTools),
+            SupportsReasoning: descriptor.Capabilities.Reasoning && (!status.IsAvailable || status.Capabilities.Reasoning),
+            ReasoningDefaultEnabled: status.Capabilities.Reasoning && status.ReasoningDefaultEnabled == true,
+            ReasoningDefaultBudgetTokens: status.ReasoningDefaultBudgetTokens,
+            ReasoningMinimumBudgetTokens: status.ReasoningMinimumBudgetTokens,
+            ReasoningMaximumBudgetTokens: status.ReasoningMaximumBudgetTokens);
     }
 }
 

@@ -159,7 +159,7 @@ internal static class AgentConversationDocumentCodec
 
         if (id == Guid.Empty || providerId is null || title is null || updatedAt is null || revision < 1 ||
             document.Count != DocumentFields.Length || !document.Keys.ToHashSet(StringComparer.Ordinal).SetEquals(DocumentFields) ||
-            versionValue is not { IsInt32: true } || versionValue.AsInt32 != AgentConversation.CurrentFormatVersion ||
+            versionValue is not { IsInt32: true } || versionValue.AsInt32 is not (1 or AgentConversation.CurrentFormatVersion) ||
             !document["json"].IsString)
             return Classified(AgentStoredDocumentState.Unreadable);
 
@@ -173,9 +173,19 @@ internal static class AgentConversationDocumentCodec
             return Classified(AgentStoredDocumentState.Unreadable);
         }
 
-        if (conversation is null || Validate(conversation) is not null || conversation.Id != id ||
+        if (conversation is null || conversation.FormatVersion != versionValue.AsInt32 || conversation.Id != id ||
             !string.Equals(conversation.ProviderId, providerId, StringComparison.Ordinal) ||
             !string.Equals(conversation.Title, title, StringComparison.Ordinal) || conversation.Revision != revision)
+            return Classified(AgentStoredDocumentState.Unreadable);
+
+        // Version 2 adds expiring reasoning entries. Existing version 1 entries are unchanged and are normalized
+        // in memory; the next successful revisioned write performs the additive migration.
+        if (versionValue.AsInt32 == 1 && conversation.Entries.Any(entry =>
+                entry.Kind == AgentConversationEntryKind.ReasoningText || entry.ExpiresAtUtc is not null))
+            return Classified(AgentStoredDocumentState.Unreadable);
+        if (versionValue.AsInt32 == 1)
+            conversation = conversation with { FormatVersion = AgentConversation.CurrentFormatVersion };
+        if (Validate(conversation) is not null)
             return Classified(AgentStoredDocumentState.Unreadable);
 
         return Classified(AgentStoredDocumentState.Readable, conversation);
@@ -194,6 +204,10 @@ internal static class AgentConversationDocumentCodec
              !AgentPersistenceJson.IsSafeShortText(conversation.ProviderSessionId, MaximumProviderSessionIdChars)))
             return "ConversationInvalid";
         if (conversation.Entries.Count > MaximumEntries) return "ConversationTooManyEntries";
+        var hasCapturedDocumentTool = conversation.Entries.Any(entry => entry.Kind == AgentConversationEntryKind.ToolCall &&
+            entry.ToolName is AgentProductToolNames.GetQueryResults or AgentProductToolNames.GetQueryDiagnostics);
+        if (hasCapturedDocumentTool && conversation.Entries.Any(entry => entry.Kind == AgentConversationEntryKind.ReasoningText))
+            return "ReasoningAfterCapturedDocumentTool";
         foreach (var entry in conversation.Entries)
         {
             if (entry?.Text is null || entry.Attachments is null) return "ConversationEntryInvalid";
@@ -209,6 +223,17 @@ internal static class AgentConversationDocumentCodec
             // results/arguments in an older or tampered document cannot be returned or silently overwritten.
             if (entry.Kind == AgentConversationEntryKind.ToolCall && !HasToolCallSummaryShape(entry))
                 return "ConversationEntryInvalid";
+            if (entry.Kind == AgentConversationEntryKind.ReasoningText)
+            {
+                if (!string.Equals(conversation.ProviderId, LocalAgentProvider.Id, StringComparison.Ordinal) ||
+                    entry.ExpiresAtUtc is null || entry.Attachments.Count != 0 || entry.ToolName is not null ||
+                    entry.ToolOutcome is not null || entry.ProposalId is not null || entry.ExpiresAtUtc.Value.Offset != TimeSpan.Zero)
+                    return "ConversationEntryInvalid";
+            }
+            else if (entry.ExpiresAtUtc is not null)
+            {
+                return "ConversationEntryInvalid";
+            }
         }
 
         return null;

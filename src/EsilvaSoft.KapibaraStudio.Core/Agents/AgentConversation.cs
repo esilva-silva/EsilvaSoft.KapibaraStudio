@@ -14,6 +14,9 @@ public enum AgentConversationEntryKind
 
     /// <summary>Reference to an edit proposal (<see cref="AgentConversationEntry.ProposalId"/>); texts are not kept.</summary>
     EditProposal = 4,
+
+    /// <summary>Opt-in, expiring local model reasoning; never tool output, audit data, or a provider conversation.</summary>
+    ReasoningText = 5,
 }
 
 /// <summary>
@@ -32,6 +35,9 @@ public sealed record AgentConversationEntry(
     public AgentToolResultStatus? ToolOutcome { get; init; }
 
     public Guid? ProposalId { get; init; }
+
+    /// <summary>Expiry for opt-in reasoning only. Other entry kinds must leave this unset.</summary>
+    public DateTimeOffset? ExpiresAtUtc { get; init; }
 
     /// <summary>Omits the text and attachments (user content) so logs never carry them.</summary>
     public override string ToString() =>
@@ -57,7 +63,7 @@ public sealed record AgentConversation(
     long Revision,
     IReadOnlyList<AgentConversationEntry> Entries)
 {
-    public const int CurrentFormatVersion = 1;
+    public const int CurrentFormatVersion = 2;
 
     public int FormatVersion { get; init; } = CurrentFormatVersion;
 

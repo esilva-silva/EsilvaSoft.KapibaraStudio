@@ -288,6 +288,17 @@ public sealed class AutocompleteUiTests
             await preferences.ApplyCommand.ExecuteAsync(null);
             Assert.That((saved!.ContextTokens, saved.MaximumCompletionTokens), Is.EqualTo((3072, 77)));
 
+            var evidenceDirectory = UiEvidenceDirectory.Current();
+            Directory.CreateDirectory(evidenceDirectory);
+            foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+            {
+                Avalonia.Application.Current!.RequestedThemeVariant = theme;
+                window.UpdateLayout(); Dispatcher.UIThread.RunJobs();
+                using var frame = window.CaptureRenderedFrame();
+                frame!.Save(Path.Combine(evidenceDirectory, $"autocomplete-agent-model-{theme}.png"),
+                    new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+            }
+
             window.Close();
             return true;
         }, CancellationToken.None);

@@ -31,11 +31,20 @@ public sealed partial class AgentChatViewModel
 
         public bool PersistProviderSession { get; init; } = true;
 
+        public bool PersistReasoning { get; set; }
+
+        public int ReasoningRetentionDays { get; set; } = 7;
+
+        public bool HasCapturedDocumentTool { get; set; }
+
         public Dictionary<AgentMessageId, AgentChatMessageItem> Messages { get; } = [];
 
         public Dictionary<AgentToolCallId, AgentToolCallItem> Tools { get; } = [];
 
         public Dictionary<AgentApprovalId, AgentApprovalCardItem> Approvals { get; } = [];
+
+        /// <summary>Active reasoning row is intentionally absent from persisted conversation entries.</summary>
+        public AgentReasoningItem? Reasoning { get; set; }
 
         /// <summary>Requests cancellation of this turn's token. Idempotent and safe after the turn already finished
         /// and disposed its CTS: cancelling a finished turn does nothing, it never throws.</summary>
@@ -89,6 +98,9 @@ public sealed partial class AgentChatViewModel
         var message = ComposerText.Trim();
         var mode = SelectedMode.Mode;
         var modelId = SelectedModel;
+        var reasoning = provider.Presentation.SupportsReasoning
+            ? new AgentReasoningOptions(ReasoningEnabled, SelectedReasoningBudget)
+            : null;
         var conversation = ActiveConversation;
         var context = _host.CaptureWorkspace();
         if (!permissions.Workspace.UseFilesFolder)
@@ -109,6 +121,10 @@ public sealed partial class AgentChatViewModel
         {
             ProviderId = provider.ProviderId,
             PersistProviderSession = permissions.KeepHistory,
+            PersistReasoning = string.Equals(provider.ProviderId, LocalAgentProvider.Id, StringComparison.Ordinal) &&
+                PersistReasoning && permissions.KeepHistory,
+            ReasoningRetentionDays = ReasoningRetentionDays,
+            HasCapturedDocumentTool = conversation.HasCapturedDocumentTool,
             Conversation = conversation,
         };
         conversation.Turn = run;
@@ -123,14 +139,14 @@ public sealed partial class AgentChatViewModel
         State = AgentChatState.Connecting;
         ComposerFocusRequested?.Invoke(this, EventArgs.Empty);
         run.Completion = RunPreparedTurnAsync(run, provider.ProviderId, modelId, workingDirectory,
-            message, mode, permissions, plan, context, requests, capturedChips);
+            message, mode, permissions, plan, context, requests, capturedChips, reasoning);
         await run.Completion;
     }
 
     private async Task RunPreparedTurnAsync(TurnRun run, string providerId, string? modelId, string? workingDirectory,
         string message, AgentOperationMode mode, AgentProviderPermissions permissions, AgentTurnPlan plan,
         AgentWorkspaceContext context, IReadOnlyList<AgentAttachmentRequest> requests,
-        AgentContextChipViewModel[] capturedChips)
+        AgentContextChipViewModel[] capturedChips, AgentReasoningOptions? reasoning)
     {
         try
         {
@@ -155,6 +171,7 @@ public sealed partial class AgentChatViewModel
             {
                 Plan = plan, SystemPrompt = systemPrompt, Attachments = resolution.Attachments,
                 ConversationId = run.Conversation.Id, Permissions = permissions, WorkspaceContext = context,
+                Reasoning = reasoning,
             };
             run.Conversation.Items.Add(new AgentChatMessageItem(AgentChatRole.User, message,
                 attachments: resolution.Attachments.Select(static attachment => attachment.ToDescriptor()).ToArray())
@@ -333,6 +350,23 @@ public sealed partial class AgentChatViewModel
     {
         switch (item.Kind)
         {
+            case AgentEventKind.ReasoningStarted:
+                run.Reasoning = new AgentReasoningItem
+                {
+                    IsRetentionEligible = run.PersistReasoning && !run.HasCapturedDocumentTool,
+                    RetentionExpiresAtUtc = run.PersistReasoning
+                        ? _services.Clock.GetUtcNow().AddDays(run.ReasoningRetentionDays)
+                        : null,
+                };
+                run.Conversation.Items.Add(run.Reasoning);
+                break;
+            case AgentEventKind.ReasoningDelta when run.Reasoning is { } reasoning && !string.IsNullOrEmpty(item.Text):
+                reasoning.Append(item.Text);
+                break;
+            case AgentEventKind.ReasoningCompleted when run.Reasoning is { } reasoning:
+                reasoning.Complete(item.ReasoningTokens, item.ReasoningDurationMs, item.ReasoningTruncatedByBudget == true);
+                run.Reasoning = null;
+                break;
             case AgentEventKind.UsageUpdated when item.Usage is { } usage:
                 if (run.Conversation.UsageTurns.TryGetValue(run.TurnId, out var accumulator))
                     accumulator.Observe(usage, item.TimestampUtc);
@@ -343,6 +377,7 @@ public sealed partial class AgentChatViewModel
                 RefreshRunningState(run);
                 break;
             case AgentEventKind.MessageStarted when item.MessageId is { } id:
+                if (run.Reasoning is { } activeReasoning) activeReasoning.IsExpanded = false;
                 GetOrAddMessage(run, id);
                 break;
             case AgentEventKind.MessageDelta when item.MessageId is { } id && !string.IsNullOrEmpty(item.Text):
@@ -357,6 +392,13 @@ public sealed partial class AgentChatViewModel
 
                 break;
             case AgentEventKind.ToolRequested when item.ToolCallId is { } callId:
+                if (run.Reasoning is { } toolReasoning) toolReasoning.IsExpanded = false;
+                if (item.ToolName is "get_query_results" or "get_query_diagnostics")
+                {
+                    run.HasCapturedDocumentTool = true;
+                    foreach (var reasoningRow in run.Conversation.Items.OfType<AgentReasoningItem>())
+                        reasoningRow.IsRetentionEligible = false;
+                }
                 if (!run.Tools.ContainsKey(callId))
                 {
                     var tool = new AgentToolCallItem(callId, item.ToolName, item.ToolDestination, item.ToolOrigin,

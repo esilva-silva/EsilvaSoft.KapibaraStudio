@@ -13,6 +13,9 @@ namespace EsilvaSoft.KapibaraStudio.Infrastructure;
 public sealed partial class LiteDbConnectionProfileRepository : IAgentConversationRepository
 {
     private const string AgentConversationsCollectionName = "agentConversations";
+    private const string AgentReasoningPolicyCollectionName = "agentReasoningPolicy";
+    private long _reasoningPolicyGeneration;
+    private int _reasoningRetentionFailClosed = 1;
 
     Task<AgentPersistenceResult<IReadOnlyList<AgentConversationSummary>>> IAgentConversationRepository.ListAsync(
         string? providerId, CancellationToken cancellationToken)
@@ -76,7 +79,8 @@ public sealed partial class LiteDbConnectionProfileRepository : IAgentConversati
 
         if (stored is null)
             return Task.FromResult(AgentPersistenceResult.Failure<AgentConversation>(AgentPersistenceStatus.Invalid, errorCode));
-        var document = AgentConversationDocumentCodec.Encode(stored, out var payloadBytes);
+        var candidate = stored;
+        var document = AgentConversationDocumentCodec.Encode(candidate, out var payloadBytes);
         if (payloadBytes > AgentConversationDocumentCodec.MaximumDocumentBytes)
             return Task.FromResult(AgentPersistenceResult.Failure<AgentConversation>(
                 AgentPersistenceStatus.Invalid, "ConversationTooLarge"));
@@ -85,7 +89,7 @@ public sealed partial class LiteDbConnectionProfileRepository : IAgentConversati
         {
             // Permission saves and conversation saves use the same owner gate. A permission opt-out that wins the
             // gate must prevent a conversation save already queued by the UI from writing afterward.
-            var permissionsDocument = _database.GetCollection(AgentProviderPermissionsCollectionName).FindById(stored.ProviderId);
+            var permissionsDocument = _database.GetCollection(AgentProviderPermissionsCollectionName).FindById(candidate.ProviderId);
             if (permissionsDocument is not null)
             {
                 var decodedPermissions = AgentProviderPermissionsDocumentCodec.Decode(permissionsDocument);
@@ -100,8 +104,34 @@ public sealed partial class LiteDbConnectionProfileRepository : IAgentConversati
                         AgentPersistenceStatus.Invalid, "HistoryDisabled");
             }
 
+            if (string.Equals(candidate.ProviderId, LocalAgentProvider.Id, StringComparison.Ordinal) &&
+                candidate.Entries.Any(static entry => entry.Kind == AgentConversationEntryKind.ReasoningText))
+            {
+                var policy = _database.GetCollection(AgentReasoningPolicyCollectionName).FindById(LocalAgentProvider.Id);
+                var enabled = Volatile.Read(ref _reasoningRetentionFailClosed) == 0 && policy is { Count: 4 } &&
+                    policy.TryGetValue("formatVersion", out var versionValue) && versionValue.IsInt32 && versionValue.AsInt32 == 1 &&
+                    policy.TryGetValue("enabled", out var enabledValue) && enabledValue.IsBoolean && enabledValue.AsBoolean &&
+                    policy.TryGetValue("retentionDays", out var daysValue) && daysValue.IsInt32 && daysValue.AsInt32 is >= 1 and <= 30;
+                var days = enabled ? policy!["retentionDays"].AsInt32 : 0;
+                var now = DateTimeOffset.UtcNow;
+                var entries = enabled
+                    ? candidate.Entries
+                        .Select(entry => entry.Kind == AgentConversationEntryKind.ReasoningText && entry.ExpiresAtUtc is { } expiry &&
+                            expiry > MaximumExpiry(entry.Timestamp, days)
+                                ? entry with { ExpiresAtUtc = MaximumExpiry(entry.Timestamp, days) }
+                                : entry)
+                        .Where(entry => entry.Kind != AgentConversationEntryKind.ReasoningText ||
+                            entry.ExpiresAtUtc is { } expiry && expiry > now)
+                        .ToArray()
+                    : candidate.Entries.Where(static entry => entry.Kind != AgentConversationEntryKind.ReasoningText).ToArray();
+                candidate = candidate with { Entries = entries };
+                document = AgentConversationDocumentCodec.Encode(candidate, out payloadBytes);
+                if (payloadBytes > AgentConversationDocumentCodec.MaximumDocumentBytes)
+                    return AgentPersistenceResult.Failure<AgentConversation>(AgentPersistenceStatus.Invalid, "ConversationTooLarge");
+            }
+
             var collection = _database.GetCollection(AgentConversationsCollectionName);
-            var existing = collection.FindById(stored.Id);
+            var existing = collection.FindById(candidate.Id);
             if (existing is not null)
             {
                 var decoded = AgentConversationDocumentCodec.Decode(existing);
@@ -110,8 +140,12 @@ public sealed partial class LiteDbConnectionProfileRepository : IAgentConversati
                     return StoredDocumentFailure<AgentConversation>(decoded.State);
                 if (decoded.Revision != expectedRevision)
                     return AgentPersistenceResult.Failure<AgentConversation>(AgentPersistenceStatus.Conflict, "RevisionMismatch");
-                if (!string.Equals(decoded.ProviderId, stored.ProviderId, StringComparison.Ordinal))
+                if (!string.Equals(decoded.ProviderId, candidate.ProviderId, StringComparison.Ordinal))
                     return AgentPersistenceResult.Failure<AgentConversation>(AgentPersistenceStatus.Invalid, "ProviderMismatch");
+                candidate = PreserveReasoningExpiry(candidate, decoded.Conversation!);
+                document = AgentConversationDocumentCodec.Encode(candidate, out payloadBytes);
+                if (payloadBytes > AgentConversationDocumentCodec.MaximumDocumentBytes)
+                    return AgentPersistenceResult.Failure<AgentConversation>(AgentPersistenceStatus.Invalid, "ConversationTooLarge");
             }
             else
             {
@@ -121,7 +155,7 @@ public sealed partial class LiteDbConnectionProfileRepository : IAgentConversati
                 // enforced by deleting anything implicitly; the UI decides what to remove.
                 var count = collection.FindAll().Count(item =>
                     item.TryGetValue("providerId", out var value) && value.IsString &&
-                    string.Equals(value.AsString, stored.ProviderId, StringComparison.Ordinal));
+                    string.Equals(value.AsString, candidate.ProviderId, StringComparison.Ordinal));
                 if (count >= AgentConversationDocumentCodec.MaximumConversationsPerProvider)
                     return AgentPersistenceResult.Failure<AgentConversation>(
                         AgentPersistenceStatus.Invalid, "ConversationLimitReached");
@@ -129,8 +163,22 @@ public sealed partial class LiteDbConnectionProfileRepository : IAgentConversati
 
             cancellationToken.ThrowIfCancellationRequested();
             collection.Upsert(document);
-            return AgentPersistenceResult.Success(stored);
+            return AgentPersistenceResult.Success(candidate);
         }, cancellationToken);
+    }
+
+    private static AgentConversation PreserveReasoningExpiry(AgentConversation incoming, AgentConversation existing)
+    {
+        var expirations = existing.Entries
+            .Where(entry => entry.Kind == AgentConversationEntryKind.ReasoningText && entry.ExpiresAtUtc is not null)
+            .GroupBy(static entry => (entry.Timestamp, entry.Text))
+            .ToDictionary(static group => group.Key, static group => group.Min(entry => entry.ExpiresAtUtc!.Value));
+        var entries = incoming.Entries.Select(entry =>
+            entry.Kind == AgentConversationEntryKind.ReasoningText && entry.ExpiresAtUtc is { } newExpiry &&
+            expirations.TryGetValue((entry.Timestamp, entry.Text), out var existingExpiry) && newExpiry > existingExpiry
+                ? entry with { ExpiresAtUtc = existingExpiry }
+                : entry).ToArray();
+        return incoming with { Entries = entries };
     }
 
     async Task<AgentPersistenceOutcome> IAgentConversationRepository.DeleteAsync(
@@ -182,6 +230,109 @@ public sealed partial class LiteDbConnectionProfileRepository : IAgentConversati
             var deleted = ids.Count(id => collection.Delete(id));
             return AgentPersistenceResult.Success(deleted);
         }, cancellationToken);
+    }
+
+    Task<AgentPersistenceResult<int>> IAgentConversationRepository.PruneExpiredReasoningAsync(
+        DateTimeOffset nowUtc, int maximumRetentionDays, CancellationToken cancellationToken)
+    {
+        if (maximumRetentionDays is < 1 or > 30)
+            return Task.FromResult(AgentPersistenceResult.Failure<int>(AgentPersistenceStatus.Invalid, "RetentionDaysInvalid"));
+        return RewriteReasoningAsync(LocalAgentProvider.Id, nowUtc, purgeAll: false, maximumRetentionDays, cancellationToken);
+    }
+
+    Task<AgentPersistenceResult<int>> IAgentConversationRepository.PurgeReasoningAsync(
+        string providerId, CancellationToken cancellationToken)
+    {
+        if (!AgentPersistenceJson.IsValidProviderId(providerId))
+            return Task.FromResult(AgentPersistenceResult.Failure<int>(AgentPersistenceStatus.Invalid, "ProviderIdInvalid"));
+        return RewriteReasoningAsync(providerId, DateTimeOffset.MaxValue, purgeAll: true, maximumRetentionDays: 30, cancellationToken);
+    }
+
+    async Task<AgentPersistenceOutcome> IAgentConversationRepository.SetReasoningRetentionPolicyAsync(
+        bool enabled, int retentionDays, CancellationToken cancellationToken)
+    {
+        if (retentionDays is < 1 or > 30)
+            return new AgentPersistenceOutcome(AgentPersistenceStatus.Invalid, "RetentionDaysInvalid");
+        var generation = Interlocked.Increment(ref _reasoningPolicyGeneration);
+        if (!enabled) Volatile.Write(ref _reasoningRetentionFailClosed, 1);
+        var result = await RunAgentPersistenceAsync(() =>
+        {
+            var collection = _database.GetCollection(AgentReasoningPolicyCollectionName);
+            collection.Upsert(new BsonDocument
+            {
+                ["_id"] = LocalAgentProvider.Id,
+                ["enabled"] = enabled,
+                ["retentionDays"] = retentionDays,
+                ["formatVersion"] = 1,
+            });
+            return AgentPersistenceResult.Success(true);
+        }, cancellationToken).ConfigureAwait(false);
+        if (result.Succeeded && Interlocked.Read(ref _reasoningPolicyGeneration) == generation)
+            Volatile.Write(ref _reasoningRetentionFailClosed, enabled ? 0 : 1);
+        return result.Succeeded
+            ? AgentPersistenceOutcome.Success
+            : new AgentPersistenceOutcome(result.Status, result.ErrorCode);
+    }
+
+    private Task<AgentPersistenceResult<int>> RewriteReasoningAsync(string providerId, DateTimeOffset nowUtc, bool purgeAll,
+        int maximumRetentionDays, CancellationToken cancellationToken) => RunAgentPersistenceAsync(() =>
+    {
+        nowUtc = nowUtc.ToUniversalTime();
+        var collection = _database.GetCollection(AgentConversationsCollectionName);
+        var candidateIds = collection.FindAll()
+            .Where(document => document.TryGetValue("_id", out var id) && id.IsGuid &&
+                document.TryGetValue("providerId", out var provider) && provider.IsString &&
+                string.Equals(provider.AsString, providerId, StringComparison.Ordinal))
+            .Select(static document => document["_id"].AsGuid)
+            .ToArray();
+        var removedEntries = 0;
+        InTransaction(() =>
+        {
+            foreach (var id in candidateIds)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var document = collection.FindById(id);
+                if (document is null) continue;
+                var decoded = AgentConversationDocumentCodec.Decode(document);
+                // Never repair, rewrite or delete a conversation this version cannot read.
+                if (decoded.State != AgentStoredDocumentState.Readable) continue;
+                var entries = decoded.Conversation!.Entries;
+                var clamped = entries.Select(entry => entry.Kind == AgentConversationEntryKind.ReasoningText &&
+                    entry.ExpiresAtUtc is { } expiresAt && expiresAt > MaximumExpiry(entry.Timestamp, maximumRetentionDays)
+                    ? entry with { ExpiresAtUtc = MaximumExpiry(entry.Timestamp, maximumRetentionDays) }
+                    : entry).ToArray();
+                var retained = clamped.Where(entry => entry.Kind != AgentConversationEntryKind.ReasoningText ||
+                    (!purgeAll && entry.ExpiresAtUtc is { } expiresAt && expiresAt > nowUtc)).ToArray();
+                var changed = retained.Length != entries.Count || retained.Where((entry, index) => entry.ExpiresAtUtc != entries[index].ExpiresAtUtc).Any();
+                if (!changed) continue;
+
+                var updated = decoded.Conversation with { Entries = retained, UpdatedAt = nowUtc };
+                AgentConversation? prepared;
+                string? errorCode;
+                try
+                {
+                    prepared = AgentConversationDocumentCodec.Prepare(updated, decoded.Revision + 1, out errorCode);
+                }
+                catch (AgentRuntimeException)
+                {
+                    throw new InvalidDataException("ReasoningRetentionRedactionFailed");
+                }
+
+                if (prepared is null) throw new InvalidDataException(errorCode ?? "ReasoningRetentionInvalid");
+                var replacement = AgentConversationDocumentCodec.Encode(prepared, out var payloadBytes);
+                if (payloadBytes > AgentConversationDocumentCodec.MaximumDocumentBytes)
+                    throw new InvalidDataException("ConversationTooLarge");
+                collection.Upsert(replacement);
+                removedEntries += entries.Count - retained.Length;
+            }
+        });
+        return AgentPersistenceResult.Success(removedEntries);
+    }, cancellationToken);
+
+    private static DateTimeOffset MaximumExpiry(DateTimeOffset timestamp, int retentionDays)
+    {
+        try { return timestamp.ToUniversalTime().AddDays(retentionDays); }
+        catch (ArgumentOutOfRangeException) { return DateTimeOffset.MaxValue; }
     }
 
     private static AgentConversationSummary ToSummary(AgentConversationDecoded decoded) => decoded.State switch

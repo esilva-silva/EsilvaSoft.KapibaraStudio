@@ -31,6 +31,9 @@ public interface IAgentProvider
 
 public interface IAgentSession : IAsyncDisposable
 {
+    /// <summary>Session-level proof for raw reasoning events; false by default and independent of provider summaries.</summary>
+    bool SupportsReasoning => false;
+
     IAsyncEnumerable<AgentProviderEvent> RunTurnAsync(AgentTurnRequest request, CancellationToken cancellationToken);
 
     Task SubmitToolResultAsync(AgentToolResult result, CancellationToken cancellationToken);

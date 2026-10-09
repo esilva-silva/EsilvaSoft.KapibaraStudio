@@ -30,4 +30,16 @@ public interface IAgentConversationRepository
     /// newer-format documents of that provider (the user asked to erase them). Returns the count.
     /// </summary>
     Task<AgentPersistenceResult<int>> DeleteAllAsync(string? providerId, CancellationToken cancellationToken);
+
+    /// <summary>Removes expired reasoning text through the registered store owner, irrespective of history opt-out.</summary>
+    Task<AgentPersistenceResult<int>> PruneExpiredReasoningAsync(DateTimeOffset nowUtc, int maximumRetentionDays, CancellationToken cancellationToken) =>
+        Task.FromResult(AgentPersistenceResult.Success(0));
+
+    /// <summary>Sets the local reasoning retention gate at the same persistence owner boundary used by saves.</summary>
+    Task<AgentPersistenceOutcome> SetReasoningRetentionPolicyAsync(bool enabled, int retentionDays, CancellationToken cancellationToken) =>
+        Task.FromResult(AgentPersistenceOutcome.Success);
+
+    /// <summary>Purges only reasoning entries for a provider after the user disables retention.</summary>
+    Task<AgentPersistenceResult<int>> PurgeReasoningAsync(string providerId, CancellationToken cancellationToken) =>
+        Task.FromResult(AgentPersistenceResult.Success(0));
 }

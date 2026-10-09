@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using System.Collections.ObjectModel;
 using System.Buffers;
 using EsilvaSoft.KapibaraStudio.Core;
+using EsilvaSoft.KapibaraStudio.Core.Agents;
 using EsilvaSoft.KapibaraStudio.Autocomplete.Core;
 
 namespace EsilvaSoft.KapibaraStudio.Application.Agents;
@@ -178,12 +179,18 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
     public AgentToolExposureStage ExposureStage => _exposure.Stage;
 
     /// <summary>
-    /// Tools announced to in-process providers. Per-session tools are omitted: only a per-session MCP channel can call
-    /// them (see <see cref="GetChannelDescriptors"/>).
+    /// Tools announced to in-process providers. Provider-only tools such as <c>approve</c> remain excluded.
     /// </summary>
     public IReadOnlyList<AgentToolDescriptor> GetDescriptors() =>
         Descriptors.Where(descriptor => IsAvailable(descriptor.Name) && !IsSessionTool(descriptor.Name) &&
             _inProcessExposure.Exposes(descriptor.Name) && _exposure.Exposes(descriptor.Name)).ToArray();
+
+    /// <summary>Provider-specific catalog for trusted in-process native chat; never used by MCP discovery.</summary>
+    public IReadOnlyList<AgentToolDescriptor> GetInProcessDescriptors(string providerId) =>
+        InProcessExposureFor(providerId) is { } exposure
+            ? Descriptors.Where(descriptor => descriptor.Name != ApproveToolName && IsProductInProcessTool(descriptor.Name) &&
+                IsAvailable(descriptor.Name, exposure)).ToArray()
+            : [];
 
     /// <summary>
     /// Tools from the shared release stage for the MCP broker. Provider-scoped session tools are obtained through
@@ -222,10 +229,10 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
             ? Descriptors.FirstOrDefault(descriptor => string.Equals(name, descriptor.Name, StringComparison.Ordinal))
             : null;
 
-    /// <summary>Descriptor for the Copilot adapter only; its declaration remains bounded by the active turn plan.</summary>
+    /// <summary>Descriptor for an approved in-process product provider; its turn still bounds every invocation.</summary>
     public AgentToolDescriptor? FindInProcessDescriptor(string providerId, string? name) =>
-        providerId == AgentProviderIds.GitHubCopilotSubscription && IsCopilotProductTool(name) &&
-        IsAvailable(name, _copilotExposure)
+        name != ApproveToolName && IsProductInProcessTool(name) &&
+        InProcessExposureFor(providerId) is { } exposure && IsAvailable(name, exposure)
             ? Descriptors.FirstOrDefault(descriptor => string.Equals(name, descriptor.Name, StringComparison.Ordinal))
             : null;
 
@@ -236,33 +243,45 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
             SessionScopeOf(principal) is { ProviderId: AgentProviderIds.ClaudeCodeSubscription } &&
             IsAvailable(name, _claudeExposure))
             return Descriptors.FirstOrDefault(descriptor => string.Equals(name, descriptor.Name, StringComparison.Ordinal));
-        if (IsCopilotDocumentInvocation(principal, context, name))
-            return FindInProcessDescriptor(AgentProviderIds.GitHubCopilotSubscription, name);
+        if (principal?.Origin == AgentPrincipalOrigin.Internal && context?.ProviderId is { } providerId &&
+            FindInProcessDescriptor(providerId, name) is { } inProcessDescriptor &&
+            IsNativeProductToolInvocation(principal, context, name, providerId))
+            return inProcessDescriptor;
         return FindDescriptor(name);
     }
 
-    private bool IsCopilotDocumentInvocation(AgentPrincipal? principal, AgentInvocationContext? context, string? name)
+    private bool IsNativeProductToolInvocation(AgentPrincipal principal, AgentInvocationContext context,
+        string? name, string providerId)
     {
-        if (principal?.Origin != AgentPrincipalOrigin.Internal || !IsCopilotDocumentTool(name) ||
-            context?.SessionId is not { } sessionId || context.TurnId is not { } turnId ||
+        if (context.SessionId is not { } sessionId || context.TurnId is not { } turnId ||
             _sessionTools?.NativeChatTurnScopes?.Find(sessionId, turnId) is not { } turn)
             return false;
-        return string.Equals(turn.ProviderId, AgentProviderIds.GitHubCopilotSubscription, StringComparison.Ordinal) &&
+        return string.Equals(turn.ProviderId, providerId, StringComparison.Ordinal) &&
             string.Equals(context.ProviderId, turn.ProviderId, StringComparison.Ordinal) &&
             !turn.Plan.IsBlocked && turn.Plan.ProductTools.Contains(name!, StringComparer.Ordinal) &&
-            turn.Permissions.IsWellFormed && turn.Permissions.HasExternalDestinationConsent &&
-            turn.Permissions.DataSending.MongoDocuments &&
-            turn.Permissions.EnabledReadTools?.Contains(name!, StringComparer.Ordinal) == true &&
-            _copilotExposure.Exposes(name);
+            turn.Permissions.IsWellFormed &&
+            string.Equals(turn.Permissions.ProviderId, turn.ProviderId, StringComparison.Ordinal) &&
+            IsConsentSatisfied(turn.ProviderId, turn.Permissions) &&
+            (!AgentProductToolNames.ReadTools.Contains(name!, StringComparer.Ordinal) ||
+                turn.Permissions.EnabledReadTools?.Contains(name!, StringComparer.Ordinal) == true) &&
+            (!AgentProductToolNames.IsMongoDocumentRead(name!) || turn.Permissions.DataSending.MongoDocuments) &&
+            InProcessExposureFor(providerId)!.Exposes(name!);
     }
 
-    private static bool IsCopilotProductTool(string? name) =>
-        name is not null && name != GetCollectionSchemaToolName &&
+    private static bool IsProductInProcessTool(string? name) =>
+        name is not null && name != GetCollectionSchemaToolName && name != ApproveToolName &&
             (AgentProductToolNames.ReadTools.Contains(name, StringComparer.Ordinal) ||
             name is ProposeFileEditToolName or CreateWorkspaceFileToolName);
 
-    private static bool IsCopilotDocumentTool(string? name) =>
-        name is GetQueryResultsToolName or GetQueryDiagnosticsToolName;
+    private AgentToolExposure? InProcessExposureFor(string providerId) => providerId switch
+    {
+        AgentProviderIds.GitHubCopilotSubscription => _copilotExposure,
+        "local" => _inProcessExposure,
+        _ => null
+    };
+
+    private static bool IsConsentSatisfied(string providerId, AgentProviderPermissions permissions) =>
+        providerId == "local" || permissions.HasExternalDestinationConsent;
 
     // A tool is discoverable only when its stage is released, the channel authority that issues and revalidates
     // principals was composed, and its handler dependencies exist.
@@ -368,7 +387,7 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
         if (name == ApproveToolName)
             return await InvokeApproveAsync(principal, invocationContext, destination, argumentsJson, cancellationToken)
                 .ConfigureAwait(false);
-        var confirmationFailure = await ConfirmInternalCopilotToolAsync(principal, invocationContext, destination,
+        var confirmationFailure = await ConfirmInternalProductToolAsync(principal, invocationContext, destination,
             name, argumentsJson, cancellationToken).ConfigureAwait(false);
         if (confirmationFailure is not null) return confirmationFailure;
         var missingConfirmation = ConsumeRequiredConfirmation(principal, name, argumentsJson);
@@ -418,8 +437,9 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
             var nativeQuotaScope = auditable && principal!.Origin == AgentPrincipalOrigin.Internal
                 ? _sessionTools?.NativeChatTurnScopes?.Find(invocationContext!.SessionId!.Value, invocationContext.TurnId!.Value)
                 : null;
-            // Use the permission snapshot of this exact Copilot turn, never current persisted settings or model arguments.
-            int? maximumCalls = nativeQuotaScope is { ProviderId: AgentProviderIds.GitHubCopilotSubscription } &&
+            // Use the permission snapshot of this exact in-process turn, never current persisted settings or model arguments.
+            int? maximumCalls = nativeQuotaScope is not null &&
+                (nativeQuotaScope.ProviderId is AgentProviderIds.GitHubCopilotSubscription or "local") &&
                 nativeQuotaScope.ProviderId == invocationContext!.ProviderId && nativeQuotaScope.Permissions.IsWellFormed
                 ? nativeQuotaScope.Permissions.MaximumToolCallsPerTurn : AgentToolInvocationQuota.LegacyMaximumPerTurn;
             using var quotaLease = auditable

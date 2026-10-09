@@ -10,6 +10,9 @@ public interface IAgentToolRegistry
 {
     IReadOnlyList<AgentToolDescriptor> GetDescriptors();
 
+    /// <summary>Tools announced to a specific trusted in-process provider; unknown providers receive no catalog.</summary>
+    IReadOnlyList<AgentToolDescriptor> GetInProcessDescriptors(string providerId) => [];
+
     /// <summary>
     /// Tools the MCP broker may list, per-session tools included; the broker filters them per authenticated channel.
     /// Defaults to <see cref="GetDescriptors"/> for registries without per-session tools.

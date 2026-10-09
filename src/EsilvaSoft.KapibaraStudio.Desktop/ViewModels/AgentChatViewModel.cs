@@ -55,7 +55,10 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
     private readonly Dictionary<Guid, AgentChatConversation> _conversations = [];
     private readonly List<IDisposable> _attachments = [];
     private readonly AgentPanelPreferences? _initialPreferences;
+    private readonly Dictionary<string, AgentReasoningPreference> _reasoningPreferences = new(StringComparer.Ordinal);
+    private static readonly int[] StandardReasoningBudgets = [128, 256, 512, 1024, 2048, 4096];
     private bool _suppressProviderSwitch;
+    private bool _loadingProviderReasoningPreference;
     private bool _disposed;
     private IReadOnlyList<AgentProviderPresentation>? _lastListing;
 
@@ -70,6 +73,13 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
         WorkspaceFilePicker = new AgentWorkspaceFilePickerViewModel(services.PathProbe, services.FileCatalog);
         _host = host;
         _initialPreferences = preferences;
+        if (preferences?.ReasoningByProvider is { } savedReasoning)
+            foreach (var preference in savedReasoning) _reasoningPreferences[preference.Key] = preference.Value;
+        var localReasoning = preferences?.ReasoningByProvider?.GetValueOrDefault(LocalAgentProvider.Id);
+        _reasoningEnabled = localReasoning?.Enabled ?? false;
+        _selectedReasoningBudget = localReasoning?.BudgetTokens ?? 512;
+        _persistReasoning = localReasoning?.Persist ?? false;
+        _reasoningRetentionDays = localReasoning?.RetentionDays ?? 7;
         Modes = AgentModeOption.All();
         _selectedMode = Modes.FirstOrDefault(option => option.Mode == preferences?.SelectedMode) ?? Modes[0];
         _activeConversation = CreateConversation(preferences?.SelectedProviderId ?? "", null);
@@ -134,7 +144,7 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
     [NotifyPropertyChangedFor(nameof(IsExternalDestination), nameof(DestinationText), nameof(DestinationHint),
         nameof(HasModels), nameof(IsStatusError), nameof(ProviderSummary), nameof(ModeText), nameof(HasModeText), nameof(ReadScopeText),
         nameof(HasReadScope), nameof(ReadScopeSummary), nameof(IsReadScopeCritical), nameof(SupportsTurnPlan), nameof(AreChipsEnabled),
-        nameof(ShowChipsDisabledNotice), nameof(IsCopilotSubscriptionSelected))]
+        nameof(ShowChipsDisabledNotice), nameof(IsCopilotSubscriptionSelected), nameof(SupportsReasoning), nameof(IsReasoningOptionVisible), nameof(ReasoningBudgets))]
     private AgentProviderOption? _selectedProvider;
 
     [ObservableProperty] private string? _selectedModel;
@@ -190,6 +200,41 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
 
     /// <summary>The provider honors plan, system prompt and chips (<see cref="AgentProviderCapabilities.TurnPlan"/>).</summary>
     public bool SupportsTurnPlan => SelectedProvider?.Presentation.SupportsTurnPlan == true;
+
+    public bool SupportsReasoning => SelectedProvider?.Presentation.SupportsReasoning == true;
+
+    public bool IsReasoningOptionVisible => IsFeatureAvailable && SupportsReasoning;
+
+    public bool IsReasoningRetentionVisible => IsReasoningOptionVisible &&
+        string.Equals(SelectedProvider?.ProviderId, LocalAgentProvider.Id, StringComparison.Ordinal);
+
+    public IReadOnlyList<int> ReasoningRetentionOptions { get; } = [1, 7, 30];
+
+    public IReadOnlyList<int> ReasoningBudgets
+    {
+        get
+        {
+            if (SelectedProvider?.Presentation.SupportsReasoning != true) return [];
+            var minimum = Math.Clamp(SelectedProvider.Presentation.ReasoningMinimumBudgetTokens ?? 128, 1, 8192);
+            var maximum = Math.Clamp(SelectedProvider.Presentation.ReasoningMaximumBudgetTokens ?? 4096, minimum, 8192);
+            return StandardReasoningBudgets.Where(value => value >= minimum && value <= maximum)
+                .Append(minimum).Append(maximum).Distinct().Order().ToArray();
+        }
+    }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsReasoningOptionVisible), nameof(IsReasoningRetentionVisible))]
+    private bool _reasoningEnabled;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsReasoningRetentionVisible))]
+    private bool _persistReasoning;
+
+    [ObservableProperty]
+    private int _reasoningRetentionDays = 7;
+
+    [ObservableProperty]
+    private int _selectedReasoningBudget;
 
     /// <summary>The visible conversation runs a turn.</summary>
     public bool IsBusy => ActiveConversation.IsBusy;
@@ -577,6 +622,25 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
         {
             return;
         }
+        var reasoning = _reasoningPreferences.GetValueOrDefault(provider.ProviderId);
+        _loadingProviderReasoningPreference = true;
+        try
+        {
+            ReasoningEnabled = reasoning?.Enabled ?? provider.Presentation.ReasoningDefaultEnabled;
+            var budgetOptions = ReasoningBudgets;
+            var preferredBudget = reasoning?.BudgetTokens ?? provider.Presentation.ReasoningDefaultBudgetTokens ?? 512;
+            SelectedReasoningBudget = budgetOptions.Count == 0 ? 512 : budgetOptions.OrderBy(value => Math.Abs(value - preferredBudget)).First();
+            PersistReasoning = reasoning?.Persist ?? false;
+            ReasoningRetentionDays = reasoning?.RetentionDays ?? 7;
+        }
+        finally
+        {
+            _loadingProviderReasoningPreference = false;
+        }
+        OnPropertyChanged(nameof(ReasoningEnabled));
+        OnPropertyChanged(nameof(SelectedReasoningBudget));
+        OnPropertyChanged(nameof(IsReasoningOptionVisible));
+        OnPropertyChanged(nameof(IsReasoningRetentionVisible));
 
         _ = EnsurePermissionsAsync(provider.ProviderId);
         var conversation = ActiveConversation;
@@ -635,6 +699,73 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
 
         RefreshSendBlock();
         _host.OnPanelPreferencesChanged();
+    }
+
+    partial void OnReasoningEnabledChanged(bool value)
+    {
+        SaveReasoningPreference();
+    }
+
+    partial void OnSelectedReasoningBudgetChanged(int value)
+    {
+        SaveReasoningPreference();
+    }
+
+    private void SaveReasoningPreference()
+    {
+        if (!_loadingProviderReasoningPreference && SelectedProvider is { } provider && ReasoningBudgets.Contains(SelectedReasoningBudget))
+        {
+        _reasoningPreferences[provider.ProviderId] = new AgentReasoningPreference(ReasoningEnabled, SelectedReasoningBudget,
+            PersistReasoning, ReasoningRetentionDays);
+            _host.OnPanelPreferencesChanged();
+        }
+    }
+
+    partial void OnPersistReasoningChanged(bool value)
+    {
+        if (_loadingProviderReasoningPreference) return;
+        SaveReasoningPreference();
+        if (string.Equals(SelectedProvider?.ProviderId, LocalAgentProvider.Id, StringComparison.Ordinal))
+        {
+            if (!value)
+            {
+                foreach (var conversation in _conversations.Values.Where(item =>
+                             string.Equals(item.ProviderId, LocalAgentProvider.Id, StringComparison.Ordinal)))
+                {
+                    conversation.AllowReasoningPersistence = false;
+                    if (conversation.Turn is { } turn) turn.PersistReasoning = false;
+                    foreach (var reasoning in conversation.Items.OfType<AgentReasoningItem>())
+                        reasoning.IsRetentionEligible = false;
+                }
+            }
+            _ = CleanupExpiredReasoningAsync();
+        }
+    }
+
+    partial void OnReasoningRetentionDaysChanged(int value)
+    {
+        SaveReasoningPreference();
+        if (!_loadingProviderReasoningPreference && PersistReasoning &&
+            string.Equals(SelectedProvider?.ProviderId, LocalAgentProvider.Id, StringComparison.Ordinal))
+        {
+            foreach (var conversation in _conversations.Values.Where(item =>
+                         string.Equals(item.ProviderId, LocalAgentProvider.Id, StringComparison.Ordinal)))
+            {
+                if (conversation.Turn is { } turn) turn.ReasoningRetentionDays = value;
+                foreach (var reasoning in conversation.Items.OfType<AgentReasoningItem>())
+                {
+                    if (reasoning.RetentionExpiresAtUtc is { } expiry && expiry > MaximumReasoningExpiry(reasoning.Timestamp, value))
+                        reasoning.RetentionExpiresAtUtc = MaximumReasoningExpiry(reasoning.Timestamp, value);
+                }
+            }
+            _ = CleanupExpiredReasoningAsync();
+        }
+    }
+
+    private static DateTimeOffset MaximumReasoningExpiry(DateTimeOffset timestamp, int days)
+    {
+        try { return timestamp.ToUniversalTime().AddDays(days); }
+        catch (ArgumentOutOfRangeException) { return DateTimeOffset.MaxValue; }
     }
 
     partial void OnComposerTextChanged(string value)
@@ -835,6 +966,8 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
 
         _attachments.Clear();
         await _lifetime.CancelAsync();
+        if (_reasoningRetentionCleanupTask is { } retentionTask)
+            await retentionTask;
         foreach (var conversation in _conversations.Values.ToArray())
         {
             CloseConfirmations(conversation);

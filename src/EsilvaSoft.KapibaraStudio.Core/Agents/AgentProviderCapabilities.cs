@@ -36,6 +36,9 @@ public sealed record AgentProviderCapabilities
     /// <summary>Officially published reasoning summary; never private chain-of-thought.</summary>
     public bool ThinkingSummary { get; init; }
 
+    /// <summary>Raw local reasoning text, separate from a provider's published summary.</summary>
+    public bool Reasoning { get; init; }
+
     /// <summary>Data leaves the machine. Presentation still derives the destination from <c>IsLocal</c>.</summary>
     public bool UsesNetwork { get; init; }
 
@@ -79,6 +82,7 @@ public sealed record AgentProviderCapabilities
             CodeProposals = left.CodeProposals && right.CodeProposals,
             Mcp = left.Mcp && right.Mcp,
             ThinkingSummary = left.ThinkingSummary && right.ThinkingSummary,
+            Reasoning = left.Reasoning && right.Reasoning,
             TurnPlan = left.TurnPlan && right.TurnPlan,
             UsesNetwork = left.UsesNetwork || right.UsesNetwork,
             Evidence = (AgentCapabilityEvidence)Math.Min((int)left.Evidence, (int)right.Evidence),
@@ -103,6 +107,7 @@ public sealed record AgentProviderCapabilities
             NativeTools = NativeTools && Chat,
             Sessions = Sessions && Chat,
             TurnPlan = TurnPlan && Chat,
+            Reasoning = Reasoning && Chat,
         };
     }
 }

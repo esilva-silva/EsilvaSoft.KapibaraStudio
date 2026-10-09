@@ -1,4 +1,5 @@
 using EsilvaSoft.KapibaraStudio.Core.Agents;
+using EsilvaSoft.KapibaraStudio.LocalAi.Core;
 
 namespace EsilvaSoft.KapibaraStudio.Application.Agents;
 
@@ -13,25 +14,16 @@ public enum LocalAgentUnavailableReason
 }
 
 /// <summary>
-/// Capacidades do agente local, limitadas ao que o adaptador e o modelo comprovam. O produto só tem modelos FIM
-/// (Qwen/DeepSeek): não há template conversacional, protocolo estruturado de tools nem entrega incremental garantida
-/// pela abstração do serviço, então Chat, ToolCalling e Streaming são sempre falsas aqui.
+/// Capacidades do agente local, limitadas ao que o adaptador e o modelo comprovam. Pacotes FIM continuam oferecendo
+/// propostas de código (FimCodeProposals); pacotes de agente precisam declarar Chat/Tools e passar pela validação estrutural.
 /// </summary>
-/// <param name="FimCodeProposals">Turno produz texto de proposta de código a partir de um modelo FIM, para revisão do usuário.</param>
-public sealed record LocalAgentCapabilities(bool FimCodeProposals)
+public sealed record LocalAgentCapabilities(bool FimCodeProposals, bool Chat = false, bool ToolCalling = false,
+    bool Sessions = false, bool TurnPlan = false, bool Reasoning = false, bool Mcp = false,
+    bool ThinkingSummary = false, bool UsesNetwork = false, bool RequiresAccount = false,
+    bool FileEditing = false, bool CommandExecution = false, bool SubAgents = false)
 {
-    public bool Chat { get; }
-    public bool Streaming { get; }
-    public bool ToolCalling { get; }
-    public bool Mcp { get; }
-    public bool Sessions { get; }
-    public bool ModelSelection { get; }
-    public bool FileEditing { get; }
-    public bool CommandExecution { get; }
-    public bool SubAgents { get; }
-    public bool ThinkingSummary { get; }
-    public bool UsesNetwork { get; }
-    public bool RequiresAccount { get; }
+    public bool Streaming => Chat || FimCodeProposals;
+    public bool ModelSelection => Chat;
 
     public static LocalAgentCapabilities None { get; } = new(false);
 
@@ -39,10 +31,17 @@ public sealed record LocalAgentCapabilities(bool FimCodeProposals)
     /// Mapeamento para o contrato neutro sem ampliar nada: só <c>CodeProposals</c> quando comprovado (modelo FIM válido,
     /// coberto por testes automatizados), sem rede; todo o resto permanece falso.
     /// </summary>
-    public AgentProviderCapabilities ToProviderCapabilities() => FimCodeProposals
-        ? new AgentProviderCapabilities { CodeProposals = true, Evidence = AgentCapabilityEvidence.AutomatedContract }
+    public AgentProviderCapabilities ToProviderCapabilities() => FimCodeProposals || Chat
+        ? new AgentProviderCapabilities
+        {
+            Chat = Chat, Streaming = Streaming, ToolCalling = ToolCalling, Sessions = Sessions,
+            ModelSelection = ModelSelection, TurnPlan = TurnPlan, Reasoning = Reasoning,
+            Mcp = Mcp, ThinkingSummary = ThinkingSummary, UsesNetwork = UsesNetwork,
+            CodeProposals = FimCodeProposals, Evidence = AgentCapabilityEvidence.AutomatedContract,
+        }
         : AgentProviderCapabilities.None;
 }
 
 public sealed record LocalAgentAvailability(
-    bool IsAvailable, LocalAgentUnavailableReason Reason, LocalAgentCapabilities Capabilities, string? ModelName = null);
+    bool IsAvailable, LocalAgentUnavailableReason Reason, LocalAgentCapabilities Capabilities, string? ModelName = null,
+    LocalModelDefinition? Model = null);

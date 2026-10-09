@@ -9,6 +9,9 @@ public sealed class ModelDisplayNamesTests
     [TestCase("int8", AiAccelerationMode.Cpu, null, "INT8")]
     [TestCase("dml-fp16", AiAccelerationMode.Gpu, "DirectML", "FP16")]
     [TestCase("DML-INT4", AiAccelerationMode.Gpu, "DirectML", "INT4")]
+    [TestCase("qnn-w4a16", AiAccelerationMode.Npu, "QNN", "W4A16")]
+    [TestCase("QNN-W8A16", AiAccelerationMode.Npu, "QNN", "W8A16")]
+    [TestCase("openvino-w4a16", AiAccelerationMode.Gpu, "OpenVINO", "W4A16")]
     public void VariantFoldersDescribeHardwareAndPrecision(string folder, AiAccelerationMode hardware, string? provider, string precision) =>
         Assert.That(ModelDisplayNames.ParseVariant(folder), Is.EqualTo(new ModelFlavor(hardware, provider, precision)));
 
@@ -22,6 +25,7 @@ public sealed class ModelDisplayNamesTests
     public void InstalledModelsUseFolderConventionThenMetadataAndOtherwiseKeepTheirName()
     {
         Assert.That(ModelDisplayNames.ForInstalled("SlopCoder-Mongo-1.5B-full-ONNX-dml-fp16", null), Is.EqualTo("SlopCoder-Mongo-1.5B-full — GPU DirectML FP16"));
+        Assert.That(ModelDisplayNames.ForInstalled("SlopCoder-Mongo-1.5B-full-ONNX-qnn-w4a16", null), Is.EqualTo("SlopCoder-Mongo-1.5B-full — NPU QNN W4A16"));
         Assert.That(ModelDisplayNames.ForInstalled("SlopCoder-Mongo-1.5B-full-ONNX-INT8", null), Is.EqualTo("SlopCoder-Mongo-1.5B-full — CPU INT8"),
             "Folders copied by hand before the download feature follow the same convention.");
         Assert.That(ModelDisplayNames.ForInstalled("meu-modelo", new LocalModelMetadata { Name = "SlopCoder-Mongo-0.5B ONNX DML-INT4", Hardware = [AiAccelerationMode.Gpu] }),

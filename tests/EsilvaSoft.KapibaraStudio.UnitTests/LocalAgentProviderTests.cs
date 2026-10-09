@@ -14,7 +14,7 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests;
 public sealed class LocalAgentProviderTests
 {
     private static readonly TimeSpan Wait = TimeSpan.FromSeconds(5);
-    private static readonly AutocompleteSettings Selected = new() { ModelPath = "model" };
+    private static readonly AutocompleteSettings Selected = new() { ModelPath = "models" };
 
     private sealed class Harness : IAsyncDisposable
     {
@@ -76,8 +76,11 @@ public sealed class LocalAgentProviderTests
             Assert.That(harness.Runtime.Streams, Is.EqualTo(1));
             Assert.That(harness.Runtime.Initializations, Is.EqualTo(1));
             // Sem rede nem fallback externo: as únicas dependências são o serviço local e as preferências.
-            Assert.That(typeof(LocalAgentProvider).GetConstructors().Single().GetParameters().Select(item => item.ParameterType),
+            var parameters = typeof(LocalAgentProvider).GetConstructors().Single().GetParameters();
+            Assert.That(parameters.Take(2).Select(item => item.ParameterType),
                 Is.EqualTo(new[] { typeof(ILocalAiModelService), typeof(IAutocompleteService) }));
+            Assert.That(parameters[2].ParameterType, Is.EqualTo(typeof(IAgentToolRegistry)));
+            Assert.That(parameters[2].IsOptional, Is.True);
         });
     }
 
@@ -94,9 +97,10 @@ public sealed class LocalAgentProviderTests
         {
             Assert.That(availability.IsAvailable, Is.True);
             Assert.That(capabilities.FimCodeProposals, Is.True);
+            Assert.That(capabilities.Streaming, Is.True, "FIM generation already streams model output.");
             Assert.That(new[]
             {
-                capabilities.Chat, capabilities.Streaming, capabilities.ToolCalling, capabilities.Mcp, capabilities.Sessions,
+                capabilities.Chat, capabilities.ToolCalling, capabilities.Mcp, capabilities.Sessions,
                 capabilities.ModelSelection, capabilities.FileEditing, capabilities.CommandExecution, capabilities.SubAgents,
                 capabilities.ThinkingSummary, capabilities.UsesNetwork, capabilities.RequiresAccount,
             }, Has.All.False);
@@ -124,11 +128,17 @@ public sealed class LocalAgentProviderTests
             Assert.That(new[]
             {
                 descriptor.Capabilities.Chat, descriptor.Capabilities.Streaming, descriptor.Capabilities.ToolCalling,
-                descriptor.Capabilities.Sessions, descriptor.Capabilities.Mcp, descriptor.Capabilities.UsesNetwork,
+                descriptor.Capabilities.Sessions, descriptor.Capabilities.TurnPlan,
+            }, Has.All.True);
+            Assert.That(new[]
+            {
+                descriptor.Capabilities.Mcp, descriptor.Capabilities.UsesNetwork, descriptor.Capabilities.NativeTools,
                 descriptor.Capabilities.FileEditing, descriptor.Capabilities.CommandExecution, descriptor.Capabilities.SubAgents,
             }, Has.All.False);
             Assert.That((status.IsAvailable, status.AuthState), Is.EqualTo((true, AgentProviderAuthState.NotRequired)));
-            Assert.That(status.Capabilities, Is.EqualTo(descriptor.Capabilities));
+            Assert.That(status.Capabilities.CodeProposals, Is.True, "O modelo da fixture comprova FIM.");
+            Assert.That(status.Capabilities.Chat, Is.False, "O modelo da fixture não declara Qwen3 Agent.");
+            Assert.That(status.Capabilities.ToolCalling, Is.False, "Tools só aparecem com metadata Qwen3 compatível.");
             Assert.That(harness.Runtime.Initializations, Is.Zero, "Descrever o provider não carrega o modelo.");
         });
     }
@@ -150,7 +160,7 @@ public sealed class LocalAgentProviderTests
     }
 
     [Test]
-    public async Task ASessionNeverAcceptsToolResultsOrApprovals()
+    public async Task ASessionRejectsToolResultsWithoutPendingCallsAndDelegatesApprovalsToTheRegistry()
     {
         await using var harness = new Harness();
         await using var session = await harness.StartAsync();
@@ -159,7 +169,7 @@ public sealed class LocalAgentProviderTests
         Assert.Multiple(() =>
         {
             Assert.That(async () => await session.SubmitToolResultAsync(new(AgentSessionId.New(), turn, AgentToolCallId.New(),
-                AgentToolResultStatus.Succeeded), CancellationToken.None), Throws.InstanceOf<NotSupportedException>());
+                AgentToolResultStatus.Succeeded), CancellationToken.None), Throws.InstanceOf<InvalidOperationException>());
             Assert.That(async () => await session.SubmitApprovalAsync(default!, CancellationToken.None), Throws.InstanceOf<NotSupportedException>());
         });
     }
@@ -238,7 +248,7 @@ public sealed class LocalAgentProviderTests
         Assert.Multiple(() =>
         {
             Assert.That(events.Last().Kind, Is.EqualTo(AgentEventKind.AgentError));
-            Assert.That(events.Last().Text, Is.EqualTo(nameof(LocalModelUnavailableReason.RuntimeFailure)));
+            Assert.That(events.Last().Text, Is.EqualTo("LocalGenerationFailure"));
             Assert.That(events.Select(item => item.Text ?? ""), Has.None.Contains("secret"));
             Assert.That(events, Has.None.Matches<AgentProviderEvent>(item => item.Kind == AgentEventKind.MessageCompleted));
         });
@@ -302,7 +312,8 @@ public sealed class LocalAgentProviderTests
 
         await cts.CancelAsync();
 
-        Assert.That(async () => await collect.WaitAsync(Wait), Throws.InstanceOf<OperationCanceledException>());
+        var cancelledEvents = await collect.WaitAsync(Wait);
+        Assert.That(cancelledEvents.Select(item => item.Kind), Has.None.EqualTo(AgentEventKind.AgentError).And.None.EqualTo(AgentEventKind.MessageCompleted));
         runtime.Hold = null;
         var next = await harness.Models.GenerateAsync(LocalModelRole.Chat, Selected, Request, AiRequestPriority.Interactive)
             .WaitAsync(Wait);

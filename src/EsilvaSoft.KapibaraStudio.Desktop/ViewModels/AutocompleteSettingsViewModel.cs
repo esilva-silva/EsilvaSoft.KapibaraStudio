@@ -55,6 +55,13 @@ public sealed partial class AutocompleteSettingsViewModel(IAutocompleteService s
     }
     public ObservableCollection<HardwareOption> HardwareOptions { get; } = CreateHardwareOptions();
     public ObservableCollection<LocalModelOption> Models { get; } = [];
+    public ObservableCollection<LocalModelOption> AgentModels { get; } = [];
+    /// <summary>Optional separate model folder for the local agent; empty follows the autocomplete model.</summary>
+    public string ChatModel
+    {
+        get => _chatModel;
+        set { if (!_loading) SetProperty(ref _chatModel, value ?? ""); }
+    }
     public string DefaultDirectory => catalog?.DefaultDirectory ?? models?.DefaultDirectory ?? "";
     public string EffectiveModelDirectory => string.IsNullOrWhiteSpace(ModelDirectory) ? DefaultDirectory : ModelDirectory.Trim();
     public bool HasModelDetails => ModelDetails.Length > 0;
@@ -211,6 +218,7 @@ public sealed partial class AutocompleteSettingsViewModel(IAutocompleteService s
             UseResultPanelContext = settings.UseResultPanelContext; UseEditorContext = settings.UseEditorContext;
             IncrementalTab = settings.IncrementalTab; ChatEnabled = settings.ChatEnabled;
             LocalAiContextEnabled = settings.LocalAiContextEnabled; _chatModel = settings.ChatModel;
+            OnPropertyChanged(nameof(ChatModel));
             IncludeInputJsonInLocalAiContext = settings.IncludeInputJsonInLocalAiContext;
             CompletionAutoOpenOnTrigger = settings.CompletionAutoOpenOnTrigger; CompletionEnterAccepts = settings.CompletionEnterAccepts;
             _inlineEnabledOverride = settings.InlineEnabledValue; InlineEnabledIsOverridden = _inlineEnabledOverride.HasValue;
@@ -223,11 +231,14 @@ public sealed partial class AutocompleteSettingsViewModel(IAutocompleteService s
             Models.Clear();
             SelectedModelOption = settings.SelectedModel.Length > 0 ? Add(new(settings.SelectedModel, false))
                 : !string.IsNullOrWhiteSpace(settings.ModelPath) ? Add(new(settings.ModelPath.Trim(), true)) : null;
+            AgentModels.Clear();
+            if (_chatModel.Length > 0) AgentModels.Add(new LocalModelOption(_chatModel, false));
             TestReport = "";
             LoadBudgetSettings(settings);
         }
         finally { _loading = false; }
         UpdateModelDetails();
+        OnPropertyChanged(nameof(ChatModel));
         RefreshStatus();
         RefreshTokenBudget();
     }
@@ -264,12 +275,16 @@ public sealed partial class AutocompleteSettingsViewModel(IAutocompleteService s
         }).Validate();
     }
 
+    [RelayCommand]
+    private void UseAutocompleteModelForAgent() => ChatModel = "";
+
     /// <summary>Scans the directory and detects hardware when the window opens; the loaded model is not touched.</summary>
     public Task OpenedAsync() => Task.WhenAll(RefreshModelsCommand.ExecuteAsync(null), DetectHardwareCommand.ExecuteAsync(null));
 
     public void RefreshLanguage()
     {
         foreach (var option in Models) option.RefreshLanguage();
+        foreach (var option in AgentModels) option.RefreshLanguage();
         foreach (var option in RemoteModels) option.RefreshLanguage();
         OnPropertyChanged(nameof(Modes));
         OnPropertyChanged(nameof(HardwareOptions));
@@ -326,6 +341,17 @@ public sealed partial class AutocompleteSettingsViewModel(IAutocompleteService s
             {
                 Models.Clear();
                 foreach (var model in found.Where(candidate => candidate.Model is not null)) Models.Add(new(FolderOf(model.Path), false, model));
+                AgentModels.Clear();
+                foreach (var model in found.Where(candidate => candidate.Model is not null))
+                    AgentModels.Add(new LocalModelOption(FolderOf(model.Path), false, model));
+                if (_chatModel.Length > 0 && !AgentModels.Any(option => string.Equals(option.Reference, _chatModel, PathComparison)))
+                {
+                    var unavailable = found.FirstOrDefault(candidate => string.Equals(FolderOf(candidate.Path), _chatModel, PathComparison));
+                    var chatValidation = unavailable ?? new LocalModelValidation(null,
+                        new(LocalModelState.NotInstalled, F("modelNotFound", _chatModel, directory)))
+                    { Path = Path.Combine(directory, _chatModel) };
+                    AgentModels.Add(new LocalModelOption(_chatModel, false, chatValidation));
+                }
                 LocalModelOption? restored = null;
                 if (selected is { IsExternal: true }) restored = Add(new(selected.Reference, true, external));
                 else if (selected is not null)
@@ -335,6 +361,7 @@ public sealed partial class AutocompleteSettingsViewModel(IAutocompleteService s
                 SelectedModelOption = restored;
             }
             finally { _loading = false; }
+            OnPropertyChanged(nameof(ChatModel));
             UpdateModelDetails();
             RefreshStatus();
             ApplyRecommendedBudget();

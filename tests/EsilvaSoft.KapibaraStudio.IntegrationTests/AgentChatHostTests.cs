@@ -116,8 +116,9 @@ public sealed class AgentChatHostTests
                         AgentToolRegistry.ProposeFileEditToolName, AgentToolRegistry.ApproveToolName }));
                 var expectedProviders = new List<string>
                 {
+                    LocalAgentProvider.Id,
 #if DEBUG
-                    LocalAgentProvider.Id, OpenAiAgentProvider.Id, CodexSubscriptionAgentProvider.Id,
+                    OpenAiAgentProvider.Id, CodexSubscriptionAgentProvider.Id,
 #endif
                     CopilotSubscriptionAgentProvider.Id,
                 };

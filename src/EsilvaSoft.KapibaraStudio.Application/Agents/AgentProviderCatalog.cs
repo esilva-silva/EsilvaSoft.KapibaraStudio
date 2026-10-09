@@ -93,7 +93,13 @@ public sealed class AgentProviderCatalog
 
         return new AgentProviderStatus(status.IsAvailable, status.AuthState,
             status.Capabilities.IntersectWith(descriptor.Capabilities), status.Models, status.DefaultModel,
-            status.UnavailableCode);
+            status.UnavailableCode)
+        {
+            ReasoningDefaultEnabled = status.Capabilities.Reasoning ? status.ReasoningDefaultEnabled : null,
+            ReasoningDefaultBudgetTokens = status.Capabilities.Reasoning ? status.ReasoningDefaultBudgetTokens : null,
+            ReasoningMinimumBudgetTokens = status.Capabilities.Reasoning ? status.ReasoningMinimumBudgetTokens : null,
+            ReasoningMaximumBudgetTokens = status.Capabilities.Reasoning ? status.ReasoningMaximumBudgetTokens : null,
+        };
     }
 
     private static AgentProviderStatus Failed(string code) =>

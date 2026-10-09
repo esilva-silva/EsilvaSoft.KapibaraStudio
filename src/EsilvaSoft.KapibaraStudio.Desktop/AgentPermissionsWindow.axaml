@@ -104,7 +104,7 @@
             </Border>
           </StackPanel>
         </Border>
-        <Border Classes="card" Padding="12" IsEnabled="{Binding CanEdit}">
+        <Border Classes="card" Padding="12" IsEnabled="{Binding CanEdit}" IsVisible="{Binding ShowExternalDestinationConsent}">
           <StackPanel Spacing="6">
             <TextBlock Text="{local:Loc Key=agentPermissionsAuthorizationSection}" FontWeight="SemiBold"/>
             <TextBlock Text="{local:Loc Key=agentPermissionsDestinationNotice}" TextWrapping="Wrap"/>

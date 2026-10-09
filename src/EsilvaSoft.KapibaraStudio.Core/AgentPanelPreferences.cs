@@ -31,11 +31,18 @@ public sealed record AgentPanelPreferences
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public double? PanelWidth { get; init; }
 
+    /// <summary>Non-content controls for provider-local reasoning; raw reasoning text is never stored here.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Dictionary<string, AgentReasoningPreference>? ReasoningByProvider { get; init; }
+
     /// <summary>Rejects values no UI could have written (the session boundary reports them instead of guessing).</summary>
     public void Validate()
     {
         if (!IsSafeIdentifier(SelectedProviderId) || !IsSafeIdentifier(SelectedModelId) ||
             (SelectedMode is { } mode && !Enum.IsDefined(mode)) || ActiveConversationId == Guid.Empty ||
+            (ReasoningByProvider is { Count: > 16 } || ReasoningByProvider?.Any(pair =>
+                !IsSafeIdentifier(pair.Key) || pair.Value is null || pair.Value.BudgetTokens is < 32 or > 8192 ||
+                pair.Value.RetentionDays is < 1 or > 30) == true) ||
             (PanelWidth is { } width && (!double.IsFinite(width) || width <= 0)))
             throw new InvalidDataException("Preferências do painel do Agente IA inválidas.");
     }
@@ -43,3 +50,5 @@ public sealed record AgentPanelPreferences
     private static bool IsSafeIdentifier(string? value) =>
         value is null || (value.Length is > 0 and <= MaximumIdentifierChars && !value.Any(char.IsControl));
 }
+
+public sealed record AgentReasoningPreference(bool Enabled, int BudgetTokens = 512, bool Persist = false, int RetentionDays = 7);

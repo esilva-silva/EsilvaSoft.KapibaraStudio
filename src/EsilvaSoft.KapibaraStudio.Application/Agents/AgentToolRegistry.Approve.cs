@@ -157,20 +157,19 @@ public sealed partial class AgentToolRegistry
     }
 
     /// <summary>
-    /// Prompts for the specific internal Copilot registry invocation before it can read data. This path intentionally
+    /// Prompts for the specific internal product invocation before it can read data. This path intentionally
     /// does not create a session grant: only an explicit ApprovedOnce response is accepted.
     /// </summary>
-    private async Task<AgentToolInvocationResult?> ConfirmInternalCopilotToolAsync(AgentPrincipal? principal,
+    private async Task<AgentToolInvocationResult?> ConfirmInternalProductToolAsync(AgentPrincipal? principal,
         AgentInvocationContext? context, AgentOutputDestination? destination, string? toolName, string? argumentsJson,
         CancellationToken cancellationToken)
     {
         if (principal is not { Origin: AgentPrincipalOrigin.Internal } || context is null || destination is null ||
-            destination.Kind != AgentOutputDestinationKind.ProviderExternal ||
-            destination.ProviderId != AgentProviderIds.GitHubCopilotSubscription ||
-            !string.Equals(context.ProviderId, AgentProviderIds.GitHubCopilotSubscription, StringComparison.Ordinal) ||
+            context.ProviderId is not (AgentProviderIds.GitHubCopilotSubscription or "local") ||
+            !NativeDestinationMatches(destination, context.ProviderId) ||
             context.SessionId is not { } sessionId || context.TurnId is not { } turnId ||
             _sessionTools?.NativeChatTurnScopes?.Find(sessionId, turnId) is not { } nativeScope ||
-            !string.Equals(nativeScope.ProviderId, AgentProviderIds.GitHubCopilotSubscription, StringComparison.Ordinal) ||
+            !string.Equals(nativeScope.ProviderId, context.ProviderId, StringComparison.Ordinal) ||
             toolName is null || toolName == ProposeFileEditToolName)
             return null;
 
@@ -226,7 +225,7 @@ public sealed partial class AgentToolRegistry
             unavailable = true;
         }
 
-        // Copilot can approve one invocation only. ApprovedThisSession is treated as a rejection here.
+        // Native product confirmation approves one invocation only. ApprovedThisSession is treated as a rejection.
         var approved = false;
         if (decision == AgentToolConfirmationDecision.ApprovedOnce)
         {

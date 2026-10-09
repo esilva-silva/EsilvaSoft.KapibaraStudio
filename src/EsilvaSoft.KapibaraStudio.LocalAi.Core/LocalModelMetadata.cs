@@ -29,4 +29,8 @@ public sealed record LocalModelMetadata
     public int? RecommendedCompletionTokens { get; init; }
     public LocalModelGenerationDefaults Autocomplete { get; init; } = new();
     public LocalModelGenerationDefaults Chat { get; init; } = new();
+    public LocalModelAgentMetadata? Agent { get; init; }
+    public LocalModelReasoningMetadata? Reasoning { get; init; }
+    public LocalModelAgentGeneration? AgentGeneration { get; init; }
+    public Version? MinimumGenAi { get; init; }
 }

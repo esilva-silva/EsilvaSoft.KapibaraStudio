@@ -677,13 +677,13 @@ O tamanho do contexto é calculado em bytes UTF-8 a partir do texto já resolvid
 
 ## ADR-070 — Preparação KapiCoder-Mongo: agente local em Release, raciocínio configurável e tools seguras (09/10/2026)
 
-**Estado:** decisão de escopo aceita por instrução explícita do usuário; implementação planejada na [Fase 7A / F7A-KAPI](phases/phase-07a-kapicoder-mongo/meta-de-implementacao.md). Não constitui evidência de implementação ou homologação.
+**Estado:** decisão de escopo aceita por instrução explícita do usuário; implementação parcial no checkout Windows conforme a [Fase 7A / F7A-KAPI](phases/phase-07a-kapicoder-mongo/meta-de-implementacao.md). U7 tem opt-in local, política aplicada no owner LiteDB sob o mesmo gate dos saves, prazos limitados, expiração, purge e migração v1→v2 implementados parcialmente; execução de testes ainda pendente. Não constitui homologação de pesos, NPU ou Linux.
 
 **Contexto:** o backlog externo KapiCoder-Mongo propõe concluir o provider local, geração Qwen3 e suporte ao treino. O usuário solicitou a meta e aprovou: incluir IA local ao lado do Copilot no Release; mostrar o texto do raciocínio com retenção e orçamento configuráveis; liberar todas as tools locais sempre com permissões.
 
 **Decisão:**
 
-1. O destino da composição Desktop Release passa a Copilot + IA local. Esta decisão substitui a exclusividade Copilot da ADR-068 para a implementação futura. A composição executável atual permanece como está até integrar e validar os lotes A8/E2. Autocomplete local permanece independente; ausência de pacote/capacidade gera indisponibilidade explícita.
+1. O destino da composição Desktop Release passa a Copilot + IA local. Esta decisão substitui a exclusividade Copilot da ADR-068; o ramo Release já registra o provider local junto ao Copilot. Autocomplete local permanece independente; ausência de pacote/capacidade gera indisponibilidade explícita.
 2. Mostrar o texto de raciocínio produzido pelo modelo local em componente recolhível, como dados inertes, separado da resposta final e de `ThinkingSummary`. Não transforma conteúdo em autorização de tool nem altera contratos de providers externos.
 3. Oferecer orçamento de raciocínio configurável, limitado pelo pacote e pela janela do runtime. Valores padrão, fórmula acumulada e gates de latência serão definidos após smoke/avaliação, sem adotar números conflitantes da fonte como aceite.
 4. Oferecer retenção configurável do raciocínio, desligada por padrão. A configuração deve definir prazo/limites e limpeza, respeitar opt-outs e Apagar histórico, usar migração aditiva no proprietário LiteDB existente e apresentar falhas de persistência. Não armazenar credenciais, resultados MongoDB ou conteúdo vedado; redigir conteúdo sensível antes da persistência. Raciocínio não integra auditoria, logs, métricas ou envio a outros providers.
@@ -692,7 +692,7 @@ O tamanho do contexto é calculado em bytes UTF-8 a partir do texto já resolvid
 
 **Consequências:** D1/D2/D3/D6 e orçamento configurável estão aprovados; U7 passa a obrigatório na meta apesar de P2 na fonte. Testar retenção ativa/desligada, expiração/exclusão, falha/concorrência/recuperação e isolamento entre providers. A guarda contra Claude Code no Release permanece intacta; Claude/Codex/APIs externas/MCP externo continuam no backlog. GenAI/QNN, novo contrato de contexto, carga simultânea e sede KapiLab continuam questões técnicas próprias. Fase 8 mantém prioridade; a Fase 7 por workflow não foi substituída.
 
-**Validação exigida:** lotes e critérios F7A-KAPI, composição Release/Debug, permissões por tool/modo, regressões de providers existentes, PNGs reais e evidência com pesos/hardware separada. A criação desta ADR não executa código, testes, inferência, download ou publicação.
+**Validação exigida:** lotes e critérios F7A-KAPI, composição Release/Debug, permissões por tool/modo, regressões de providers existentes, PNGs reais e evidência com pesos/hardware separada. O escopo deste chat exclui validação manual Linux. A execução confiável dos testes de retenção e inferência com pesos continuam gates pendentes; compilação Windows não os substitui.
 ## ADR-071 — KapiLab como console de contratos e avaliação da IDE (09/10/2026)
 
 **Estado:** proposta arquitetural da [Fase 7B / F7B-KAPILAB](phases/phase-07b-kapilab/meta-de-implementacao.md). O pedido atual autoriza montar a meta; não há implementação ou homologação decorrente desta proposta.

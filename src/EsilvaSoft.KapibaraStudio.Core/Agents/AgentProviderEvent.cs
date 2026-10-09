@@ -16,4 +16,8 @@ public sealed record AgentProviderEvent(
     string? ArgumentsJson = null)
 {
     public AgentUsageMetrics? Usage { get; init; }
+    public int? ReasoningTokens { get; init; }
+    public long? ReasoningDurationMs { get; init; }
+    public bool? ReasoningTruncatedByBudget { get; init; }
+    public AgentTurnOutcome? ReasoningOutcome { get; init; }
 }
