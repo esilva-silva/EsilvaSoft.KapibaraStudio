@@ -8,7 +8,7 @@ public sealed class CollectionCompactRequestTests
     [Test]
     public void ValidateWithConfirmedCollectionReturnsSameRequest()
     {
-        var request = new CollectionCompactRequest("catalogo", "clientes", "clientes", Force: true);
+        var request = new CollectionCompactRequest("catalogo", "clientes", "clientes", Force: true, Preflight: CollectionMaintenanceTestData.Preflight());
 
         Assert.That(request.Validate(), Is.SameAs(request));
     }

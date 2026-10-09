@@ -19,8 +19,10 @@ A meta de internacionalização da interface foi concluída no recorte automatiz
 | 3 | v0.7.0 | Autocomplete com IA | Escopo funcional concluído e [arquivado](../done/release_v0.7.0/README.md); sugestões revisáveis, sem aplicação automática |
 | 4 | v0.8.0 | Abertura e salvamento de arquivos de texto | Escopo funcional concluído e [arquivado](../done/release_v0.8.0/README.md); inclui workspace local de uma pasta |
 | 5 | v0.9.0 | GitHub Copilot e integração com agentes | Adiada até concluir as entregas prioritárias da Fase 8; concluir Copilot e infraestrutura necessária; demais integrações no [bkl-06](../backlog/bkl-06-integracoes-agentes.md); gates abertos em [estado e limites](phase-05-v0.9.0/README.md) |
-| 6 | v0.10.0 | Administração e manutenção | [Em desenvolvimento](phase-06-v0.10.0/README.md): coleções, views, validação, índices, estatísticas, usuários, papéis e exportação/importação lógica |
+| 6 | v0.10.0 | Administração e manutenção | [Marco A concluído](phase-06-v0.10.0/README.md): acesso ao servidor pela connection string; coleções, views, validação, índices, estatísticas, usuários/papéis e transferência lógica. RBAC restrito, topologias/nativos e multiplataforma no Marco B manual da Fase 10; SO/startup/API externa no [bkl-07](../backlog/bkl-07-administracao-fora-da-connection-string.md) |
 | 7 | v0.11.0 | Chat simples com IA baseado em workflow | [Planejada](phase-07-v0.11.0/README.md): fluxo predefinido, escopo limitado e ações controladas |
+| 7A | Vinculada à v0.12.0; sem release própria | Preparação KapiCoder-Mongo | [Planejada](phase-07a-kapicoder-mongo/README.md): contratos, agente local, suporte ao treino e NPU condicional; decisões aprovadas na ADR-070, sem implementação nesta meta |
+| 7B | Vinculada à v0.12.0; ferramenta de desenvolvimento | KapiLab: contratos e avaliação pelo caminho da IDE | [Planejada](phase-07b-kapilab/README.md): marcos K0–K4, 25 tarefas, dependências da 7A e benchmarks manuais; proposta ADR-071 |
 | 8 | v0.12.0 | IA local e produtividade contextual | **Prioridade atual de entrega**; recorte automatizado implementado, entregas seguintes conforme [meta](phase-08-v0.12.0/meta-de-implementacao.md); ONNX real permanece experimental |
 | 9 | v0.13.0 | Polimento de código, arquitetura e UI/UX | [Planejada](phase-09-v0.13.0/README.md): revisão transversal e correção de problemas, preservando os contratos existentes |
 | 10 | v0.14.0 | Homologação manual e validação em ambientes reais | [Planejada](phase-10-v0.14.0/README.md): plataformas, acessibilidade, MongoDB/mongosh, hardware, instalação e atualizações reais |
@@ -44,6 +46,7 @@ Esta mudança organiza o planejamento e não publica versões, altera binários,
 
 ## Situações
 
+- **Marco A concluído:** implementação conectada e aceite automatizável aprovados; homologação manual/native explicitamente adiada segue na Fase 10, sem afirmar suporte não comprovado.
 - **Em execução:** fase ativa. É o único escopo que justifica novas entradas na interface.
 - **Em desenvolvimento:** existe código integrado antecipando a fase, mas a fase não está ativa. O código é preservado; a interface não o oferece.
 - **Planejada:** sem caminho integrado comprometido para o recorte.

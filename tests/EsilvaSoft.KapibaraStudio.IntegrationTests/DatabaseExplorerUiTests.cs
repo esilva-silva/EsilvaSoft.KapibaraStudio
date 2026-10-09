@@ -51,6 +51,10 @@ public sealed class DatabaseExplorerUiTests
             workspace.SelectedNode = collection; await workspace.Details.SelectionTask;
             workspace.OpenCollection(collection);
             window.UpdateLayout(); Dispatcher.UIThread.RunJobs();
+            var moreActions = window.FindControl<Button>("MoreActionsButton")!;
+            var databaseToolsEntry = ((MenuFlyout)moreActions.Flyout!).Items.OfType<MenuItem>()
+                .Single(item => item.Name == "DatabaseToolsMenuItem");
+            Assert.That(databaseToolsEntry.IsEnabled, Is.True, "The main-window entry is enabled for the connected active Mongo tab.");
             var cell = window.FindControl<TreeView>("Explorer")!.GetVisualDescendants().OfType<Grid>().First(g => ReferenceEquals(g.DataContext, collection) && g.ContextMenu is not null);
             cell.ContextMenu!.Open(cell); Dispatcher.UIThread.RunJobs();
             var scripts = cell.ContextMenu.Items.OfType<MenuItem>().Single(m => m.Header as string == "Gerar script CRUD");
@@ -59,8 +63,7 @@ public sealed class DatabaseExplorerUiTests
             find.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
             Assert.That(workspace.ActiveTab!.Text, Does.Contain("getCollection(\"clientes\")"));
             Assert.That(context.Scripts.Calls, Is.Empty);
-            // A janela de Ferramentas saiu do menu do Explorer (docs/backlog/bkl-02-ferramentas-fora-de-fase.md);
-            // o código permanece íntegro e é exercitado aqui sem ponto de entrada visual.
+            // Ferramentas está no menu global Mais ações; atalhos administrativos continuam fora do Explorer.
             foreach (var removed in RemovedToolEntries)
                 Assert.That(cell.ContextMenu.Items.OfType<MenuItem>().Any(m => m.Header as string == removed), Is.False, removed);
             cell.ContextMenu.Close();
@@ -74,6 +77,109 @@ public sealed class DatabaseExplorerUiTests
             Assert.That(toolsWindow.GetLogicalDescendants().OfType<TabControl>().Any(t => (t.SelectedItem as TabItem)?.Header as string == "Índices"), Is.True);
             Assert.That(toolsModel.SelectedDatabase, Is.EqualTo("loja"));
             Assert.That(toolsModel.SelectedCollection, Is.EqualTo("clientes"));
+            var toolsEvidence = UiEvidenceDirectory.Current(); Directory.CreateDirectory(toolsEvidence);
+            toolsModel.ImportSourceDirectory = Path.Combine(Path.GetTempPath(), "sample-mflix-validation-package");
+            toolsModel.ImportUseUpsert = true;
+            toolsModel.ImportRestoreDefinitions = true;
+            toolsModel.IsExportInProgress = true;
+            toolsModel.ExportProgress = LocalizationViewModel.Current.Format("databaseExportProgress",
+                LocalizationViewModel.Current.Resolve("exportStageRunning"), 1, 3, "pedidos", 128, 428);
+            toolsModel.ExportProgressValue = 33;
+            toolsModel.ImportDefinitionPreview = "Ações planejadas; a importação revalida o pacote e o destino antes de escrever.\n"
+                + "Opções de coleção: orders — planejado — sem colisão conhecida\n"
+                + "Índice: orders / customer_1 — planejado — sem colisão conhecida — depende de orders\n"
+                + "View: recent — bloqueado — conflito — depende de orders";
+            toolsModel.ImportConfirmation = "loja";
+            toolsModel.StandaloneSourceFile = Path.Combine(Path.GetTempPath(), "sample-items.csv");
+            toolsModel.StandaloneTargetCollection = "items_preview";
+            toolsModel.StandaloneUseCsv = true;
+            toolsModel.StandaloneMappingJson =
+                "[{\"SourceColumn\":\"id\",\"TargetField\":\"_id\",\"Type\":\"Integer64\"},"
+                + "{\"SourceColumn\":\"name\",\"TargetField\":\"name\",\"Type\":\"Text\"}]";
+            toolsModel.StandalonePreviewText = "id → _id: Integer64\nname → name: Text";
+            toolsModel.StandaloneImportResults = "Linha 2, coluna id: valor incompatível com Integer64.";
+            var recoveryReceipt = new ImportCheckpoint(ImportCheckpoint.CurrentVersion, Guid.NewGuid(),
+                ImportCheckpointKind.StandaloneFile, collection.Profile.Id, collection.Profile.SourceGenerationId,
+                ImportCheckpointRecovery.Sha256OfText("path"), ImportCheckpointRecovery.Sha256OfText("source"),
+                ImportCheckpointRecovery.Sha256OfText("plan"), "loja", "items_preview", 2, 10, 2, 0, 0,
+                ImportCheckpointState.NeedsReview, DateTimeOffset.UtcNow);
+            toolsModel.PendingImportCheckpoints.Add(new MainWindowViewModel.ImportCheckpointChoice(recoveryReceipt,
+                "Arquivo avulso · loja.items_preview · revisão necessária · 2/10 documentos"));
+            toolsModel.SelectedImportCheckpoint = toolsModel.PendingImportCheckpoints.Single();
+            toolsModel.ImportRecoveryStatus = LocalizationViewModel.Current.Resolve("importRecoveryReselect");
+            foreach (var (section, artifact) in new[]
+                     {
+                         ("Transferir", "tools-database-transfer"),
+                         ("Índices", "tools-index-diagnostics"),
+                         ("Coleções", "tools-view-materialization"),
+                         ("Administração", "tools-admin-runtime-parameter")
+                     })
+            {
+                toolsWindow.SelectSection(section);
+                if (section == "Transferir")
+                {
+                    var standalone = toolsWindow.GetLogicalDescendants().OfType<Expander>()
+                        .First(expander => expander.IsVisible
+                            && expander.Header as string == LocalizationViewModel.Current.Resolve("standaloneImportTitle"));
+                    standalone.IsExpanded = true;
+                    var recovery = toolsWindow.GetLogicalDescendants().OfType<Expander>()
+                        .First(expander => expander.IsVisible
+                            && expander.Header as string == LocalizationViewModel.Current.Resolve("importRecoveryTitle"));
+                    recovery.IsExpanded = true;
+                }
+                if (section == "Coleções")
+                {
+                    var advanced = toolsWindow.GetLogicalDescendants().OfType<Expander>()
+                        .First(expander => expander.IsVisible
+                            && expander.Header as string == "Gerenciar coleções e validação (avançado)");
+                    advanced.IsExpanded = true;
+                }
+                if (section == "Administração")
+                {
+                    var profiler = toolsWindow.GetLogicalDescendants().OfType<Expander>()
+                        .First(expander => expander.IsVisible && expander.Header as string == "Configurar profiler");
+                    profiler.IsExpanded = true;
+                }
+                var outerScroll = toolsWindow.GetLogicalDescendants().OfType<ScrollViewer>()
+                    .Single(scroll => scroll.Content is TabControl);
+                foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+                {
+                    Avalonia.Application.Current!.RequestedThemeVariant = theme;
+                    if (section == "Administração")
+                    {
+                        var runtimeParameterPicker = toolsWindow.GetVisualDescendants().OfType<ComboBox>()
+                            .Single(combo => combo.ItemsSource is IEnumerable<string> items
+                                && items.Contains(RuntimeServerParameters.MaxLogSizeKb, StringComparer.Ordinal));
+                        runtimeParameterPicker.BringIntoView();
+                        toolsWindow.UpdateLayout(); Dispatcher.UIThread.RunJobs();
+                        Assert.That(outerScroll.Extent.Height, Is.GreaterThan(outerScroll.Viewport.Height),
+                            "Administração precisa oferecer rolagem até os parâmetros runtime.");
+                        outerScroll.Offset = new Avalonia.Vector(0,
+                            Math.Min(180, outerScroll.Extent.Height - outerScroll.Viewport.Height));
+                        toolsWindow.UpdateLayout(); Dispatcher.UIThread.RunJobs();
+                        using var runtimeParameters = toolsWindow.CaptureRenderedFrame();
+                        Assert.That(runtimeParameters, Is.Not.Null, "Administração/runtime parameters focused frame");
+                        runtimeParameters!.Save(Path.Combine(toolsEvidence,
+                            $"tools-admin-runtime-parameter-focus-{theme}.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+                        outerScroll.Offset = new Avalonia.Vector(0, 0);
+                    }
+                    toolsWindow.UpdateLayout(); Dispatcher.UIThread.RunJobs();
+                    outerScroll.Offset = new Avalonia.Vector(0, 0);
+                    toolsWindow.UpdateLayout(); Dispatcher.UIThread.RunJobs();
+                    using var frame = toolsWindow.CaptureRenderedFrame();
+                    Assert.That(frame, Is.Not.Null, $"{section}/{theme}: frame");
+                    frame!.Save(Path.Combine(toolsEvidence, $"{artifact}-{theme}.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+                    if (section is "Administração" or "Transferir")
+                    {
+                        outerScroll.Offset = new Avalonia.Vector(0, Math.Max(0, outerScroll.Extent.Height - outerScroll.Viewport.Height));
+                        toolsWindow.UpdateLayout(); Dispatcher.UIThread.RunJobs();
+                        using var scrolled = toolsWindow.CaptureRenderedFrame();
+                        Assert.That(scrolled, Is.Not.Null, $"{section}/{theme}: scrolled frame");
+                        scrolled!.Save(Path.Combine(toolsEvidence, $"{artifact}-{theme}-scrolled.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+                        outerScroll.Offset = new Avalonia.Vector(0, 0);
+                    }
+                }
+            }
             toolsWindow.Close();
             workspace.OpenCollection(collection);
             await workspace.ActiveTab!.ExecuteCommand.ExecuteAsync(null); workspace.ActiveTab.ResultTabIndex = 3;

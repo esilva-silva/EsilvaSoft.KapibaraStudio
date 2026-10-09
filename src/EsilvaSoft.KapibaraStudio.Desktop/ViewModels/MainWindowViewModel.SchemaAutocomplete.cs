@@ -50,10 +50,15 @@ public sealed partial class MainWindowViewModel
             return;
         }
 
+        var maximum = decimal.ToInt32(Math.Clamp(decimal.Truncate(SchemaSampleMaximumDocuments ?? 200), 1, 200));
         await RunAsync(async cancellationToken =>
         {
-            var maximum = decimal.ToInt32(SchemaSampleMaximumDocuments ?? 200);
             var sample = await _workspace.QueryAsync(profile, new MongoQuery(database, collection, Limit: maximum, MaxTimeMs: 2_000), cancellationToken);
+            if (!IsOriginalCollectionContext(profile, database, collection))
+            {
+                return;
+            }
+
             _knownFields.Clear();
             _knownFields.UnionWith(MqlAutocompleteService.InferFieldPaths(sample.Documents));
             AutocompleteSuggestions = _knownFields.Count == 0
@@ -71,10 +76,15 @@ public sealed partial class MainWindowViewModel
             return;
         }
 
+        var maximum = decimal.ToInt32(Math.Clamp(decimal.Truncate(SchemaSampleMaximumDocuments ?? 200), 1, 200));
         await RunAsync(async cancellationToken =>
         {
-            var maximum = decimal.ToInt32(SchemaSampleMaximumDocuments ?? 200);
             var sample = await _workspace.QueryAsync(profile, new MongoQuery(database, collection, Limit: maximum, MaxTimeMs: 2_000), cancellationToken);
+            if (!IsOriginalCollectionContext(profile, database, collection))
+            {
+                return;
+            }
+
             CollectionValidatorJson = MqlAutocompleteService.InferJsonSchema(sample.Documents);
             StatusMessage = F("validatorInferred", sample.Documents.Count);
         });

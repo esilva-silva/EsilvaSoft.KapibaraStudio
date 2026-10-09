@@ -8,7 +8,7 @@ public sealed class CollectionIntegrityCheckRequestTests
     [Test]
     public void ValidateWithConfirmedUserCollectionReturnsSameRequest()
     {
-        var request = new CollectionIntegrityCheckRequest("catalogo", "clientes", "clientes");
+        var request = new CollectionIntegrityCheckRequest("catalogo", "clientes", "clientes", CollectionMaintenanceTestData.Preflight());
 
         Assert.That(request.Validate(), Is.SameAs(request));
     }

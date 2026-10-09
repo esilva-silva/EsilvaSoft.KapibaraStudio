@@ -1,11 +1,11 @@
-<Window xmlns="https://github.com/avaloniaui" xmlns:syntax="using:EsilvaSoft.KapibaraStudio.Desktop.SyntaxHighlighting" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:EsilvaSoft.KapibaraStudio.Desktop.ViewModels" xmlns:local="using:EsilvaSoft.KapibaraStudio.Desktop" x:Class="EsilvaSoft.KapibaraStudio.Desktop.WorkspaceToolsWindow" x:DataType="vm:MainWindowViewModel" Title="{local:Loc Key=toolsTitle}" Width="1100" Height="740" MinWidth="800" MinHeight="540">
+<Window xmlns="https://github.com/avaloniaui" xmlns:syntax="using:EsilvaSoft.KapibaraStudio.Desktop.SyntaxHighlighting" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:EsilvaSoft.KapibaraStudio.Desktop.ViewModels" xmlns:local="using:EsilvaSoft.KapibaraStudio.Desktop" xmlns:core="using:EsilvaSoft.KapibaraStudio.Core" x:Class="EsilvaSoft.KapibaraStudio.Desktop.WorkspaceToolsWindow" x:DataType="vm:MainWindowViewModel" Title="{local:Loc Key=toolsTitle}" Width="1100" Height="740" MinWidth="800" MinHeight="540">
   <Grid RowDefinitions="Auto,*,Auto" Margin="12" RowSpacing="8">
     <StackPanel>
       <TextBlock Text="{local:Loc Key=toolsTitle}" Classes="section-title"/>
       <TextBlock Text="{Binding SelectedProfileDetails}" Classes="muted"/>
       <TextBlock Text="{Binding SelectedDatabase}" FontWeight="SemiBold"/>
     </StackPanel>
-    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
       <TabControl MinWidth="760" MinHeight="520">
         <TabItem Header="{local:Loc Key=toolsQuerySchema}">
           <StackPanel Spacing="12" Margin="12">
@@ -42,13 +42,13 @@
           <TabControl>
             <TabItem Header="{local:Loc Key=toolsDistinctValues}">
               <Grid Margin="8" RowDefinitions="Auto,Auto,*" RowSpacing="8">
-                <StackPanel Orientation="Horizontal" Spacing="8">
+                <WrapPanel>
                   <TextBlock Text="{local:Loc Key=field}" VerticalAlignment="Center"/>
                   <TextBox Text="{Binding DistinctField}" Width="280" PlaceholderText="{local:Loc Key=distinctFieldPlaceholder}"/>
                   <TextBlock Text="{local:Loc Key=maximum}" VerticalAlignment="Center"/>
                   <NumericUpDown Minimum="1" Maximum="10000" Value="{Binding DistinctMaximumValues}" Width="110"/>
                   <Button Content="{local:Loc Key=distinctSearch}" Command="{Binding GetDistinctValuesCommand}" IsEnabled="{Binding CanGetDistinctValues}"/>
-                </StackPanel>
+                </WrapPanel>
                 <TextBlock Grid.Row="1" Text="{local:Loc Key=distinctNote}" TextWrapping="Wrap" Opacity="0.75"/>
                 <syntax:MongoTextEditor syntax:SyntaxSettings.Language="Json" Grid.Row="2" Classes="code syntax" Text="{Binding DistinctResults}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
               </Grid>
@@ -77,26 +77,89 @@
         <TabItem Header="{local:Loc Key=toolsOperationsData}">
           <TabControl>
             <TabItem Header="{local:Loc Key=toolsTransfer}">
-              <Grid Margin="8" RowDefinitions="Auto,Auto,*,Auto,Auto,*" RowSpacing="8">
+              <Grid Margin="8" RowDefinitions="Auto,Auto,Auto,Auto,130,Auto,Auto,Auto,Auto,110,Auto" RowSpacing="8">
                 <TextBlock Text="{local:Loc Key=exportNote}" TextWrapping="Wrap" Opacity="0.8"/>
                 <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
                   <TextBlock Text="{local:Loc Key=perCollectionLimit}" VerticalAlignment="Center"/>
                   <NumericUpDown Minimum="1" Maximum="1000000" Value="{Binding ExportDocumentsPerCollectionLimit}" Width="130"/>
                   <Button Content="{local:Loc Key=exportSelectedDatabase}" Command="{Binding ExportDatabaseCommand}" IsEnabled="{Binding CanExportDatabase}"/>
                 </StackPanel>
-                <TextBox Grid.Row="2" Text="{Binding ExportResults}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" ScrollViewer.VerticalScrollBarVisibility="Auto" FontFamily="{DynamicResource CodeFont}"/>
-                <TextBlock Grid.Row="3" Text="{local:Loc Key=importNote}" TextWrapping="Wrap" Opacity="0.8"/>
-                <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="8">
+                <TextBlock Grid.Row="2" Text="{Binding ExportProgress}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+                <ProgressBar Grid.Row="3" Maximum="100" Value="{Binding ExportProgressValue}" IsIndeterminate="False" Height="8"/>
+                <TextBox Grid.Row="4" Text="{Binding ExportResults}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" ScrollViewer.VerticalScrollBarVisibility="Auto" FontFamily="{DynamicResource CodeFont}"/>
+                <TextBlock Grid.Row="5" Text="{local:Loc Key=importNote}" TextWrapping="Wrap" Opacity="0.8"/>
+                <WrapPanel Grid.Row="6">
                   <TextBox Text="{Binding ImportSourceDirectory}" Width="460" PlaceholderText="{local:Loc Key=importFolderPlaceholder}"/>
                   <Button Content="{local:Loc Key=chooseFolder}" Click="SelectImportDirectory"/>
-                  <Button Content="{local:Loc Key=importSelectedDatabase}" Command="{Binding ImportDatabaseCommand}" IsEnabled="{Binding CanImportDatabase}"/>
+                  <CheckBox Content="{local:Loc Key=importPolicyUpsertOption}" IsChecked="{Binding ImportUseUpsert}" VerticalAlignment="Center"/>
+                  <CheckBox Content="{local:Loc Key=importRestoreDefinitionsOption}" IsChecked="{Binding ImportRestoreDefinitions}" VerticalAlignment="Center"/>
+                  <Button Content="{local:Loc Key=previewImport}" Command="{Binding PreviewImportDatabaseCommand}" IsEnabled="{Binding CanPreviewImportDatabase}"/>
+                </WrapPanel>
+                <StackPanel Grid.Row="7" Spacing="6">
+                  <TextBlock Text="{Binding ImportPreview}" TextWrapping="Wrap"/>
+                  <Button Content="{local:Loc Key=definitionPreviewButton}" Command="{Binding PreviewImportDefinitionsCommand}"
+                          IsVisible="{Binding ImportRestoreDefinitions}" IsEnabled="{Binding CanPreviewImportDefinitions}"
+                          HorizontalAlignment="Left" AutomationProperties.Name="{local:Loc Key=definitionPreviewButton}"/>
+                  <TextBox Text="{Binding ImportDefinitionPreview}" IsReadOnly="True" AcceptsReturn="True"
+                           IsVisible="{Binding ImportRestoreDefinitions}" TextWrapping="Wrap" Height="140"
+                           ScrollViewer.VerticalScrollBarVisibility="Auto" FontFamily="{DynamicResource CodeFont}"
+                           AutomationProperties.Name="{local:Loc Key=definitionPreviewButton}"/>
                 </StackPanel>
-                <TextBox Grid.Row="5" Text="{Binding ImportResults}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" ScrollViewer.VerticalScrollBarVisibility="Auto" FontFamily="{DynamicResource CodeFont}"/>
+                <WrapPanel Grid.Row="8">
+                  <TextBox Text="{Binding ImportConfirmation}" Width="260" PlaceholderText="{local:Loc Key=confirmImportDatabase}"/>
+                  <Button Content="{local:Loc Key=importSelectedDatabase}" Command="{Binding ImportDatabaseCommand}" IsEnabled="{Binding CanImportDatabase}" IsVisible="{Binding ShowNormalPackageImportAction}"/>
+                  <Button Content="{local:Loc Key=importRestartFromBeginning}" Command="{Binding ImportDatabaseCommand}" IsEnabled="{Binding CanImportDatabase}" IsVisible="{Binding ShowPackageRestartAction}"/>
+                </WrapPanel>
+                <TextBox Grid.Row="9" Text="{Binding ImportResults}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" ScrollViewer.VerticalScrollBarVisibility="Auto" FontFamily="{DynamicResource CodeFont}"/>
+                <Expander Grid.Row="10" Header="{local:Loc Key=standaloneImportTitle}">
+                  <StackPanel Margin="8" Spacing="8">
+                    <TextBlock Text="{local:Loc Key=standaloneImportNote}" TextWrapping="Wrap" Opacity="0.8"/>
+                    <WrapPanel>
+                      <TextBox Text="{Binding StandaloneSourceFile}" Width="460" PlaceholderText="{local:Loc Key=standaloneSourceFile}"/>
+                      <Button Content="{local:Loc Key=chooseFile}" Click="SelectStandaloneImportFile"/>
+                      <CheckBox Content="{local:Loc Key=standaloneCsvOption}" IsChecked="{Binding StandaloneUseCsv}" VerticalAlignment="Center"/>
+                      <CheckBox Content="{local:Loc Key=standaloneJsonArrayOption}" IsChecked="{Binding StandaloneUseJsonArray}" VerticalAlignment="Center"/>
+                    </WrapPanel>
+                    <WrapPanel>
+                      <TextBox Text="{Binding StandaloneTargetCollection}" Width="250" PlaceholderText="{local:Loc Key=standaloneTargetCollection}"/>
+                      <CheckBox Content="{local:Loc Key=importPolicyUpsertOption}" IsChecked="{Binding StandaloneUseUpsert}" VerticalAlignment="Center"/>
+                    </WrapPanel>
+                    <TextBlock Text="{local:Loc Key=standaloneMappingNote}" TextWrapping="Wrap"/>
+                    <TextBox Text="{Binding StandaloneMappingJson}" IsEnabled="{Binding StandaloneUseCsv}" AcceptsReturn="True" TextWrapping="Wrap" Height="80" FontFamily="{DynamicResource CodeFont}" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                    <Button Content="{local:Loc Key=previewImport}" Command="{Binding PreviewStandaloneImportCommand}" IsEnabled="{Binding CanPreviewStandaloneImport}" HorizontalAlignment="Left"/>
+                    <TextBox Text="{Binding StandalonePreviewText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" Height="110" FontFamily="{DynamicResource CodeFont}" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                    <WrapPanel>
+                      <TextBox Text="{Binding StandaloneConfirmation}" Width="260" PlaceholderText="{local:Loc Key=confirmImportDatabase}"/>
+                      <Button Content="{local:Loc Key=standaloneImportButton}" Command="{Binding ImportStandaloneCommand}" IsEnabled="{Binding CanImportStandalone}" IsVisible="{Binding ShowNormalStandaloneImportAction}"/>
+                      <Button Content="{local:Loc Key=importRestartFromBeginning}" Command="{Binding ImportStandaloneCommand}" IsEnabled="{Binding CanImportStandalone}" IsVisible="{Binding ShowStandaloneRestartAction}"/>
+                    </WrapPanel>
+                    <TextBox Text="{Binding StandaloneImportResults}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" Height="90" FontFamily="{DynamicResource CodeFont}" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                  </StackPanel>
+                </Expander>
+                <Expander Grid.Row="9" Header="{local:Loc Key=importRecoveryTitle}">
+                  <StackPanel Margin="8" Spacing="8">
+                    <TextBlock Text="{local:Loc Key=importRecoveryNote}" TextWrapping="Wrap" Opacity="0.8"/>
+                    <WrapPanel>
+                      <Button Content="{local:Loc Key=importRecoveryLoad}" Command="{Binding LoadImportCheckpointsCommand}" IsEnabled="{Binding CanLoadImportCheckpoints}"/>
+                      <ComboBox ItemsSource="{Binding PendingImportCheckpoints}" SelectedItem="{Binding SelectedImportCheckpoint}"
+                                Width="260" MaxDropDownHeight="240" HorizontalAlignment="Left"
+                                AutomationProperties.Name="{local:Loc Key=importRecoverySelect}">
+                        <ComboBox.ItemTemplate>
+                          <DataTemplate>
+                            <TextBlock Text="{Binding Display}" TextWrapping="Wrap"/>
+                          </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                      </ComboBox>
+                      <Button Content="{local:Loc Key=importRecoveryVerify}" Command="{Binding VerifyImportRecoveryCommand}" IsEnabled="{Binding CanVerifyImportRecovery}"/>
+                    </WrapPanel>
+                    <TextBlock Text="{Binding ImportRecoveryStatus}" TextWrapping="Wrap"/>
+                  </StackPanel>
+                </Expander>
               </Grid>
             </TabItem>
             <TabItem Header="{local:Loc Key=toolsAdministration}">
-              <Grid Margin="8" RowDefinitions="Auto,Auto,Auto,Auto,*" RowSpacing="8">
-                <StackPanel Orientation="Horizontal" Spacing="8">
+              <Grid Margin="8" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,140,Auto,Auto,*" RowSpacing="8">
+                <WrapPanel>
                   <Button Content="{local:Loc Key=serverStatus}" Command="{Binding LoadServerStatusCommand}" IsEnabled="{Binding HasSelectedProfile}"/>
                   <Button Content="{local:Loc Key=topology}" Command="{Binding LoadTopologyCommand}" IsEnabled="{Binding HasSelectedProfile}"/>
                   <Button Content="{local:Loc Key=currentOperations}" Command="{Binding LoadCurrentOperationsCommand}" IsEnabled="{Binding HasSelectedProfile}"/>
@@ -109,13 +172,15 @@
                   <Button Content="{local:Loc Key=databaseStats}" Command="{Binding LoadDatabaseStatsCommand}" IsEnabled="{Binding CanLoadDatabaseStats}"/>
                   <Button Content="{local:Loc Key=collectionStats}" Command="{Binding LoadCollectionStatsCommand}" IsEnabled="{Binding CanLoadCollectionStats}"/>
                   <TextBlock Text="{local:Loc Key=privilegesNote}" VerticalAlignment="Center" Opacity="0.7"/>
-                </StackPanel>
-                <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
+                </WrapPanel>
+                <WrapPanel Grid.Row="1">
+                  <Button Content="{local:Loc Key=metricHistory}" Command="{Binding LoadMetricHistoryCommand}" IsEnabled="{Binding HasSelectedProfile}"/>
+                  <TextBox Text="{Binding OperationCommentFilter}" Width="190" PlaceholderText="{local:Loc Key=activityCommentFilter}" ToolTip.Tip="{local:Loc Key=activityCommentFilterHint}"/>
                   <TextBox Text="{Binding OperationIdToKill}" Width="180" PlaceholderText="{local:Loc Key=numericOperationId}"/>
                   <TextBox Text="{Binding OperationKillConfirmation}" Width="180" PlaceholderText="{local:Loc Key=repeatId}"/>
                   <Button Content="{local:Loc Key=interruptOperation}" Classes="danger" Command="{Binding KillOperationCommand}" IsEnabled="{Binding CanKillOperation}"/>
                   <TextBlock Text="{local:Loc Key=interruptionIrreversible}" VerticalAlignment="Center" Opacity="0.7"/>
-                </StackPanel>
+                </WrapPanel>
                 <Grid Grid.Row="2" ColumnDefinitions="*,*,*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="6" RowSpacing="5">
                   <TextBox Text="{Binding DropDatabaseConfirmation}" Width="260" PlaceholderText="{local:Loc Key=selectedDatabaseName}"/>
                   <Button Grid.Column="1" Content="{local:Loc Key=dropDatabase}" Classes="danger" Command="{Binding DropDatabaseCommand}" IsEnabled="{Binding CanDropDatabase}"/>
@@ -127,16 +192,18 @@
                 </Grid>
                 <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8">
                   <TextBox Text="{Binding CollectionIntegrityConfirmation}" Width="260" PlaceholderText="{local:Loc Key=selectedCollectionValidation}"/>
-                  <Button Content="{local:Loc Key=validateIntegrity}" Command="{Binding ValidateCollectionIntegrityCommand}" IsEnabled="{Binding CanValidateCollectionIntegrity}"/>
+                  <Button Content="{local:Loc Key=previewCollectionMaintenance}" Command="{Binding PreviewCollectionIntegrityCommand}"/>
+                  <Button Content="{local:Loc Key=validateIntegrity}" Command="{Binding ApplyCollectionIntegrityPlanCommand}" IsEnabled="{Binding CanApplyCollectionIntegrityPlan}"/>
                   <TextBlock Text="{local:Loc Key=validationMayTake}" VerticalAlignment="Center" Opacity="0.7"/>
                 </StackPanel>
                 <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="8">
                   <TextBox Text="{Binding CollectionCompactConfirmation}" Width="260" PlaceholderText="{local:Loc Key=selectedCollectionCompact}"/>
                   <CheckBox Content="{local:Loc Key=force}" IsChecked="{Binding CollectionCompactForce}" VerticalAlignment="Center"/>
-                  <Button Content="{local:Loc Key=compactCollection}" Classes="danger" Command="{Binding CompactCollectionCommand}" IsEnabled="{Binding CanCompactCollection}"/>
+                  <Button Content="{local:Loc Key=previewCollectionMaintenance}" Command="{Binding PreviewCollectionCompactCommand}"/>
+                  <Button Content="{local:Loc Key=compactCollection}" Classes="danger" Command="{Binding ApplyCollectionCompactPlanCommand}" IsEnabled="{Binding CanApplyCollectionCompactPlan}"/>
                   <TextBlock Text="{local:Loc Key=topologyUnavailable}" VerticalAlignment="Center" Opacity="0.7"/>
                 </StackPanel>
-                <Grid Grid.Row="5" ColumnDefinitions="*,*,*,*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="6" RowSpacing="5">
+                <Grid Grid.Row="5" ColumnDefinitions="*,*,*,*,Auto,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="6" RowSpacing="5">
                   <TextBox Text="{Binding NewDatabaseUsername}" PlaceholderText="{local:Loc Key=newUser}"/>
                   <TextBox Grid.Column="1" PasswordChar="●" Text="{Binding NewDatabaseUserPassword}" PlaceholderText="{local:Loc Key=passwordNotPersisted}"/>
                   <syntax:MongoTextEditor syntax:SyntaxSettings.Language="Json" Classes="syntax" Grid.Column="2" Text="{Binding NewDatabaseUserRoles}" PlaceholderText="{local:Loc Key=rolesJson}" FontFamily="{DynamicResource CodeFont}"/>
@@ -150,9 +217,62 @@
                   <syntax:MongoTextEditor syntax:SyntaxSettings.Language="Json" Classes="syntax" Grid.Row="2" Grid.Column="1" Text="{Binding DatabaseRolePayload}" PlaceholderText="{local:Loc Key=rolesJson}" FontFamily="{DynamicResource CodeFont}"/>
                   <TextBox Grid.Row="2" Grid.Column="2" Text="{Binding DatabaseRoleConfirmation}" PlaceholderText="{local:Loc Key=repeatUser}"/>
                   <CheckBox Grid.Row="2" Grid.Column="3" Content="{local:Loc Key=revoke}" IsChecked="{Binding RevokeDatabaseRoles}" VerticalAlignment="Center"/>
-                  <Button Grid.Row="2" Grid.Column="4" Content="{local:Loc Key=updateRoles}" Command="{Binding UpdateDatabaseUserRolesCommand}" IsEnabled="{Binding CanUpdateDatabaseUserRoles}"/>
+                  <Button Grid.Row="2" Grid.Column="4" Content="{local:Loc Key=previewUserRoles}" Command="{Binding PreviewDatabaseUserRolesCommand}" IsEnabled="{Binding CanPreviewDatabaseUserRoles}"/>
+                  <Button Grid.Row="2" Grid.Column="5" Content="{local:Loc Key=applyUserRoles}" Classes="danger" Command="{Binding UpdateDatabaseUserRolesCommand}" IsEnabled="{Binding CanUpdateDatabaseUserRoles}"/>
+                  <TextBlock Grid.Row="3" Grid.ColumnSpan="6" Text="{Binding DatabaseUserRolesPreview}" FontFamily="{DynamicResource CodeFont}" TextWrapping="Wrap" MaxHeight="150"/>
+                  <TextBlock Grid.Row="4" Grid.ColumnSpan="6" Text="{local:Loc Key=userRolesPreviewNote}" TextWrapping="Wrap" Opacity="0.7"/>
+                  <TextBox Grid.Row="5" Text="{Binding CustomRoleName}" PlaceholderText="{local:Loc Key=customRoleName}"/>
+                  <syntax:MongoTextEditor syntax:SyntaxSettings.Language="Json" Classes="syntax" Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="2" Text="{Binding CustomRolePrivileges}" PlaceholderText="{local:Loc Key=customRolePrivileges}" FontFamily="{DynamicResource CodeFont}"/>
+                  <syntax:MongoTextEditor syntax:SyntaxSettings.Language="Json" Classes="syntax" Grid.Row="5" Grid.Column="3" Grid.ColumnSpan="3" Text="{Binding CustomRoleInheritedRoles}" PlaceholderText="{local:Loc Key=customRoleInheritedRoles}" FontFamily="{DynamicResource CodeFont}"/>
+                  <TextBox Grid.Row="6" Text="{Binding CustomRoleConfirmation}" PlaceholderText="{local:Loc Key=confirmCustomRole}"/>
+                  <WrapPanel Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="5" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="{local:Loc Key=previewCreateRole}" Command="{Binding PreviewCreateCustomRoleCommand}" IsEnabled="{Binding CanPreviewCustomRole}"/>
+                    <Button Content="{local:Loc Key=previewUpdateRole}" Command="{Binding PreviewUpdateCustomRoleCommand}" IsEnabled="{Binding CanPreviewCustomRole}"/>
+                    <Button Content="{local:Loc Key=previewDropRole}" Classes="danger" Command="{Binding PreviewDropCustomRoleCommand}" IsEnabled="{Binding CanPreviewCustomRole}"/>
+                    <Button Content="{local:Loc Key=applyCustomRole}" Classes="danger" Command="{Binding ApplyCustomRoleCommand}" IsEnabled="{Binding CanApplyCustomRole}"/>
+                  </WrapPanel>
+                  <TextBlock Grid.Row="7" Grid.ColumnSpan="6" Text="{local:Loc Key=customRoleScopeNote}" TextWrapping="Wrap" Opacity="0.7"/>
                 </Grid>
-                <syntax:MongoTextEditor syntax:SyntaxSettings.Language="Json" Classes="syntax" Grid.Row="6" Text="{Binding AdministrationResults}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" FontFamily="{DynamicResource CodeFont}"/>
+                <Grid Grid.Row="6" RowDefinitions="Auto,Auto" RowSpacing="5">
+                  <WrapPanel>
+                    <TextBlock Text="{local:Loc Key=runtimeParameter}" VerticalAlignment="Center"/>
+                    <ComboBox ItemsSource="{x:Static core:RuntimeServerParameters.Allowlist}" SelectedItem="{Binding RuntimeParameterName}" Width="155"/>
+                    <NumericUpDown Minimum="{Binding RuntimeParameterMinimum}" Maximum="{Binding RuntimeParameterMaximum}" Increment="1" Value="{Binding RuntimeParameterValue}" Width="100"/>
+                    <TextBox Text="{Binding RuntimeParameterConfirmation}" Width="165" PlaceholderText="{local:Loc Key=confirmRuntimeParameterName}"/>
+                    <Button Content="{local:Loc Key=previewRuntimeParameter}" Command="{Binding PreviewRuntimeParameterCommand}" IsEnabled="{Binding HasSelectedProfile}"/>
+                    <Button Content="{local:Loc Key=applyRuntimeParameter}" Classes="danger" Command="{Binding ApplyRuntimeParameterCommand}" IsEnabled="{Binding CanApplyRuntimeParameter}"/>
+                  </WrapPanel>
+                  <TextBlock Grid.Row="1" Text="{Binding RuntimeParameterPreview}" TextWrapping="Wrap" Opacity="0.85"/>
+                </Grid>
+                <TextBox Grid.Row="7" Text="{Binding CustomRolePreview}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" FontFamily="{DynamicResource CodeFont}"/>
+                <TextBlock Grid.Row="8" Text="{Binding ProfilerCaptureWarning}" TextWrapping="Wrap"/>
+                <Expander Grid.Row="9" Header="{local:Loc Key=profilerConfiguration}" IsExpanded="False">
+                  <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="6" Margin="4">
+                    <WrapPanel>
+                      <TextBox Text="{Binding ProfilerLevelText}" Width="75" PlaceholderText="{local:Loc Key=profilerLevel}"/>
+                      <TextBox Text="{Binding ProfilerSlowMsText}" Width="105" PlaceholderText="slowms"/>
+                      <TextBox Text="{Binding ProfilerSampleRateText}" Width="115" PlaceholderText="sampleRate"/>
+                      <CheckBox Content="{local:Loc Key=profilerUseFilter}" IsChecked="{Binding ProfilerUseFilter}" VerticalAlignment="Center"/>
+                      <TextBox Text="{Binding ProfilerConfirmation}" Width="210" PlaceholderText="{local:Loc Key=profilerConfirmDatabase}"/>
+                      <Button Content="{local:Loc Key=profilerPreview}" Command="{Binding PreviewProfilerConfigurationCommand}" IsEnabled="{Binding CanLoadDatabaseStats}"/>
+                      <Button Content="{local:Loc Key=profilerApply}" Classes="danger" Command="{Binding ConfigureProfilerCommand}" IsEnabled="{Binding CanConfigureProfiler}"/>
+                    </WrapPanel>
+                    <syntax:MongoTextEditor syntax:SyntaxSettings.Language="Json" Classes="syntax" Grid.Row="1" Text="{Binding ProfilerFilterJson}" PlaceholderText="{local:Loc Key=profilerFilterPlaceholder}" AcceptsReturn="True" MinHeight="70" FontFamily="{DynamicResource CodeFont}"/>
+                    <TextBox Grid.Row="2" Text="{Binding ProfilerConfigurationPreviewText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="95" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                    <WrapPanel Grid.Row="3">
+                      <TextBox Text="{Binding ProfilerCaptureDurationMinutes}" Width="105" PlaceholderText="{local:Loc Key=profilerCaptureMinutes}"/>
+                      <Button Content="{local:Loc Key=profilerCaptureStart}" Classes="danger" Command="{Binding StartProfilerCaptureCommand}"/>
+                      <ComboBox Width="220" ItemsSource="{Binding PendingProfilerCaptures}" SelectedItem="{Binding SelectedProfilerCapture}">
+                        <ComboBox.ItemTemplate><DataTemplate><StackPanel Orientation="Horizontal" Spacing="6"><TextBlock Text="{Binding Database}"/><TextBlock Text="{Binding State}"/></StackPanel></DataTemplate></ComboBox.ItemTemplate>
+                      </ComboBox>
+                      <Button Content="{local:Loc Key=profilerCaptureCollect}" Command="{Binding CollectProfilerCaptureCommand}"/>
+                      <Button Content="{local:Loc Key=profilerCaptureRestore}" Classes="danger" Command="{Binding RestoreProfilerCaptureCommand}"/>
+                    </WrapPanel>
+                    <TextBlock Grid.Row="4" Text="{local:Loc Key=profilerCaptureNotice}" TextWrapping="Wrap"/>
+                    <TextBox Grid.Row="5" Text="{Binding ProfilerCaptureResults}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="85" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                  </Grid>
+                </Expander>
+                <syntax:MongoTextEditor syntax:SyntaxSettings.Language="Json" Classes="syntax" Grid.Row="10" Text="{Binding AdministrationResults}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" FontFamily="{DynamicResource CodeFont}"/>
               </Grid>
             </TabItem>
             <TabItem Header="{local:Loc Key=toolsDocuments}">
@@ -215,27 +335,27 @@
               </Grid>
             </TabItem>
             <TabItem Header="{local:Loc Key=toolsIndexes}">
-              <Grid Margin="8" ColumnDefinitions="*,10,*">
-                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="8">
+              <Grid Margin="8" RowDefinitions="Auto,10,*">
+                <Grid Grid.Row="0" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="8">
                   <TextBlock Text="{local:Loc Key=indexKeys}" FontWeight="SemiBold"/>
                   <syntax:MongoTextEditor syntax:SyntaxSettings.Language="Json" Classes="syntax" Grid.Row="1" Text="{Binding IndexKeys}" FontFamily="{DynamicResource CodeFont}"/>
                   <TextBox Grid.Row="2" Text="{Binding IndexName}" PlaceholderText="{local:Loc Key=optionalName}"/>
-                  <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8">
+                  <WrapPanel Grid.Row="3">
                     <CheckBox Content="{local:Loc Key=unique}" IsChecked="{Binding IndexIsUnique}"/>
                     <CheckBox Content="{local:Loc Key=sparse}" IsChecked="{Binding IndexIsSparse}"/>
                     <CheckBox Content="{local:Loc Key=hidden}" IsChecked="{Binding IndexIsHidden}"/>
                     <TextBlock Text="{local:Loc Key=ttlSeconds}" VerticalAlignment="Center"/>
                     <NumericUpDown Minimum="0" Maximum="2147483647" Value="{Binding IndexExpireAfterSeconds}" Width="150"/>
-                  </StackPanel>
+                  </WrapPanel>
                   <syntax:MongoTextEditor syntax:SyntaxSettings.Language="Json" Classes="syntax" Grid.Row="4" Text="{Binding IndexPartialFilter}" PlaceholderText="{local:Loc Key=partialFilter}" FontFamily="{DynamicResource CodeFont}"/>
                   <syntax:MongoTextEditor syntax:SyntaxSettings.Language="Json" Classes="syntax" Grid.Row="5" Text="{Binding IndexCollation}" PlaceholderText="{local:Loc Key=collationOptional}" FontFamily="{DynamicResource CodeFont}"/>
                   <syntax:MongoTextEditor syntax:SyntaxSettings.Language="Json" Classes="syntax" Grid.Row="6" Text="{Binding IndexWildcardProjection}" PlaceholderText="{local:Loc Key=wildcardProjection}" FontFamily="{DynamicResource CodeFont}"/>
-                  <StackPanel Grid.Row="7" Orientation="Horizontal" Spacing="8">
+                  <WrapPanel Grid.Row="7">
                     <Button Content="{local:Loc Key=createIndex}" Command="{Binding CreateIndexCommand}" IsEnabled="{Binding CanExecuteQuery}"/>
                     <Button Content="{local:Loc Key=updateList}" Command="{Binding LoadIndexesCommand}" IsEnabled="{Binding CanExecuteQuery}"/>
-                    <Button Content="{local:Loc Key=indexUsage}" Command="{Binding LoadIndexUsageStatsCommand}" IsEnabled="{Binding CanExecuteQuery}"/>
-                  </StackPanel>
-                  <StackPanel Grid.Row="8" Orientation="Horizontal" Spacing="8">
+                    <Button Content="{local:Loc Key=indexDiagnostics}" Command="{Binding LoadIndexDiagnosticsCommand}" IsEnabled="{Binding CanExecuteQuery}"/>
+                  </WrapPanel>
+                  <WrapPanel Grid.Row="8">
                     <TextBox Text="{Binding IndexNameToDrop}" Width="220" PlaceholderText="{local:Loc Key=dropIndexName}"/>
                     <Button Content="{local:Loc Key=removeIndex}" Classes="danger" Click="ConfirmDestructive" Tag="DropIndexCommand" IsEnabled="{Binding CanDropIndex}"/>
                     <TextBox Text="{Binding IndexNameForVisibility}" Width="180" PlaceholderText="{local:Loc Key=indexVisibility}"/>
@@ -243,10 +363,10 @@
                     <CheckBox Content="{local:Loc Key=hidden}" IsChecked="{Binding IndexVisibilityHidden}"/>
                     <Button Content="{local:Loc Key=changeVisibility}" Command="{Binding SetIndexVisibilityCommand}" IsEnabled="{Binding CanSetIndexVisibility}"/>
                     <TextBlock Text="{local:Loc Key=protectedId}" VerticalAlignment="Center" Opacity="0.7"/>
-                  </StackPanel>
+                  </WrapPanel>
                 </Grid>
-                <GridSplitter Grid.Column="1" Width="10"/>
-                <Grid Grid.Column="2" RowDefinitions="Auto,*" RowSpacing="8">
+                <GridSplitter Grid.Row="1" HorizontalAlignment="Stretch"/>
+                <Grid Grid.Row="2" RowDefinitions="Auto,*" RowSpacing="8">
                   <TextBlock Text="{local:Loc Key=indexesOnServer}" FontWeight="SemiBold"/>
                   <syntax:MongoTextEditor syntax:SyntaxSettings.Language="Json" Classes="syntax" Grid.Row="1" Text="{Binding IndexResults}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" FontFamily="{DynamicResource CodeFont}"/>
                 </Grid>
@@ -256,8 +376,8 @@
         </TabItem>
         <TabItem Header="{local:Loc Key=toolsCollections}">
           <Expander Header="{local:Loc Key=collectionManager}">
-            <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="5" Margin="0,8,0,0">
-              <StackPanel Orientation="Horizontal" Spacing="8">
+            <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="5" Margin="0,8,0,0">
+              <WrapPanel>
                 <TextBox Text="{Binding NewCollectionName}" Width="220" PlaceholderText="{local:Loc Key=newCollectionName}"/>
                 <CheckBox Content="{local:Loc Key=cappedCollection}" IsChecked="{Binding NewCollectionIsCapped}" VerticalAlignment="Center"/>
                 <CheckBox Content="{local:Loc Key=viewCollection}" IsChecked="{Binding NewCollectionIsView}" VerticalAlignment="Center"/>
@@ -267,36 +387,62 @@
                 <TextBlock Text="{local:Loc Key=maxDocs}" VerticalAlignment="Center"/>
                 <NumericUpDown Minimum="1" Maximum="1000000000" Value="{Binding NewCollectionMaxDocuments}" Width="120"/>
                 <Button Content="{local:Loc Key=createCollection}" Command="{Binding CreateCollectionCommand}" IsEnabled="{Binding CanCreateCollection}"/>
-              </StackPanel>
-              <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8">
+              </WrapPanel>
+              <WrapPanel Grid.Row="2">
                 <TextBox Text="{Binding NewCollectionViewOn}" Width="220" PlaceholderText="{local:Loc Key=viewSource}"/>
                 <syntax:MongoTextEditor syntax:SyntaxSettings.Language="Aggregation" Classes="syntax" Text="{Binding NewCollectionViewPipeline}" Width="430" PlaceholderText="{local:Loc Key=viewPipeline}" FontFamily="{DynamicResource CodeFont}"/>
                 <syntax:MongoTextEditor syntax:SyntaxSettings.Language="Json" Classes="syntax" Text="{Binding NewCollectionCollation}" Width="250" PlaceholderText="{local:Loc Key=collationBsonOptional}" FontFamily="{DynamicResource CodeFont}"/>
                 <syntax:MongoTextEditor syntax:SyntaxSettings.Language="Json" Classes="syntax" Text="{Binding NewCollectionClusteredIndexKey}" Width="180" PlaceholderText="{local:Loc Key=clusteredKey}" FontFamily="{DynamicResource CodeFont}"/>
+              </WrapPanel>
+              <StackPanel Grid.Row="1" Spacing="8">
+                <WrapPanel>
+                  <TextBox Text="{Binding RenameCollectionName}" Width="220" PlaceholderText="{local:Loc Key=renameCollectionName}"/>
+                  <CheckBox Content="{local:Loc Key=replaceDestination}" IsChecked="{Binding RenameDropTarget}" VerticalAlignment="Center"/>
+                  <Button Content="{local:Loc Key=previewRenameTarget}" Command="{Binding PreviewRenameTargetCommand}" IsVisible="{Binding RenameDropTarget}"/>
+                  <TextBox Text="{Binding RenameDropTargetConfirmation}" Width="220" IsVisible="{Binding RenameDropTarget}" PlaceholderText="{local:Loc Key=confirmReplaceDestination}"/>
+                  <Button Content="{local:Loc Key=renameCollection}" Command="{Binding RenameCollectionCommand}" IsEnabled="{Binding CanRenameCollection}"/>
+                </WrapPanel>
+                <TextBox Text="{Binding RenameTargetPreviewText}" IsReadOnly="True" IsVisible="{Binding RenameDropTarget}" AcceptsReturn="True" TextWrapping="Wrap" Height="90" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
               </StackPanel>
-              <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
-                <TextBox Text="{Binding RenameCollectionName}" Width="220" PlaceholderText="{local:Loc Key=renameCollectionName}"/>
-                <CheckBox Content="{local:Loc Key=replaceDestination}" IsChecked="{Binding RenameDropTarget}" VerticalAlignment="Center"/>
-                <Button Content="{local:Loc Key=renameCollection}" Command="{Binding RenameCollectionCommand}" IsEnabled="{Binding CanRenameCollection}"/>
+              <StackPanel Grid.Row="3" Spacing="8">
+                <WrapPanel>
+                  <TextBox Text="{Binding ViewUpdateSourceCollection}" Width="150" PlaceholderText="{local:Loc Key=viewUpdateSourceOptional}"/>
+                  <syntax:MongoTextEditor syntax:SyntaxSettings.Language="Aggregation" Classes="syntax" Text="{Binding ViewUpdatePipeline}" Width="350" PlaceholderText="{local:Loc Key=viewPipeline}" FontFamily="{DynamicResource CodeFont}"/>
+                  <TextBox Text="{Binding ViewUpdateConfirmation}" Width="150" PlaceholderText="{local:Loc Key=selectedView}"/>
+                  <Button Content="{local:Loc Key=loadViewDependencies}" Command="{Binding LoadViewDependenciesCommand}"/>
+                  <Button Content="{local:Loc Key=updateView}" Command="{Binding UpdateViewCommand}" IsEnabled="{Binding CanUpdateView}"/>
+                </WrapPanel>
+                <TextBox Text="{Binding ViewDependenciesText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" Height="75" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
               </StackPanel>
-              <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8">
-                <syntax:MongoTextEditor syntax:SyntaxSettings.Language="Aggregation" Classes="syntax" Text="{Binding ViewUpdatePipeline}" Width="430" PlaceholderText="{local:Loc Key=viewPipeline}" FontFamily="{DynamicResource CodeFont}"/>
-                <TextBox Text="{Binding ViewUpdateConfirmation}" Width="200" PlaceholderText="{local:Loc Key=selectedView}"/>
-                <Button Content="{local:Loc Key=updateView}" Command="{Binding UpdateViewCommand}" IsEnabled="{Binding CanUpdateView}"/>
+              <StackPanel Grid.Row="4" Spacing="8">
+                <WrapPanel>
+                  <TextBlock Text="{local:Loc Key=viewMaterialization}" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                  <TextBox Text="{Binding MaterializationDestination}" Width="180" PlaceholderText="{local:Loc Key=materializationDestination}"/>
+                  <syntax:MongoTextEditor syntax:SyntaxSettings.Language="Aggregation" Classes="syntax" Text="{Binding MaterializationPipeline}" Width="250" PlaceholderText="{local:Loc Key=materializationPipeline}" FontFamily="{DynamicResource CodeFont}"/>
+                  <Button Content="{local:Loc Key=materializationPreview}" Command="{Binding PreviewViewMaterializationCommand}"/>
+                  <TextBox Text="{Binding MaterializationConfirmation}" Width="180" PlaceholderText="{local:Loc Key=materializationConfirmation}"/>
+                  <Button Content="{local:Loc Key=materializationExecute}" Classes="danger" Command="{Binding MaterializeViewCommand}" IsEnabled="{Binding CanMaterializeView}"/>
+                </WrapPanel>
+                <TextBox Text="{Binding MaterializationPreviewText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" Height="105" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
               </StackPanel>
-              <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="8">
-                <Button Content="{local:Loc Key=loadValidation}" Command="{Binding LoadCollectionValidationCommand}" IsEnabled="{Binding CanExecuteQuery}"/>
-                <syntax:MongoTextEditor syntax:SyntaxSettings.Language="Json" Classes="syntax" Text="{Binding CollectionValidatorJson}" Width="430" PlaceholderText="{local:Loc Key=validatorJson}" FontFamily="{DynamicResource CodeFont}"/>
-                <ComboBox ItemsSource="{Binding CollectionValidationLevels}" SelectedItem="{Binding CollectionValidationLevel}" Width="105"/>
-                <ComboBox ItemsSource="{Binding CollectionValidationActions}" SelectedItem="{Binding CollectionValidationAction}" Width="90"/>
-                <TextBox Text="{Binding CollectionValidationConfirmation}" Width="200" PlaceholderText="{local:Loc Key=selectedCollection}"/>
-                <Button Content="{local:Loc Key=applyValidation}" Command="{Binding ConfigureCollectionValidationCommand}" IsEnabled="{Binding CanConfigureCollectionValidation}"/>
+              <StackPanel Grid.Row="5" Spacing="8">
+                <WrapPanel>
+                  <Button Content="{local:Loc Key=loadValidation}" Command="{Binding LoadCollectionValidationCommand}" IsEnabled="{Binding CanExecuteQuery}"/>
+                  <syntax:MongoTextEditor syntax:SyntaxSettings.Language="Json" Classes="syntax" Text="{Binding CollectionValidatorJson}" Width="430" PlaceholderText="{local:Loc Key=validatorJson}" FontFamily="{DynamicResource CodeFont}"/>
+                  <ComboBox ItemsSource="{Binding CollectionValidationLevels}" SelectedItem="{Binding CollectionValidationLevel}" Width="105"/>
+                  <ComboBox ItemsSource="{Binding CollectionValidationActions}" SelectedItem="{Binding CollectionValidationAction}" Width="90"/>
+                  <TextBox Text="{Binding CollectionValidationConfirmation}" Width="200" PlaceholderText="{local:Loc Key=selectedCollection}"/>
+                  <Button Content="{local:Loc Key=previewCollectionMaintenance}" Command="{Binding PreviewCollectionValidationCommand}"/>
+                  <Button Content="{local:Loc Key=applyValidation}" Command="{Binding ApplyCollectionValidationPlanCommand}" IsEnabled="{Binding CanApplyCollectionValidationPlan}"/>
+                </WrapPanel>
+                <TextBox Text="{Binding CollectionMaintenancePreviewText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" Height="150" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                <TextBox Text="{Binding CollectionValidationReadbackText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" Height="75" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
               </StackPanel>
-              <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="8">
+              <WrapPanel Grid.Row="6">
                 <TextBlock Text="{local:Loc Key=removeCollectionLabel}" VerticalAlignment="Center" FontWeight="SemiBold"/>
                 <TextBox Text="{Binding DropCollectionConfirmation}" Width="220" PlaceholderText="{local:Loc Key=selectedCollection}"/>
                 <Button Content="{local:Loc Key=removeCollection}" Classes="danger" Command="{Binding DropCollectionCommand}" IsEnabled="{Binding CanDropCollection}" ToolTip.Tip="{local:Loc Key=removeCollectionTooltip}"/>
-              </StackPanel>
+              </WrapPanel>
             </Grid>
           </Expander>
         </TabItem>

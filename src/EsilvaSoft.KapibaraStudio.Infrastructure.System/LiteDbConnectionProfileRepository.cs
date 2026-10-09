@@ -26,6 +26,8 @@ public sealed partial class LiteDbConnectionProfileRepository :
     IAgentAuditRepository,
     IAgentSchemaSamplingConsentProvider,
     IAgentSchemaSamplingConsentRepository,
+    IProfilerCaptureRepository,
+    IImportCheckpointRepository,
     IDisposable
 {
     private readonly LiteDatabase _database;

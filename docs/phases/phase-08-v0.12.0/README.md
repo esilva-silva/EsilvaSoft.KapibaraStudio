@@ -1,5 +1,9 @@
 # Fase 8 — v0.12.0: IA local e produtividade contextual
 
+**Laboratório KapiLab — 09/10/2026:** a [Fase 7B / F7B-KAPILAB](../phase-07b-kapilab/meta-de-implementacao.md) planeja console e relatórios de avaliação que consomem os contratos da 7A. Mantém a prioridade de IA local e não substitui os testes da IDE nem a homologação real da Fase 10.
+
+**Preparação KapiCoder-Mongo — 09/10/2026:** a [Fase 7A / F7A-KAPI](../phase-07a-kapicoder-mongo/meta-de-implementacao.md) detalha a próxima preparação de IA local, sem nova versão ou mudança da prioridade desta fase. ADR-070 aprova agente local em Release, texto de raciocínio com retenção/orçamento configuráveis e tools vigentes com permissões; implementação e homologação permanecem planejadas.
+
 **Situação:** escopo automatizável implementado e validado em 22/09/2026; assistência com modelo ONNX e homologação nativa continuam experimentais até as evidências da Fase 10.
 
 **Prioridade de entrega (03/10/2026):** esta fase é o foco atual. Execute as entregas pendentes da [meta de implementação](meta-de-implementacao.md) antes de retomar a Fase 5 / v0.9.0. O recorte automatizável foi aceito em 22/09/2026; a composição evoluiu depois (ADRs 055/056), sem restaurar o assistente por aba removido. Inferência ONNX real e homologação nativa continuam experimentais na Fase 10.

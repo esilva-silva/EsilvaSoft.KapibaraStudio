@@ -25,17 +25,26 @@ public sealed partial class MainWindowViewModel : ObservableObject
         _workspace = workspace;
         _autoLoadCollections = autoLoadCollections;
         ExportResults = T("exportDatabaseInitial");
+        ExportProgress = string.Empty;
         ImportResults = T("importDatabaseInitial");
         IndexResults = T("indexesInitial");
         AutocompleteSuggestions = T("autocompleteFieldsNote");
         ScriptResults = T("scriptNoOutput");
         LoadProfilesCommand.Execute(null);
         _ = LoadScriptHistoryAsync();
+        _ = LoadProfilerCaptureRecoveryAsync();
     }
 
     public ObservableCollection<string> Databases { get; } = [];
 
     public ObservableCollection<string> Collections { get; } = [];
+
+    [ObservableProperty] private string _exportProgress = string.Empty;
+    [ObservableProperty] private double _exportProgressValue;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanExportDatabase))]
+    [NotifyCanExecuteChangedFor(nameof(ExportDatabaseCommand))]
+    private bool _isExportInProgress;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSelectedProfile))]
@@ -77,6 +86,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(UpdateDocumentCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeleteDocumentCommand))]
     [NotifyCanExecuteChangedFor(nameof(LoadIndexesCommand))]
+    [NotifyCanExecuteChangedFor(nameof(LoadIndexDiagnosticsCommand))]
     [NotifyCanExecuteChangedFor(nameof(CreateIndexCommand))]
     [NotifyCanExecuteChangedFor(nameof(ExecuteScriptCommand))]
     [NotifyCanExecuteChangedFor(nameof(ExportDatabaseCommand))]
@@ -134,6 +144,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(UpdateDocumentCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeleteDocumentCommand))]
     [NotifyCanExecuteChangedFor(nameof(LoadIndexesCommand))]
+    [NotifyCanExecuteChangedFor(nameof(LoadIndexDiagnosticsCommand))]
     [NotifyCanExecuteChangedFor(nameof(CreateIndexCommand))]
     [NotifyCanExecuteChangedFor(nameof(ExportDatabaseCommand))]
     [NotifyCanExecuteChangedFor(nameof(DropDatabaseCommand))]
@@ -172,6 +183,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(UpdateDocumentCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeleteDocumentCommand))]
     [NotifyCanExecuteChangedFor(nameof(LoadIndexesCommand))]
+    [NotifyCanExecuteChangedFor(nameof(LoadIndexDiagnosticsCommand))]
     [NotifyCanExecuteChangedFor(nameof(CreateIndexCommand))]
     [NotifyPropertyChangedFor(nameof(CanLoadCollectionStats))]
     [NotifyCanExecuteChangedFor(nameof(LoadCollectionStatsCommand))]
@@ -230,6 +242,12 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     partial void OnSelectedProfileChanged(ConnectionProfile? value)
     {
+        NotifyImportTargetChanged();
+        NotifyStandaloneImportTargetChanged();
+        NotifyCustomRoleTargetChanged();
+        NotifyRuntimeParameterTargetChanged();
+        NotifyDatabaseUserRoleTargetChanged();
+        NotifyProfilerTargetChanged();
         Databases.Clear();
         Collections.Clear();
         _knownFields.Clear();
@@ -248,6 +266,12 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     partial void OnSelectedDatabaseChanged(string? value)
     {
+        NotifyImportTargetChanged();
+        NotifyStandaloneImportTargetChanged();
+        NotifyCustomRoleTargetChanged();
+        NotifyRuntimeParameterTargetChanged();
+        NotifyDatabaseUserRoleTargetChanged();
+        NotifyProfilerTargetChanged();
         Collections.Clear();
         SelectedCollection = null;
         ExecuteQueryCommand.NotifyCanExecuteChanged();

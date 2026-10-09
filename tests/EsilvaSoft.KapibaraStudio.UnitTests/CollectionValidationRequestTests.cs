@@ -14,7 +14,8 @@ public sealed class CollectionValidationRequestTests
             "{ \"$jsonSchema\": { \"bsonType\": \"object\", \"required\": [\"nome\"] } }",
             CollectionValidationLevel.Strict,
             CollectionValidationAction.Error,
-            "clientes");
+            "clientes",
+            CollectionMaintenanceTestData.Preflight());
 
         Assert.That(request.Validate(), Is.EqualTo(request));
     }

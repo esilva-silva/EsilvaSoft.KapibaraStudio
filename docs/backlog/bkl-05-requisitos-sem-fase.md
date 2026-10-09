@@ -33,6 +33,7 @@ Menção a um comando no vocabulário do editor **não** comprova suporte admini
 | Script Engine entre conexões (EDT-06, TRF-05) | [bkl-03](bkl-03-script-engine-entre-conexoes.md) |
 | Modo Aggregation (AGG-01/03/04) | [bkl-04](bkl-04-modo-aggregation.md) |
 | Demais integrações externas de agentes (ADV-09) | [bkl-06](bkl-06-integracoes-agentes.md) |
+| Recortes ADM-01/04/09 que exigem acesso fora da connection string (08/10/2026) | [bkl-07](bkl-07-administracao-fora-da-connection-string.md) — métricas externas, controle gerenciado, startup/configuração persistente e manutenção de SO |
 
 ## Regras
 

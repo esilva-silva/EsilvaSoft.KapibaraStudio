@@ -22,4 +22,5 @@ Um requisito sai do backlog quando recebe fase e versão no roadmap oficial, com
 | [bkl-04 — Modo Aggregation](bkl-04-modo-aggregation.md) | Modo Agregação da tela inicial | Sim — parser, validador e contratos intactos |
 | [bkl-05 — Requisitos sem fase](bkl-05-requisitos-sem-fase.md) | IDs do catálogo sem versão comprometida | Parcial — ver documento |
 | [bkl-06 — Demais integrações de agentes](bkl-06-integracoes-agentes.md) | Claude, Codex, APIs externas e integração MCP externa, sem fase/versão | Sim — implementações, composição, catálogo e disponibilidade intactos |
+| [bkl-07 — Administração fora da connection string](bkl-07-administracao-fora-da-connection-string.md) | Métricas externas, plano de controle, configuração/startup e manutenção de SO retirados da Fase 6 | Sim — nenhuma alteração de código/UI |
 | [27 — Consultas avançadas](27-consultas-avancadas.md) | Auditoria histórica da antiga meta de agregação | Documento preservado como evidência histórica |

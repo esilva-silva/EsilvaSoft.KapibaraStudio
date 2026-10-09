@@ -3,7 +3,12 @@ using System.Text.Json;
 namespace EsilvaSoft.KapibaraStudio.Core;
 
 /// <summary>Defines a confirmed update to a MongoDB view pipeline.</summary>
-public sealed record ViewUpdateRequest(string Database, string View, string PipelineJson, string ConfirmationName)
+public sealed record ViewUpdateRequest(
+    string Database,
+    string View,
+    string PipelineJson,
+    string ConfirmationName,
+    string? SourceCollection = null)
 {
     public ViewUpdateRequest Validate()
     {
@@ -25,6 +30,14 @@ public sealed record ViewUpdateRequest(string Database, string View, string Pipe
         if (string.IsNullOrWhiteSpace(PipelineJson))
         {
             throw new ArgumentException("O pipeline da view é obrigatório.", nameof(PipelineJson));
+        }
+
+        if (SourceCollection is not null
+            && (string.IsNullOrWhiteSpace(SourceCollection)
+                || SourceCollection.StartsWith("system.", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(View, SourceCollection, StringComparison.Ordinal)))
+        {
+            throw new ArgumentException("A origem da view precisa ser outra coleção ou view de usuário.", nameof(SourceCollection));
         }
 
         try

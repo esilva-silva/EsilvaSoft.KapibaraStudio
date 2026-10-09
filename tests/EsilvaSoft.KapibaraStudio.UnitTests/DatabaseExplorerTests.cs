@@ -34,22 +34,148 @@ public sealed class DatabaseExplorerTests
     {
         using var context = new WorkspaceTestContext();
         IndexDropRequest? removed = null;
+        var indexReads = 0;
         context.Mongo.Handler = (method, args) =>
         {
             if (method == "DropIndexAsync") { removed = (IndexDropRequest)args[1]!; return Task.CompletedTask; }
-            return Task.FromResult<IReadOnlyList<string>>([]);
+            if (method == "GetIndexesAsync")
+                return Task.FromResult<IReadOnlyList<string>>(++indexReads == 1
+                    ? ["{\"name\":\"email_1\",\"key\":{\"email\":1}}"]
+                    : []);
+            throw new InvalidOperationException(method);
         };
         var profile = ConnectionProfile.Create("A", "mongodb://host");
         using var workspace = new WorkspaceViewModel(context.Workspace, context.Repository);
         var root = new ExplorerNodeViewModel(context.Workspace, profile, "A") { IsConnected = true };
+        workspace.Roots.Add(root);
         var indexes = new ExplorerNodeViewModel(context.Workspace, profile, "Índices", "db", "col", kind: ExplorerNodeKind.Indexes, parent: root);
+        root.Children.Add(indexes);
         var index = new ExplorerNodeViewModel(context.Workspace, profile, "email_1", "db", "col", kind: ExplorerNodeKind.Index, parent: indexes,
             index: ExplorerMetadataService.ParseIndex("{\"name\":\"email_1\",\"key\":{\"email\":1}}"));
+        indexes.Children.Add(index);
         await workspace.DropExplorerIndexAsync(index);
         Assert.That(removed, Is.EqualTo(new IndexDropRequest("db", "col", "email_1")));
+        Assert.That(indexReads, Is.EqualTo(2), "Removal must be verified by reading the originating collection again.");
+        Assert.That(indexes.Children, Does.Not.Contain(index));
+        var audit = (await context.Repository.GetRecentAuditAsync()).Single();
+        Assert.That(audit.Action, Is.EqualTo("index.drop"));
+        Assert.That(audit.Summary, Does.Contain("present=true/present=false"));
         var mandatory = new ExplorerNodeViewModel(context.Workspace, profile, "_id_", "db", "col", kind: ExplorerNodeKind.Index, parent: indexes,
             index: ExplorerMetadataService.ParseIndex("{\"name\":\"_id_\",\"key\":{\"_id\":1}}"));
         Assert.ThrowsAsync<ArgumentException>(() => workspace.DropExplorerIndexAsync(mandatory));
+        Assert.That(indexReads, Is.EqualTo(2), "The mandatory _id_ index must be rejected before any read or mutation.");
+        Assert.That(removed, Is.EqualTo(new IndexDropRequest("db", "col", "email_1")));
+    }
+
+    [Test]
+    public async Task IndexRemovalUsesCapturedCollectionAfterExplorerSelectionChanges()
+    {
+        using var context = new WorkspaceTestContext();
+        var firstRead = new TaskCompletionSource<IReadOnlyList<string>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var readStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var reads = new List<(ConnectionProfile Profile, string Database, string Collection)>();
+        IndexDropRequest? removed = null;
+        ConnectionProfile? dropProfile = null;
+        context.Mongo.Handler = (method, args) =>
+        {
+            if (method == "GetIndexesAsync")
+            {
+                reads.Add(((ConnectionProfile)args[0]!, (string)args[1]!, (string)args[2]!));
+                if (reads.Count == 1) { readStarted.TrySetResult(); return firstRead.Task; }
+                return Task.FromResult<IReadOnlyList<string>>([]);
+            }
+            if (method == "DropIndexAsync")
+            {
+                dropProfile = (ConnectionProfile)args[0]!;
+                removed = (IndexDropRequest)args[1]!;
+                return Task.CompletedTask;
+            }
+            throw new InvalidOperationException(method);
+        };
+
+        var profile = ConnectionProfile.Create("Original", "mongodb://original");
+        using var workspace = new WorkspaceViewModel(context.Workspace, context.Repository);
+        var root = new ExplorerNodeViewModel(context.Workspace, profile, "Original") { IsConnected = true };
+        workspace.Roots.Add(root);
+        var indexes = new ExplorerNodeViewModel(context.Workspace, profile, "Índices", "db", "movies", kind: ExplorerNodeKind.Indexes, parent: root);
+        root.Children.Add(indexes);
+        var index = new ExplorerNodeViewModel(context.Workspace, profile, "title_1", "db", "movies", kind: ExplorerNodeKind.Index, parent: indexes,
+            index: ExplorerMetadataService.ParseIndex("{\"name\":\"title_1\",\"key\":{\"title\":1}}"));
+        indexes.Children.Add(index);
+
+        var removal = workspace.DropExplorerIndexAsync(index);
+        await readStarted.Task;
+        var otherProfile = ConnectionProfile.Create("Other", "mongodb://other");
+        var otherRoot = new ExplorerNodeViewModel(context.Workspace, otherProfile, "Other") { IsConnected = true };
+        workspace.Roots.Add(otherRoot);
+        workspace.SelectedNode = otherRoot;
+        firstRead.SetResult(["{\"name\":\"title_1\",\"key\":{\"title\":1}}"]);
+        await removal;
+
+        Assert.That(removed, Is.EqualTo(new IndexDropRequest("db", "movies", "title_1")));
+        Assert.That(dropProfile, Is.EqualTo(profile));
+        Assert.That(reads, Has.Count.EqualTo(2));
+        Assert.That(reads.Select(read => (read.Profile, read.Database, read.Collection)),
+            Is.All.EqualTo((profile, "db", "movies")));
+        Assert.That(workspace.SelectedNode, Is.SameAs(otherRoot));
+    }
+
+    [Test]
+    public async Task IndexRemovalRejectsReadOnlyProfileBeforeRemoteRead()
+    {
+        using var context = new WorkspaceTestContext();
+        var calls = new List<string>();
+        context.Mongo.Handler = (method, _) =>
+        {
+            calls.Add(method);
+            throw new InvalidOperationException($"Unexpected Mongo call: {method}");
+        };
+        var profile = ConnectionProfile.Create("Read only", "mongodb://host", isReadOnly: true);
+        using var workspace = new WorkspaceViewModel(context.Workspace, context.Repository);
+        var root = new ExplorerNodeViewModel(context.Workspace, profile, "Read only") { IsConnected = true };
+        workspace.Roots.Add(root);
+        var indexes = new ExplorerNodeViewModel(context.Workspace, profile, "Índices", "db", "movies", kind: ExplorerNodeKind.Indexes, parent: root);
+        root.Children.Add(indexes);
+        var index = new ExplorerNodeViewModel(context.Workspace, profile, "title_1", "db", "movies", kind: ExplorerNodeKind.Index, parent: indexes,
+            index: ExplorerMetadataService.ParseIndex("{\"name\":\"title_1\",\"key\":{\"title\":1}}"));
+        indexes.Children.Add(index);
+
+        Assert.ThrowsAsync<InvalidOperationException>(() => workspace.DropExplorerIndexAsync(index));
+
+        Assert.That(calls, Is.Empty, "A read-only connection must be rejected before metadata reads and mutations.");
+        Assert.That(workspace.ExplorerStatus, Does.Contain("Read only"));
+        Assert.That(indexes.Children, Does.Contain(index));
+    }
+
+    [Test]
+    public async Task IndexRemovalShowsUncertainOutcomeAndAuditsWhenPostReadFails()
+    {
+        using var context = new WorkspaceTestContext();
+        var indexReads = 0;
+        context.Mongo.Handler = (method, _) => method switch
+        {
+            "GetIndexesAsync" when ++indexReads == 1 => Task.FromResult<IReadOnlyList<string>>(["{\"name\":\"title_1\",\"key\":{\"title\":1}}"]),
+            "GetIndexesAsync" => throw new InvalidOperationException("post-read unavailable"),
+            "DropIndexAsync" => Task.CompletedTask,
+            _ => throw new InvalidOperationException(method)
+        };
+        var profile = ConnectionProfile.Create("A", "mongodb://host");
+        using var workspace = new WorkspaceViewModel(context.Workspace, context.Repository);
+        var root = new ExplorerNodeViewModel(context.Workspace, profile, "A") { IsConnected = true };
+        workspace.Roots.Add(root);
+        var indexes = new ExplorerNodeViewModel(context.Workspace, profile, "Índices", "db", "movies", kind: ExplorerNodeKind.Indexes, parent: root);
+        root.Children.Add(indexes);
+        var index = new ExplorerNodeViewModel(context.Workspace, profile, "title_1", "db", "movies", kind: ExplorerNodeKind.Index, parent: indexes,
+            index: ExplorerMetadataService.ParseIndex("{\"name\":\"title_1\",\"key\":{\"title\":1}}"));
+        indexes.Children.Add(index);
+
+        await workspace.DropExplorerIndexAsync(index);
+
+        Assert.That(workspace.ExplorerStatus, Does.Contain("title_1"));
+        Assert.That(workspace.ExplorerStatus, Is.Not.Empty);
+        Assert.That(indexes.Children, Does.Contain(index), "Keep the original tree entry when the server state is unknown.");
+        var audit = (await context.Repository.GetRecentAuditAsync()).Single();
+        Assert.That(audit.Summary, Does.Contain("present=true/unknown"));
     }
 
     [Test]

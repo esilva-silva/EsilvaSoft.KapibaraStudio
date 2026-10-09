@@ -1,7 +1,12 @@
 namespace EsilvaSoft.KapibaraStudio.Core;
 
 /// <summary>Describes a collection rename within one database.</summary>
-public sealed record CollectionRenameRequest(string Database, string SourceCollection, string TargetCollection, bool DropTarget = false)
+public sealed record CollectionRenameRequest(
+    string Database,
+    string SourceCollection,
+    string TargetCollection,
+    bool DropTarget = false,
+    string? DropTargetConfirmation = null)
 {
     public CollectionRenameRequest Validate()
     {
@@ -15,6 +20,11 @@ public sealed record CollectionRenameRequest(string Database, string SourceColle
         if (string.Equals(SourceCollection, TargetCollection, StringComparison.Ordinal))
         {
             throw new ArgumentException("O novo nome precisa ser diferente da coleção de origem.", nameof(TargetCollection));
+        }
+
+        if (DropTarget && !string.Equals(TargetCollection, DropTargetConfirmation?.Trim(), StringComparison.Ordinal))
+        {
+            throw new ArgumentException("Digite também o nome exato da coleção de destino que será removida.", nameof(DropTargetConfirmation));
         }
 
         return this;

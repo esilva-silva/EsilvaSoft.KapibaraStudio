@@ -23,4 +23,17 @@ public sealed class ViewUpdateRequestTests
 
         Assert.That(() => request.Validate(), Throws.TypeOf<ArgumentException>());
     }
+
+    [Test]
+    public void ValidateAllowsChangingSourceButRejectsSelfReference()
+    {
+        var changed = new ViewUpdateRequest("catalogo", "clientesAtivos", "[]", "clientesAtivos", "clientes");
+        var cycle = changed with { SourceCollection = "clientesAtivos" };
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(changed.Validate(), Is.SameAs(changed));
+            Assert.That(() => cycle.Validate(), Throws.TypeOf<ArgumentException>());
+        });
+    }
 }

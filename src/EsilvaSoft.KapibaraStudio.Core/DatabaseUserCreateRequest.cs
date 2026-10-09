@@ -42,9 +42,10 @@ public sealed record DatabaseUserCreateRequest(
             using var roles = JsonDocument.Parse(RolesJson);
             if (roles.RootElement.ValueKind != JsonValueKind.Array
                 || roles.RootElement.GetArrayLength() == 0
-                || roles.RootElement.EnumerateArray().Any(role => role.ValueKind != JsonValueKind.Object))
+                || roles.RootElement.EnumerateArray().Any(role => !IsRoleDocument(role))
+                || HasDuplicateRoles(roles.RootElement))
             {
-                throw new ArgumentException("Os papéis precisam ser um array JSON não vazio de documentos.", nameof(RolesJson));
+                throw new ArgumentException("Os papéis precisam ser um array JSON não vazio sem duplicatas e com role e db em cada item.", nameof(RolesJson));
             }
         }
         catch (JsonException exception)
@@ -53,5 +54,21 @@ public sealed record DatabaseUserCreateRequest(
         }
 
         return this;
+    }
+
+    private static bool IsRoleDocument(JsonElement role) =>
+        role.ValueKind == JsonValueKind.Object
+        && role.TryGetProperty("role", out var roleName)
+        && roleName.ValueKind == JsonValueKind.String
+        && !string.IsNullOrWhiteSpace(roleName.GetString())
+        && role.TryGetProperty("db", out var database)
+        && database.ValueKind == JsonValueKind.String
+        && !string.IsNullOrWhiteSpace(database.GetString());
+
+    private static bool HasDuplicateRoles(JsonElement roles)
+    {
+        var identities = roles.EnumerateArray().Select(role =>
+            role.GetProperty("db").GetString() + "\0" + role.GetProperty("role").GetString()).ToArray();
+        return identities.Distinct(StringComparer.Ordinal).Count() != identities.Length;
     }
 }

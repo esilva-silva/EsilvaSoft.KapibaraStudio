@@ -18,6 +18,9 @@ public interface IMongoWorkspaceService
 
     Task UpdateViewAsync(ConnectionProfile profile, ViewUpdateRequest request, CancellationToken cancellationToken = default);
 
+    Task<ViewMaterializationResult> MaterializeViewAsync(ConnectionProfile profile, ViewMaterializationRequest request, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("Materialização de views indisponível neste executor.");
+
     Task ConfigureCollectionValidationAsync(ConnectionProfile profile, CollectionValidationRequest request, CancellationToken cancellationToken = default);
 
     Task<CollectionValidationInfo> GetCollectionValidationAsync(ConnectionProfile profile, string database, string collection, CancellationToken cancellationToken = default);
@@ -32,7 +35,15 @@ public interface IMongoWorkspaceService
 
     Task<string> GetCurrentOperationsAsync(ConnectionProfile profile, CancellationToken cancellationToken = default);
 
+
     Task<string> GetProfilerStatusAsync(ConnectionProfile profile, string database, CancellationToken cancellationToken = default);
+
+    Task<ProfilerConfigurationResult> ConfigureProfilerAsync(ConnectionProfile profile, ProfilerConfigurationRequest request, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("Configuração do profiler indisponível neste adaptador.");
+
+    Task<ProfilerCapturePage> ReadProfilerCaptureAsync(ConnectionProfile profile, string database,
+        DateTimeOffset fromUtc, DateTimeOffset throughUtc, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("Coleta do profiler indisponível neste adaptador.");
 
     Task KillOperationAsync(ConnectionProfile profile, OperationKillRequest request, CancellationToken cancellationToken = default);
 
@@ -42,6 +53,8 @@ public interface IMongoWorkspaceService
 
     Task<string> GetUsersAsync(ConnectionProfile profile, CancellationToken cancellationToken = default);
 
+    Task<string?> GetUserRolesAsync(ConnectionProfile profile, string database, string username, CancellationToken cancellationToken = default);
+
     Task CreateUserAsync(ConnectionProfile profile, DatabaseUserCreateRequest request, CancellationToken cancellationToken = default);
 
     Task DropUserAsync(ConnectionProfile profile, DatabaseUserDropRequest request, CancellationToken cancellationToken = default);
@@ -49,6 +62,14 @@ public interface IMongoWorkspaceService
     Task UpdateUserRolesAsync(ConnectionProfile profile, DatabaseUserRoleRequest request, CancellationToken cancellationToken = default);
 
     Task<string> GetRolesAsync(ConnectionProfile profile, CancellationToken cancellationToken = default);
+
+    Task<int> GetRuntimeServerParameterAsync(ConnectionProfile profile, string parameterName, CancellationToken cancellationToken = default);
+
+    Task<RuntimeServerParameterMutationResult> SetRuntimeServerParameterAsync(ConnectionProfile profile, RuntimeServerParameterRequest request, CancellationToken cancellationToken = default);
+
+    Task<string> GetCustomRoleDefinitionAsync(ConnectionProfile profile, string database, string roleName, CancellationToken cancellationToken = default);
+
+    Task<DatabaseRoleMutationResult> MutateCustomRoleAsync(ConnectionProfile profile, DatabaseRoleMutationRequest request, CancellationToken cancellationToken = default);
 
     Task<string> GetDatabaseStatsAsync(ConnectionProfile profile, string database, CancellationToken cancellationToken = default);
 
@@ -71,6 +92,26 @@ public interface IMongoWorkspaceService
     Task<DatabaseExportResult> ExportDatabaseAsync(ConnectionProfile profile, DatabaseExportRequest request, CancellationToken cancellationToken = default);
 
     Task<DatabaseImportResult> ImportDatabaseAsync(ConnectionProfile profile, DatabaseImportRequest request, CancellationToken cancellationToken = default);
+
+    Task<DatabaseImportPreview> PreviewDatabaseImportAsync(ConnectionProfile profile, DatabaseImportRequest request,
+        CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("Prévia do destino de importação indisponível neste executor.");
+
+    Task<DatabaseDefinitionImportPreview> PreviewDatabaseImportDefinitionsAsync(ConnectionProfile profile,
+        string sourceDirectory, string targetDatabase, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("Prévia de definições indisponível neste executor.");
+
+    Task<IReadOnlyList<ImportCheckpoint>> GetPendingImportCheckpointsAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<ImportCheckpoint>>([]);
+    Task<ImportRestartDecision> InspectDatabaseImportRestartAsync(ConnectionProfile profile,
+        DatabaseImportRequest request, Guid checkpointId, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("Verificação de recuperação de importação indisponível.");
+    Task<ImportRestartDecision> InspectStandaloneImportRestartAsync(ConnectionProfile profile,
+        StandaloneImportRequest request, Guid checkpointId, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("Verificação de recuperação de importação indisponível.");
+
+    Task<TransferDocumentPreview> PreviewStandaloneImportAsync(string sourceFile, TransferImportSchema schema, CancellationToken cancellationToken = default);
+    Task<StandaloneImportResult> ImportStandaloneAsync(ConnectionProfile profile, StandaloneImportRequest request, CancellationToken cancellationToken = default);
 
     Task<DocumentMutationResult> InsertAsync(ConnectionProfile profile, string database, string collection, string documentJson, CancellationToken cancellationToken = default);
 

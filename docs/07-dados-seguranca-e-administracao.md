@@ -1,5 +1,7 @@
 # Transferência, segurança e administração
 
+**Recorte da Fase 6 — 08/10/2026 (ADR-069):** administração nessa fase usa exclusivamente a conexão MongoDB para acessar o servidor. Métricas externas/arquivos do host, plano de controle Atlas/identidade externa, configuração persistente/startup/reinício e execução de manutenção no SO estão no [bkl-07](backlog/bkl-07-administracao-fora-da-connection-string.md). As orientações amplas deste documento continuam válidas como contratos futuros; não são dependências de entrega da fase. Comandos conectados mantêm RBAC, capacidade por versão/topologia, confirmação e auditoria; sem fallback para SSH/API externa.
+
 ## Formatos e garantias
 
 | Fluxo | Uso | Garantia e limite |

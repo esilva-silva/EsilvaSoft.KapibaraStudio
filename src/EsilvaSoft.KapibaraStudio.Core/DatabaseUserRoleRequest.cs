@@ -8,7 +8,8 @@ public sealed record DatabaseUserRoleRequest(
     string Username,
     string RolesJson,
     string ConfirmationUsername,
-    bool Revoke)
+    bool Revoke,
+    string? ExpectedRolesJson = null)
 {
     public DatabaseUserRoleRequest Validate()
     {
@@ -32,15 +33,27 @@ public sealed record DatabaseUserRoleRequest(
             throw new ArgumentException("Os papéis são obrigatórios e limitados a 32 KiB.", nameof(RolesJson));
         }
 
+        if (string.IsNullOrWhiteSpace(ExpectedRolesJson) || ExpectedRolesJson.Length > 32 * 1024)
+        {
+            throw new ArgumentException("A prévia atual dos papéis é obrigatória e limitada a 32 KiB.", nameof(ExpectedRolesJson));
+        }
+
         try
         {
             using var roles = JsonDocument.Parse(RolesJson);
             if (roles.RootElement.ValueKind != JsonValueKind.Array
                 || roles.RootElement.GetArrayLength() == 0
-                || roles.RootElement.EnumerateArray().Any(role => role.ValueKind != JsonValueKind.Object))
+                || roles.RootElement.EnumerateArray().Any(role => !IsRoleDocument(role))
+                || HasDuplicateRoles(roles.RootElement))
             {
-                throw new ArgumentException("Os papéis precisam ser um array JSON não vazio de documentos.", nameof(RolesJson));
+                throw new ArgumentException("Os papéis precisam ser um array JSON não vazio com role e db em cada item.", nameof(RolesJson));
             }
+
+            using var expected = JsonDocument.Parse(ExpectedRolesJson);
+            if (expected.RootElement.ValueKind != JsonValueKind.Array
+                || expected.RootElement.EnumerateArray().Any(role => !IsRoleDocument(role))
+                || HasDuplicateRoles(expected.RootElement))
+                throw new ArgumentException("A prévia precisa ser um array JSON de papéis com role e db.", nameof(ExpectedRolesJson));
         }
         catch (JsonException exception)
         {
@@ -49,4 +62,38 @@ public sealed record DatabaseUserRoleRequest(
 
         return this;
     }
+
+    private static bool IsRoleDocument(JsonElement role) =>
+        role.ValueKind == JsonValueKind.Object
+        && role.TryGetProperty("role", out var roleName)
+        && roleName.ValueKind == JsonValueKind.String
+        && !string.IsNullOrWhiteSpace(roleName.GetString())
+        && role.TryGetProperty("db", out var database)
+        && database.ValueKind == JsonValueKind.String
+        && !string.IsNullOrWhiteSpace(database.GetString());
+
+    private static bool HasDuplicateRoles(JsonElement roles)
+    {
+        var identities = roles.EnumerateArray().Select(role =>
+            role.GetProperty("db").GetString() + "\0" + role.GetProperty("role").GetString());
+        var all = identities.ToArray();
+        return all.Distinct(StringComparer.Ordinal).Count() != all.Length;
+    }
+}
+
+/// <summary>Classifies a user administration command whose resulting state could not be verified.</summary>
+public enum MongoUserAdministrationFailureKind
+{
+    ReadbackFailed,
+    PermissionDenied,
+    Unsupported,
+    InvalidInput,
+    Conflict,
+    CommandFailed
+}
+
+/// <summary>Sanitized status for a user command whose resulting state could not be verified.</summary>
+public sealed class MongoUserAdministrationException(MongoUserAdministrationFailureKind kind) : Exception
+{
+    public MongoUserAdministrationFailureKind Kind { get; } = kind;
 }

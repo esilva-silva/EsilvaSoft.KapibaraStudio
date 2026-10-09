@@ -44,11 +44,12 @@
         </Button>
         <ComboBox Grid.Column="7" ItemsSource="{Binding Languages}" SelectedValue="{Binding Language}" SelectedValueBinding="{Binding Code}" Width="132" AutomationProperties.Name="{Binding Localization.LanguageLabel}" ToolTip.Tip="{Binding Localization.InterfaceLanguage}" />
         <ComboBox Grid.Column="8" ItemsSource="{Binding Themes}" SelectedItem="{Binding Theme}" Width="100" AutomationProperties.Name="{Binding Localization.ThemeLabel}" />
-        <Button Grid.Column="9" Content="···" ToolTip.Tip="{Binding Localization.MoreActions}" AutomationProperties.Name="{Binding Localization.MoreActions}">
+        <Button Grid.Column="9" x:Name="MoreActionsButton" Content="···" ToolTip.Tip="{Binding Localization.MoreActions}" AutomationProperties.Name="{Binding Localization.MoreActions}">
           <Button.Flyout>
             <MenuFlyout>
               <MenuItem Header="Abrir pasta como workspace" Click="OpenFolder" />
               <MenuItem Header="{Binding Localization.SaveAs}" Click="SaveAs" />
+              <MenuItem x:Name="DatabaseToolsMenuItem" Header="{local:Loc Key=toolsTitle}" Click="OpenTools" IsEnabled="{Binding ActiveTab.IsConnected}" />
               <MenuItem Header="{Binding Localization.Preferences}" Click="OpenPreferences" />
               <Separator />
               <MenuItem Header="{Binding Localization.ThirdPartyLicenses}" Click="OpenThirdPartyLicenses" />

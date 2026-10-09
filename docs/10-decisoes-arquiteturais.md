@@ -664,3 +664,47 @@ O tamanho do contexto é calculado em bytes UTF-8 a partir do texto já resolvid
 **Decisão do usuário:** a composição do Desktop em Release registra somente GitHub Copilot como `IAgentProvider`. Runtime, catálogo, painel e configurações compartilham esse conjunto. Handlers de conta/apresentação Codex e slots de API Key são compostos apenas em Debug; Claude conserva seu gate de desenvolvimento. O registro local fornecido pela infraestrutura compartilhada é removido da exposição de agentes no Desktop Release antes da composição do runtime.
 
 **Consequências:** implementações e testes dos demais providers continuam disponíveis em Debug e nas bibliotecas; autocomplete/IA local não são desativados. Histórico e credenciais existentes não são apagados ou migrados. A prioridade da Fase 8 e o backlog das integrações permanecem. Esta decisão substitui a preservação de disponibilidade em Release nos registros anteriores de reorganização documental. [Evidências e limites](architecture/release-copilot.md).
+
+## ADR-069 — Fase 6 limitada ao acesso pela connection string (08/10/2026)
+
+**Estado:** aceita por solicitação do usuário; alteração de escopo documental.
+
+**Decisão:** a Fase 6 / v0.10.0 inclui somente operações cujo acesso ao servidor ocorre pela conexão MongoDB. Recortes externos de ADM-01/04/09 passam ao [bkl-07](backlog/bkl-07-administracao-fora-da-connection-string.md), sem fase/versão: métricas/logs do host não expostos por comandos, gestão por API Atlas/identidade externa, configuração persistente/startup/reinício e execução de manutenção no SO/offline. Itens já adiados, como controle Atlas, administração distribuída e backup operacional, mantêm seus destinos.
+
+**Limite:** RBAC, versão/topologia compatível ou conexão direta a um nó são capacidades do alvo, não motivo para remover comandos executáveis pela conexão. `compact`, `validate`, profiler, usuários/papéis e parâmetros runtime suportados permanecem no recorte conectado. A decisão não amplia automaticamente o aceite de extensões ainda pendentes. Transferência lógica usa arquivos locais, manifesto e processamento Desktop, com acesso ao servidor pelo driver. Não adicionar fallback SO/SSH/API para contornar recusa do servidor.
+
+**Consequências:** IDs, código, contratos, UI, composição e testes são preservados. O backlog externo não bloqueia o aceite da fase; proteções de escrita, captura de alvo, confirmações, auditoria e resultado incerto após cancelamento continuam obrigatórios. A revisão e os índices de catálogo/roadmap refletem o recorte. Não há implementação, reativação visual, teste novo ou homologação decorrente desta decisão.
+
+## ADR-070 — Preparação KapiCoder-Mongo: agente local em Release, raciocínio configurável e tools seguras (09/10/2026)
+
+**Estado:** decisão de escopo aceita por instrução explícita do usuário; implementação planejada na [Fase 7A / F7A-KAPI](phases/phase-07a-kapicoder-mongo/meta-de-implementacao.md). Não constitui evidência de implementação ou homologação.
+
+**Contexto:** o backlog externo KapiCoder-Mongo propõe concluir o provider local, geração Qwen3 e suporte ao treino. O usuário solicitou a meta e aprovou: incluir IA local ao lado do Copilot no Release; mostrar o texto do raciocínio com retenção e orçamento configuráveis; liberar todas as tools locais sempre com permissões.
+
+**Decisão:**
+
+1. O destino da composição Desktop Release passa a Copilot + IA local. Esta decisão substitui a exclusividade Copilot da ADR-068 para a implementação futura. A composição executável atual permanece como está até integrar e validar os lotes A8/E2. Autocomplete local permanece independente; ausência de pacote/capacidade gera indisponibilidade explícita.
+2. Mostrar o texto de raciocínio produzido pelo modelo local em componente recolhível, como dados inertes, separado da resposta final e de `ThinkingSummary`. Não transforma conteúdo em autorização de tool nem altera contratos de providers externos.
+3. Oferecer orçamento de raciocínio configurável, limitado pelo pacote e pela janela do runtime. Valores padrão, fórmula acumulada e gates de latência serão definidos após smoke/avaliação, sem adotar números conflitantes da fonte como aceite.
+4. Oferecer retenção configurável do raciocínio, desligada por padrão. A configuração deve definir prazo/limites e limpeza, respeitar opt-outs e Apagar histórico, usar migração aditiva no proprietário LiteDB existente e apresentar falhas de persistência. Não armazenar credenciais, resultados MongoDB ou conteúdo vedado; redigir conteúdo sensível antes da persistência. Raciocínio não integra auditoria, logs, métricas ou envio a outros providers.
+5. Todas as tools vigentes do produto podem ser disponibilizadas ao provider local através do mesmo registry, sempre sujeitas a capacidade, plano por modo, permissões, grants, quotas, confirmação e auditoria. Todas não significa habilitadas por padrão ou autorizadas em todos os modos. Dataset e catálogo devem reproduzir a exposição real autorizada.
+6. ADR-066/067 continuam invariantes: nenhuma tool consulta documentos nem escreve diretamente no MongoDB; resultados/erros/logs somente de execuções humanas capturadas e autorizadas. Criação de arquivo exige opt-in, confirmação pontual e ausência de sobrescrita; edição usa propostas conforme o modo vigente. Não liberar shell/rede/tools nativas.
+
+**Consequências:** D1/D2/D3/D6 e orçamento configurável estão aprovados; U7 passa a obrigatório na meta apesar de P2 na fonte. Testar retenção ativa/desligada, expiração/exclusão, falha/concorrência/recuperação e isolamento entre providers. A guarda contra Claude Code no Release permanece intacta; Claude/Codex/APIs externas/MCP externo continuam no backlog. GenAI/QNN, novo contrato de contexto, carga simultânea e sede KapiLab continuam questões técnicas próprias. Fase 8 mantém prioridade; a Fase 7 por workflow não foi substituída.
+
+**Validação exigida:** lotes e critérios F7A-KAPI, composição Release/Debug, permissões por tool/modo, regressões de providers existentes, PNGs reais e evidência com pesos/hardware separada. A criação desta ADR não executa código, testes, inferência, download ou publicação.
+## ADR-071 — KapiLab como console de contratos e avaliação da IDE (09/10/2026)
+
+**Estado:** proposta arquitetural da [Fase 7B / F7B-KAPILAB](phases/phase-07b-kapilab/meta-de-implementacao.md). O pedido atual autoriza montar a meta; não há implementação ou homologação decorrente desta proposta.
+
+**Contexto:** a especificação externa `kapilab-console.md` reúne ContractProbe, exportação do catálogo, harness de inferência, paridade, guidance e inventário NPU. A Fase 7A prepara capacidades do produto e precisa de evidências reproduzíveis sem introduzir outra política de agentes.
+
+**Proposta:** sediar `tools/KapiLab` e testes próprios no repositório, com referências relativas aos projetos necessários e composição mínima sem Desktop, perfis, cofre ou LiteDB do usuário. Herdar regras de build e versões ONNX/lockfiles; preferir APIs públicas. Rota binária externa fica como bootstrap opcional e identificado. O console produz JSON/JSONL versionados e relatórios com commit/fingerprint, pacote/hash, backend/RID, runtime e provider efetivo.
+
+**Fronteiras:** produto, segurança e superfícies públicas pertencem à Fase 7A; CLI e avaliação pertencem à 7B; treino/exportação/Exec Match/task success continuam no Python externo. Um laço GenAI de referência é experimento identificado, não provider paralelo nem autoridade sobre a IDE. Tools seguem ADR-066/067/070, inclusive em fixtures; nenhuma consulta de documentos ou escrita MongoDB é exposta pelo agente. Confirmações simuladas ficam restritas a casos sintéticos e não concedem permissão ao produto.
+
+**Medição:** benchmarks, inferência real e latência/alocação são manuais, nunca no CI/release. Exclusão GPU começa no MVP; um pacote DML por processo; fallback, crash, ausência de métrica e gate sem evidência impedem aprovação indevida. Gate JSON é derivado do pipeline externo e preserva seu dono. `runtime.minimumGenAi` é mínimo; versão de referência para comparabilidade é um campo separado.
+
+**Consequências propostas:** lockfiles e testes próprios; catálogo real sem quantidade fixa de tools; host tokenizer por compatibilidade comprovada; privacidade e contenção de caminhos; registro/download de EP somente em comando explícito de laboratório. Detalhes de dependências/CPM, acesso temporário a descrições e eventual extração do harness são resolvidos no bootstrap com evidência, sem enfraquecer analisadores. Nenhuma mudança de UI, retenção do Desktop, disponibilidade de providers ou guarda Claude Release nesta fase documental.
+
+**Validação exigida:** F7B-00..24, marcos K0–K4 e critérios da meta; aceites sem pesos, MVP real e integração completa separados. A proposta não encerra a Fase 7A, a Fase 8 ou a homologação da Fase 10.

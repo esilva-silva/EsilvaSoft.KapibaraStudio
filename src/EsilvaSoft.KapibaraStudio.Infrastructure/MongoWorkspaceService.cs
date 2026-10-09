@@ -21,11 +21,12 @@ public sealed class MongoWorkspaceService : IMongoWorkspaceService
     private readonly IHostEnvironmentSnapshot? _hostEnvironment;
     private readonly IHostPlatformSnapshot? _hostPlatform;
     private readonly IMongoDatabaseExportFileAccess _exportFiles;
+    private readonly IImportCheckpointRepository? _importCheckpoints;
 
     public MongoWorkspaceService(IMongoDatabaseExportFileAccess exportFiles,
         IConnectionSecretStore? secrets = null, IEnvironmentVaultRepository? environments = null,
         IMongoClientPool? clients = null, ISecretStore? credentialStore = null, IHostEnvironmentSnapshot? hostEnvironment = null,
-        IHostPlatformSnapshot? hostPlatform = null)
+        IHostPlatformSnapshot? hostPlatform = null, IImportCheckpointRepository? importCheckpoints = null)
     {
         ArgumentNullException.ThrowIfNull(exportFiles);
         _secrets = secrets ?? new SessionConnectionSecretStore();
@@ -35,6 +36,7 @@ public sealed class MongoWorkspaceService : IMongoWorkspaceService
         _hostEnvironment = hostEnvironment;
         _hostPlatform = hostPlatform;
         _exportFiles = exportFiles;
+        _importCheckpoints = importCheckpoints;
     }
 
     private Task<MongoOperationContext> PrepareAsync(ConnectionProfile profile, CancellationToken cancellationToken) =>
@@ -124,8 +126,21 @@ public sealed class MongoWorkspaceService : IMongoWorkspaceService
         await MongoDatabaseAdministrator.UpdateViewAsync(context, profile, request, cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task<ViewMaterializationResult> MaterializeViewAsync(
+        ConnectionProfile profile,
+        ViewMaterializationRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        profile.EnsureWriteAllowed();
+        request.Validate();
+        var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
+        return await MongoDatabaseAdministrator.MaterializeViewAsync(context, profile, request, cancellationToken).ConfigureAwait(false);
+    }
+
     public async Task ConfigureCollectionValidationAsync(ConnectionProfile profile, CollectionValidationRequest request, CancellationToken cancellationToken = default)
     {
+        profile.EnsureWriteAllowed();
+        request.Validate();
         var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
         await MongoDatabaseAdministrator.ConfigureCollectionValidationAsync(context, profile, request, cancellationToken).ConfigureAwait(false);
     }
@@ -167,13 +182,41 @@ public sealed class MongoWorkspaceService : IMongoWorkspaceService
     public async Task<string> GetCurrentOperationsAsync(ConnectionProfile profile, CancellationToken cancellationToken = default)
     {
         var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
-        return await MongoServerAdministrator.GetCurrentOperationsAsync(context, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return await MongoServerAdministrator.GetCurrentOperationsAsync(context, cancellationToken).ConfigureAwait(false);
+        }
+        catch (MongoCommandException exception)
+        {
+            throw new AdministrationReadException(
+                exception.Code == 13 ? AdministrationReadFailure.PermissionDenied : AdministrationReadFailure.Unavailable,
+                "currentOp", exception);
+        }
     }
 
     public async Task<string> GetProfilerStatusAsync(ConnectionProfile profile, string database, CancellationToken cancellationToken = default)
     {
         var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
         return await MongoServerAdministrator.GetProfilerStatusAsync(context, database, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<ProfilerConfigurationResult> ConfigureProfilerAsync(
+        ConnectionProfile profile,
+        ProfilerConfigurationRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        profile.EnsureWriteAllowed();
+        request.Validate();
+        var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
+        return await MongoServerAdministrator.ConfigureProfilerAsync(context, profile, request, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<ProfilerCapturePage> ReadProfilerCaptureAsync(ConnectionProfile profile, string database,
+        DateTimeOffset fromUtc, DateTimeOffset throughUtc, CancellationToken cancellationToken = default)
+    {
+        var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
+        return await MongoServerAdministrator.ReadProfilerCaptureAsync(context, database, fromUtc, throughUtc,
+            cancellationToken).ConfigureAwait(false);
     }
 
     public async Task KillOperationAsync(ConnectionProfile profile, OperationKillRequest request, CancellationToken cancellationToken = default)
@@ -184,12 +227,16 @@ public sealed class MongoWorkspaceService : IMongoWorkspaceService
 
     public async Task<string> ValidateCollectionIntegrityAsync(ConnectionProfile profile, CollectionIntegrityCheckRequest request, CancellationToken cancellationToken = default)
     {
+        profile.EnsureWriteAllowed();
+        request.Validate();
         var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
         return await MongoServerAdministrator.ValidateCollectionIntegrityAsync(context, profile, request, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<string> CompactCollectionAsync(ConnectionProfile profile, CollectionCompactRequest request, CancellationToken cancellationToken = default)
     {
+        profile.EnsureWriteAllowed();
+        request.Validate();
         var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
         return await MongoServerAdministrator.CompactCollectionAsync(context, profile, request, cancellationToken).ConfigureAwait(false);
     }
@@ -222,6 +269,36 @@ public sealed class MongoWorkspaceService : IMongoWorkspaceService
     {
         var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
         return await MongoServerAdministrator.GetRolesAsync(context, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<string?> GetUserRolesAsync(ConnectionProfile profile, string database, string username, CancellationToken cancellationToken = default)
+    {
+        var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
+        return await MongoServerAdministrator.GetUserRolesAsync(context, database, username, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<int> GetRuntimeServerParameterAsync(ConnectionProfile profile, string parameterName, CancellationToken cancellationToken = default)
+    {
+        var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
+        return await MongoServerAdministrator.GetRuntimeServerParameterAsync(context, parameterName, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<RuntimeServerParameterMutationResult> SetRuntimeServerParameterAsync(ConnectionProfile profile, RuntimeServerParameterRequest request, CancellationToken cancellationToken = default)
+    {
+        var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
+        return await MongoServerAdministrator.SetRuntimeServerParameterAsync(context, profile, request, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<string> GetCustomRoleDefinitionAsync(ConnectionProfile profile, string database, string roleName, CancellationToken cancellationToken = default)
+    {
+        var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
+        return await MongoServerAdministrator.GetCustomRoleDefinitionAsync(context, database, roleName, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<DatabaseRoleMutationResult> MutateCustomRoleAsync(ConnectionProfile profile, DatabaseRoleMutationRequest request, CancellationToken cancellationToken = default)
+    {
+        var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
+        return await MongoServerAdministrator.MutateCustomRoleAsync(context, profile, request, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<string> GetDatabaseStatsAsync(ConnectionProfile profile, string database, CancellationToken cancellationToken = default)
@@ -290,7 +367,63 @@ public sealed class MongoWorkspaceService : IMongoWorkspaceService
     {
         var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
         profile.EnsureWriteAllowed();
-        return await MongoDatabaseExportImportService.ImportDatabaseAsync(context, _exportFiles, request, cancellationToken).ConfigureAwait(false);
+        return await MongoDatabaseExportImportService.ImportDatabaseAsync(context, _exportFiles, profile, request,
+            _importCheckpoints, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<DatabaseImportPreview> PreviewDatabaseImportAsync(ConnectionProfile profile,
+        DatabaseImportRequest request, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        ArgumentNullException.ThrowIfNull(request);
+        var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
+        return await MongoDatabaseExportImportService.PreviewDatabaseImportAsync(context, _exportFiles, profile,
+            request, cancellationToken).ConfigureAwait(false);
+    }
+
+    public Task<DatabaseDefinitionImportPreview> PreviewDatabaseImportDefinitionsAsync(ConnectionProfile profile,
+        string sourceDirectory, string targetDatabase, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        ArgumentException.ThrowIfNullOrWhiteSpace(targetDatabase);
+        return MongoDatabaseDefinitionImportPreview.CreateAsync(_exportFiles, sourceDirectory,
+            token => GetCollectionNamesAsync(profile, targetDatabase, token), cancellationToken);
+    }
+
+    public Task<IReadOnlyList<ImportCheckpoint>> GetPendingImportCheckpointsAsync(CancellationToken cancellationToken = default) =>
+        _importCheckpoints?.GetPendingAsync(cancellationToken)
+        ?? Task.FromResult<IReadOnlyList<ImportCheckpoint>>([]);
+
+    public async Task<ImportRestartDecision> InspectDatabaseImportRestartAsync(ConnectionProfile profile,
+        DatabaseImportRequest request, Guid checkpointId, CancellationToken cancellationToken = default)
+    {
+        var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
+        profile.EnsureWriteAllowed();
+        return await MongoDatabaseExportImportService.InspectRestartAsync(context, _exportFiles, profile, request,
+            _importCheckpoints ?? throw new NotSupportedException("Checkpoints locais indisponíveis."), checkpointId,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<ImportRestartDecision> InspectStandaloneImportRestartAsync(ConnectionProfile profile,
+        StandaloneImportRequest request, Guid checkpointId, CancellationToken cancellationToken = default)
+    {
+        var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
+        profile.EnsureWriteAllowed();
+        return await MongoStandaloneDocumentImportService.InspectRestartAsync(context, _exportFiles, profile, request,
+            _importCheckpoints ?? throw new NotSupportedException("Checkpoints locais indisponíveis."), checkpointId,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public Task<TransferDocumentPreview> PreviewStandaloneImportAsync(string sourceFile, TransferImportSchema schema, CancellationToken cancellationToken = default) =>
+        MongoStandaloneDocumentImportService.PreviewAsync(_exportFiles, sourceFile, schema, cancellationToken);
+
+    public async Task<StandaloneImportResult> ImportStandaloneAsync(ConnectionProfile profile, StandaloneImportRequest request, CancellationToken cancellationToken = default)
+    {
+        request.Validate();
+        profile.EnsureWriteAllowed();
+        var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
+        return await MongoStandaloneDocumentImportService.ImportAsync(context, _exportFiles, profile, request,
+            _importCheckpoints, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<DocumentMutationResult> InsertAsync(ConnectionProfile profile, string database, string collection, string documentJson, CancellationToken cancellationToken = default)

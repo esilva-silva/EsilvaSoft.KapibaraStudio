@@ -22,4 +22,19 @@ public sealed class CollectionRenameRequestTests
 
         Assert.That(() => request.Validate(), Throws.TypeOf<ArgumentException>());
     }
+
+    [Test]
+    public void ValidateRequiresSeparateDestinationConfirmationWhenReplacing()
+    {
+        var withoutConfirmation = new CollectionRenameRequest("catalogo", "clientes", "arquivo", DropTarget: true);
+        var wrongConfirmation = withoutConfirmation with { DropTargetConfirmation = "clientes" };
+        var confirmed = withoutConfirmation with { DropTargetConfirmation = "arquivo" };
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(() => withoutConfirmation.Validate(), Throws.TypeOf<ArgumentException>());
+            Assert.That(() => wrongConfirmation.Validate(), Throws.TypeOf<ArgumentException>());
+            Assert.That(confirmed.Validate(), Is.SameAs(confirmed));
+        });
+    }
 }

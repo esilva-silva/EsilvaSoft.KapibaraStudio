@@ -1,7 +1,11 @@
 namespace EsilvaSoft.KapibaraStudio.Core;
 
 /// <summary>Requires an explicit collection confirmation before a potentially expensive server integrity check.</summary>
-public sealed record CollectionIntegrityCheckRequest(string Database, string Collection, string ConfirmationName)
+public sealed record CollectionIntegrityCheckRequest(
+    string Database,
+    string Collection,
+    string ConfirmationName,
+    CollectionMaintenancePreflight? Preflight = null)
 {
     public CollectionIntegrityCheckRequest Validate()
     {
@@ -24,6 +28,9 @@ public sealed record CollectionIntegrityCheckRequest(string Database, string Col
         {
             throw new ArgumentException("Digite o nome exato da coleção para confirmar a validação.", nameof(ConfirmationName));
         }
+
+        (Preflight ?? throw new ArgumentException("A prévia obrigatória da manutenção não foi informada.", nameof(Preflight)))
+            .Validate(Database, Collection);
 
         return this;
     }

@@ -9,7 +9,8 @@ public sealed record CollectionValidationRequest(
     string ValidatorJson,
     CollectionValidationLevel ValidationLevel,
     CollectionValidationAction ValidationAction,
-    string ConfirmationName)
+    string ConfirmationName,
+    CollectionMaintenancePreflight? Preflight = null)
 {
     public CollectionValidationRequest Validate()
     {
@@ -27,6 +28,9 @@ public sealed record CollectionValidationRequest(
         {
             throw new ArgumentException("Digite o nome exato da coleção para confirmar a alteração da validação.", nameof(ConfirmationName));
         }
+
+        (Preflight ?? throw new ArgumentException("A prévia obrigatória da manutenção não foi informada.", nameof(Preflight)))
+            .Validate(Database, Collection);
 
         if (!Enum.IsDefined(ValidationLevel) || !Enum.IsDefined(ValidationAction))
         {

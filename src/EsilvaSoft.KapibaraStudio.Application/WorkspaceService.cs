@@ -1,10 +1,11 @@
 using EsilvaSoft.KapibaraStudio.Application.SchemaLearning;
 using EsilvaSoft.KapibaraStudio.Autocomplete.Core;
 using EsilvaSoft.KapibaraStudio.Core;
+using System.Text.Json;
 
 namespace EsilvaSoft.KapibaraStudio.Application;
 
-public sealed class WorkspaceService(IConnectionProfileRepository profiles, IQueryHistoryRepository queryHistory, IScriptHistoryRepository scriptHistory, ISavedQueryRepository savedQueries, IAuditRepository audit, IMongoWorkspaceService mongo, IScriptExecutionService scripts, IScriptFileService scriptFiles, IConnectionSecretStore secrets, IEnvironmentVaultRepository? environments = null, IExplorerMetadataService? explorer = null, IConsoleRuntime? console = null, IConsoleHistoryRepository? consoleHistory = null, IApplicationOperationService? operations = null, ICodeFormatter? formatter = null, IResultPageExportService? resultExports = null, ICodeValidator? validator = null, IMetadataInvalidationBus? metadataInvalidation = null, SchemaLearningService? schemaLearning = null, LearnedSchemaCatalogSource? learnedSchemaCatalog = null, ILearnedSchemaRepository? learnedSchemaRepository = null, ITextFileService? textFiles = null, ITextExportFileService? textExports = null)
+public sealed class WorkspaceService(IConnectionProfileRepository profiles, IQueryHistoryRepository queryHistory, IScriptHistoryRepository scriptHistory, ISavedQueryRepository savedQueries, IAuditRepository audit, IMongoWorkspaceService mongo, IScriptExecutionService scripts, IScriptFileService scriptFiles, IConnectionSecretStore secrets, IEnvironmentVaultRepository? environments = null, IExplorerMetadataService? explorer = null, IConsoleRuntime? console = null, IConsoleHistoryRepository? consoleHistory = null, IApplicationOperationService? operations = null, ICodeFormatter? formatter = null, IResultPageExportService? resultExports = null, ICodeValidator? validator = null, IMetadataInvalidationBus? metadataInvalidation = null, SchemaLearningService? schemaLearning = null, LearnedSchemaCatalogSource? learnedSchemaCatalog = null, ILearnedSchemaRepository? learnedSchemaRepository = null, ITextFileService? textFiles = null, ITextExportFileService? textExports = null, IProfilerCaptureRepository? profilerCaptures = null)
 {
     /// <summary>Optional desktop localizer for operation descriptions; null keeps the application-layer default text.</summary>
     public Func<string, string>? OperationLocalizer { get; set; }
@@ -32,6 +33,8 @@ public sealed class WorkspaceService(IConnectionProfileRepository profiles, IQue
         (formatter ?? throw new InvalidOperationException("Formatador indisponível.")).FormatAsync(text, cancellationToken);
 
     public IApplicationOperationService Operations { get; } = operations ?? new ApplicationOperationService();
+
+    public AdministrationMetricHistory MetricHistory { get; } = new();
 
     private async Task<T> TrackAsync<T>(string description, Func<CancellationToken, Task<T>> action, ApplicationOperationPriority priority = ApplicationOperationPriority.Normal, CancellationToken token = default)
     {
@@ -176,14 +179,35 @@ public sealed class WorkspaceService(IConnectionProfileRepository profiles, IQue
         InvalidateMetadata(profile, MetadataChange.Collections, request.Database, request.View);
     }
 
+    public async Task<ViewMaterializationResult> MaterializeViewAsync(
+        ConnectionProfile profile,
+        ViewMaterializationRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await mongo.MaterializeViewAsync(profile, request, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            // A cancelled or failed $out may still have changed the destination on the server.
+            InvalidateMetadata(profile, MetadataChange.Collections, request.Database, request.Destination);
+        }
+    }
+
     public async Task ConfigureCollectionValidationAsync(ConnectionProfile profile, CollectionValidationRequest request, CancellationToken cancellationToken = default)
     {
+        profile.EnsureWriteAllowed();
+        request.Validate();
         await mongo.ConfigureCollectionValidationAsync(profile, request, cancellationToken).ConfigureAwait(false);
         InvalidateMetadata(profile, MetadataChange.Validation, request.Database, request.Collection);
     }
 
     public Task<CollectionValidationInfo> GetCollectionValidationAsync(ConnectionProfile profile, string database, string collection, CancellationToken cancellationToken = default) =>
         mongo.GetCollectionValidationAsync(profile, database, collection, cancellationToken);
+
+    public Task<string> GetCollectionDefinitionAsync(ConnectionProfile profile, string database, string collection, CancellationToken cancellationToken = default) =>
+        mongo.GetCollectionDefinitionAsync(profile, database, collection, cancellationToken);
 
     public async Task DropCollectionAsync(ConnectionProfile profile, CollectionDropRequest request, CancellationToken cancellationToken = default)
     {
@@ -202,29 +226,74 @@ public sealed class WorkspaceService(IConnectionProfileRepository profiles, IQue
         InvalidateMetadata(profile, MetadataChange.Databases, request.Database);
     }
 
-    public Task<string> GetServerStatusAsync(ConnectionProfile profile, CancellationToken cancellationToken = default) =>
-        TrackAsync("Carregando estado do servidor", operationToken => mongo.GetServerStatusAsync(profile, operationToken), token: cancellationToken);
+    public async Task<string> GetServerStatusAsync(ConnectionProfile profile, CancellationToken cancellationToken = default)
+    {
+        var response = await TrackAsync("Carregando estado do servidor", operationToken => mongo.GetServerStatusAsync(profile, operationToken), token: cancellationToken).ConfigureAwait(false);
+        MetricHistory.RecordCommand(profile.Id, profile.SourceGenerationId, AdministrationMetricSource.ServerStatus, response);
+        return response;
+    }
 
-    public Task<string> GetTopologyAsync(ConnectionProfile profile, CancellationToken cancellationToken = default) =>
-        mongo.GetTopologyAsync(profile, cancellationToken);
+    public async Task<string> GetTopologyAsync(ConnectionProfile profile, CancellationToken cancellationToken = default)
+    {
+        var response = await mongo.GetTopologyAsync(profile, cancellationToken).ConfigureAwait(false);
+        MetricHistory.RecordCommand(profile.Id, profile.SourceGenerationId, AdministrationMetricSource.Topology, response);
+        return response;
+    }
 
     public Task<string> GetCurrentOperationsAsync(ConnectionProfile profile, CancellationToken cancellationToken = default) =>
         mongo.GetCurrentOperationsAsync(profile, cancellationToken);
 
+
     public Task<string> GetProfilerStatusAsync(ConnectionProfile profile, string database, CancellationToken cancellationToken = default) =>
         mongo.GetProfilerStatusAsync(profile, database, cancellationToken);
+
+    public Task<ProfilerConfigurationResult> ConfigureProfilerAsync(ConnectionProfile profile, ProfilerConfigurationRequest request, CancellationToken cancellationToken = default) =>
+        TrackAsync("Configurando profiler", operationToken => mongo.ConfigureProfilerAsync(profile, request, operationToken), token: cancellationToken);
+
+    private ProfilerCaptureCoordinator ProfilerCaptures => new(
+        profilerCaptures ?? throw new NotSupportedException("Recuperação local do profiler indisponível."), mongo);
+
+    public Task<IReadOnlyList<ProfilerCaptureTicket>> GetPendingProfilerCapturesAsync(CancellationToken cancellationToken = default) =>
+        profilerCaptures?.GetPendingAsync(cancellationToken)
+        ?? Task.FromResult<IReadOnlyList<ProfilerCaptureTicket>>([]);
+
+    public Task<ProfilerCaptureTicket> StartProfilerCaptureAsync(ConnectionProfile profile,
+        ProfilerConfigurationRequest request, TimeSpan duration, CancellationToken cancellationToken = default) =>
+        TrackAsync("Iniciando coleta do profiler", operationToken => ProfilerCaptures.StartAsync(profile, request,
+            duration, operationToken), token: cancellationToken);
+
+    public Task<ProfilerCapturePage> CollectProfilerCaptureAsync(ConnectionProfile profile, Guid ticketId,
+        CancellationToken cancellationToken = default) =>
+        TrackAsync("Coletando profiler", operationToken => ProfilerCaptures.CollectAsync(profile, ticketId,
+            operationToken), token: cancellationToken);
+
+    public Task RestoreProfilerCaptureAsync(ConnectionProfile profile, Guid ticketId,
+        string confirmationDatabase, CancellationToken cancellationToken = default) =>
+        TrackAsync("Restaurando profiler", operationToken => ProfilerCaptures.RestoreAsync(profile,
+            ticketId, confirmationDatabase, operationToken), token: cancellationToken);
 
     public Task KillOperationAsync(ConnectionProfile profile, OperationKillRequest request, CancellationToken cancellationToken = default) =>
         mongo.KillOperationAsync(profile, request, cancellationToken);
 
-    public Task<string> ValidateCollectionIntegrityAsync(ConnectionProfile profile, CollectionIntegrityCheckRequest request, CancellationToken cancellationToken = default) =>
-        mongo.ValidateCollectionIntegrityAsync(profile, request, cancellationToken);
+    public Task<string> ValidateCollectionIntegrityAsync(ConnectionProfile profile, CollectionIntegrityCheckRequest request, CancellationToken cancellationToken = default)
+    {
+        profile.EnsureWriteAllowed();
+        request.Validate();
+        return mongo.ValidateCollectionIntegrityAsync(profile, request, cancellationToken);
+    }
 
-    public Task<string> CompactCollectionAsync(ConnectionProfile profile, CollectionCompactRequest request, CancellationToken cancellationToken = default) =>
-        mongo.CompactCollectionAsync(profile, request, cancellationToken);
+    public Task<string> CompactCollectionAsync(ConnectionProfile profile, CollectionCompactRequest request, CancellationToken cancellationToken = default)
+    {
+        profile.EnsureWriteAllowed();
+        request.Validate();
+        return mongo.CompactCollectionAsync(profile, request, cancellationToken);
+    }
 
     public Task<string> GetUsersAsync(ConnectionProfile profile, CancellationToken cancellationToken = default) =>
         mongo.GetUsersAsync(profile, cancellationToken);
+
+    public Task<string?> GetUserRolesAsync(ConnectionProfile profile, string database, string username, CancellationToken cancellationToken = default) =>
+        mongo.GetUserRolesAsync(profile, database, username, cancellationToken);
 
     public Task CreateUserAsync(ConnectionProfile profile, DatabaseUserCreateRequest request, CancellationToken cancellationToken = default) =>
         mongo.CreateUserAsync(profile, request, cancellationToken);
@@ -238,17 +307,56 @@ public sealed class WorkspaceService(IConnectionProfileRepository profiles, IQue
     public Task<string> GetRolesAsync(ConnectionProfile profile, CancellationToken cancellationToken = default) =>
         mongo.GetRolesAsync(profile, cancellationToken);
 
-    public Task<string> GetDatabaseStatsAsync(ConnectionProfile profile, string database, CancellationToken cancellationToken = default) =>
-        TrackAsync("Carregando estatísticas do banco", operationToken => mongo.GetDatabaseStatsAsync(profile, database, operationToken), token: cancellationToken);
+    public Task<int> GetRuntimeServerParameterAsync(ConnectionProfile profile, string parameterName, CancellationToken cancellationToken = default) =>
+        mongo.GetRuntimeServerParameterAsync(profile, parameterName, cancellationToken);
 
-    public Task<string> GetCollectionStatsAsync(ConnectionProfile profile, string database, string collection, CancellationToken cancellationToken = default) =>
-        TrackAsync("Carregando estatísticas da coleção", operationToken => mongo.GetCollectionStatsAsync(profile, database, collection, operationToken), token: cancellationToken);
+    public Task<RuntimeServerParameterMutationResult> SetRuntimeServerParameterAsync(ConnectionProfile profile, RuntimeServerParameterRequest request, CancellationToken cancellationToken = default) =>
+        mongo.SetRuntimeServerParameterAsync(profile, request, cancellationToken);
+
+    public Task<string> GetCustomRoleDefinitionAsync(ConnectionProfile profile, string database, string roleName, CancellationToken cancellationToken = default) =>
+        mongo.GetCustomRoleDefinitionAsync(profile, database, roleName, cancellationToken);
+
+    public Task<DatabaseRoleMutationResult> MutateCustomRoleAsync(ConnectionProfile profile, DatabaseRoleMutationRequest request, CancellationToken cancellationToken = default) =>
+        mongo.MutateCustomRoleAsync(profile, request, cancellationToken);
+
+    public async Task<string> GetDatabaseStatsAsync(ConnectionProfile profile, string database, CancellationToken cancellationToken = default)
+    {
+        var response = await TrackAsync("Carregando estatísticas do banco", operationToken => mongo.GetDatabaseStatsAsync(profile, database, operationToken), token: cancellationToken).ConfigureAwait(false);
+        MetricHistory.RecordCommand(profile.Id, profile.SourceGenerationId, AdministrationMetricSource.DatabaseStats, response, database);
+        return response;
+    }
+
+    public async Task<string> GetCollectionStatsAsync(ConnectionProfile profile, string database, string collection, CancellationToken cancellationToken = default)
+    {
+        var response = await TrackAsync("Carregando estatísticas da coleção", operationToken => mongo.GetCollectionStatsAsync(profile, database, collection, operationToken), token: cancellationToken).ConfigureAwait(false);
+        MetricHistory.RecordCommand(profile.Id, profile.SourceGenerationId, AdministrationMetricSource.CollectionStats, response, database, collection);
+        return response;
+    }
 
     public Task<QueryPage> QueryAsync(ConnectionProfile profile, MongoQuery query, CancellationToken cancellationToken = default) =>
         TrackAsync($"Carregando página {query.Skip / Math.Max(1, query.Limit) + 1} — {profile.Name} › {query.Database} › {query.Collection}", operationToken => mongo.QueryAsync(profile, query, operationToken), ApplicationOperationPriority.High, cancellationToken);
 
-    public Task<CollectionCountResult> CountDocumentsAsync(ConnectionProfile profile, CollectionCountRequest request, CancellationToken cancellationToken = default) =>
-        TrackAsync("Contando documentos", operationToken => mongo.CountDocumentsAsync(profile, request, operationToken), token: cancellationToken);
+    public async Task<CollectionCountResult> CountDocumentsAsync(ConnectionProfile profile, CollectionCountRequest request, CancellationToken cancellationToken = default)
+    {
+        var result = await TrackAsync("Contando documentos", operationToken => mongo.CountDocumentsAsync(profile, request, operationToken), token: cancellationToken).ConfigureAwait(false);
+        MetricHistory.RecordCount(profile.Id, profile.SourceGenerationId, result.Count, result.IsEstimated,
+            HasCountFilter(request.FilterJson), request.Database, request.Collection);
+        return result;
+    }
+
+    private static bool HasCountFilter(string filterJson)
+    {
+        try
+        {
+            using var filter = JsonDocument.Parse(filterJson);
+            return filter.RootElement.ValueKind != JsonValueKind.Object
+                || filter.RootElement.EnumerateObject().Any();
+        }
+        catch (JsonException)
+        {
+            return true;
+        }
+    }
 
     public Task<DistinctValuesResult> GetDistinctValuesAsync(ConnectionProfile profile, DistinctValuesRequest request, CancellationToken cancellationToken = default) =>
         TrackAsync("Consultando valores distintos", operationToken => mongo.GetDistinctValuesAsync(profile, request, operationToken), token: cancellationToken);
@@ -267,6 +375,35 @@ public sealed class WorkspaceService(IConnectionProfileRepository profiles, IQue
     public async Task<DatabaseImportResult> ImportDatabaseAsync(ConnectionProfile profile, DatabaseImportRequest request, CancellationToken cancellationToken = default)
     {
         var result = await mongo.ImportDatabaseAsync(profile, request, cancellationToken).ConfigureAwait(false);
+        InvalidateMetadata(profile, MetadataChange.Databases, request.TargetDatabase);
+        return result;
+    }
+
+    public Task<DatabaseImportPreview> PreviewDatabaseImportAsync(ConnectionProfile profile, DatabaseImportRequest request,
+        CancellationToken cancellationToken = default) =>
+        mongo.PreviewDatabaseImportAsync(profile, request, cancellationToken);
+
+    public Task<DatabaseDefinitionImportPreview> PreviewDatabaseImportDefinitionsAsync(ConnectionProfile profile,
+        string sourceDirectory, string targetDatabase, CancellationToken cancellationToken = default) =>
+        mongo.PreviewDatabaseImportDefinitionsAsync(profile, sourceDirectory, targetDatabase, cancellationToken);
+
+    public Task<IReadOnlyList<ImportCheckpoint>> GetPendingImportCheckpointsAsync(CancellationToken cancellationToken = default) =>
+        mongo.GetPendingImportCheckpointsAsync(cancellationToken);
+
+    public Task<ImportRestartDecision> InspectDatabaseImportRestartAsync(ConnectionProfile profile,
+        DatabaseImportRequest request, Guid checkpointId, CancellationToken cancellationToken = default) =>
+        mongo.InspectDatabaseImportRestartAsync(profile, request, checkpointId, cancellationToken);
+
+    public Task<ImportRestartDecision> InspectStandaloneImportRestartAsync(ConnectionProfile profile,
+        StandaloneImportRequest request, Guid checkpointId, CancellationToken cancellationToken = default) =>
+        mongo.InspectStandaloneImportRestartAsync(profile, request, checkpointId, cancellationToken);
+
+    public Task<TransferDocumentPreview> PreviewStandaloneImportAsync(string sourceFile, TransferImportSchema schema, CancellationToken cancellationToken = default) =>
+        mongo.PreviewStandaloneImportAsync(sourceFile, schema, cancellationToken);
+
+    public async Task<StandaloneImportResult> ImportStandaloneAsync(ConnectionProfile profile, StandaloneImportRequest request, CancellationToken cancellationToken = default)
+    {
+        var result = await mongo.ImportStandaloneAsync(profile, request, cancellationToken).ConfigureAwait(false);
         InvalidateMetadata(profile, MetadataChange.Databases, request.TargetDatabase);
         return result;
     }

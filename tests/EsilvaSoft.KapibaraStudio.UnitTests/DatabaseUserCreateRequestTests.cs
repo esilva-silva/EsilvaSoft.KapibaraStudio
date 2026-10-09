@@ -16,6 +16,8 @@ public sealed class DatabaseUserCreateRequestTests
     [TestCase("[]")]
     [TestCase("{}")]
     [TestCase("[\"read\"]")]
+    [TestCase("[{\"role\":\"read\"}]")]
+    [TestCase("[{\"role\":\"read\",\"db\":\"catalogo\"},{\"role\":\"read\",\"db\":\"catalogo\"}]")]
     [TestCase("{")]
     public void ValidateRejectsInvalidRoles(string roles)
     {

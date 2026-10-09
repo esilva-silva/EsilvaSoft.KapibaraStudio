@@ -64,7 +64,14 @@ public sealed partial class MainWindowViewModel
     private string _renameCollectionName = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanRenameCollection))]
+    [NotifyCanExecuteChangedFor(nameof(RenameCollectionCommand))]
     private bool _renameDropTarget;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanRenameCollection))]
+    [NotifyCanExecuteChangedFor(nameof(RenameCollectionCommand))]
+    private string _renameDropTargetConfirmation = string.Empty;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanDropCollection))]
@@ -82,6 +89,9 @@ public sealed partial class MainWindowViewModel
     private string _viewUpdatePipeline = "[]";
 
     [ObservableProperty]
+    private string _viewUpdateSourceCollection = string.Empty;
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanConfigureCollectionValidation))]
     [NotifyCanExecuteChangedFor(nameof(ConfigureCollectionValidationCommand))]
     private string _collectionValidatorJson = "{\n  \"$jsonSchema\": {\n    \"bsonType\": \"object\"\n  }\n}";
@@ -97,6 +107,9 @@ public sealed partial class MainWindowViewModel
     [NotifyCanExecuteChangedFor(nameof(ConfigureCollectionValidationCommand))]
     private string _collectionValidationConfirmation = string.Empty;
 
+    [ObservableProperty]
+    private string _collectionValidationReadbackText = string.Empty;
+
     public bool CanValidateCollectionIntegrity => SelectedProfile is { IsReadOnly: false }
         && !string.IsNullOrWhiteSpace(SelectedDatabase)
         && !string.IsNullOrWhiteSpace(SelectedCollection)
@@ -109,34 +122,44 @@ public sealed partial class MainWindowViewModel
 
     public bool CanLoadCollectionStats => CanExecuteQuery;
 
-    public bool CanCreateCollection => SelectedProfile is not null
+    public bool CanCreateCollection => SelectedProfile is { IsReadOnly: false }
         && !string.IsNullOrWhiteSpace(SelectedDatabase)
         && !string.IsNullOrWhiteSpace(NewCollectionName);
 
-    public bool CanRenameCollection => CanExecuteQuery && !string.IsNullOrWhiteSpace(RenameCollectionName);
+    public bool CanRenameCollection => SelectedProfile is { IsReadOnly: false }
+        && CanExecuteQuery
+        && !string.IsNullOrWhiteSpace(RenameCollectionName)
+        && (!RenameDropTarget || (string.Equals(RenameCollectionName, RenameDropTargetConfirmation.Trim(), StringComparison.Ordinal)
+            && HasCurrentRenameTargetPreview()));
 
-    public bool CanDropCollection => CanExecuteQuery && string.Equals(SelectedCollection, DropCollectionConfirmation.Trim(), StringComparison.Ordinal);
+    public bool CanDropCollection => SelectedProfile is { IsReadOnly: false }
+        && CanExecuteQuery && string.Equals(SelectedCollection, DropCollectionConfirmation.Trim(), StringComparison.Ordinal);
 
-    public bool CanConfigureCollectionValidation => CanExecuteQuery
+    public bool CanConfigureCollectionValidation => SelectedProfile is { IsReadOnly: false }
+        && CanExecuteQuery
         && !string.IsNullOrWhiteSpace(CollectionValidatorJson)
         && string.Equals(SelectedCollection, CollectionValidationConfirmation.Trim(), StringComparison.Ordinal);
 
-    public bool CanUpdateView => CanExecuteQuery
+    public bool CanUpdateView => SelectedProfile is { IsReadOnly: false }
+        && CanExecuteQuery
         && !string.IsNullOrWhiteSpace(ViewUpdatePipeline)
         && string.Equals(SelectedCollection, ViewUpdateConfirmation.Trim(), StringComparison.Ordinal);
 
     [RelayCommand(CanExecute = nameof(CanCreateCollection))]
     private async Task CreateCollectionAsync()
     {
-        if (SelectedProfile is null || string.IsNullOrWhiteSpace(SelectedDatabase))
+        var profile = SelectedProfile;
+        var database = SelectedDatabase;
+        if (profile is null || string.IsNullOrWhiteSpace(database))
         {
             return;
         }
 
         var name = NewCollectionName;
         var isView = NewCollectionIsView;
+        var originalCollection = SelectedCollection;
         var request = new CollectionCreateRequest(
-            SelectedDatabase,
+            database,
             name,
             NewCollectionIsCapped,
             NewCollectionMaxSizeBytes is null ? null : decimal.ToInt64(NewCollectionMaxSizeBytes.Value),
@@ -146,7 +169,7 @@ public sealed partial class MainWindowViewModel
             string.IsNullOrWhiteSpace(NewCollectionCollation) ? null : NewCollectionCollation,
             NewCollectionIsClustered,
             NewCollectionIsClustered ? NewCollectionClusteredIndexKey : null);
-        if (!await RunAsync(cancellationToken => _workspace.CreateCollectionAsync(SelectedProfile, request, cancellationToken)))
+        if (!await RunAsync(cancellationToken => _workspace.CreateCollectionAsync(profile, request, cancellationToken)))
         {
             return;
         }
@@ -161,15 +184,14 @@ public sealed partial class MainWindowViewModel
         NewCollectionCollation = string.Empty;
         NewCollectionMaxSizeBytes = null;
         NewCollectionMaxDocuments = null;
-        await LoadCollectionsAsync(SelectedDatabase);
-        SelectedCollection = Collections.FirstOrDefault(collection => string.Equals(collection, name, StringComparison.Ordinal));
+        StatusMessage = isView ? F("viewCreated", name) : F("collectionCreated", name);
         await RecordAuditAsync(
             isView ? "view.create" : "collection.create",
-            SelectedProfile,
-            SelectedDatabase,
+            profile,
+            database,
             name,
             isView ? T("viewCreatedAudit") : T("collectionCreatedAudit"));
-        StatusMessage = isView ? F("viewCreated", name) : F("collectionCreated", name);
+        await ReloadCollectionsForOriginalContextAsync(profile, database, originalCollection, name);
     }
 
     [RelayCommand(CanExecute = nameof(CanRenameCollection))]
@@ -181,20 +203,39 @@ public sealed partial class MainWindowViewModel
         }
 
         var targetCollection = RenameCollectionName;
-        if (!await RunAsync(cancellationToken => _workspace.RenameCollectionAsync(
-            profile,
-            new CollectionRenameRequest(database, sourceCollection, targetCollection, RenameDropTarget),
-            cancellationToken)))
+        var request = new CollectionRenameRequest(database, sourceCollection, targetCollection, RenameDropTarget, RenameDropTargetConfirmation);
+        var preview = _renameTargetPreview;
+        if (request.DropTarget && !HasCurrentRenameTargetPreview())
+        {
+            SetError(T("renameTargetPreviewRequired"));
+            return;
+        }
+
+        if (!await RunAsync(async cancellationToken =>
+            {
+                if (request.DropTarget)
+                {
+                    var currentDefinition = await _workspace.GetCollectionDefinitionAsync(profile, database, targetCollection, cancellationToken);
+                    if (!preview!.MatchesObservedDefinition(currentDefinition))
+                    {
+                        throw new InvalidOperationException(T("renameTargetPreviewChanged"));
+                    }
+                }
+
+                await _workspace.RenameCollectionAsync(profile, request, cancellationToken);
+            }))
         {
             return;
         }
 
+        _renameTargetPreview = null;
+        RenameTargetPreviewText = string.Empty;
         RenameCollectionName = string.Empty;
         RenameDropTarget = false;
-        await LoadCollectionsAsync(database);
-        SelectedCollection = Collections.FirstOrDefault(collection => string.Equals(collection, targetCollection, StringComparison.Ordinal));
-        await RecordAuditAsync("collection.rename", profile, database, targetCollection, F("collectionRenamedAudit", sourceCollection, targetCollection));
+        RenameDropTargetConfirmation = string.Empty;
         StatusMessage = F("collectionRenamed", sourceCollection, targetCollection);
+        await RecordAuditAsync("collection.rename", profile, database, targetCollection, F("collectionRenamedAudit", sourceCollection, targetCollection));
+        await ReloadCollectionsForOriginalContextAsync(profile, database, sourceCollection, targetCollection);
     }
 
     [RelayCommand(CanExecute = nameof(CanUpdateView))]
@@ -205,17 +246,23 @@ public sealed partial class MainWindowViewModel
             return;
         }
 
+        var request = new ViewUpdateRequest(
+            database,
+            view,
+            ViewUpdatePipeline,
+            ViewUpdateConfirmation,
+            string.IsNullOrWhiteSpace(ViewUpdateSourceCollection) ? null : ViewUpdateSourceCollection);
         if (!await RunAsync(cancellationToken => _workspace.UpdateViewAsync(
             profile,
-            new ViewUpdateRequest(database, view, ViewUpdatePipeline, ViewUpdateConfirmation),
+            request,
             cancellationToken)))
         {
             return;
         }
 
         ViewUpdateConfirmation = string.Empty;
-        await RecordAuditAsync("view.update", profile, database, view, T("viewPipelineUpdatedAudit"));
         StatusMessage = F("viewPipelineUpdated", view);
+        await RecordAuditAsync("view.update", profile, database, view, T("viewPipelineUpdatedAudit"));
     }
 
     [RelayCommand(CanExecute = nameof(CanConfigureCollectionValidation))]
@@ -226,28 +273,50 @@ public sealed partial class MainWindowViewModel
             return;
         }
 
+        var level = CollectionValidationLevel;
+        var action = CollectionValidationAction;
+        var request = new CollectionValidationRequest(
+            database,
+            collection,
+            CollectionValidatorJson,
+            level,
+            action,
+            CollectionValidationConfirmation);
         if (!await RunAsync(cancellationToken => _workspace.ConfigureCollectionValidationAsync(
             profile,
-            new CollectionValidationRequest(
-                database,
-                collection,
-                CollectionValidatorJson,
-                CollectionValidationLevel,
-                CollectionValidationAction,
-                CollectionValidationConfirmation),
+            request,
             cancellationToken)))
         {
             return;
         }
 
         CollectionValidationConfirmation = string.Empty;
+        CollectionValidationInfo? observed = null;
+        var readbackSucceeded = await RunAsync(async cancellationToken =>
+            observed = await _workspace.GetCollectionValidationAsync(profile, database, collection, cancellationToken));
+        if (IsOriginalCollectionContext(profile, database, collection))
+        {
+            var matches = readbackSucceeded && CollectionValidationReadback.Matches(request, observed!);
+            CollectionValidationReadbackText = readbackSucceeded
+                ? (matches
+                    ? T("validationReadbackMatches")
+                    : T("validationReadbackDiffers"))
+                    + Environment.NewLine + F("validationObservedOptions", observed!.ValidationLevel, observed.ValidationAction)
+                    + Environment.NewLine + observed.ValidatorJson
+                : T("validationReadbackFailed");
+            StatusMessage = readbackSucceeded
+                ? (matches
+                    ? F("collectionValidationUpdated", collection)
+                    : T("validationReadbackDiffers"))
+                : T("validationReadbackFailed");
+        }
+
         await RecordAuditAsync(
             "collection.validation.configure",
             profile,
             database,
             collection,
-            F("validationConfiguredAudit", CollectionValidationLevel, CollectionValidationAction));
-        StatusMessage = F("collectionValidationUpdated", collection);
+            F("validationConfiguredAudit", level, action));
     }
 
     [RelayCommand(CanExecute = nameof(CanExecuteQuery))]
@@ -267,10 +336,13 @@ public sealed partial class MainWindowViewModel
             return;
         }
 
-        CollectionValidatorJson = validation!.ValidatorJson;
-        CollectionValidationLevel = validation.ValidationLevel;
-        CollectionValidationAction = validation.ValidationAction;
-        StatusMessage = F("collectionValidationLoaded", collection);
+        if (IsOriginalCollectionContext(profile, database, collection))
+        {
+            CollectionValidatorJson = validation!.ValidatorJson;
+            CollectionValidationLevel = validation.ValidationLevel;
+            CollectionValidationAction = validation.ValidationAction;
+            StatusMessage = F("collectionValidationLoaded", collection);
+        }
     }
 
     [RelayCommand(CanExecute = nameof(CanDropCollection))]
@@ -290,10 +362,9 @@ public sealed partial class MainWindowViewModel
         }
 
         DropCollectionConfirmation = string.Empty;
-        await LoadCollectionsAsync(database);
-        SelectedCollection = null;
-        await RecordAuditAsync("collection.drop", profile, database, collection, T("collectionRemovedAudit"));
         StatusMessage = F("collectionRemoved", collection);
+        await RecordAuditAsync("collection.drop", profile, database, collection, T("collectionRemovedAudit"));
+        await ReloadCollectionsForOriginalContextAsync(profile, database, collection);
     }
 
     [RelayCommand(CanExecute = nameof(CanValidateCollectionIntegrity))]
@@ -354,5 +425,40 @@ public sealed partial class MainWindowViewModel
             AdministrationResults = await _workspace.GetCollectionStatsAsync(profile, database, collection, cancellationToken);
             StatusMessage = F("collectionStatsLoaded", collection);
         });
+    }
+
+    private bool IsOriginalCollectionContext(ConnectionProfile profile, string database, string? collection = null) =>
+        ReferenceEquals(SelectedProfile, profile)
+        && string.Equals(SelectedDatabase, database, StringComparison.Ordinal)
+        && (collection is null || string.Equals(SelectedCollection, collection, StringComparison.Ordinal));
+
+    private async Task ReloadCollectionsForOriginalContextAsync(
+        ConnectionProfile profile,
+        string database,
+        string? originalCollection,
+        string? selectCollection = null)
+    {
+        IReadOnlyList<string>? collections = null;
+        if (!await RunAsync(async cancellationToken =>
+            collections = await _workspace.GetCollectionsAsync(profile, database, cancellationToken)))
+        {
+            return;
+        }
+
+        if (!IsOriginalCollectionContext(profile, database)
+            || !string.Equals(SelectedCollection, originalCollection, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        Collections.Clear();
+        foreach (var collection in collections!)
+        {
+            Collections.Add(collection);
+        }
+
+        SelectedCollection = selectCollection is null
+            ? null
+            : Collections.FirstOrDefault(collection => string.Equals(collection, selectCollection, StringComparison.Ordinal));
     }
 }

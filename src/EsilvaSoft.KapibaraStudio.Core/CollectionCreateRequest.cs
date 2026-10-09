@@ -35,6 +35,11 @@ public sealed record CollectionCreateRequest(
         var isView = !string.IsNullOrWhiteSpace(ViewOn);
         if (isView)
         {
+            if (string.Equals(Collection, ViewOn, StringComparison.Ordinal))
+            {
+                throw new ArgumentException("Uma view não pode usar a si mesma como origem.", nameof(ViewOn));
+            }
+
             if (ViewOn!.StartsWith("system.", StringComparison.OrdinalIgnoreCase))
             {
                 throw new ArgumentException("A view não pode usar uma coleção de sistema como origem.", nameof(ViewOn));

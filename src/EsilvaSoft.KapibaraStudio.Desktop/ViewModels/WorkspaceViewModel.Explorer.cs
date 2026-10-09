@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Text.Json;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using EsilvaSoft.KapibaraStudio.Application;
@@ -143,13 +144,151 @@ public sealed partial class WorkspaceViewModel
 
     public async Task DropExplorerIndexAsync(ExplorerNodeViewModel node)
     {
-        if (!node.Root.IsConnected || node.Index is null) throw new InvalidOperationException(T("openIndexRequired"));
-        var profile = node.Profile;
-        profile.EnsureWriteAllowed();
-        var request = new IndexDropRequest(node.Database, node.Collection!, node.Index.Name).Validate();
-        await _workspace.DropIndexAsync(profile, request);
-        if (node.Parent is { } indexes) await indexes.LoadAsync();
-        ExplorerStatus = F("indexRemovedExplorer", request.Name);
+        ArgumentNullException.ThrowIfNull(node);
+        if (node.Index is null || node.Collection is null || node.Parent?.Kind != ExplorerNodeKind.Indexes)
+            throw new InvalidOperationException(T("openIndexRequired"));
+
+        // Snapshot all operation inputs before the first await. Explorer selection may change while metadata loads.
+        var profile = node.Profile with { };
+        var database = node.Database;
+        var collection = node.Collection;
+        var indexName = node.Index.Name;
+        var indexesNode = node.Parent!;
+        var request = new IndexDropRequest(database, collection, indexName).Validate();
+        var dropAttempted = false;
+        var auditAttempted = false;
+        IReadOnlyList<string>? before = null;
+
+        try
+        {
+            profile.EnsureWriteAllowed();
+            EnsureExplorerIndexTargetIsLive(node, profile);
+
+            before = await _workspace.GetIndexesAsync(profile, database, collection);
+            if (!ContainsIndexName(before, indexName))
+                throw new InvalidOperationException(T("indexRefreshFailed"));
+
+            // Disconnect/profile replacement during the pre-read cancels the pending action before dispatch.
+            EnsureExplorerIndexTargetIsLive(node, profile);
+            dropAttempted = true;
+            await _workspace.DropIndexAsync(profile, request);
+
+            IReadOnlyList<string>? after = null;
+            string? refreshError = null;
+            try
+            {
+                // Re-read through the direct service for the captured namespace; do not follow current selection.
+                after = await _workspace.GetIndexesAsync(profile, database, collection);
+            }
+            catch (Exception exception)
+            {
+                refreshError = DesktopOperationErrorMessages.Describe(exception);
+            }
+
+            auditAttempted = true;
+            var auditRecorded = await RecordExplorerIndexDropAuditAsync(profile, database, collection, indexName, before, after);
+            if (after is null)
+            {
+                ExplorerStatus = auditRecorded
+                    ? F("indexMutationRefreshFailed", indexName, refreshError ?? T("indexRefreshFailed"))
+                    : F("indexRefreshAndAuditFailed", indexName, refreshError ?? T("indexRefreshFailed"));
+                return;
+            }
+
+            if (ContainsIndexName(after, indexName))
+            {
+                ExplorerStatus = auditRecorded
+                    ? F("indexMutationRefreshFailed", indexName, T("indexRefreshFailed"))
+                    : F("indexRefreshAndAuditFailed", indexName, T("indexRefreshFailed"));
+                return;
+            }
+
+            // Update the originating tree node only; another selected node/collection is left untouched.
+            if (indexesNode.Children.Remove(node))
+            {
+                node.Invalidate();
+            }
+
+            if (!auditRecorded)
+            {
+                ExplorerStatus = F("auditNotRecorded", T("indexAudit"));
+                return;
+            }
+
+            ExplorerStatus = F("indexRemovedExplorer", indexName);
+        }
+        catch (Exception exception)
+        {
+            if (dropAttempted && !auditAttempted)
+            {
+                var auditRecorded = await RecordExplorerIndexDropAuditAsync(profile, database, collection, indexName, before, null);
+                var detail = DesktopOperationErrorMessages.Describe(exception);
+                ExplorerStatus = auditRecorded
+                    ? F("indexMutationRefreshFailed", indexName, detail)
+                    : F("indexRefreshAndAuditFailed", indexName, detail);
+            }
+            else
+            {
+                ExplorerStatus = DesktopOperationErrorMessages.Describe(exception);
+            }
+
+            throw;
+        }
+    }
+
+    private void EnsureExplorerIndexTargetIsLive(ExplorerNodeViewModel node, ConnectionProfile capturedProfile)
+    {
+        if (!node.Root.IsConnected
+            || !Roots.Any(root => ReferenceEquals(root, node.Root) && root.Profile == capturedProfile && root.IsConnected))
+        {
+            throw new InvalidOperationException(T("targetChangedReopen"));
+        }
+    }
+
+    private async Task<bool> RecordExplorerIndexDropAuditAsync(
+        ConnectionProfile profile,
+        string database,
+        string collection,
+        string indexName,
+        IReadOnlyList<string>? before,
+        IReadOnlyList<string>? after)
+    {
+        try
+        {
+            static string State(IReadOnlyList<string>? definitions, string name) => definitions is null
+                ? "unknown"
+                : definitions.Any(definition => HasIndexName(definition, name)) ? "present=true" : "present=false";
+
+            await _workspace.SaveAuditAsync(AuditEntry.Create(
+                "index.drop",
+                profile.Id,
+                database,
+                collection,
+                F("indexAuditSummary", indexName, State(before, indexName), State(after, indexName))));
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool ContainsIndexName(IEnumerable<string> definitions, string name) =>
+        definitions.Any(definition => HasIndexName(definition, name));
+
+    private static bool HasIndexName(string definition, string name)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(definition);
+            return document.RootElement.ValueKind == JsonValueKind.Object
+                && document.RootElement.TryGetProperty("name", out var indexName)
+                && string.Equals(indexName.GetString(), name, StringComparison.Ordinal);
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 
     partial void OnSelectedNodeChanged(ExplorerNodeViewModel? value) => _ = Details.SelectAsync(value);

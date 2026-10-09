@@ -47,6 +47,14 @@ public sealed class CollectionCreateRequestTests
         Assert.That(() => request.Validate(), Throws.TypeOf<ArgumentException>());
     }
 
+    [Test]
+    public void ValidateRejectsViewUsingItselfAsSource()
+    {
+        var request = new CollectionCreateRequest("catalogo", "clientesAtivos", ViewOn: "clientesAtivos", ViewPipelineJson: "[]");
+
+        Assert.That(() => request.Validate(), Throws.TypeOf<ArgumentException>());
+    }
+
     [TestCase("system.clientes", "[]")]
     [TestCase("clientes", "{}")]
     [TestCase("clientes", "[1]")]

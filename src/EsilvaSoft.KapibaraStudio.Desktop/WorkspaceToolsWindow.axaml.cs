@@ -95,4 +95,27 @@ public partial class WorkspaceToolsWindow : Window
             viewModel.ImportSourceDirectory = path;
         }
     }
+
+    private async void SelectStandaloneImportFile(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel viewModel) return;
+        var profile = viewModel.SelectedProfile;
+        var database = viewModel.SelectedDatabase;
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            AllowMultiple = false,
+            Title = LocalizationViewModel.Current.Resolve("standaloneSourceFile"),
+            FileTypeFilter =
+            [
+                new FilePickerFileType("JSON array") { Patterns = ["*.json"] },
+                new FilePickerFileType("NDJSON") { Patterns = ["*.ndjson"] },
+                new FilePickerFileType("CSV") { Patterns = ["*.csv"] }
+            ]
+        });
+        var path = files.Count == 0 ? null : files[0].Path.LocalPath;
+        if (!string.IsNullOrWhiteSpace(path)
+            && ReferenceEquals(profile, viewModel.SelectedProfile)
+            && string.Equals(database, viewModel.SelectedDatabase, StringComparison.Ordinal))
+            viewModel.StandaloneSourceFile = path;
+    }
 }

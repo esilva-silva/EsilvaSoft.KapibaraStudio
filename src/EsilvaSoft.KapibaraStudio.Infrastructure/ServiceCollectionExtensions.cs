@@ -64,6 +64,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ISavedQueryRepository>(services => services.GetRequiredService<LiteDbConnectionProfileRepository>());
         services.AddSingleton<IAuditRepository>(services => services.GetRequiredService<LiteDbConnectionProfileRepository>());
         services.AddSingleton<IWorkspaceSessionRepository>(services => services.GetRequiredService<LiteDbConnectionProfileRepository>());
+        services.AddSingleton<IProfilerCaptureRepository>(services => services.GetRequiredService<LiteDbConnectionProfileRepository>());
+        services.AddSingleton<IImportCheckpointRepository>(services => services.GetRequiredService<LiteDbConnectionProfileRepository>());
         services.AddSingleton<IEnvironmentVaultRepository>(services => services.GetRequiredService<LiteDbConnectionProfileRepository>());
         services.AddSingleton<ILegacyCredentialInventoryRepository>(services => services.GetRequiredService<LiteDbConnectionProfileRepository>());
         services.AddSingleton<ILegacyConnectionCredentialMigration, LegacyConnectionCredentialMigration>();

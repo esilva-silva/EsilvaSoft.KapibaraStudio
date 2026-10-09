@@ -1,7 +1,12 @@
 namespace EsilvaSoft.KapibaraStudio.Core;
 
 /// <summary>Requires confirmation before requesting MongoDB collection compaction.</summary>
-public sealed record CollectionCompactRequest(string Database, string Collection, string ConfirmationName, bool Force = false)
+public sealed record CollectionCompactRequest(
+    string Database,
+    string Collection,
+    string ConfirmationName,
+    bool Force = false,
+    CollectionMaintenancePreflight? Preflight = null)
 {
     public CollectionCompactRequest Validate()
     {
@@ -24,6 +29,9 @@ public sealed record CollectionCompactRequest(string Database, string Collection
         {
             throw new ArgumentException("Digite o nome exato da coleção para confirmar a compactação.", nameof(ConfirmationName));
         }
+
+        (Preflight ?? throw new ArgumentException("A prévia obrigatória da manutenção não foi informada.", nameof(Preflight)))
+            .Validate(Database, Collection);
 
         return this;
     }
