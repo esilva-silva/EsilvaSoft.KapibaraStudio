@@ -18,6 +18,10 @@ Scripts de avaliação Python usam por padrão o apphost publicado listado em `t
 
 ## Comandos disponíveis
 
+`catalog knowledge export` usa `KnowledgeCatalog`/`LanguageCatalogSource` e o recurso embarcado do editor, sem reler o JSON por fora. Exporta 475 símbolos estáticos em 20 kinds no checkout validado, com todos os campos de linguagem, exceto `Scope`, `Field` e evidência do usuário. Fontes de metadados são excluídas antes da consulta. Ordenação ordinal kind/name/id; SHA-256 do JSON UTF-8 indentado sem `snapshotSha256`; escrita atômica e caminhos protegidos. `source` identifica hash do recurso embarcado e commit/dirty da IDE. `all` é o padrão; `mql` inclui símbolos Mql, `console` inclui Console/Mql, `dsl` restringe categorias dsl/connection-pool. O vocabulário acompanha o filtro e preserva aliases visuais de DSL em all/console/dsl; `GetDatabase`, `GetCollection` e `ConnectionPull` são aliases do highlighter, não APIs aceitas pelo runtime. `check` valida hashes dos snapshots, lista added/removed/changed por ID e alterações do vocabulário; retorna 0 sem mudança ou 7 em drift. Mudanças apenas de commit/dirty não constituem drift de símbolos.
+
+O script manual `scripts/lab/parity_editor_context_v1.py` compara a referência Python externa, carregada somente para leitura, com o renderer e tokenizer GenAI reais. A prova de 10/10/2026 passou 2.000 registros (1.300 reais + 700 sintéticos), zero divergências. O [runbook](../../docs/phases/phase-07b-kapilab/runbook-local.md) descreve mapeamento, pacote e reprodução. Isso não homologa chat, treino ou 2.000 registros exclusivamente reais.
+
 ```text
 kapilab env [--expect-genai <versão>] [--expect-backend <backend>]
 kapilab npu inventory
@@ -37,6 +41,8 @@ kapilab parity compare --in <observations.json> [--tolerances <tolerances.json>]
 kapilab catalog export --provider <id> --surface in-process|session-channel [--out <snapshot.json>]
 kapilab catalog export-plan --provider <id> --in <synthetic-plan.json> [--out <snapshot.json>]
 kapilab catalog check --expected <baseline.json> --actual <current.json>
+kapilab catalog knowledge export [--dialect mql|console|dsl|all] [--out data/lab/knowledge-catalog.json]
+kapilab catalog knowledge check --expected <baseline.json> --actual <current.json>
 kapilab catalog plans --in <plan-cases.json> [--out <plan-snapshot.json>]
 kapilab catalog invoke --in <invocation-cases.json> [--out <report.json>]
 kapilab agent replay --in <replay-cases.json> [--out <report.json>]

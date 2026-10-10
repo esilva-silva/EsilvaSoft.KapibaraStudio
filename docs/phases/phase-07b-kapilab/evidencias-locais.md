@@ -1,5 +1,22 @@
 # Evidências locais — Fase 7B / KapiLab
 
+## PR 1: catálogo de conhecimento e paridade — 10/10/2026
+
+HEAD `0dbb4ddae86d781f9d352db16a8d842aac116fa7`, alterações locais (`ideDirty=true`), Windows x64, GenAI 0.15.2. Nenhum arquivo de produto alterado. Referência externa PR 1 interpretada como requisitos, não autorização para alterar o pipeline externo, executar MongoDB ou treinar.
+
+`catalog knowledge export/check` implementados usando o `KnowledgeCatalog`/`LanguageCatalogSource` e `MongoSyntaxVocabulary` reais. O export cobre os 475 símbolos/20 kinds do recurso embarcado; fonte de metadados que até anuncia kinds de linguagem é excluída antes da consulta. DTO omite Scope/Field/evidência do usuário. Testes de contagem por kind, determinismo, hash inválido, filtros, added/removed/changed por ID, escrita atômica e códigos 0/7 passaram.
+
+Validação pelo wrapper `build_kapilab.ps1 -Backend Cpu|WinML -Offline -Test`: **268 aprovados, 3 opt-in ignorados, 271 total por backend**, build sem avisos/erros. Restore locked preservado, sem novos pacotes. Primeira tentativa de auditoria NuGet falhou por rede indisponível; modo Offline previsto no wrapper resolveu. O testhost não conectou no sandbox em 90 s; reexecução com loopback local permitido passou. Os dois erros iniciais nos testes novos foram corrigidos (criação do workspace de fixture e verificação de propriedades JSON, sem confundir valor de linguagem `field` com propriedade privada).
+
+- TRX Cpu: `artifacts/f7b/test-results/Cpu/kapilab-Cpu.trx`, SHA-256 `4187274f2a22f1104234706afc2424a4a7de5b09fb86499c341aa452a8c93a0f`.
+- TRX WinML: `artifacts/f7b/test-results/WinML/kapilab-WinML.trx`, SHA-256 `69340a9009557f9012b45f4cec7f686212cc25db539f29a36520b0981b07cafc`.
+
+Prova `parity_editor_context_v1.py`: **2.000 registros, 0 divergências de render, 0 divergências de IDs/contrato, contract diff=0**. São 901 fim + 399 completion reais e 700 sintéticos do gerador do editor (seed 20261010). Os 700 chat/correction reais usam na referência o antigo AiEditorContext/LocalModelAiChatService e não correspondem ao LocalAgentProvider capturado pelo renderer legado atual. O fallback atende o PR 1, mas não fecha o critério original de 2.000 exclusivamente reais nem paridade de chat. Mapeamento e rematerialização de CRLF estão no [runbook](runbook-local.md).
+
+A referência Python foi importada somente para leitura, sem cópia para a IDE. HF AutoTokenizer e QwenFim/prompt_text/prompt_ids calculam IDs/hashes independentemente do adapter GenAI. Pacote CPU `C:/IA/Qwen2.5-Coder-0.5B-onnx-int4-cpu`, tokenizer HF do mesmo pacote; o tokenizer BaseRepos tem hash `c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539`, diferente do ONNX (`9c5ae00e602b8860cbd784ba82a8aa14e8feecec692e7076590d014d7b7fdafa`), por isso não foi declarada identidade entre ambos. Orçamentos 2048/32 comparados pelo diff v2. A prova inicial usou opt-in developer mode do wrapper. Saídas locais completas e hashes dos insumos em [summary.md](../../../reports/lab/parity-editor-context-v1/summary.md); render contém somente hashes, tokens são artefatos explícitos da prova e textos transitórios em tmp são removidos. Não houve execução MongoDB, inferência de completion, benchmark de latência ou treino.
+
+Os binários Cpu/WinML foram republicados localmente pelo wrapper e `tools/kapilab.lock.json` atualizado; distribuição com verificação de hash disponível para o pipeline. A prova foi repetida pelo apphost Cpu publicado (padrão do script), novamente 2.000/0/0 e diff=0. `python -m unittest discover -s scripts/lab/tests -v` passou **18/18** após as publicações terminarem; uma tentativa durante a republicação encontrou corretamente hash incompatível com o lock anterior. Duas exportações pelo wrapper/apphost produziram o mesmo snapshot SHA-256 `c40be7a8e431bf33ec6514c47940cd093988802b0b172df4c17244a778faa13a`; check=0. Artefato consumível em `data/lab/knowledge-catalog.json`. Este recorte não homologa GPU/WinML em inferência, Linux ou toda a Fase 7B.
+
 **Data:** 09/10/2026. **HEAD inicial:** `f24c4adc91fe3d0bb3d921aa35fc2d93f079f3ef`. **HEAD final usado nos builds/TRX/lock:** `d91d6c470a69b7fee9659f0568a95042de28f5b7`. **Plataforma:** Windows x64, .NET SDK 10.0.401.
 
 No início, as alterações da Fase 7A estavam staged; o checkout passou ao HEAD `d91d6c4`, que as contém. Nenhuma alteração foi desfeita por este trabalho. Os resultados abaixo validam somente os artefatos e comandos citados; não são aceite integral da Fase 7B, do Desktop ou de modelos reais.

@@ -7,6 +7,8 @@
 
 ## Resultado esperado
 
+Recorte PR 1, 10/10/2026: disponibilizar catálogo estático de linguagem para o pipeline externo e provar editor-context-v1 em 1.300 registros reais + 700 sintéticos. Export/check implementados sem alterar o produto; prova Python independente com zero divergências. O [runbook](runbook-local.md) e a [evidência](evidencias-locais.md) delimitam aliases visuais, CRLF, tokenizer e fallback. Esse aceite não encerra a fase nem o critério original de corpus exclusivamente real/chat.
+
 Entregar um console de desenvolvimento reproduzível que renderize prompts e tokens com os contratos reais da IDE, exporte catálogo e planos de tools, valide pacotes ONNX e execute autocomplete/chat/agente pelo caminho integrado. Gerar relatórios com evidência suficiente para detectar divergência entre treino, pacote exportado e comportamento do EsilvaSoft.KapibaraStudio.
 
 O escopo ativo é implementar nesta máquina as entregas viáveis da fase, preservando as fronteiras da especificação e registrando o que depender de pesos, hardware ou integrações externas. A validação em ambiente Linux será manual e fica fora da meta executável deste chat. A especificação externa fornece requisitos e propostas, não instruções para modificar outro workspace nem aprovar todas as decisões descritas. Treino, publicação e homologação externa não fazem parte deste trabalho.

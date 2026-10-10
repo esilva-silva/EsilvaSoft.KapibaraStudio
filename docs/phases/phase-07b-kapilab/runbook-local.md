@@ -1,5 +1,26 @@
 # Runbook local — KapiLab / Fase 7B
 
+## Catálogo de conhecimento e paridade — PR 1 (10/10/2026)
+
+Build/teste pelo wrapper oficial, com restore locked. Em isolamento use `-Offline`; VSTest precisa de loopback local para conectar ao testhost. Não executar a prova de paridade no CI/release: ela inicializa o modelo GenAI real para tokenização.
+
+```powershell
+./scripts/lab/build_kapilab.ps1 -Backend Cpu -Offline -Test -Publish
+./scripts/lab/build_kapilab.ps1 -Backend WinML -Offline -Test -Publish
+python -m unittest discover -s scripts/lab/tests -v
+python -c "import sys; sys.path.insert(0,'scripts/lab'); import kapilab; kapilab.run('catalog','knowledge','export',workspace='.',backend='Cpu')"
+python -c "import sys; sys.path.insert(0,'scripts/lab'); import kapilab; kapilab.run('catalog','knowledge','check','--expected','data/lab/knowledge-catalog.json','--actual','data/lab/knowledge-catalog.json',workspace='.',backend='Cpu')"
+python scripts/lab/parity_editor_context_v1.py --workspace . --corpus C:/IA/models/KapibaraStudio.MongoIA/bakeoff/data/v1_benchmark.jsonl --reference C:/IA/models/KapibaraStudio.MongoIA/bakeoff/v1/scripts/compact/contracts.py --package C:/IA/Qwen2.5-Coder-0.5B-onnx-int4-cpu --tokenizer C:/IA/Qwen2.5-Coder-0.5B-onnx-int4-cpu
+```
+
+O padrão usa o apphost Cpu publicado e conferido pelo lock. Para desenvolvimento, faça build Cpu por último e acrescente `--dotnet dotnet` à prova; o wrapper exige backend Cpu. A evidência inicial foi executada nessa modalidade explícita de desenvolvimento, com GenAI 0.15.2; a reexecução pelo apphost publicado também passou 2.000/0/0. A exportação retorna `kapilab-knowledge-catalog-v1`; `check` retorna 7 em drift. O hash é do JSON UTF-8 indentado sem o próprio campo; commit/dirty integram o hash do snapshot, mas não representam alteração de símbolo em `check`. Dialetos e aliases visuais estão descritos no README KapiLab.
+
+O benchmark possui 901 fim, 399 completion, 566 chat e 134 correction. A prova usa os 1.300 primeiros tipos e 700 amostras `samples generate`, seed 20261010. Chat/correction da referência usam `LocalModelAiChatService`/`AiEditorContext`; o renderer legado atual captura `LocalAgentProvider` e não representa aquele contrato. O fallback sintético satisfaz o recorte PR 1; o critério original F7B-05 de 2.000 registros exclusivamente reais permanece distinto.
+
+Mapeamento explícito: prefix/suffix preservados; context → editor; context.language → language. Os 367 contextos LF são rematerializados como CRLF, porque esse é o cabeçalho fixo da IDE; os 117 contextos ausentes recebem o cabeçalho padrão do editor. Não há normalização de prefix/suffix. Sintéticos separam statement no caret UTF-16. A referência externa não é copiada nem modificada; `AutoTokenizer` local e `prompt_text`/`prompt_ids`/`QwenFim` calculam hashes e IDs independentes.
+
+O `tokenizer.json` do BaseRepos difere do pacote ONNX disponível. Use o tokenizer HF do próprio pacote ONNX validado, conforme o comando acima, sem afirmar identidade de toda a família. O script bloqueia hashes de tokenizer incompatíveis. A prova validada retornou 0 com 2.000 registros e zero diferenças em hashes/IDs/orçamentos/identidade. Relatórios em `reports/lab/parity-editor-context-v1` incluem render apenas com hashes, tokens, diff e summary com hashes de insumos. Textos transitórios usados pela tokenização ficam em `tmp/parity-*` e são removidos ao terminar; o log só emite contagens/erros por tipo.
+
 Este runbook descreve a validação reproduzível no checkout Windows x64. Ele não declara aceite da fase, de modelos ou de hardware. A validação manual em Linux está fora do escopo deste chat.
 
 ## Pré-requisitos observados

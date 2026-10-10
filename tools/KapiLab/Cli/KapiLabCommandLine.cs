@@ -355,6 +355,24 @@ internal static class KapiLabCommandLine
             return Task.FromResult(result.Matches ? (int)ExitCode.Success : (int)ExitCode.Drift);
         }));
         catalog.Subcommands.Add(check);
+        var knowledge = new Command("knowledge", "Exporta e compara conhecimento estático do editor.");
+        var knowledgeExport = new Command("export", "Exporta o catálogo de linguagem sem metadados do usuário.");
+        var dialect = new Option<string>("--dialect") { DefaultValueFactory = _ => "all" };
+        var knowledgeOutput = new Option<string>("--out") { DefaultValueFactory = _ => "data/lab/knowledge-catalog.json" };
+        knowledgeExport.Options.Add(dialect);
+        knowledgeExport.Options.Add(knowledgeOutput);
+        knowledgeExport.SetAction(result => ExecuteAsync("catalog.knowledge.export", () => KnowledgeCatalogCommand.ExportAsync(
+            result.GetValue(dialect)!, result.GetValue(knowledgeOutput)!, result.GetValue(workspace))));
+        knowledge.Subcommands.Add(knowledgeExport);
+        var knowledgeCheck = new Command("check", "Retorna 7 quando o conhecimento estático muda.");
+        var knowledgeExpected = new Option<string>("--expected") { Required = true };
+        var knowledgeActual = new Option<string>("--actual") { Required = true };
+        knowledgeCheck.Options.Add(knowledgeExpected);
+        knowledgeCheck.Options.Add(knowledgeActual);
+        knowledgeCheck.SetAction(result => ExecuteAsync("catalog.knowledge.check", () => KnowledgeCatalogCommand.CheckAsync(
+            result.GetValue(knowledgeExpected)!, result.GetValue(knowledgeActual)!, result.GetValue(workspace))));
+        knowledge.Subcommands.Add(knowledgeCheck);
+        catalog.Subcommands.Add(knowledge);
         return catalog;
     }
 

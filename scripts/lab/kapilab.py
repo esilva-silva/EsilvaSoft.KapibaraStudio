@@ -228,6 +228,10 @@ def _command_name(args: Sequence[str]) -> str:
         raise ValueError("At least one KapiLab command is required.")
     if args[0] == "env":
         return "env"
+    if args[:2] == ["catalog", "knowledge"] or tuple(args[:2]) == ("catalog", "knowledge"):
+        if len(args) < 3:
+            raise ValueError("A knowledge subcommand is required.")
+        return f"catalog.knowledge.{args[2]}"
     if args[0] in {"agent", "bench", "catalog", "contract", "guidance", "matrix", "npu", "parity", "report", "samples"}:
         if len(args) < 2:
             raise ValueError("A KapiLab subcommand is required.")
