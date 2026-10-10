@@ -314,6 +314,11 @@ public sealed partial class AgentToolRegistry : IAgentToolRegistry
             ? WithSchemaIdentity(descriptor, "input", CatalogInputSchemaJson(descriptor.Name))
             : null;
 
+    public string? GetInProcessOutputSchemaJson(string providerId, string? name) =>
+        FindInProcessDescriptor(providerId, name) is { } descriptor
+            ? WithSchemaIdentity(descriptor, "output", CatalogOutputSchemaJson(descriptor.Name))
+            : null;
+
     public string? GetOutputSchemaJson(string? name) =>
         FindDescriptor(name) is { } descriptor
             ? WithSchemaIdentity(descriptor, "output", CatalogOutputSchemaJson(descriptor.Name))

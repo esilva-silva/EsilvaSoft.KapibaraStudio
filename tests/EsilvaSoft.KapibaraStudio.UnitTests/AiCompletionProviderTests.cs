@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using EsilvaSoft.KapibaraStudio.Application;
+using EsilvaSoft.KapibaraStudio.Autocomplete.Core;
 using EsilvaSoft.KapibaraStudio.Core;
 using EsilvaSoft.KapibaraStudio.LocalAi.Core;
 
@@ -31,6 +32,8 @@ internal sealed class StreamingModelServiceFake : ILocalAiModelService
 
     /// <summary>Há modelo carregado. Falso reproduz a primeira chamada, que ainda vai pagar a carga.</summary>
     public bool Loaded { get; set; } = true;
+
+    public bool GenerationIsComplete { get; set; } = true;
 
     /// <summary>Quantas vezes a carga foi pedida.</summary>
     public int LoadCalls { get; private set; }
@@ -67,7 +70,8 @@ internal sealed class StreamingModelServiceFake : ILocalAiModelService
     {
         Record(request, priority, load);
         return Task.FromResult(new LocalModelGeneration(Definition,
-            new ModelGenerationResult(string.Concat(Chunks), Chunks.Count, TimeSpan.FromMilliseconds(3), "cpu")));
+            new ModelGenerationResult(string.Concat(Chunks), Chunks.Count, TimeSpan.FromMilliseconds(3), "cpu")
+            { IsComplete = GenerationIsComplete }));
     }
 
     public async IAsyncEnumerable<GeneratedChunk> StreamAsync(LocalModelRole role, AutocompleteSettings settings,
@@ -302,6 +306,54 @@ public sealed class AiCompletionProviderTests
             Assert.That(candidate, Is.Not.Null);
             Assert.That(ghost, Is.Not.Null);
             Assert.That(runtime.Generations, Is.EqualTo(2));
+        });
+    }
+
+    [Test]
+    public async Task AutomaticCaptureReturnsRawAndGhostFromOneGeneration()
+    {
+        var models = new StreamingModelServiceFake { Chunks = ["db.items.find({ active: true })"] };
+        await using var provider = new AiAutocompleteProvider(models);
+
+        var capture = await provider.GetCompletionCaptureAsync(new AutocompleteRequest("db.", ""), new AutocompleteSettings());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(models.Calls, Is.EqualTo(1));
+            Assert.That(capture?.RawText, Is.EqualTo("db.items.find({ active: true })"));
+            Assert.That(capture?.Completion.Text, Is.EqualTo(capture?.RawText));
+            Assert.That(capture?.Completion, Is.Not.Null);
+        });
+    }
+
+    [Test]
+    public async Task AutomaticCaptureDoesNotExposeRawOutputRejectedByProductFilter()
+    {
+        var models = new StreamingModelServiceFake { Chunks = ["const password = 'secret';"] };
+        await using var provider = new AiAutocompleteProvider(models);
+
+        var capture = await provider.GetCompletionCaptureAsync(new AutocompleteRequest("db.", ""), new AutocompleteSettings());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(models.Calls, Is.EqualTo(1));
+            Assert.That(capture, Is.Null);
+        });
+    }
+
+    [Test]
+    public async Task AutomaticCapturePropagatesIncompleteRuntimeResultWithoutExtraGeneration()
+    {
+        var models = new StreamingModelServiceFake { Chunks = ["db.items.find({})"], GenerationIsComplete = false };
+        await using var provider = new AiAutocompleteProvider(models);
+
+        var capture = await provider.GetCompletionCaptureAsync(new AutocompleteRequest("db.", ""), new AutocompleteSettings());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(models.Calls, Is.EqualTo(1));
+            Assert.That(capture?.IsComplete, Is.False);
+            Assert.That(capture?.Completion.Text, Is.EqualTo("db.items.find({})"));
         });
     }
 

@@ -1,6 +1,9 @@
 bin/
 obj/
+__pycache__/
+*.py[cod]
 TestResults/
+/tmp/
 *.user
 *.suo
 workspace.db

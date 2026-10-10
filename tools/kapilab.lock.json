@@ -1,0 +1,27 @@
+{
+  "schema": "kapilab-distribution-lock-v1",
+  "entries": [
+    {
+      "backend": "Cpu",
+      "rid": "win-x64",
+      "executable": "../artifacts/f7b/publish/Cpu/win-x64/EsilvaSoft.KapibaraStudio.KapiLab.exe",
+      "sha256": "b17b7a3eefacf264d056f2f3b4c691924abdba53cf02392b1bbd6c1ba051306b",
+      "contentSha256": "d8bf2d052a1e4e5d2a68a2e32d88ad9d0c4ac3403e11d8e47d48836766a196d3",
+      "genAiVersion": "0.15.2",
+      "runtime": "10.0.12",
+      "ideCommit": "d91d6c470a69b7fee9659f0568a95042de28f5b7",
+      "ideDirty": true
+    },
+    {
+      "backend": "WinML",
+      "rid": "win-x64",
+      "executable": "../artifacts/f7b/publish/WinML/win-x64/EsilvaSoft.KapibaraStudio.KapiLab.exe",
+      "sha256": "b17b7a3eefacf264d056f2f3b4c691924abdba53cf02392b1bbd6c1ba051306b",
+      "contentSha256": "19b892db16b24117c96e99f63822d9a2818f7f9bebd8700e9f7d281e23ecff53",
+      "genAiVersion": "0.15.2",
+      "runtime": "10.0.12",
+      "ideCommit": "d91d6c470a69b7fee9659f0568a95042de28f5b7",
+      "ideDirty": true
+    }
+  ]
+}

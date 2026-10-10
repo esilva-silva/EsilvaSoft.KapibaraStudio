@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <AssemblyName>EsilvaSoft.KapibaraStudio.KapiLab.Tests</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="GpuLockChild/**/*.cs" />
+    <Content Include="Fixtures/local-agent-tool-call-parser-v1.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../KapiLab/Fixtures/autocomplete-raw-ghost-v1.jsonl" Link="Fixtures/autocomplete-raw-ghost-v1.jsonl" CopyToOutputDirectory="PreserveNewest" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" VersionOverride="10.0.10" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit3TestAdapter" />
+    <ProjectReference Include="../KapiLab/KapiLab.csproj" />
+    <ProjectReference Include="GpuLockChild/GpuLockChild.csproj" ReferenceOutputAssembly="true" />
+  </ItemGroup>
+</Project>

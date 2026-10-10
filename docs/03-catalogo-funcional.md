@@ -1,6 +1,6 @@
 # Catálogo funcional
 
-**ADV-09 / EDT-02 — Fase 7B planejada em 09/10/2026:** [KapiLab](phases/phase-07b-kapilab/README.md) organiza ferramenta de desenvolvimento para contratos, catálogo e avaliação ONNX. Complementa as superfícies da 7A; sem nova funcionalidade de UI, alteração de status funcional ou homologação dos modelos.
+**ADV-09 / EDT-02 — Fase 7B em implementação local:** [KapiLab](phases/phase-07b-kapilab/README.md) organiza a ferramenta de desenvolvimento para contratos, catálogo e avaliação ONNX. O console e os testes próprios foram compilados/testados para Cpu e WinML; isso complementa as superfícies da 7A, não altera status funcional da UI nem homologa modelos. Consulte [evidências locais](phases/phase-07b-kapilab/evidencias-locais.md).
 
 **ADV-09 / EDT-02 — Fase 7A parcialmente implementada em 09/10/2026:** [preparação KapiCoder-Mongo](phases/phase-07a-kapicoder-mongo/meta-de-implementacao.md), com 78 itens de origem rastreados. Este checkout inclui contratos/metadata Qwen3, adapter, provider local com tool calling pelo registry, raciocínio transitório com retenção local opt-in parcial, permissões de tools locais no registry e composição Release Copilot + IA local. A retenção tem migração/expiração/purge, mas seus testes ainda aguardam execução; pesos/NPU não foram homologados. Build Windows passou; Linux manual está fora da meta deste chat. Prioridade Fase 8 e workflow Fase 7 preservados.
 

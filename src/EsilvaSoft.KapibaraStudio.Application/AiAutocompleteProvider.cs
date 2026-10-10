@@ -24,8 +24,20 @@ public sealed class AiAutocompleteProvider : IAsyncDisposable, IDisposable
     /// modelo desta chave já carregado o serviço recusa, e a recusa vira abstenção silenciosa: nenhuma carga, nenhum
     /// descarregamento, nenhuma troca.
     /// </summary>
+#pragma warning disable CA1822 // Mantém a API pública de provider como operação de instância.
     public async Task<AutocompleteResult?> GetCompletionAsync(AutocompleteRequest request, AutocompleteSettings settings,
         AiModelLoadPolicy load = AiModelLoadPolicy.LoadIfNeeded, CancellationToken cancellationToken = default)
+        => (await GetCompletionCaptureAsync(request, settings, load, cancellationToken: cancellationToken).ConfigureAwait(false))?.Completion;
+#pragma warning restore CA1822
+
+    /// <summary>
+    /// Runs the exact automatic autocomplete path once and returns both runtime output and the cleaned ghost.
+    /// Internal so only the explicitly trusted lab assembly can retain raw text; the Desktop path continues to
+    /// expose only the cleaned completion.
+    /// </summary>
+    internal async Task<AutocompleteCapture?> GetCompletionCaptureAsync(AutocompleteRequest request, AutocompleteSettings settings,
+        AiModelLoadPolicy load = AiModelLoadPolicy.LoadIfNeeded, bool allowIncompleteCapture = false,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(settings);
@@ -35,15 +47,16 @@ public sealed class AiAutocompleteProvider : IAsyncDisposable, IDisposable
         {
             generation = await Models.GenerateAsync(LocalModelRole.Autocomplete, settings, model => new ModelGenerationRequest(
                 AutocompleteContextBuilder.ModelPrefix(request, LocalAiModelService.IsDeepSeek(model)), request.Suffix,
-                Math.Min(settings.ContextTokens, Math.Max(64, model.EffectiveContextLength
-                    - Math.Min(settings.MaximumCompletionTokens, model.EffectiveAutocompleteMaximumTokens)
-                    - AutocompleteTokenBudget.PromptOverheadTokens)),
+                AutocompleteTokenBudget.EffectiveContextTokens(settings.ContextTokens, settings.MaximumCompletionTokens,
+                    model.EffectiveContextLength, model.EffectiveAutocompleteMaximumTokens),
                 Math.Min(settings.MaximumCompletionTokens, model.EffectiveAutocompleteMaximumTokens), request.RequireComplete) { Temperature = model.Metadata?.Autocomplete.Temperature ?? 0 },
                 AiRequestPriority.Background, load, cancellationToken).ConfigureAwait(false);
         }
         catch (LocalModelUnavailableException) { return null; }
-        if (request.RequireComplete && !generation.Result.IsComplete) return null;
-        return CleanGeneratedText(generation.Result.Text, request.Suffix) is { } text ? new(text, true, "IA local · Tab aceita · Esc descarta") : null;
+        if (request.RequireComplete && !generation.Result.IsComplete && !allowIncompleteCapture) return null;
+        return CleanGeneratedText(generation.Result.Text, request.Suffix) is { } text
+            ? new(generation.Result.Text, new(text, true, "IA local · Tab aceita · Esc descarta"), generation.Result.IsComplete)
+            : null;
     }
 
     public Task ResetAsync(CancellationToken cancellationToken = default) => Models.UnloadModelAsync(cancellationToken);
@@ -64,3 +77,5 @@ public sealed class AiAutocompleteProvider : IAsyncDisposable, IDisposable
 
     public void Dispose() => DisposeAsync().AsTask().GetAwaiter().GetResult();
 }
+
+internal sealed record AutocompleteCapture(string RawText, AutocompleteResult Completion, bool IsComplete);

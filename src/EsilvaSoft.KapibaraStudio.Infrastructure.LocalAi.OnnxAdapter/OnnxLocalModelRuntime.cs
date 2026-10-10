@@ -191,12 +191,23 @@ public sealed class OnnxLocalModelRuntime(IAutocompleteDiagnostics? diagnostics 
 
     private void Load(AiProviderCandidate candidate, IModelAdapter adapter, LocalModelDefinition model)
     {
+        diagnostics?.Record("provider.config.creating");
         using (var config = new Config(model.Path))
         {
+            diagnostics?.Record("provider.config.created");
+            diagnostics?.Record("provider.clearing");
             config.ClearProviders();
-            if (candidate.GenAiName != CpuCandidate.GenAiName) config.AppendProvider(candidate.GenAiName);
+            if (candidate.GenAiName != CpuCandidate.GenAiName)
+            {
+                diagnostics?.Record("provider.appending");
+                config.AppendProvider(candidate.GenAiName);
+                diagnostics?.Record("provider.appended");
+            }
+            diagnostics?.Record("provider.overlaying");
             config.Overlay(SessionOverlay);
+            diagnostics?.Record("provider.model.creating");
             _model = new Model(config);
+            diagnostics?.Record("provider.model.created");
         }
         try
         {
@@ -312,6 +323,7 @@ public sealed class OnnxLocalModelRuntime(IAutocompleteDiagnostics? diagnostics 
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 generator.GenerateNextToken();
+                if (generated == 0) diagnostics?.Record("provider.generation.first-token");
                 firstToken ??= watch.Elapsed;
                 var id = generator.GetSequence(0)[^1];
                 if (stops.Contains(id)) { stopped = true; break; }

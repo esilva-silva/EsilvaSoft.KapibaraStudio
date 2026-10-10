@@ -4,8 +4,11 @@ using System.Text.Json;
 namespace EsilvaSoft.KapibaraStudio.Application.Agents;
 
 /// <summary>Incremental parser for the Qwen3 Hermes JSON tool-call envelope.</summary>
-internal sealed class LocalAgentToolCallParser(int maximumCallCharacters = 16_384)
+public sealed class LocalAgentToolCallParser(int maximumCallCharacters = 16_384)
 {
+    /// <summary>Maximum JSON nesting depth accepted inside the <c>arguments</c> object.</summary>
+    public const int MaximumArgumentsJsonDepth = 8;
+
     private const string Open = "<tool_call>";
     private const string Close = "</tool_call>";
     private readonly StringBuilder _pending = new();
@@ -13,10 +16,17 @@ internal sealed class LocalAgentToolCallParser(int maximumCallCharacters = 16_38
     private bool _insideCall;
     private bool _callCompleted;
 
+    /// <summary>Gets the parsed tool name, or <see langword="null"/> until a complete call is parsed.</summary>
     public string? ToolName { get; private set; }
+    /// <summary>Gets the raw JSON for the parsed arguments object.</summary>
     public string? ArgumentsJson { get; private set; }
+    /// <summary>Gets the parse error code, if the envelope is invalid.</summary>
     public string? ErrorCode { get; private set; }
 
+    /// <summary>Appends a streamed fragment and returns text outside a tool-call envelope.</summary>
+    /// <param name="fragment">Next model output fragment.</param>
+    /// <param name="final">Whether this is the final fragment.</param>
+    /// <returns>Visible text that can be emitted to the caller.</returns>
     public string Append(string fragment, bool final = false)
     {
         if (ErrorCode is not null) return "";
@@ -29,8 +39,14 @@ internal sealed class LocalAgentToolCallParser(int maximumCallCharacters = 16_38
                 var closeAt = _pending.ToString().IndexOf(Close, StringComparison.Ordinal);
                 if (closeAt < 0)
                 {
-                    _call.Append(_pending);
-                    _pending.Clear();
+                    var pendingText = _pending.ToString();
+                    var retainedMarkerPrefix = LongestMarkerPrefixSuffix(pendingText, Close);
+                    var safeLength = _pending.Length - retainedMarkerPrefix;
+                    if (safeLength > 0)
+                    {
+                        _call.Append(_pending.ToString(0, safeLength));
+                        _pending.Remove(0, safeLength);
+                    }
                     if (_call.Length > maximumCallCharacters) ErrorCode = "InvalidToolCallFormat";
                     if (final && ErrorCode is null) ErrorCode = "InvalidToolCallFormat";
                     break;
@@ -75,7 +91,7 @@ internal sealed class LocalAgentToolCallParser(int maximumCallCharacters = 16_38
             else
             {
                 var pendingText = _pending.ToString();
-                var retainedMarkerPrefix = LongestMarkerPrefixSuffix(pendingText);
+                var retainedMarkerPrefix = LongestMarkerPrefixSuffix(pendingText, Open);
                 var safeLength = _pending.Length - retainedMarkerPrefix;
                 if (safeLength > 0)
                 {
@@ -89,11 +105,11 @@ internal sealed class LocalAgentToolCallParser(int maximumCallCharacters = 16_38
         return emitted.ToString();
     }
 
-    private static int LongestMarkerPrefixSuffix(string text)
+    private static int LongestMarkerPrefixSuffix(string text, string marker)
     {
-        var maximum = Math.Min(text.Length, Open.Length - 1);
+        var maximum = Math.Min(text.Length, marker.Length - 1);
         for (var length = maximum; length > 0; length--)
-            if (text.AsSpan(text.Length - length).SequenceEqual(Open.AsSpan(0, length))) return length;
+            if (text.AsSpan(text.Length - length).SequenceEqual(marker.AsSpan(0, length))) return length;
         return 0;
     }
 
@@ -101,7 +117,8 @@ internal sealed class LocalAgentToolCallParser(int maximumCallCharacters = 16_38
     {
         try
         {
-            using var document = JsonDocument.Parse(json, new JsonDocumentOptions { MaxDepth = 16, CommentHandling = JsonCommentHandling.Disallow, AllowTrailingCommas = false });
+            // The outer envelope contributes one level above the arguments object.
+            using var document = JsonDocument.Parse(json, new JsonDocumentOptions { MaxDepth = MaximumArgumentsJsonDepth + 1, CommentHandling = JsonCommentHandling.Disallow, AllowTrailingCommas = false });
             if (document.RootElement.ValueKind != JsonValueKind.Object) return false;
             string? name = null;
             JsonElement? arguments = null;

@@ -27,6 +27,8 @@ public interface IAgentToolRegistry
     AgentToolDescriptor? FindInProcessDescriptor(string providerId, string? name) => null;
     string? GetInputSchemaJson(string? name);
     string? GetInProcessInputSchemaJson(string providerId, string? name) => null;
+    /// <summary>Output schema for a tool exposed to this trusted in-process provider.</summary>
+    string? GetInProcessOutputSchemaJson(string providerId, string? name) => null;
     string? GetOutputSchemaJson(string? name);
     Task<AgentToolInvocationResult> InvokeAsync(
         AgentPrincipal? principal,

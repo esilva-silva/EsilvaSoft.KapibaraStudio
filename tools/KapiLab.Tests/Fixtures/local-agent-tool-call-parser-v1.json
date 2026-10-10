@@ -1,0 +1,4637 @@
+{
+  "schema": "kapilab-local-agent-tool-call-parser-corpus-v1",
+  "contract": "qwen3-hermes-tool-call-envelope-v1",
+  "contractSource": "LocalAgentToolCallParser XML contract; Qwen3 Hermes <tool_call> JSON envelope; arguments object depth maximum 8",
+  "vectors": [
+    {
+      "id": "valid-000",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":0}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":0}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-001",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":1}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":1}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-002",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "2}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":2}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-003",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":3",
+        "}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":3}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-004",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":4}",
+        "}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":4}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-005",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":5}}",
+        "}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":5}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-006",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":6}}}",
+        "}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":{\"k6\":6}}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-007",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":7}}}}",
+        "}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":{\"k6\":{\"k7\":7}}}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-008",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":8}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":8}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-009",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":9}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":9}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-010",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "10}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":10}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-011",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":1",
+        "1}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":11}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-012",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":12",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":12}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-013",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":13}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":13}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-014",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":14}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":{\"k6\":14}}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-015",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":15}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":{\"k6\":{\"k7\":15}}}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-016",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":16}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":16}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-017",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":17}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":17}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-018",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "18}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":18}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-019",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":1",
+        "9}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":19}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-020",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":20",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":20}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-021",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":21}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":21}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-022",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":22}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":{\"k6\":22}}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-023",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":23}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":{\"k6\":{\"k7\":23}}}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-024",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":24}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":24}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-025",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":25}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":25}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-026",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "26}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":26}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-027",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":2",
+        "7}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":27}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-028",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":28",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":28}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-029",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":29}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":29}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-030",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":30}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":{\"k6\":30}}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-031",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":31}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":{\"k6\":{\"k7\":31}}}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-032",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":32}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":32}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-033",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":33}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":33}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-034",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "34}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":34}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-035",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":3",
+        "5}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":35}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-036",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":36",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":36}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-037",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":37}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":37}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-038",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":38}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":{\"k6\":38}}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-039",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":39}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":{\"k6\":{\"k7\":39}}}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-040",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":40}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":40}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-041",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":41}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":41}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-042",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "42}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":42}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-043",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":4",
+        "3}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":43}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-044",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":44",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":44}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-045",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":45}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":45}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-046",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":46}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":{\"k6\":46}}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-047",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":47}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":{\"k6\":{\"k7\":47}}}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-048",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":48}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":48}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-049",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":49}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":49}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-050",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "50}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":50}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-051",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":5",
+        "1}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":51}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-052",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":52",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":52}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-053",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":53}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":53}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-054",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":54}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":{\"k6\":54}}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-055",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":55}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":{\"k6\":{\"k7\":55}}}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-056",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":56}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":56}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-057",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":57}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":57}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-058",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "58}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":58}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-059",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":5",
+        "9}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":59}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-060",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":60",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":60}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-061",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":61}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":61}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-062",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":62}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":{\"k6\":62}}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-063",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":63}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":{\"k6\":{\"k7\":63}}}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-064",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":64}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":64}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-065",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":65}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":65}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-066",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "66}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":66}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-067",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":6",
+        "7}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":67}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-068",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":68",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":68}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-069",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":69}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":69}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-070",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":70}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":{\"k6\":70}}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-071",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":71}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":{\"k6\":{\"k7\":71}}}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-072",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":72}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":72}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-073",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":73}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":73}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-074",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "74}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":74}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-075",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":7",
+        "5}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":75}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-076",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":76",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":76}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-077",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":77}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":77}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-078",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":78}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":{\"k6\":78}}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-079",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":79}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":{\"k6\":{\"k7\":79}}}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-080",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":80}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":80}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-081",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":81}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":81}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-082",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "82}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":82}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-083",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":8",
+        "3}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":83}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-084",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":84",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":84}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-085",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":85}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":85}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-086",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":86}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":{\"k6\":86}}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-087",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":87}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":{\"k6\":{\"k7\":87}}}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-088",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":88}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":88}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-089",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":89}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":89}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-090",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "90}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":90}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-091",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":9",
+        "1}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":91}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-092",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":92",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":92}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-093",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":93}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":93}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-094",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":94}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":{\"k6\":94}}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-095",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":95}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":{\"k4\":{\"k5\":{\"k6\":{\"k7\":95}}}}}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-096",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":96}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":96}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-097",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":97}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":97}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-098",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "98}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":98}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "valid-099",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":9",
+        "9}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": true,
+        "toolName": "get_indexes",
+        "argumentsJson": "{\"k0\":{\"k1\":{\"k2\":{\"k3\":99}}}}",
+        "errorCode": null
+      }
+    },
+    {
+      "id": "invalid-json-000",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken0\":",
+        "}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-json-001",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken1\":",
+        "}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-json-002",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken2\":",
+        "}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-json-003",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken3\":",
+        "}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-json-004",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken4\":",
+        "}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-json-005",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken5\":",
+        "}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-json-006",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken6\":",
+        "}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-json-007",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken7\":",
+        "}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-json-008",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken8\":",
+        "}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-json-009",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken9\":",
+        "}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-json-010",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken10\"",
+        ":}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-json-011",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken11\"",
+        ":}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-json-012",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken12\"",
+        ":}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-json-013",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken13\"",
+        ":}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-json-014",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken14\"",
+        ":}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-json-015",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken15\"",
+        ":}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-json-016",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken16\"",
+        ":}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-json-017",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken17\"",
+        ":}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-json-018",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken18\"",
+        ":}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-json-019",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken19\"",
+        ":}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-json-020",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken20\"",
+        ":}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-json-021",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken21\"",
+        ":}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-json-022",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken22\"",
+        ":}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-json-023",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken23\"",
+        ":}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-json-024",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken24\"",
+        ":}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-json-025",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken25\"",
+        ":}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-json-026",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken26\"",
+        ":}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-json-027",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken27\"",
+        ":}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-json-028",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken28\"",
+        ":}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-json-029",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken29\"",
+        ":}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-json-030",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken30\"",
+        ":}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-json-031",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken31\"",
+        ":}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-json-032",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken32\"",
+        ":}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-json-033",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"br",
+        "oken33\"",
+        ":}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-shape-000",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":[0]}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-shape-001",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":[1]}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-shape-002",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":[2]}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-shape-003",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":[3]}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-shape-004",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":[4]}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-shape-005",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":[5]}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-shape-006",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":[6]}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-shape-007",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":[7]}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-shape-008",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":[8]}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-shape-009",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":[9]}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-shape-010",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":[10]",
+        "}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-shape-011",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":[11]",
+        "}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-shape-012",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":[12]",
+        "}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-shape-013",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":[13]",
+        "}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-shape-014",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":[14]",
+        "}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-shape-015",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":[15]",
+        "}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-shape-016",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":[16]",
+        "}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-shape-017",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":[17]",
+        "}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-shape-018",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":[18]",
+        "}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-shape-019",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":[19]",
+        "}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-shape-020",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":[20]",
+        "}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-shape-021",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":[21]",
+        "}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-shape-022",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":[22]",
+        "}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-shape-023",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":[23]",
+        "}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-shape-024",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":[24]",
+        "}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-shape-025",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":[25]",
+        "}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-shape-026",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":[26]",
+        "}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-shape-027",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":[27]",
+        "}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-shape-028",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":[28]",
+        "}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-shape-029",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":[29]",
+        "}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-shape-030",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":[30]",
+        "}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-shape-031",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":[31]",
+        "}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-shape-032",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":[32]",
+        "}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-depth-000",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":{\"k8\"",
+        ":0}}}}}",
+        "}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-depth-001",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":{\"k8\"",
+        ":1}}}}}",
+        "}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-depth-002",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":{\"k8\"",
+        ":2}}}}}",
+        "}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-depth-003",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":{\"k8\"",
+        ":3}}}}}",
+        "}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-depth-004",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":{\"k8\"",
+        ":4}}}}}",
+        "}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-depth-005",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":{\"k8\"",
+        ":5}}}}}",
+        "}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-depth-006",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":{\"k8\"",
+        ":6}}}}}",
+        "}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-depth-007",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":{\"k8\"",
+        ":7}}}}}",
+        "}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-depth-008",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":{\"k8\"",
+        ":8}}}}}",
+        "}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-depth-009",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":{\"k8\"",
+        ":9}}}}}",
+        "}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-depth-010",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":{\"k8\"",
+        ":10}}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-depth-011",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":{\"k8\"",
+        ":11}}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-depth-012",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":{\"k8\"",
+        ":12}}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-depth-013",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":{\"k8\"",
+        ":13}}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-depth-014",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":{\"k8\"",
+        ":14}}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-depth-015",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":{\"k8\"",
+        ":15}}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-depth-016",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":{\"k8\"",
+        ":16}}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-depth-017",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":{\"k8\"",
+        ":17}}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-depth-018",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":{\"k8\"",
+        ":18}}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-depth-019",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":{\"k8\"",
+        ":19}}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-depth-020",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":{\"k8\"",
+        ":20}}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-depth-021",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":{\"k8\"",
+        ":21}}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-depth-022",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":{\"k8\"",
+        ":22}}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-depth-023",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":{\"k8\"",
+        ":23}}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-depth-024",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":{\"k8\"",
+        ":24}}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-depth-025",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":{\"k8\"",
+        ":25}}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-depth-026",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":{\"k8\"",
+        ":26}}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-depth-027",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":{\"k8\"",
+        ":27}}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-depth-028",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":{\"k8\"",
+        ":28}}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-depth-029",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":{\"k8\"",
+        ":29}}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-depth-030",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":{\"k8\"",
+        ":30}}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-depth-031",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":{\"k8\"",
+        ":31}}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    },
+    {
+      "id": "invalid-depth-032",
+      "fragments": [
+        "<tool_c",
+        "all>{\"n",
+        "ame\":\"g",
+        "et_inde",
+        "xes\",\"a",
+        "rgument",
+        "s\":{\"k0",
+        "\":{\"k1\"",
+        ":{\"k2\":",
+        "{\"k3\":{",
+        "\"k4\":{\"",
+        "k5\":{\"k",
+        "6\":{\"k7",
+        "\":{\"k8\"",
+        ":32}}}}",
+        "}}}}}}",
+        "</tool_call>"
+      ],
+      "expected": {
+        "valid": false,
+        "toolName": null,
+        "argumentsJson": null,
+        "errorCode": "InvalidToolCallFormat"
+      }
+    }
+  ]
+}

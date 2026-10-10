@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>EsilvaSoft.KapibaraStudio.KapiLab.GpuLockChild</AssemblyName>
+    <RootNamespace>EsilvaSoft.KapibaraStudio.KapiLab.GpuLockChild</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" VersionOverride="10.0.10" />
+    <ProjectReference Include="../../KapiLab/KapiLab.csproj" />
+  </ItemGroup>
+</Project>

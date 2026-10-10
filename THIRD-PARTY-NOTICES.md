@@ -4,6 +4,7 @@ EsilvaSoft.KapibaraStudio mantém sua licença MIT. Estas dependências têm lic
 
 | Dependência | Versão | Licença | Autoria / origem |
 | --- | --- | --- | --- |
+| System.CommandLine | 2.0.12 | MIT | Microsoft — https://github.com/dotnet/command-line-api |
 | Jint | 4.16.0 | BSD-2-Clause | Sébastien Ros — https://github.com/sebastienros/jint |
 | Acornima | 1.7.0 | BSD-3-Clause | Adam Simon — https://github.com/adams85/acornima |
 
