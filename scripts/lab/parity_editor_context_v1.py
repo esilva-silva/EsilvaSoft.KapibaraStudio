@@ -39,15 +39,30 @@ def safe_path(path: Path, workspace: Path, *, output: bool = False) -> Path:
     return absolute
 
 
-def write_jsonl(path: Path, records: list[dict]) -> None:
-    temporary = path.with_suffix(path.suffix + ".tmp")
+def write_text_atomic(path: Path, value: str, workspace: Path) -> None:
+    path = safe_path(path, workspace, output=True)
+    temporary = None
     try:
-        with temporary.open("w", encoding="utf-8", newline="\n") as stream:
-            for record in records:
-                stream.write(json.dumps(record, ensure_ascii=True) + "\n")
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", newline="\n",
+                                         dir=path.parent, prefix=path.name + ".", suffix=".tmp", delete=False) as stream:
+            temporary = Path(stream.name)
+            stream.write(value)
+        safe_path(path, workspace, output=True)
         temporary.replace(path)
     finally:
-        temporary.unlink(missing_ok=True)
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
+
+def write_jsonl(path: Path, records: list[dict], workspace: Path) -> None:
+    write_text_atomic(path, "".join(json.dumps(record, ensure_ascii=True) + "\n" for record in records), workspace)
+
+
+def validate_artifacts(destination: Path, workspace: Path, inputs: list[Path]) -> None:
+    for name in ("render-ide.jsonl", "render-py.jsonl", "tokens-ide.jsonl", "tokens-py.jsonl", "diff.json", "summary.md"):
+        output = safe_path(destination / name, workspace, output=True)
+        if output in inputs:
+            raise ValueError("Saída não pode sobrescrever um insumo.")
 
 
 def read_jsonl(path: Path) -> list[dict]:
@@ -73,6 +88,7 @@ def run(args) -> int:
     package = safe_path(Path(args.package), workspace)
     tokenizer_path = safe_path(Path(args.tokenizer), workspace)
     destination = safe_path(workspace / args.out, workspace, output=True)
+    validate_artifacts(destination, workspace, [corpus, reference_path])
     destination.mkdir(parents=True, exist_ok=True)
     spec = importlib.util.spec_from_file_location("parity_external_contracts", reference_path)
     reference = importlib.util.module_from_spec(spec)
@@ -113,15 +129,15 @@ def run(args) -> int:
                              "context": {"language": reference.LANGUAGE_SCRIPT, "known_names": [sample["collection"]]}})
         mapped = [map_record(record, reference) for record in selected]
         input_path, raw_path = scratch / "input.jsonl", scratch / "render.jsonl"
-        write_jsonl(input_path, [item[0] for item in mapped])
+        write_jsonl(input_path, [item[0] for item in mapped], workspace)
         cli(["contract", "render", "--contract", "editor-context-v1", "--in", str(input_path), "--out", str(raw_path)])
         ide_render = read_jsonl(raw_path)
         python_render = []
         for _, example in mapped:
             prefix, suffix = reference.prompt_text(example)
             python_render.append({"id": example["id"], "modelPrefixSha256": text_hash(prefix), "suffixSha256": text_hash(suffix)})
-        write_jsonl(destination / "render-ide.jsonl", [{key: row[key] for key in ("id", "modelPrefixSha256", "suffixSha256")} for row in ide_render])
-        write_jsonl(destination / "render-py.jsonl", python_render)
+        write_jsonl(destination / "render-ide.jsonl", [{key: row[key] for key in ("id", "modelPrefixSha256", "suffixSha256")} for row in ide_render], workspace)
+        write_jsonl(destination / "render-py.jsonl", python_render, workspace)
         cli(["contract", "tokenize", "--package", str(package), "--in", str(raw_path), "--context-tokens", "2048",
              "--completion-tokens", "32", "--out", str(destination / "tokens-ide.jsonl")])
         # Identity is provenance only; compute file hashes independently rather than copying IDE hashes.
@@ -133,7 +149,7 @@ def run(args) -> int:
             python_tokens.append({"schema": "kapilab-tokenized-contract-v2", "contract": "editor-context-v1", **rendered,
                                   "contextTokens": 2048, "requestedContextTokens": 2048, "completionTokens": 32,
                                   "tokenizer": identity, "tokenIds": reference.prompt_ids(contract, example, 2048)})
-        write_jsonl(destination / "tokens-py.jsonl", python_tokens)
+        write_jsonl(destination / "tokens-py.jsonl", python_tokens, workspace)
         try:
             cli(["contract", "diff", "--expected", str(destination / "tokens-py.jsonl"),
                  "--actual", str(destination / "tokens-ide.jsonl"), "--out", str(destination / "diff.json")])
@@ -160,7 +176,7 @@ def run(args) -> int:
         summary += f"- {label}: SHA-256 `{digest(path)}`\n"
     for path in sorted(destination.glob("*.json*")):
         summary += f"- {path.name}: SHA-256 `{digest(path)}`\n"
-    (destination / "summary.md").write_text(summary, encoding="utf-8")
+    write_text_atomic(destination / "summary.md", summary, workspace)
     print(json.dumps({"records": 2000, "render_differences": render_differences, "token_differences": len(diff["differences"]), "exit": exit_code}))
     return 11 if render_differences else exit_code
 

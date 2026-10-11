@@ -2,6 +2,8 @@
 
 ## Catálogo de conhecimento e paridade — PR 1 (10/10/2026)
 
+O [aceite por critério](aceite-pr-1.md) registra a auditoria vigente. O script valida cada arquivo de relatório contra links/junctions e recusa colisão com corpus/referência; a escrita Python usa temporários exclusivos, substituição atômica e limpeza em falha, inclusive para summary. A suíte Python atual passa 20/20.
+
 Build/teste pelo wrapper oficial, com restore locked. Em isolamento use `-Offline`; VSTest precisa de loopback local para conectar ao testhost. Não executar a prova de paridade no CI/release: ela inicializa o modelo GenAI real para tokenização.
 
 ```powershell

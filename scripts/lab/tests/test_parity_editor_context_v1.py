@@ -3,6 +3,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from types import SimpleNamespace
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import kapilab
@@ -40,9 +41,33 @@ class ParityPreparationTests(unittest.TestCase):
             path.parent.mkdir(parents=True)
             parity.safe_path(path, root, output=True)
             records = [{"id": "x", "value": "á\r\n😀"}]
-            parity.write_jsonl(path, records)
+            parity.write_jsonl(path, records, root)
             self.assertEqual(parity.read_jsonl(path), records)
-            self.assertFalse(path.with_suffix(".jsonl.tmp").exists())
+            self.assertEqual(list(path.parent.glob("*.tmp")), [])
+
+    def test_artifact_guard_refuses_input_overwrite_and_linked_report(self):
+        root = Path(__file__).resolve().parents[3]
+        destination = root / "reports/lab/parity-guard-test"
+        with self.assertRaises(ValueError):
+            parity.validate_artifacts(destination, root, [destination / "render-py.jsonl"])
+        linked = destination / "summary.md"
+        with patch.object(Path, "is_symlink", lambda path: path == linked):
+            with self.assertRaises(ValueError):
+                parity.validate_artifacts(destination, root, [])
+
+    def test_failed_atomic_replace_keeps_previous_report_and_cleans_temporary(self):
+        temporary_root = Path(__file__).resolve().parents[3] / "tmp"
+        temporary_root.mkdir(exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=temporary_root) as temporary:
+            root = Path(temporary)
+            path = root / "reports/lab/summary.md"
+            path.parent.mkdir(parents=True)
+            path.write_text("anterior", encoding="utf-8")
+            with patch.object(Path, "replace", side_effect=OSError("falha simulada")):
+                with self.assertRaises(OSError):
+                    parity.write_text_atomic(path, "novo", root)
+            self.assertEqual(path.read_text(encoding="utf-8"), "anterior")
+            self.assertEqual(list(path.parent.glob("*.tmp")), [])
 
     def test_wrapper_binds_nested_catalog_summary(self):
         self.assertEqual(kapilab._command_name(["catalog", "knowledge", "export"]), "catalog.knowledge.export")

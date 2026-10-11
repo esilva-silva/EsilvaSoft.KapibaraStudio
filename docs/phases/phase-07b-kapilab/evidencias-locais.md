@@ -2,6 +2,8 @@
 
 ## PR 1: catálogo de conhecimento e paridade — 10/10/2026
 
+**Auditoria de conclusão em 10/10/2026:** os TRX Cpu/WinML foram relidos e confirmaram os seis testes novos de catálogo aprovados por backend, 268 aprovados/271 total e os mesmos hashes abaixo. Os dois apphosts publicados passaram a verificação do lock. Cada arquivo render/token contém 2.000 IDs únicos; `catalog knowledge check` retornou 0 no catálogo entregue. A proteção do script Python foi completada para validar cada arquivo de relatório, recusar sobrescrita dos insumos e gravar também summary atomicamente com temporário exclusivo. Testes de link/colisão e falha de replace confirmam que o relatório anterior é preservado e o temporário removido. A suíte Python atual passou **20/20**; a prova completa foi repetida pelo apphost Cpu e retornou novamente **2.000 registros, 0 divergências de hashes, 0 de tokens, diff=0**. [Auditoria por critério](aceite-pr-1.md).
+
 HEAD `0dbb4ddae86d781f9d352db16a8d842aac116fa7`, alterações locais (`ideDirty=true`), Windows x64, GenAI 0.15.2. Nenhum arquivo de produto alterado. Referência externa PR 1 interpretada como requisitos, não autorização para alterar o pipeline externo, executar MongoDB ou treinar.
 
 `catalog knowledge export/check` implementados usando o `KnowledgeCatalog`/`LanguageCatalogSource` e `MongoSyntaxVocabulary` reais. O export cobre os 475 símbolos/20 kinds do recurso embarcado; fonte de metadados que até anuncia kinds de linguagem é excluída antes da consulta. DTO omite Scope/Field/evidência do usuário. Testes de contagem por kind, determinismo, hash inválido, filtros, added/removed/changed por ID, escrita atômica e códigos 0/7 passaram.
