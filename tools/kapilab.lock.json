@@ -5,22 +5,22 @@
       "backend": "Cpu",
       "rid": "win-x64",
       "executable": "../artifacts/f7b/publish/Cpu/win-x64/EsilvaSoft.KapibaraStudio.KapiLab.exe",
-      "sha256": "5dedd293bad1d3ee762d41a2cbe05afcb7a5c0ab3368f239cb619071d663ed31",
-      "contentSha256": "db22447ca24ab69182e4b2d239e7a3a85f876f5fe78e83dedff7f3b3cd9ee20b",
+      "sha256": "a8da67cfd511f1e57a11b121bfb21166422364fcd15ec411d93e9f5b9000735e",
+      "contentSha256": "600246bd64cf07fd2f6f3a0f6d401b841a7ba55d558babce66c279d7ff471bce",
       "genAiVersion": "0.15.2",
       "runtime": "10.0.12",
-      "ideCommit": "0dbb4ddae86d781f9d352db16a8d842aac116fa7",
+      "ideCommit": "b1e10b09187e7202e8372fed08ddbb26b9de8850",
       "ideDirty": true
     },
     {
       "backend": "WinML",
       "rid": "win-x64",
       "executable": "../artifacts/f7b/publish/WinML/win-x64/EsilvaSoft.KapibaraStudio.KapiLab.exe",
-      "sha256": "5dedd293bad1d3ee762d41a2cbe05afcb7a5c0ab3368f239cb619071d663ed31",
-      "contentSha256": "538ffaf489bddd660c5a86b72126c5968bf97ffe31bb3d542db972f8b322a687",
+      "sha256": "a8da67cfd511f1e57a11b121bfb21166422364fcd15ec411d93e9f5b9000735e",
+      "contentSha256": "18a9fbab0026301dc2ea3a84a5717626ea6848165926f0fab9c254ff068c5340",
       "genAiVersion": "0.15.2",
       "runtime": "10.0.12",
-      "ideCommit": "0dbb4ddae86d781f9d352db16a8d842aac116fa7",
+      "ideCommit": "b1e10b09187e7202e8372fed08ddbb26b9de8850",
       "ideDirty": true
     }
   ]

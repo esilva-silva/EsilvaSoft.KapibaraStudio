@@ -1,0 +1,1025 @@
+{
+  "schema": "kapilab-agent-trajectory-v1",
+  "domains": [
+    "tools/KapiLab/Fixtures/kapi-sim/domains/store.json",
+    "tools/KapiLab/Fixtures/kapi-sim/domains/logistics.json",
+    "tools/KapiLab/Fixtures/kapi-sim/domains/iot.json"
+  ],
+  "maxToolResultBytes": 65536,
+  "cases": [
+    {
+      "id": "list_connections-success-00",
+      "tool": "list_connections",
+      "arguments": {},
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed",
+      "expectedToolResponse": "{\"status\":\"Succeeded\",\"result\":\"{\\\"connections\\\":[{\\\"id\\\":\\\"<volatile>\\\",\\\"name\\\":\\\"KapiSim sint\\\\u00e9tico\\\",\\\"readOnly\\\":true}],\\\"truncated\\\":false}\",\"error\":null,\"truncated\":false}",
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "list_connections-permission_missing",
+      "tool": "list_connections",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "permission_missing",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed",
+      "expectedToolResponse": "{\"status\":\"Succeeded\",\"result\":\"{\\\"connections\\\":[],\\\"truncated\\\":false}\",\"error\":null,\"truncated\":false}",
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "list_connections-invalid_arguments",
+      "tool": "list_connections",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "invalid_arguments",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "InvalidArguments",
+      "expectedAuditReason": "ValidationRejected",
+      "expectedToolResponse": "{\"status\":\"Failed\",\"result\":\"InvalidArguments\",\"error\":\"InvalidArguments\",\"truncated\":false}",
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "list_connections-quota_exceeded",
+      "tool": "list_connections",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "quota_exceeded",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ToolCallLimitExceeded",
+      "expectedToolResponse": null,
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "list_databases-success-00",
+      "tool": "list_databases",
+      "arguments": {
+        "connectionId": "$fixture"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed",
+      "expectedToolResponse": "{\"status\":\"Succeeded\",\"result\":\"{\\\"names\\\":[\\\"kapi_sim_iot\\\",\\\"kapi_sim_logistics\\\",\\\"kapi_sim_store\\\"],\\\"truncated\\\":false}\",\"error\":null,\"truncated\":false}",
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "list_databases-permission_missing",
+      "tool": "list_databases",
+      "arguments": {
+        "connectionId": "$fixture"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "permission_missing",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "PermissionDenied",
+      "expectedAuditReason": "PermissionMissing",
+      "expectedToolResponse": "{\"status\":\"Denied\",\"result\":\"PermissionDenied\",\"error\":\"PermissionDenied\",\"truncated\":false}",
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "list_databases-invalid_arguments",
+      "tool": "list_databases",
+      "arguments": {
+        "connectionId": "$fixture"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "invalid_arguments",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "InvalidArguments",
+      "expectedAuditReason": "ValidationRejected",
+      "expectedToolResponse": "{\"status\":\"Failed\",\"result\":\"InvalidArguments\",\"error\":\"InvalidArguments\",\"truncated\":false}",
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "list_databases-quota_exceeded",
+      "tool": "list_databases",
+      "arguments": {
+        "connectionId": "$fixture"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "quota_exceeded",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ToolCallLimitExceeded",
+      "expectedToolResponse": null,
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "list_collections-success-00",
+      "tool": "list_collections",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_store"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed",
+      "expectedToolResponse": "{\"status\":\"Succeeded\",\"result\":\"{\\\"names\\\":[\\\"items\\\"],\\\"truncated\\\":false}\",\"error\":null,\"truncated\":false}",
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "list_collections-permission_missing",
+      "tool": "list_collections",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "permission_missing",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "PermissionDenied",
+      "expectedAuditReason": "PermissionMissing",
+      "expectedToolResponse": "{\"status\":\"Denied\",\"result\":\"PermissionDenied\",\"error\":\"PermissionDenied\",\"truncated\":false}",
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "list_collections-invalid_arguments",
+      "tool": "list_collections",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "invalid_arguments",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "InvalidArguments",
+      "expectedAuditReason": "ValidationRejected",
+      "expectedToolResponse": "{\"status\":\"Failed\",\"result\":\"InvalidArguments\",\"error\":\"InvalidArguments\",\"truncated\":false}",
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "list_collections-quota_exceeded",
+      "tool": "list_collections",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "quota_exceeded",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ToolCallLimitExceeded",
+      "expectedToolResponse": null,
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "get_indexes-success-00",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_store",
+        "collection": "items"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed",
+      "expectedToolResponse": "{\"status\":\"Succeeded\",\"result\":\"{\\\"indexes\\\":[{\\\"name\\\":\\\"_id_\\\",\\\"keyFields\\\":[\\\"_id\\\"],\\\"unique\\\":false,\\\"sparse\\\":false,\\\"hidden\\\":false,\\\"keyDirections\\\":[\\\"1\\\"]},{\\\"name\\\":\\\"code_unique\\\",\\\"keyFields\\\":[\\\"code\\\"],\\\"unique\\\":true,\\\"sparse\\\":false,\\\"hidden\\\":false,\\\"keyDirections\\\":[\\\"1\\\"]},{\\\"name\\\":\\\"category_quantity\\\",\\\"keyFields\\\":[\\\"category\\\",\\\"quantity\\\"],\\\"unique\\\":false,\\\"sparse\\\":false,\\\"hidden\\\":false,\\\"keyDirections\\\":[\\\"1\\\",\\\"-1\\\"]}],\\\"truncated\\\":false}\",\"error\":null,\"truncated\":false}",
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "get_indexes-permission_missing",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "permission_missing",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "PermissionDenied",
+      "expectedAuditReason": "PermissionMissing",
+      "expectedToolResponse": "{\"status\":\"Denied\",\"result\":\"PermissionDenied\",\"error\":\"PermissionDenied\",\"truncated\":false}",
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "get_indexes-invalid_arguments",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "invalid_arguments",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "InvalidArguments",
+      "expectedAuditReason": "ValidationRejected",
+      "expectedToolResponse": "{\"status\":\"Failed\",\"result\":\"InvalidArguments\",\"error\":\"InvalidArguments\",\"truncated\":false}",
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "get_indexes-quota_exceeded",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "quota_exceeded",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ToolCallLimitExceeded",
+      "expectedToolResponse": null,
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "get_search_indexes-success-00",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_store",
+        "collection": "items"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ExecutionFailed",
+      "expectedAuditReason": "ExecutionFailed",
+      "expectedToolResponse": "{\"status\":\"Failed\",\"result\":\"ExecutionFailed\",\"error\":\"ExecutionFailed\",\"truncated\":false}",
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "get_search_indexes-permission_missing",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "permission_missing",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "PermissionDenied",
+      "expectedAuditReason": "PermissionMissing",
+      "expectedToolResponse": "{\"status\":\"Denied\",\"result\":\"PermissionDenied\",\"error\":\"PermissionDenied\",\"truncated\":false}",
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "get_search_indexes-invalid_arguments",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "invalid_arguments",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "InvalidArguments",
+      "expectedAuditReason": "ValidationRejected",
+      "expectedToolResponse": "{\"status\":\"Failed\",\"result\":\"InvalidArguments\",\"error\":\"InvalidArguments\",\"truncated\":false}",
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "get_search_indexes-quota_exceeded",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "quota_exceeded",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ToolCallLimitExceeded",
+      "expectedToolResponse": null,
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "get_cached_schema-success-00",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_store",
+        "collection": "items"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed",
+      "expectedToolResponse": "{\"status\":\"Succeeded\",\"result\":\"{\\\"available\\\":true,\\\"source\\\":\\\"sampled\\\",\\\"observedAt\\\":\\\"<volatile>\\\",\\\"freshness\\\":\\\"fresh\\\",\\\"sampleSize\\\":36,\\\"fields\\\":[{\\\"path\\\":\\\"_id\\\",\\\"types\\\":[{\\\"type\\\":\\\"int\\\",\\\"count\\\":36}],\\\"primaryType\\\":\\\"int\\\",\\\"occurrence\\\":1},{\\\"path\\\":\\\"code\\\",\\\"types\\\":[{\\\"type\\\":\\\"string\\\",\\\"count\\\":36}],\\\"primaryType\\\":\\\"string\\\",\\\"occurrence\\\":1},{\\\"path\\\":\\\"category\\\",\\\"types\\\":[{\\\"type\\\":\\\"string\\\",\\\"count\\\":36}],\\\"primaryType\\\":\\\"string\\\",\\\"occurrence\\\":1},{\\\"path\\\":\\\"quantity\\\",\\\"types\\\":[{\\\"type\\\":\\\"int\\\",\\\"count\\\":36}],\\\"primaryType\\\":\\\"int\\\",\\\"occurrence\\\":1},{\\\"path\\\":\\\"active\\\",\\\"types\\\":[{\\\"type\\\":\\\"bool\\\",\\\"count\\\":36}],\\\"primaryType\\\":\\\"bool\\\",\\\"occurrence\\\":1},{\\\"path\\\":\\\"details\\\",\\\"types\\\":[{\\\"type\\\":\\\"object\\\",\\\"count\\\":36}],\\\"primaryType\\\":\\\"object\\\",\\\"occurrence\\\":1},{\\\"path\\\":\\\"details.label\\\",\\\"types\\\":[{\\\"type\\\":\\\"string\\\",\\\"count\\\":36}],\\\"primaryType\\\":\\\"string\\\",\\\"occurrence\\\":1},{\\\"path\\\":\\\"details.score\\\",\\\"types\\\":[{\\\"type\\\":\\\"double\\\",\\\"count\\\":36}],\\\"primaryType\\\":\\\"double\\\",\\\"occurrence\\\":1}],\\\"truncated\\\":false}\",\"error\":null,\"truncated\":false}",
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "get_cached_schema-permission_missing",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "permission_missing",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "PermissionDenied",
+      "expectedAuditReason": "PermissionMissing",
+      "expectedToolResponse": "{\"status\":\"Denied\",\"result\":\"PermissionDenied\",\"error\":\"PermissionDenied\",\"truncated\":false}",
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "get_cached_schema-invalid_arguments",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "invalid_arguments",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "InvalidArguments",
+      "expectedAuditReason": "ValidationRejected",
+      "expectedToolResponse": "{\"status\":\"Failed\",\"result\":\"InvalidArguments\",\"error\":\"InvalidArguments\",\"truncated\":false}",
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "get_cached_schema-quota_exceeded",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "quota_exceeded",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ToolCallLimitExceeded",
+      "expectedToolResponse": null,
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "get_workspace_context-success-00",
+      "tool": "get_workspace_context",
+      "arguments": {},
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed",
+      "expectedToolResponse": "{\"status\":\"Succeeded\",\"result\":\"{\\\"workspaceFolder\\\":\\\"<volatile>\\\",\\\"activeFile\\\":{\\\"name\\\":\\\"query.js\\\",\\\"relativePath\\\":\\\"query.js\\\",\\\"insideWorkspace\\\":true,\\\"excluded\\\":false},\\\"tab\\\":{\\\"connectionId\\\":\\\"<volatile>\\\",\\\"connectionName\\\":\\\"KapiSim sint\\\\u00e9tico\\\",\\\"database\\\":\\\"kapi_sim_store\\\",\\\"collection\\\":\\\"items\\\",\\\"connectionInScope\\\":true}}\",\"error\":null,\"truncated\":false}",
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "get_workspace_context-permission_missing",
+      "tool": "get_workspace_context",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "permission_missing",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "UnknownTool",
+      "expectedToolResponse": "{\"status\":\"Failed\",\"result\":\"UnknownTool\",\"error\":\"UnknownTool\",\"truncated\":false}",
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "get_workspace_context-invalid_arguments",
+      "tool": "get_workspace_context",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "invalid_arguments",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "InvalidArguments",
+      "expectedAuditReason": "ValidationRejected",
+      "expectedToolResponse": "{\"status\":\"Failed\",\"result\":\"InvalidArguments\",\"error\":\"InvalidArguments\",\"truncated\":false}",
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "get_workspace_context-quota_exceeded",
+      "tool": "get_workspace_context",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "quota_exceeded",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ToolCallLimitExceeded",
+      "expectedToolResponse": null,
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "get_query_results-success-00",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 0,
+        "limit": 3
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed",
+      "expectedToolResponse": "{\"status\":\"Succeeded\",\"result\":\"{\\\"available\\\":true,\\\"executionId\\\":\\\"<volatile>\\\",\\\"tabId\\\":\\\"kapi-sim-tab\\\",\\\"resultIndex\\\":0,\\\"resultSetCount\\\":1,\\\"results\\\":[\\\"{\\\\r\\\\n  \\\\\\\"_id\\\\\\\" : { \\\\\\\"$numberInt\\\\\\\" : \\\\\\\"1\\\\\\\" },\\\\r\\\\n  \\\\\\\"code\\\\\\\" : \\\\\\\"store-001\\\\\\\",\\\\r\\\\n  \\\\\\\"category\\\\\\\" : \\\\\\\"grupo-1\\\\\\\",\\\\r\\\\n  \\\\\\\"quantity\\\\\\\" : { \\\\\\\"$numberInt\\\\\\\" : \\\\\\\"3\\\\\\\" },\\\\r\\\\n  \\\\\\\"active\\\\\\\" : false,\\\\r\\\\n  \\\\\\\"details\\\\\\\" : {\\\\r\\\\n    \\\\\\\"label\\\\\\\" : \\\\\\\"produto ficticio 1\\\\\\\",\\\\r\\\\n    \\\\\\\"score\\\\\\\" : { \\\\\\\"$numberDouble\\\\\\\" : \\\\\\\"0.10000000000000001\\\\\\\" }\\\\r\\\\n  }\\\\r\\\\n}\\\",\\\"{\\\\r\\\\n  \\\\\\\"_id\\\\\\\" : { \\\\\\\"$numberInt\\\\\\\" : \\\\\\\"2\\\\\\\" },\\\\r\\\\n  \\\\\\\"code\\\\\\\" : \\\\\\\"store-002\\\\\\\",\\\\r\\\\n  \\\\\\\"category\\\\\\\" : \\\\\\\"grupo-2\\\\\\\",\\\\r\\\\n  \\\\\\\"quantity\\\\\\\" : { \\\\\\\"$numberInt\\\\\\\" : \\\\\\\"6\\\\\\\" },\\\\r\\\\n  \\\\\\\"active\\\\\\\" : true,\\\\r\\\\n  \\\\\\\"details\\\\\\\" : {\\\\r\\\\n    \\\\\\\"label\\\\\\\" : \\\\\\\"produto ficticio 2\\\\\\\",\\\\r\\\\n    \\\\\\\"score\\\\\\\" : { \\\\\\\"$numberDouble\\\\\\\" : \\\\\\\"0.20000000000000001\\\\\\\" }\\\\r\\\\n  }\\\\r\\\\n}\\\",\\\"{\\\\r\\\\n  \\\\\\\"_id\\\\\\\" : { \\\\\\\"$numberInt\\\\\\\" : \\\\\\\"3\\\\\\\" },\\\\r\\\\n  \\\\\\\"code\\\\\\\" : \\\\\\\"store-003\\\\\\\",\\\\r\\\\n  \\\\\\\"category\\\\\\\" : \\\\\\\"grupo-3\\\\\\\",\\\\r\\\\n  \\\\\\\"quantity\\\\\\\" : { \\\\\\\"$numberInt\\\\\\\" : \\\\\\\"9\\\\\\\" },\\\\r\\\\n  \\\\\\\"active\\\\\\\" : false,\\\\r\\\\n  \\\\\\\"details\\\\\\\" : {\\\\r\\\\n    \\\\\\\"label\\\\\\\" : \\\\\\\"produto ficticio 3\\\\\\\",\\\\r\\\\n    \\\\\\\"score\\\\\\\" : { \\\\\\\"$numberDouble\\\\\\\" : \\\\\\\"0.29999999999999999\\\\\\\" }\\\\r\\\\n  }\\\\r\\\\n}\\\"],\\\"hasMore\\\":true,\\\"truncated\\\":false,\\\"sourceTruncated\\\":false}\",\"error\":null,\"truncated\":false}",
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "get_query_results-permission_missing",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 19,
+        "limit": 3
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "permission_missing",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "PermissionDenied",
+      "expectedAuditReason": "ValidationRejected",
+      "expectedToolResponse": "{\"status\":\"Denied\",\"result\":\"PermissionDenied\",\"error\":\"PermissionDenied\",\"truncated\":false}",
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "get_query_results-invalid_arguments",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 19,
+        "limit": 3
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "invalid_arguments",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "InvalidArguments",
+      "expectedAuditReason": "ValidationRejected",
+      "expectedToolResponse": "{\"status\":\"Failed\",\"result\":\"InvalidArguments\",\"error\":\"InvalidArguments\",\"truncated\":false}",
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "get_query_results-quota_exceeded",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 19,
+        "limit": 3
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "quota_exceeded",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ToolCallLimitExceeded",
+      "expectedToolResponse": null,
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "get_query_diagnostics-success-00",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed",
+      "expectedToolResponse": "{\"status\":\"Succeeded\",\"result\":\"{\\\"available\\\":true,\\\"executionId\\\":\\\"<volatile>\\\",\\\"tabId\\\":\\\"kapi-sim-tab\\\",\\\"status\\\":\\\"Succeeded\\\",\\\"errorCode\\\":null,\\\"messages\\\":\\\"\\\",\\\"errors\\\":\\\"\\\",\\\"durationMs\\\":\\\"<volatile>\\\",\\\"truncated\\\":false}\",\"error\":null,\"truncated\":false}",
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "get_query_diagnostics-permission_missing",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "permission_missing",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "PermissionDenied",
+      "expectedAuditReason": "ValidationRejected",
+      "expectedToolResponse": "{\"status\":\"Denied\",\"result\":\"PermissionDenied\",\"error\":\"PermissionDenied\",\"truncated\":false}",
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "get_query_diagnostics-invalid_arguments",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "invalid_arguments",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "InvalidArguments",
+      "expectedAuditReason": "ValidationRejected",
+      "expectedToolResponse": "{\"status\":\"Failed\",\"result\":\"InvalidArguments\",\"error\":\"InvalidArguments\",\"truncated\":false}",
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "get_query_diagnostics-quota_exceeded",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "quota_exceeded",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ToolCallLimitExceeded",
+      "expectedToolResponse": null,
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "propose_file_edit-success-00",
+      "tool": "propose_file_edit",
+      "arguments": {
+        "path": "query.js",
+        "new_content": "// proposta sintetica 0\ndb.items.find({});\n"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed",
+      "expectedToolResponse": "{\"status\":\"Succeeded\",\"result\":\"{\\\"status\\\":\\\"registered\\\",\\\"proposalId\\\":\\\"<volatile>\\\",\\\"added\\\":1,\\\"removed\\\":1,\\\"hunks\\\":1}\",\"error\":null,\"truncated\":false}",
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "propose_file_edit-permission_missing",
+      "tool": "propose_file_edit",
+      "arguments": {
+        "path": "query.js",
+        "new_content": "// proposta sintetica 19\ndb.items.find({});\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "permission_missing",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "UnknownTool",
+      "expectedToolResponse": "{\"status\":\"Failed\",\"result\":\"UnknownTool\",\"error\":\"UnknownTool\",\"truncated\":false}",
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "propose_file_edit-invalid_arguments",
+      "tool": "propose_file_edit",
+      "arguments": {
+        "path": "query.js",
+        "new_content": "// proposta sintetica 19\ndb.items.find({});\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "invalid_arguments",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "InvalidArguments",
+      "expectedAuditReason": "ValidationRejected",
+      "expectedToolResponse": "{\"status\":\"Failed\",\"result\":\"InvalidArguments\",\"error\":\"InvalidArguments\",\"truncated\":false}",
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "propose_file_edit-quota_exceeded",
+      "tool": "propose_file_edit",
+      "arguments": {
+        "path": "query.js",
+        "new_content": "// proposta sintetica 19\ndb.items.find({});\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "quota_exceeded",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ToolCallLimitExceeded",
+      "expectedToolResponse": null,
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "create_workspace_file-success-00",
+      "tool": "create_workspace_file",
+      "arguments": {
+        "path": "created.js",
+        "content": "// arquivo sintetico 0\n"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "ApprovalGranted",
+      "expectedToolResponse": "{\"status\":\"Succeeded\",\"result\":\"{\\\"status\\\":\\\"created\\\",\\\"path\\\":\\\"created.js\\\",\\\"bytes\\\":23}\",\"error\":null,\"truncated\":false}",
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "create_workspace_file-permission_missing",
+      "tool": "create_workspace_file",
+      "arguments": {
+        "path": "created.js",
+        "content": "// arquivo sintetico 19\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "permission_missing",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "UnknownTool",
+      "expectedToolResponse": "{\"status\":\"Failed\",\"result\":\"UnknownTool\",\"error\":\"UnknownTool\",\"truncated\":false}",
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "create_workspace_file-invalid_arguments",
+      "tool": "create_workspace_file",
+      "arguments": {
+        "path": "created.js",
+        "content": "// arquivo sintetico 19\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "invalid_arguments",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "InvalidArguments",
+      "expectedAuditReason": "ApprovalGranted",
+      "expectedToolResponse": "{\"status\":\"Failed\",\"result\":\"InvalidArguments\",\"error\":\"InvalidArguments\",\"truncated\":false}",
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    },
+    {
+      "id": "create_workspace_file-quota_exceeded",
+      "tool": "create_workspace_file",
+      "arguments": {
+        "path": "created.js",
+        "content": "// arquivo sintetico 19\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "quota_exceeded",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ToolCallLimitExceeded",
+      "expectedToolResponse": null,
+      "volatileFields": [
+        "executionId",
+        "proposalId",
+        "durationMs",
+        "observedAt",
+        "workspaceFolder",
+        "connectionId",
+        "id"
+      ]
+    }
+  ]
+}

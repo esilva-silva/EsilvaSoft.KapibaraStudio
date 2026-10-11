@@ -1,5 +1,7 @@
 # KapiLab
 
+**PR 3 — 11/10/2026:** catálogo local completo por modo e host de fixture real com 315 casos, replay de 44 passos e comparador externo de 500 chamadas. [Contrato e comandos](Fixtures/kapi-sim/README.md), [aceite e limites](../../docs/phases/phase-07b-kapilab/aceite-pr-3.md). Os parágrafos de invocação/replay v1 abaixo descrevem as rotas legadas `--in`; a nova rota é `catalog invoke --fixture`.
+
 Console local para inspecionar pacotes e comparar os contratos da IDE. O projeto fica fora da solução principal e não compõe Desktop, Benchmarks, DI global, LiteDB do usuário ou cofre.
 
 ## Build
@@ -38,13 +40,14 @@ kapilab contract render --in <records.jsonl> [--contract editor-context-v1|local
 kapilab contract tokenize --package <diretório> --in <render.jsonl> [--context-tokens 2048] [--completion-tokens 32] [--out <tokens.jsonl>]
 kapilab contract diff --expected <tokens.jsonl> --actual <tokens.jsonl> [--out <diff.json>]
 kapilab parity compare --in <observations.json> [--tolerances <tolerances.json>] [--out <parity.json>]
-kapilab catalog export --provider <id> --surface in-process|session-channel [--out <snapshot.json>]
+kapilab catalog export --provider <id> [--surface in-process|session-channel] [--mode Agent|Planning|Automatic|AskConfirmations] [--max-result-bytes 65536] [--out <snapshot.json>]
 kapilab catalog export-plan --provider <id> --in <synthetic-plan.json> [--out <snapshot.json>]
 kapilab catalog check --expected <baseline.json> --actual <current.json>
 kapilab catalog knowledge export [--dialect mql|console|dsl|all] [--out data/lab/knowledge-catalog.json]
 kapilab catalog knowledge check --expected <baseline.json> --actual <current.json>
 kapilab catalog plans --in <plan-cases.json> [--out <plan-snapshot.json>]
-kapilab catalog invoke --in <invocation-cases.json> [--out <report.json>]
+kapilab catalog invoke (--in <legacy.json> | --fixture <fixture.json>) [--out <report.json>]
+kapilab fixture seed --fixture <fixture.json>
 kapilab agent replay --in <replay-cases.json> [--out <report.json>]
 kapilab matrix run --in <process-matrix.json> [--out <report.json>]
 kapilab report evaluate --gates <gates.json> --evidence <run-evidence.json> --out reports/lab/report.json
@@ -76,7 +79,7 @@ referenciada pela meta (§5.4) não está disponível neste checkout para verifi
 
 `catalog plans` lê `kapilab-agent-plan-cases-v1` do workspace e avalia até 500 entradas por `AgentModePolicy.Plan`, a política pura usada pela IDE. O snapshot `kapilab-agent-plan-snapshot-v1` identifica `evidenceKind=synthetic-policy-input`, separa grants sintéticos de consentimento persistido e marca `toolInvocationPerformed=false`. A escrita opcional é atômica e não pode sobrescrever o input.
 
-`catalog export --provider <id> --surface <in-process|session-channel>` compõe a registry registrada pela infraestrutura da IDE e exporta schemas/descritores como `kapilab-agent-catalog-v1`, `scope=provider-maximum`, `complete=false`. Usa LiteDB temporário, sem ler dados locais ou grants, e omite `approve`; não representa o plano de uma sessão autorizada. Na superfície in-process, schemas de entrada e saída são consultados por provider/tool e só são retornados quando a registry confirma a exposição correspondente.
+`catalog export --provider <id> --surface <in-process|session-channel>` compõe a registry registrada pela infraestrutura da IDE e exporta schemas/descritores como `kapilab-agent-catalog-v1`, `scope=provider-maximum`. O provider local in-process declara `complete=true` quando cobre todas as tools do modo com descrição e schemas; outras superfícies conservam `complete=false`. A composição de laboratório inclui portas sintéticas para descobrir as tools de contexto/arquivo sem ler o Desktop. Usa LiteDB temporário, sem ler dados locais ou grants, e omite `approve`; não representa o plano de uma sessão autorizada. Na superfície in-process, schemas de entrada e saída são consultados por provider/tool e só são retornados quando a registry confirma a exposição correspondente.
 
 `catalog export-plan --provider <id> --in <arquivo>` produz um snapshot distinto `kapilab-agent-catalog-plan-v1` para exatamente uma entrada `kapilab-agent-catalog-plan-input-v1`. `AgentModePolicy.Plan` avalia modo, permissões e fatos sintéticos; a exportação intersecta `ProductTools` somente com `GetInProcessDescriptors(providerId)`, preservando primeiro a fronteira de descoberta da registry. O snapshot marca `evidenceKind=synthetic-policy-input`, `synthetic=true`, `complete=false`, `toolInvocationPerformed=false` e `grantsVerified=false`; campos anotam estágio, categoria de confirmação, escopo de saída e hashes de schemas. Consentimento no input é somente fato de teste para a política, não autorização persistida nem grant efetivo. A superfície não lê repositório real de permissões, não invoca tools e não substitui `provider-maximum` ou o formato canônico externo.
 

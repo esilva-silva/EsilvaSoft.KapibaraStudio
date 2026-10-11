@@ -119,8 +119,8 @@ public sealed class AgentCatalogInvokeTests
             Assert.That(root.GetProperty("providerId").GetString(), Is.EqualTo("local"));
             Assert.That(root.GetProperty("surface").GetString(), Is.EqualTo("in-process"));
             Assert.That(root.GetProperty("scope").GetString(), Is.EqualTo("provider-maximum"));
-            Assert.That(root.GetProperty("complete").GetBoolean(), Is.False);
-            Assert.That(root.GetProperty("tools").GetArrayLength(), Is.GreaterThan(0));
+            Assert.That(root.GetProperty("complete").GetBoolean(), Is.True);
+            Assert.That(root.GetProperty("tools").GetArrayLength(), Is.EqualTo(11));
             var connections = root.GetProperty("tools").EnumerateArray()
                 .Single(tool => tool.GetProperty("name").GetString() == "list_connections");
             Assert.That(connections.GetProperty("outputSchemaJson").GetString(), Does.Contain(":output\""));

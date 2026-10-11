@@ -1,0 +1,1350 @@
+{
+  "schema": "kapilab-agent-catalog-v1",
+  "providerId": "local",
+  "surface": "in-process",
+  "scope": "provider-maximum",
+  "complete": true,
+  "tools": [
+    {
+      "name": "create_workspace_file",
+      "version": 1,
+      "risk": "Write",
+      "requiredPermissions": [
+        "CreateWorkspaceFiles"
+      ],
+      "inputSchemaJson": "{\u0022$schema\u0022:\u0022https://json-schema.org/draft/2020-12/schema\u0022,\u0022$id\u0022:\u0022urn:esilvasoft:kapibarastudio:agent-tool:create_workspace_file:v1:input\u0022,\u0022type\u0022:\u0022object\u0022,\u0022additionalProperties\u0022:false,\u0022required\u0022:[\u0022path\u0022,\u0022content\u0022],\u0022properties\u0022:{\u0022path\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022minLength\u0022:1,\u0022maxLength\u0022:1024},\u0022content\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022maxLength\u0022:65536}}}",
+      "outputSchemaJson": "{\u0022$schema\u0022:\u0022https://json-schema.org/draft/2020-12/schema\u0022,\u0022$id\u0022:\u0022urn:esilvasoft:kapibarastudio:agent-tool:create_workspace_file:v1:output\u0022,\u0022type\u0022:\u0022object\u0022,\u0022additionalProperties\u0022:false,\u0022required\u0022:[\u0022status\u0022,\u0022path\u0022,\u0022bytes\u0022],\u0022properties\u0022:{\u0022status\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022const\u0022:\u0022created\u0022},\u0022path\u0022:{\u0022type\u0022:\u0022string\u0022},\u0022bytes\u0022:{\u0022type\u0022:\u0022integer\u0022,\u0022minimum\u0022:0}}}",
+      "inputSchemaSha256": "236be606511a0b3b48b5924bd63407e2671283ba746bc26e167e92031a027084",
+      "outputSchemaSha256": "ca209b45a2df3d09452057698ac46c1e0f79d741426dcefc2ff52ff2c8263848",
+      "description": "Create a new workspace file only with write opt-in and explicit confirmation; never overwrite.",
+      "confirmationCategory": "NativeFileWrite",
+      "outputScope": "Metadata",
+      "quotas": {
+        "concurrentPerSession": 2,
+        "concurrentPerConnection": 4,
+        "concurrentGlobal": 8,
+        "defaultCallsPerTurn": 100
+      },
+      "maxResultBytes": 65536,
+      "modes": [
+        "Agent",
+        "Automatic",
+        "AskConfirmations"
+      ],
+      "errorCodes": [
+        "UnknownTool",
+        "PermissionDenied",
+        "InvalidArguments",
+        "ConfirmationRejected",
+        "ConfirmationExpired",
+        "ConfirmationUnavailable",
+        "ResultTooLarge",
+        "DeadlineExceeded",
+        "Busy",
+        "ToolCallLimitExceeded",
+        "ExecutionFailed",
+        "ToolTimeout",
+        "ToolResultTooLarge",
+        "InvalidPath",
+        "OutsideWorkspace",
+        "Excluded",
+        "FileCreationFailed",
+        "FileCreatedAuditIncomplete",
+        "FileAlreadyExists",
+        "ParentDirectoryNotFound"
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "urn:esilvasoft:kapibarastudio:agent-tool:create_workspace_file:v1:input",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "content"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 65536
+          }
+        }
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "urn:esilvasoft:kapibarastudio:agent-tool:create_workspace_file:v1:output",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "path",
+          "bytes"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "created"
+          },
+          "path": {
+            "type": "string"
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "get_cached_schema",
+      "version": 1,
+      "risk": "ReadOnly",
+      "requiredPermissions": [
+        "ReadSchema"
+      ],
+      "inputSchemaJson": "{\u0022$schema\u0022:\u0022https://json-schema.org/draft/2020-12/schema\u0022,\u0022$id\u0022:\u0022urn:esilvasoft:kapibarastudio:agent-tool:get_cached_schema:v1:input\u0022,\u0022type\u0022:\u0022object\u0022,\u0022additionalProperties\u0022:false,\u0022required\u0022:[\u0022connectionId\u0022,\u0022database\u0022,\u0022collection\u0022],\u0022properties\u0022:{\u0022connectionId\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022format\u0022:\u0022uuid\u0022},\u0022database\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022minLength\u0022:1,\u0022maxLength\u0022:255},\u0022collection\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022minLength\u0022:1,\u0022maxLength\u0022:255}}}",
+      "outputSchemaJson": "{\u0022$schema\u0022:\u0022https://json-schema.org/draft/2020-12/schema\u0022,\u0022$id\u0022:\u0022urn:esilvasoft:kapibarastudio:agent-tool:get_cached_schema:v1:output\u0022,\u0022type\u0022:\u0022object\u0022,\u0022additionalProperties\u0022:false,\u0022required\u0022:[\u0022available\u0022,\u0022source\u0022,\u0022fields\u0022,\u0022truncated\u0022],\u0022properties\u0022:{\u0022available\u0022:{\u0022type\u0022:\u0022boolean\u0022},\u0022source\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022enum\u0022:[\u0022sampled\u0022,\u0022learned\u0022,\u0022none\u0022]},\u0022reason\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022enum\u0022:[\u0022NoCachedSchema\u0022,\u0022LearnedSchemaUnavailable\u0022]},\u0022observedAt\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022format\u0022:\u0022date-time\u0022},\u0022freshness\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022enum\u0022:[\u0022fresh\u0022,\u0022stale\u0022]},\u0022sampleSize\u0022:{\u0022type\u0022:\u0022integer\u0022,\u0022minimum\u0022:0},\u0022fields\u0022:{\u0022type\u0022:\u0022array\u0022,\u0022maxItems\u0022:500,\u0022items\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022additionalProperties\u0022:false,\u0022required\u0022:[\u0022path\u0022,\u0022types\u0022,\u0022primaryType\u0022],\u0022properties\u0022:{\u0022path\u0022:{\u0022type\u0022:\u0022string\u0022},\u0022types\u0022:{\u0022type\u0022:\u0022array\u0022,\u0022maxItems\u0022:16,\u0022items\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022additionalProperties\u0022:false,\u0022required\u0022:[\u0022type\u0022,\u0022count\u0022],\u0022properties\u0022:{\u0022type\u0022:{\u0022type\u0022:\u0022string\u0022},\u0022count\u0022:{\u0022type\u0022:\u0022integer\u0022,\u0022minimum\u0022:0}}}},\u0022primaryType\u0022:{\u0022type\u0022:\u0022string\u0022},\u0022occurrence\u0022:{\u0022type\u0022:\u0022number\u0022,\u0022minimum\u0022:0,\u0022maximum\u0022:1}}}},\u0022truncated\u0022:{\u0022type\u0022:\u0022boolean\u0022}}}",
+      "inputSchemaSha256": "9ebed61386fe3699cd7692cf47aec3b97f836e2ae58cc98b59da37eb26c0f9f7",
+      "outputSchemaSha256": "ffb09e41bb42ef5e74473efc3f6171aec3ac5e200a2a7fea85159554c0fb18d8",
+      "description": "Read field metadata already cached by the IDE; never sample documents.",
+      "confirmationCategory": "MongoMetadataRead",
+      "outputScope": "Schema",
+      "quotas": {
+        "concurrentPerSession": 2,
+        "concurrentPerConnection": 4,
+        "concurrentGlobal": 8,
+        "defaultCallsPerTurn": 100
+      },
+      "maxResultBytes": 65536,
+      "modes": [
+        "Agent",
+        "Planning",
+        "Automatic",
+        "AskConfirmations"
+      ],
+      "errorCodes": [
+        "UnknownTool",
+        "PermissionDenied",
+        "InvalidArguments",
+        "ConfirmationRejected",
+        "ConfirmationExpired",
+        "ConfirmationUnavailable",
+        "ResultTooLarge",
+        "DeadlineExceeded",
+        "Busy",
+        "ToolCallLimitExceeded",
+        "ExecutionFailed",
+        "ToolTimeout",
+        "ToolResultTooLarge"
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "urn:esilvasoft:kapibarastudio:agent-tool:get_cached_schema:v1:input",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "connectionId",
+          "database",
+          "collection"
+        ],
+        "properties": {
+          "connectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "database": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "collection": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          }
+        }
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "urn:esilvasoft:kapibarastudio:agent-tool:get_cached_schema:v1:output",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "available",
+          "source",
+          "fields",
+          "truncated"
+        ],
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "sampled",
+              "learned",
+              "none"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "NoCachedSchema",
+              "LearnedSchemaUnavailable"
+            ]
+          },
+          "observedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "freshness": {
+            "type": "string",
+            "enum": [
+              "fresh",
+              "stale"
+            ]
+          },
+          "sampleSize": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "fields": {
+            "type": "array",
+            "maxItems": 500,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "types",
+                "primaryType"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "types": {
+                  "type": "array",
+                  "maxItems": 16,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "type",
+                      "count"
+                    ],
+                    "properties": {
+                      "type": {
+                        "type": "string"
+                      },
+                      "count": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    }
+                  }
+                },
+                "primaryType": {
+                  "type": "string"
+                },
+                "occurrence": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              }
+            }
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "name": "get_indexes",
+      "version": 2,
+      "risk": "ReadOnly",
+      "requiredPermissions": [
+        "ReadMetadata"
+      ],
+      "inputSchemaJson": "{\u0022$schema\u0022:\u0022https://json-schema.org/draft/2020-12/schema\u0022,\u0022$id\u0022:\u0022urn:esilvasoft:kapibarastudio:agent-tool:get_indexes:v2:input\u0022,\u0022type\u0022:\u0022object\u0022,\u0022additionalProperties\u0022:false,\u0022required\u0022:[\u0022connectionId\u0022,\u0022database\u0022,\u0022collection\u0022],\u0022properties\u0022:{\u0022connectionId\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022format\u0022:\u0022uuid\u0022},\u0022database\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022minLength\u0022:1,\u0022maxLength\u0022:255},\u0022collection\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022minLength\u0022:1,\u0022maxLength\u0022:255}}}",
+      "outputSchemaJson": "{\u0022$schema\u0022:\u0022https://json-schema.org/draft/2020-12/schema\u0022,\u0022$id\u0022:\u0022urn:esilvasoft:kapibarastudio:agent-tool:get_indexes:v2:output\u0022,\u0022type\u0022:\u0022object\u0022,\u0022additionalProperties\u0022:false,\u0022required\u0022:[\u0022indexes\u0022,\u0022truncated\u0022],\u0022properties\u0022:{\u0022indexes\u0022:{\u0022type\u0022:\u0022array\u0022,\u0022maxItems\u0022:200,\u0022items\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022additionalProperties\u0022:false,\u0022required\u0022:[\u0022name\u0022,\u0022keyFields\u0022,\u0022unique\u0022,\u0022sparse\u0022,\u0022hidden\u0022],\u0022properties\u0022:{\u0022name\u0022:{\u0022type\u0022:\u0022string\u0022},\u0022keyFields\u0022:{\u0022type\u0022:\u0022array\u0022,\u0022items\u0022:{\u0022type\u0022:\u0022string\u0022}},\u0022keyDirections\u0022:{\u0022type\u0022:\u0022array\u0022,\u0022items\u0022:{\u0022type\u0022:\u0022string\u0022}},\u0022unique\u0022:{\u0022type\u0022:\u0022boolean\u0022},\u0022sparse\u0022:{\u0022type\u0022:\u0022boolean\u0022},\u0022hidden\u0022:{\u0022type\u0022:\u0022boolean\u0022},\u0022ttlSeconds\u0022:{\u0022type\u0022:\u0022integer\u0022,\u0022minimum\u0022:0},\u0022partialFilterFields\u0022:{\u0022type\u0022:\u0022array\u0022,\u0022maxItems\u0022:32,\u0022items\u0022:{\u0022type\u0022:\u0022string\u0022}}}}},\u0022truncated\u0022:{\u0022type\u0022:\u0022boolean\u0022},\u0022truncationReason\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022const\u0022:\u0022OutputLimit\u0022}}}",
+      "inputSchemaSha256": "a65ed072fa6eeca0895d7432dc6b5d87161c8a31c2fa4d8e2ba31a8595c4c0cc",
+      "outputSchemaSha256": "fbb341a9ce2a5c8d091c0b6e82e249f51fe2fb1b89ab1d3030923c1533397b00",
+      "description": "Read ordinary index metadata for an authorized collection.",
+      "confirmationCategory": "MongoMetadataRead",
+      "outputScope": "Metadata",
+      "quotas": {
+        "concurrentPerSession": 2,
+        "concurrentPerConnection": 4,
+        "concurrentGlobal": 8,
+        "defaultCallsPerTurn": 100
+      },
+      "maxResultBytes": 65536,
+      "modes": [
+        "Agent",
+        "Planning",
+        "Automatic",
+        "AskConfirmations"
+      ],
+      "errorCodes": [
+        "UnknownTool",
+        "PermissionDenied",
+        "InvalidArguments",
+        "ConfirmationRejected",
+        "ConfirmationExpired",
+        "ConfirmationUnavailable",
+        "ResultTooLarge",
+        "DeadlineExceeded",
+        "Busy",
+        "ToolCallLimitExceeded",
+        "ExecutionFailed",
+        "ToolTimeout",
+        "ToolResultTooLarge"
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "urn:esilvasoft:kapibarastudio:agent-tool:get_indexes:v2:input",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "connectionId",
+          "database",
+          "collection"
+        ],
+        "properties": {
+          "connectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "database": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "collection": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          }
+        }
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "urn:esilvasoft:kapibarastudio:agent-tool:get_indexes:v2:output",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "indexes",
+          "truncated"
+        ],
+        "properties": {
+          "indexes": {
+            "type": "array",
+            "maxItems": 200,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name",
+                "keyFields",
+                "unique",
+                "sparse",
+                "hidden"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "keyFields": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "keyDirections": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "unique": {
+                  "type": "boolean"
+                },
+                "sparse": {
+                  "type": "boolean"
+                },
+                "hidden": {
+                  "type": "boolean"
+                },
+                "ttlSeconds": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "partialFilterFields": {
+                  "type": "array",
+                  "maxItems": 32,
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "truncationReason": {
+            "type": "string",
+            "const": "OutputLimit"
+          }
+        }
+      }
+    },
+    {
+      "name": "get_query_diagnostics",
+      "version": 1,
+      "risk": "ReadOnly",
+      "requiredPermissions": [
+        "ReadDiagnostics",
+        "ReadDocuments"
+      ],
+      "inputSchemaJson": "{\u0022$schema\u0022:\u0022https://json-schema.org/draft/2020-12/schema\u0022,\u0022$id\u0022:\u0022urn:esilvasoft:kapibarastudio:agent-tool:get_query_diagnostics:v1:input\u0022,\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{},\u0022additionalProperties\u0022:false}",
+      "outputSchemaJson": "{\u0022$schema\u0022:\u0022https://json-schema.org/draft/2020-12/schema\u0022,\u0022$id\u0022:\u0022urn:esilvasoft:kapibarastudio:agent-tool:get_query_diagnostics:v1:output\u0022,\u0022type\u0022:\u0022object\u0022,\u0022additionalProperties\u0022:false,\u0022required\u0022:[\u0022available\u0022,\u0022executionId\u0022,\u0022tabId\u0022,\u0022status\u0022,\u0022errorCode\u0022,\u0022messages\u0022,\u0022errors\u0022,\u0022durationMs\u0022,\u0022truncated\u0022],\u0022properties\u0022:{\u0022available\u0022:{\u0022type\u0022:\u0022boolean\u0022},\u0022executionId\u0022:{\u0022type\u0022:[\u0022string\u0022,\u0022null\u0022]},\u0022tabId\u0022:{\u0022type\u0022:[\u0022string\u0022,\u0022null\u0022]},\u0022status\u0022:{\u0022type\u0022:[\u0022string\u0022,\u0022null\u0022]},\u0022errorCode\u0022:{\u0022type\u0022:[\u0022string\u0022,\u0022null\u0022]},\u0022messages\u0022:{\u0022type\u0022:\u0022string\u0022},\u0022errors\u0022:{\u0022type\u0022:\u0022string\u0022},\u0022durationMs\u0022:{\u0022type\u0022:\u0022number\u0022},\u0022truncated\u0022:{\u0022type\u0022:\u0022boolean\u0022}}}",
+      "inputSchemaSha256": "97a2e1278b1f7f26f40ac38e2b08963db0d5c327671b86643a3c5d00db68d2c1",
+      "outputSchemaSha256": "944d45981d5db06d71da781afa4741ac06d75536829acf409c65c587b573b595",
+      "description": "Read authorized errors and logs already captured from human executions.",
+      "confirmationCategory": "MongoDocumentRead",
+      "outputScope": "DocumentValues",
+      "quotas": {
+        "concurrentPerSession": 2,
+        "concurrentPerConnection": 4,
+        "concurrentGlobal": 8,
+        "defaultCallsPerTurn": 100
+      },
+      "maxResultBytes": 65536,
+      "modes": [
+        "Agent",
+        "Planning",
+        "Automatic",
+        "AskConfirmations"
+      ],
+      "errorCodes": [
+        "UnknownTool",
+        "PermissionDenied",
+        "InvalidArguments",
+        "ConfirmationRejected",
+        "ConfirmationExpired",
+        "ConfirmationUnavailable",
+        "ResultTooLarge",
+        "DeadlineExceeded",
+        "Busy",
+        "ToolCallLimitExceeded",
+        "ExecutionFailed",
+        "ToolTimeout",
+        "ToolResultTooLarge"
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "urn:esilvasoft:kapibarastudio:agent-tool:get_query_diagnostics:v1:input",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "urn:esilvasoft:kapibarastudio:agent-tool:get_query_diagnostics:v1:output",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "available",
+          "executionId",
+          "tabId",
+          "status",
+          "errorCode",
+          "messages",
+          "errors",
+          "durationMs",
+          "truncated"
+        ],
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "executionId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tabId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "errorCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "messages": {
+            "type": "string"
+          },
+          "errors": {
+            "type": "string"
+          },
+          "durationMs": {
+            "type": "number"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "name": "get_query_results",
+      "version": 1,
+      "risk": "ReadOnly",
+      "requiredPermissions": [
+        "ReadDocuments"
+      ],
+      "inputSchemaJson": "{\u0022$schema\u0022:\u0022https://json-schema.org/draft/2020-12/schema\u0022,\u0022$id\u0022:\u0022urn:esilvasoft:kapibarastudio:agent-tool:get_query_results:v1:input\u0022,\u0022type\u0022:\u0022object\u0022,\u0022additionalProperties\u0022:false,\u0022properties\u0022:{\u0022resultIndex\u0022:{\u0022type\u0022:\u0022integer\u0022,\u0022minimum\u0022:0,\u0022maximum\u0022:9999,\u0022default\u0022:0},\u0022skip\u0022:{\u0022type\u0022:\u0022integer\u0022,\u0022minimum\u0022:0,\u0022maximum\u0022:100000,\u0022default\u0022:0},\u0022limit\u0022:{\u0022type\u0022:\u0022integer\u0022,\u0022minimum\u0022:1,\u0022maximum\u0022:100,\u0022default\u0022:20}}}",
+      "outputSchemaJson": "{\u0022$schema\u0022:\u0022https://json-schema.org/draft/2020-12/schema\u0022,\u0022$id\u0022:\u0022urn:esilvasoft:kapibarastudio:agent-tool:get_query_results:v1:output\u0022,\u0022type\u0022:\u0022object\u0022,\u0022additionalProperties\u0022:false,\u0022required\u0022:[\u0022available\u0022,\u0022executionId\u0022,\u0022tabId\u0022,\u0022resultIndex\u0022,\u0022resultSetCount\u0022,\u0022results\u0022,\u0022hasMore\u0022,\u0022truncated\u0022,\u0022sourceTruncated\u0022],\u0022properties\u0022:{\u0022available\u0022:{\u0022type\u0022:\u0022boolean\u0022},\u0022executionId\u0022:{\u0022type\u0022:[\u0022string\u0022,\u0022null\u0022]},\u0022tabId\u0022:{\u0022type\u0022:[\u0022string\u0022,\u0022null\u0022]},\u0022resultIndex\u0022:{\u0022type\u0022:\u0022integer\u0022},\u0022resultSetCount\u0022:{\u0022type\u0022:\u0022integer\u0022},\u0022results\u0022:{\u0022type\u0022:\u0022array\u0022,\u0022maxItems\u0022:100,\u0022items\u0022:{\u0022type\u0022:\u0022string\u0022}},\u0022hasMore\u0022:{\u0022type\u0022:\u0022boolean\u0022},\u0022truncated\u0022:{\u0022type\u0022:\u0022boolean\u0022},\u0022sourceTruncated\u0022:{\u0022type\u0022:\u0022boolean\u0022}}}",
+      "inputSchemaSha256": "a10201a82dda120d967daf00836e7da82ba6a957b27102eeea8fbd48909c7b34",
+      "outputSchemaSha256": "c0ae18cbc194c1a20bbc372d13a2f7ad6a330cbd41d2290c183c10be0fb0750a",
+      "description": "Read authorized results already captured from a human query; never execute a query.",
+      "confirmationCategory": "MongoDocumentRead",
+      "outputScope": "DocumentValues",
+      "quotas": {
+        "concurrentPerSession": 2,
+        "concurrentPerConnection": 4,
+        "concurrentGlobal": 8,
+        "defaultCallsPerTurn": 100
+      },
+      "maxResultBytes": 65536,
+      "modes": [
+        "Agent",
+        "Planning",
+        "Automatic",
+        "AskConfirmations"
+      ],
+      "errorCodes": [
+        "UnknownTool",
+        "PermissionDenied",
+        "InvalidArguments",
+        "ConfirmationRejected",
+        "ConfirmationExpired",
+        "ConfirmationUnavailable",
+        "ResultTooLarge",
+        "DeadlineExceeded",
+        "Busy",
+        "ToolCallLimitExceeded",
+        "ExecutionFailed",
+        "ToolTimeout",
+        "ToolResultTooLarge"
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "urn:esilvasoft:kapibarastudio:agent-tool:get_query_results:v1:input",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "resultIndex": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9999,
+            "default": 0
+          },
+          "skip": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000,
+            "default": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 20
+          }
+        }
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "urn:esilvasoft:kapibarastudio:agent-tool:get_query_results:v1:output",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "available",
+          "executionId",
+          "tabId",
+          "resultIndex",
+          "resultSetCount",
+          "results",
+          "hasMore",
+          "truncated",
+          "sourceTruncated"
+        ],
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "executionId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tabId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "resultIndex": {
+            "type": "integer"
+          },
+          "resultSetCount": {
+            "type": "integer"
+          },
+          "results": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "type": "string"
+            }
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "sourceTruncated": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "name": "get_search_indexes",
+      "version": 1,
+      "risk": "ReadOnly",
+      "requiredPermissions": [
+        "ReadMetadata"
+      ],
+      "inputSchemaJson": "{\u0022$schema\u0022:\u0022https://json-schema.org/draft/2020-12/schema\u0022,\u0022$id\u0022:\u0022urn:esilvasoft:kapibarastudio:agent-tool:get_search_indexes:v1:input\u0022,\u0022type\u0022:\u0022object\u0022,\u0022additionalProperties\u0022:false,\u0022required\u0022:[\u0022connectionId\u0022,\u0022database\u0022,\u0022collection\u0022],\u0022properties\u0022:{\u0022connectionId\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022format\u0022:\u0022uuid\u0022},\u0022database\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022minLength\u0022:1,\u0022maxLength\u0022:255},\u0022collection\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022minLength\u0022:1,\u0022maxLength\u0022:255}}}",
+      "outputSchemaJson": "{\u0022$schema\u0022:\u0022https://json-schema.org/draft/2020-12/schema\u0022,\u0022$id\u0022:\u0022urn:esilvasoft:kapibarastudio:agent-tool:get_search_indexes:v1:output\u0022,\u0022type\u0022:\u0022object\u0022,\u0022additionalProperties\u0022:false,\u0022required\u0022:[\u0022indexes\u0022,\u0022truncated\u0022],\u0022properties\u0022:{\u0022indexes\u0022:{\u0022type\u0022:\u0022array\u0022,\u0022maxItems\u0022:200,\u0022items\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022additionalProperties\u0022:false,\u0022required\u0022:[\u0022name\u0022,\u0022type\u0022,\u0022status\u0022,\u0022queryable\u0022,\u0022fieldPaths\u0022],\u0022properties\u0022:{\u0022name\u0022:{\u0022type\u0022:\u0022string\u0022},\u0022type\u0022:{\u0022type\u0022:\u0022string\u0022},\u0022status\u0022:{\u0022type\u0022:\u0022string\u0022},\u0022queryable\u0022:{\u0022type\u0022:\u0022boolean\u0022},\u0022fieldPaths\u0022:{\u0022type\u0022:\u0022array\u0022,\u0022maxItems\u0022:200,\u0022items\u0022:{\u0022type\u0022:\u0022string\u0022}}}}},\u0022truncated\u0022:{\u0022type\u0022:\u0022boolean\u0022}}}",
+      "inputSchemaSha256": "d785ad65b11e24b6bc63e9dbaadbfbb6b03107367e22e2a5d1a244cf2c9b03f5",
+      "outputSchemaSha256": "e57774ed5eee9fdea9dcec0ae6696532a908e5abf76d28f9b6c1e3865978c85e",
+      "description": "Read Atlas Search index metadata for an authorized collection.",
+      "confirmationCategory": "MongoMetadataRead",
+      "outputScope": "Metadata",
+      "quotas": {
+        "concurrentPerSession": 2,
+        "concurrentPerConnection": 4,
+        "concurrentGlobal": 8,
+        "defaultCallsPerTurn": 100
+      },
+      "maxResultBytes": 65536,
+      "modes": [
+        "Agent",
+        "Planning",
+        "Automatic",
+        "AskConfirmations"
+      ],
+      "errorCodes": [
+        "UnknownTool",
+        "PermissionDenied",
+        "InvalidArguments",
+        "ConfirmationRejected",
+        "ConfirmationExpired",
+        "ConfirmationUnavailable",
+        "ResultTooLarge",
+        "DeadlineExceeded",
+        "Busy",
+        "ToolCallLimitExceeded",
+        "ExecutionFailed",
+        "ToolTimeout",
+        "ToolResultTooLarge"
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "urn:esilvasoft:kapibarastudio:agent-tool:get_search_indexes:v1:input",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "connectionId",
+          "database",
+          "collection"
+        ],
+        "properties": {
+          "connectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "database": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "collection": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          }
+        }
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "urn:esilvasoft:kapibarastudio:agent-tool:get_search_indexes:v1:output",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "indexes",
+          "truncated"
+        ],
+        "properties": {
+          "indexes": {
+            "type": "array",
+            "maxItems": 200,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name",
+                "type",
+                "status",
+                "queryable",
+                "fieldPaths"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string"
+                },
+                "queryable": {
+                  "type": "boolean"
+                },
+                "fieldPaths": {
+                  "type": "array",
+                  "maxItems": 200,
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "name": "get_workspace_context",
+      "version": 1,
+      "risk": "ReadOnly",
+      "requiredPermissions": [
+        "ReadMetadata"
+      ],
+      "inputSchemaJson": "{\u0022$schema\u0022:\u0022https://json-schema.org/draft/2020-12/schema\u0022,\u0022$id\u0022:\u0022urn:esilvasoft:kapibarastudio:agent-tool:get_workspace_context:v1:input\u0022,\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{},\u0022additionalProperties\u0022:false}",
+      "outputSchemaJson": "{\u0022$schema\u0022:\u0022https://json-schema.org/draft/2020-12/schema\u0022,\u0022$id\u0022:\u0022urn:esilvasoft:kapibarastudio:agent-tool:get_workspace_context:v1:output\u0022,\u0022type\u0022:\u0022object\u0022,\u0022additionalProperties\u0022:false,\u0022required\u0022:[\u0022workspaceFolder\u0022,\u0022activeFile\u0022,\u0022tab\u0022],\u0022properties\u0022:{\u0022workspaceFolder\u0022:{\u0022type\u0022:[\u0022string\u0022,\u0022null\u0022],\u0022maxLength\u0022:1024},\u0022activeFile\u0022:{\u0022type\u0022:[\u0022object\u0022,\u0022null\u0022],\u0022additionalProperties\u0022:false,\u0022required\u0022:[\u0022name\u0022,\u0022relativePath\u0022,\u0022insideWorkspace\u0022,\u0022excluded\u0022],\u0022properties\u0022:{\u0022name\u0022:{\u0022type\u0022:[\u0022string\u0022,\u0022null\u0022],\u0022maxLength\u0022:255},\u0022relativePath\u0022:{\u0022type\u0022:[\u0022string\u0022,\u0022null\u0022],\u0022maxLength\u0022:1024},\u0022insideWorkspace\u0022:{\u0022type\u0022:\u0022boolean\u0022},\u0022excluded\u0022:{\u0022type\u0022:\u0022boolean\u0022}}},\u0022tab\u0022:{\u0022type\u0022:[\u0022object\u0022,\u0022null\u0022],\u0022additionalProperties\u0022:false,\u0022required\u0022:[\u0022connectionInScope\u0022],\u0022properties\u0022:{\u0022connectionId\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022format\u0022:\u0022uuid\u0022},\u0022connectionName\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022maxLength\u0022:255},\u0022database\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022maxLength\u0022:255},\u0022collection\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022maxLength\u0022:255},\u0022connectionInScope\u0022:{\u0022type\u0022:\u0022boolean\u0022}}}}}",
+      "inputSchemaSha256": "8e8af39a9b26e645aaa650087869096627a0294cc7f515897575b763f07618ac",
+      "outputSchemaSha256": "7aa9429859a5f7df28e3b1246faf0ccf1d650ffb6ed59a8b27c9cd9ea6214d8f",
+      "description": "Read authorized context from the originating editor tab and workspace.",
+      "confirmationCategory": "WorkspaceContextRead",
+      "outputScope": "Metadata",
+      "quotas": {
+        "concurrentPerSession": 2,
+        "concurrentPerConnection": 4,
+        "concurrentGlobal": 8,
+        "defaultCallsPerTurn": 100
+      },
+      "maxResultBytes": 65536,
+      "modes": [
+        "Agent",
+        "Planning",
+        "Automatic",
+        "AskConfirmations"
+      ],
+      "errorCodes": [
+        "UnknownTool",
+        "PermissionDenied",
+        "InvalidArguments",
+        "ConfirmationRejected",
+        "ConfirmationExpired",
+        "ConfirmationUnavailable",
+        "ResultTooLarge",
+        "DeadlineExceeded",
+        "Busy",
+        "ToolCallLimitExceeded",
+        "ExecutionFailed",
+        "ToolTimeout",
+        "ToolResultTooLarge"
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "urn:esilvasoft:kapibarastudio:agent-tool:get_workspace_context:v1:input",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "urn:esilvasoft:kapibarastudio:agent-tool:get_workspace_context:v1:output",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "workspaceFolder",
+          "activeFile",
+          "tab"
+        ],
+        "properties": {
+          "workspaceFolder": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 1024
+          },
+          "activeFile": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "relativePath",
+              "insideWorkspace",
+              "excluded"
+            ],
+            "properties": {
+              "name": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 255
+              },
+              "relativePath": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 1024
+              },
+              "insideWorkspace": {
+                "type": "boolean"
+              },
+              "excluded": {
+                "type": "boolean"
+              }
+            }
+          },
+          "tab": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "required": [
+              "connectionInScope"
+            ],
+            "properties": {
+              "connectionId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "connectionName": {
+                "type": "string",
+                "maxLength": 255
+              },
+              "database": {
+                "type": "string",
+                "maxLength": 255
+              },
+              "collection": {
+                "type": "string",
+                "maxLength": 255
+              },
+              "connectionInScope": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "list_collections",
+      "version": 1,
+      "risk": "ReadOnly",
+      "requiredPermissions": [
+        "ReadMetadata"
+      ],
+      "inputSchemaJson": "{\u0022$schema\u0022:\u0022https://json-schema.org/draft/2020-12/schema\u0022,\u0022$id\u0022:\u0022urn:esilvasoft:kapibarastudio:agent-tool:list_collections:v1:input\u0022,\u0022type\u0022:\u0022object\u0022,\u0022additionalProperties\u0022:false,\u0022required\u0022:[\u0022connectionId\u0022,\u0022database\u0022],\u0022properties\u0022:{\u0022connectionId\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022format\u0022:\u0022uuid\u0022},\u0022database\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022minLength\u0022:1,\u0022maxLength\u0022:255},\u0022skip\u0022:{\u0022type\u0022:\u0022integer\u0022,\u0022minimum\u0022:0,\u0022maximum\u0022:10000}}}",
+      "outputSchemaJson": "{\u0022$schema\u0022:\u0022https://json-schema.org/draft/2020-12/schema\u0022,\u0022$id\u0022:\u0022urn:esilvasoft:kapibarastudio:agent-tool:list_collections:v1:output\u0022,\u0022type\u0022:\u0022object\u0022,\u0022additionalProperties\u0022:false,\u0022required\u0022:[\u0022names\u0022,\u0022truncated\u0022],\u0022properties\u0022:{\u0022names\u0022:{\u0022type\u0022:\u0022array\u0022,\u0022maxItems\u0022:200,\u0022items\u0022:{\u0022type\u0022:\u0022string\u0022}},\u0022truncated\u0022:{\u0022type\u0022:\u0022boolean\u0022}}}",
+      "inputSchemaSha256": "d5064f7093add471d7a7b14db60cbcb6a05b4b83251b0bad64254ffe79abd78d",
+      "outputSchemaSha256": "05281fc74c9033329fe4464bab641870b482b2d0192127bfd558361c9a7f4247",
+      "description": "List collection names in an authorized database without querying documents.",
+      "confirmationCategory": "MongoMetadataRead",
+      "outputScope": "Metadata",
+      "quotas": {
+        "concurrentPerSession": 2,
+        "concurrentPerConnection": 4,
+        "concurrentGlobal": 8,
+        "defaultCallsPerTurn": 100
+      },
+      "maxResultBytes": 65536,
+      "modes": [
+        "Agent",
+        "Planning",
+        "Automatic",
+        "AskConfirmations"
+      ],
+      "errorCodes": [
+        "UnknownTool",
+        "PermissionDenied",
+        "InvalidArguments",
+        "ConfirmationRejected",
+        "ConfirmationExpired",
+        "ConfirmationUnavailable",
+        "ResultTooLarge",
+        "DeadlineExceeded",
+        "Busy",
+        "ToolCallLimitExceeded",
+        "ExecutionFailed",
+        "ToolTimeout",
+        "ToolResultTooLarge"
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "urn:esilvasoft:kapibarastudio:agent-tool:list_collections:v1:input",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "connectionId",
+          "database"
+        ],
+        "properties": {
+          "connectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "database": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "skip": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          }
+        }
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "urn:esilvasoft:kapibarastudio:agent-tool:list_collections:v1:output",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "names",
+          "truncated"
+        ],
+        "properties": {
+          "names": {
+            "type": "array",
+            "maxItems": 200,
+            "items": {
+              "type": "string"
+            }
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "name": "list_connections",
+      "version": 1,
+      "risk": "ReadOnly",
+      "requiredPermissions": [
+        "ReadMetadata"
+      ],
+      "inputSchemaJson": "{\u0022$schema\u0022:\u0022https://json-schema.org/draft/2020-12/schema\u0022,\u0022$id\u0022:\u0022urn:esilvasoft:kapibarastudio:agent-tool:list_connections:v1:input\u0022,\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{},\u0022additionalProperties\u0022:false}",
+      "outputSchemaJson": "{\u0022$schema\u0022:\u0022https://json-schema.org/draft/2020-12/schema\u0022,\u0022$id\u0022:\u0022urn:esilvasoft:kapibarastudio:agent-tool:list_connections:v1:output\u0022,\u0022type\u0022:\u0022object\u0022,\u0022additionalProperties\u0022:false,\u0022required\u0022:[\u0022connections\u0022,\u0022truncated\u0022],\u0022properties\u0022:{\u0022connections\u0022:{\u0022type\u0022:\u0022array\u0022,\u0022items\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022additionalProperties\u0022:false,\u0022required\u0022:[\u0022id\u0022,\u0022name\u0022,\u0022readOnly\u0022],\u0022properties\u0022:{\u0022id\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022format\u0022:\u0022uuid\u0022},\u0022name\u0022:{\u0022type\u0022:\u0022string\u0022},\u0022readOnly\u0022:{\u0022type\u0022:\u0022boolean\u0022}}}},\u0022truncated\u0022:{\u0022type\u0022:\u0022boolean\u0022}}}",
+      "inputSchemaSha256": "62eb57e59da2f307fd7a68208664346043e01d10518b3fb9a4c0fcd476cd77fe",
+      "outputSchemaSha256": "5adf04e5762f39c094453599d62a534e45380016204ac40e34233a19f3979823",
+      "description": "List authorized connection profiles without credentials.",
+      "confirmationCategory": "MongoMetadataRead",
+      "outputScope": "Metadata",
+      "quotas": {
+        "concurrentPerSession": 2,
+        "concurrentPerConnection": 4,
+        "concurrentGlobal": 8,
+        "defaultCallsPerTurn": 100
+      },
+      "maxResultBytes": 65536,
+      "modes": [
+        "Agent",
+        "Planning",
+        "Automatic",
+        "AskConfirmations"
+      ],
+      "errorCodes": [
+        "UnknownTool",
+        "PermissionDenied",
+        "InvalidArguments",
+        "ConfirmationRejected",
+        "ConfirmationExpired",
+        "ConfirmationUnavailable",
+        "ResultTooLarge",
+        "DeadlineExceeded",
+        "Busy",
+        "ToolCallLimitExceeded",
+        "ExecutionFailed",
+        "ToolTimeout",
+        "ToolResultTooLarge"
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "urn:esilvasoft:kapibarastudio:agent-tool:list_connections:v1:input",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "urn:esilvasoft:kapibarastudio:agent-tool:list_connections:v1:output",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "connections",
+          "truncated"
+        ],
+        "properties": {
+          "connections": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "name",
+                "readOnly"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "readOnly": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "name": "list_databases",
+      "version": 1,
+      "risk": "ReadOnly",
+      "requiredPermissions": [
+        "ReadMetadata"
+      ],
+      "inputSchemaJson": "{\u0022$schema\u0022:\u0022https://json-schema.org/draft/2020-12/schema\u0022,\u0022$id\u0022:\u0022urn:esilvasoft:kapibarastudio:agent-tool:list_databases:v1:input\u0022,\u0022type\u0022:\u0022object\u0022,\u0022additionalProperties\u0022:false,\u0022required\u0022:[\u0022connectionId\u0022],\u0022properties\u0022:{\u0022connectionId\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022format\u0022:\u0022uuid\u0022},\u0022skip\u0022:{\u0022type\u0022:\u0022integer\u0022,\u0022minimum\u0022:0,\u0022maximum\u0022:10000}}}",
+      "outputSchemaJson": "{\u0022$schema\u0022:\u0022https://json-schema.org/draft/2020-12/schema\u0022,\u0022$id\u0022:\u0022urn:esilvasoft:kapibarastudio:agent-tool:list_databases:v1:output\u0022,\u0022type\u0022:\u0022object\u0022,\u0022additionalProperties\u0022:false,\u0022required\u0022:[\u0022names\u0022,\u0022truncated\u0022],\u0022properties\u0022:{\u0022names\u0022:{\u0022type\u0022:\u0022array\u0022,\u0022maxItems\u0022:200,\u0022items\u0022:{\u0022type\u0022:\u0022string\u0022}},\u0022truncated\u0022:{\u0022type\u0022:\u0022boolean\u0022}}}",
+      "inputSchemaSha256": "af667244d24e68681ecc3255778d2443f69b8fc187c1bed87ba02c8f6943eb79",
+      "outputSchemaSha256": "b7db328dc63ba3ba9ee31cbdcbbe880a9e0fd996efb8ab667aab2fe3e316e774",
+      "description": "List database names on an authorized connection.",
+      "confirmationCategory": "MongoMetadataRead",
+      "outputScope": "Metadata",
+      "quotas": {
+        "concurrentPerSession": 2,
+        "concurrentPerConnection": 4,
+        "concurrentGlobal": 8,
+        "defaultCallsPerTurn": 100
+      },
+      "maxResultBytes": 65536,
+      "modes": [
+        "Agent",
+        "Planning",
+        "Automatic",
+        "AskConfirmations"
+      ],
+      "errorCodes": [
+        "UnknownTool",
+        "PermissionDenied",
+        "InvalidArguments",
+        "ConfirmationRejected",
+        "ConfirmationExpired",
+        "ConfirmationUnavailable",
+        "ResultTooLarge",
+        "DeadlineExceeded",
+        "Busy",
+        "ToolCallLimitExceeded",
+        "ExecutionFailed",
+        "ToolTimeout",
+        "ToolResultTooLarge"
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "urn:esilvasoft:kapibarastudio:agent-tool:list_databases:v1:input",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "connectionId"
+        ],
+        "properties": {
+          "connectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "skip": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          }
+        }
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "urn:esilvasoft:kapibarastudio:agent-tool:list_databases:v1:output",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "names",
+          "truncated"
+        ],
+        "properties": {
+          "names": {
+            "type": "array",
+            "maxItems": 200,
+            "items": {
+              "type": "string"
+            }
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "name": "propose_file_edit",
+      "version": 1,
+      "risk": "ReadOnly",
+      "requiredPermissions": [
+        "ReadMetadata"
+      ],
+      "inputSchemaJson": "{\u0022$schema\u0022:\u0022https://json-schema.org/draft/2020-12/schema\u0022,\u0022$id\u0022:\u0022urn:esilvasoft:kapibarastudio:agent-tool:propose_file_edit:v1:input\u0022,\u0022type\u0022:\u0022object\u0022,\u0022additionalProperties\u0022:false,\u0022properties\u0022:{\u0022target\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022const\u0022:\u0022active_buffer\u0022},\u0022path\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022minLength\u0022:1,\u0022maxLength\u0022:1024},\u0022edits\u0022:{\u0022type\u0022:\u0022array\u0022,\u0022minItems\u0022:1,\u0022maxItems\u0022:50,\u0022items\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022additionalProperties\u0022:false,\u0022required\u0022:[\u0022old_text\u0022,\u0022new_text\u0022],\u0022properties\u0022:{\u0022old_text\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022minLength\u0022:1,\u0022maxLength\u0022:65536},\u0022new_text\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022maxLength\u0022:65536}}}},\u0022new_content\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022maxLength\u0022:65536}},\u0022oneOf\u0022:[{\u0022required\u0022:[\u0022path\u0022],\u0022not\u0022:{\u0022required\u0022:[\u0022target\u0022]}},{\u0022required\u0022:[\u0022target\u0022],\u0022properties\u0022:{\u0022target\u0022:{\u0022const\u0022:\u0022active_buffer\u0022}},\u0022not\u0022:{\u0022required\u0022:[\u0022path\u0022]}}],\u0022allOf\u0022:[{\u0022oneOf\u0022:[{\u0022required\u0022:[\u0022edits\u0022]},{\u0022required\u0022:[\u0022new_content\u0022]}]}]}",
+      "outputSchemaJson": "{\u0022$schema\u0022:\u0022https://json-schema.org/draft/2020-12/schema\u0022,\u0022$id\u0022:\u0022urn:esilvasoft:kapibarastudio:agent-tool:propose_file_edit:v1:output\u0022,\u0022type\u0022:\u0022object\u0022,\u0022additionalProperties\u0022:false,\u0022required\u0022:[\u0022status\u0022,\u0022proposalId\u0022,\u0022added\u0022,\u0022removed\u0022,\u0022hunks\u0022],\u0022properties\u0022:{\u0022status\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022const\u0022:\u0022registered\u0022},\u0022proposalId\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022format\u0022:\u0022uuid\u0022},\u0022added\u0022:{\u0022type\u0022:\u0022integer\u0022,\u0022minimum\u0022:0},\u0022removed\u0022:{\u0022type\u0022:\u0022integer\u0022,\u0022minimum\u0022:0},\u0022hunks\u0022:{\u0022type\u0022:\u0022integer\u0022,\u0022minimum\u0022:1}}}",
+      "inputSchemaSha256": "511279fd6fe0808b867ff91726f1e44efb4f6420028631335817cb8343f4bc01",
+      "outputSchemaSha256": "ab5fc3c098c9049b14c4ea7086cf621a5868169ea0df30cef790c4bd20032c04",
+      "description": "Propose an edit to an authorized existing file for review through the IDE.",
+      "confirmationCategory": "EditProposal",
+      "outputScope": "Metadata",
+      "quotas": {
+        "concurrentPerSession": 2,
+        "concurrentPerConnection": 4,
+        "concurrentGlobal": 8,
+        "defaultCallsPerTurn": 100
+      },
+      "maxResultBytes": 65536,
+      "modes": [
+        "Agent",
+        "Automatic",
+        "AskConfirmations"
+      ],
+      "errorCodes": [
+        "UnknownTool",
+        "PermissionDenied",
+        "InvalidArguments",
+        "ConfirmationRejected",
+        "ConfirmationExpired",
+        "ConfirmationUnavailable",
+        "ResultTooLarge",
+        "DeadlineExceeded",
+        "Busy",
+        "ToolCallLimitExceeded",
+        "ExecutionFailed",
+        "ToolTimeout",
+        "ToolResultTooLarge",
+        "NoWorkspace",
+        "InvalidPath",
+        "OutsideWorkspace",
+        "Excluded",
+        "TargetNotPermitted",
+        "ActiveFileNotAttached",
+        "ActiveFileSnapshotMismatch",
+        "NotFound",
+        "FileTooLarge",
+        "NotText",
+        "EditNotApplicable",
+        "RedactionMarkerIntroduced",
+        "TargetUnavailable",
+        "BaseChanged",
+        "ProposalRejected"
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "urn:esilvasoft:kapibarastudio:agent-tool:propose_file_edit:v1:input",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "type": "string",
+            "const": "active_buffer"
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "edits": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 50,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "old_text",
+                "new_text"
+              ],
+              "properties": {
+                "old_text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 65536
+                },
+                "new_text": {
+                  "type": "string",
+                  "maxLength": 65536
+                }
+              }
+            }
+          },
+          "new_content": {
+            "type": "string",
+            "maxLength": 65536
+          }
+        },
+        "oneOf": [
+          {
+            "required": [
+              "path"
+            ],
+            "not": {
+              "required": [
+                "target"
+              ]
+            }
+          },
+          {
+            "required": [
+              "target"
+            ],
+            "properties": {
+              "target": {
+                "const": "active_buffer"
+              }
+            },
+            "not": {
+              "required": [
+                "path"
+              ]
+            }
+          }
+        ],
+        "allOf": [
+          {
+            "oneOf": [
+              {
+                "required": [
+                  "edits"
+                ]
+              },
+              {
+                "required": [
+                  "new_content"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "urn:esilvasoft:kapibarastudio:agent-tool:propose_file_edit:v1:output",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "proposalId",
+          "added",
+          "removed",
+          "hunks"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "registered"
+          },
+          "proposalId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "added": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "removed": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "hunks": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    }
+  ],
+  "mode": "Automatic",
+  "approveOmissionReason": "approve pertence \u00E0 confirma\u00E7\u00E3o do turno; n\u00E3o \u00E9 uma tool do modelo local.",
+  "descriptionVersion": "kapibara-tool-descriptions-v1"
+}

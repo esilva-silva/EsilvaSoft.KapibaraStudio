@@ -1,5 +1,7 @@
 # Runbook local — KapiLab / Fase 7B
 
+**PR 3 — execução de tools em fixture:** o [runbook do fixture KapiSim](../../../tools/KapiLab/Fixtures/kapi-sim/README.md) documenta seed, catálogo por modo, matriz real, replay e protocolo do adaptador kapisim. Requer MongoDB loopback com WSL ativo; somente bancos sintéticos kapi_sim_*. A semeadura é destrutiva apenas nesses bancos.
+
 ## Catálogo de conhecimento e paridade — PR 1 (10/10/2026)
 
 O [aceite por critério](aceite-pr-1.md) registra a auditoria vigente. O script valida cada arquivo de relatório contra links/junctions e recusa colisão com corpus/referência; a escrita Python usa temporários exclusivos, substituição atômica e limpeza em falha, inclusive para summary. A suíte Python atual passa 20/20.

@@ -29,6 +29,10 @@ internal static class AgentReplayCommand
     {
         var root = LabWorkspace.Resolve(workspace) ?? throw new ArgumentException("Informe --workspace ou KAPILAB_WORKSPACE.");
         var inputPath = KapiLabCommandLine.ReadArtifactPath(input, root);
+        using (var header = JsonDocument.Parse(LabWorkspace.ReadFileLimited(inputPath, 4 * 1024 * 1024)))
+            if (header.RootElement.ValueKind == JsonValueKind.Object && header.RootElement.TryGetProperty("schema", out var schema) &&
+                schema.ValueKind == JsonValueKind.String && schema.GetString() == "kapilab-agent-trajectory-v1")
+                return await AgentFixtureCommand.RunAsync(input, output, workspace, replay: true, cancellationToken);
         var cases = ReadCases(inputPath);
         string? outputPath = output is null ? null : LabWorkspace.ResolveOutput(root, output);
         if (outputPath is not null) LabWorkspace.RefuseInputOverwrite(root, outputPath, [inputPath]);

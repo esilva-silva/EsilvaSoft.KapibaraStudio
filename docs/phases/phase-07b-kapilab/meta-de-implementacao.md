@@ -1,5 +1,7 @@
 # Meta de implementação — Fase 7B / F7B-KAPILAB
 
+**Recorte PR 3 — 11/10/2026:** F7B-06/17/20 avançam com catálogo completo por modo, fixtures/grants transitórios e replay reais. [Aceite](aceite-pr-3.md); sucesso Atlas e paridade com kapisim continuam gates externos, sem ampliar o escopo de treino.
+
 **Título:** KapiLab — console .NET de contratos, vetores sintéticos e avaliação de modelos pelo caminho da IDE.
 **Data:** 09/10/2026.
 **Estado:** em implementação; K0/K1 parciais, com recortes de K3/K4 também verificados localmente. Linux permanece validação manual fora da meta executável nesta máquina.

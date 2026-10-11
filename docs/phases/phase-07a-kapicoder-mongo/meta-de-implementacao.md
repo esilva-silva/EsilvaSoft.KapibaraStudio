@@ -1,5 +1,7 @@
 # Meta de implementação — Fase 7A / F7A-KAPI
 
+**PR 3 / K1–K4 e A13a–d — 11/10/2026:** catálogo e harness no KapiLab exercitam contratos locais reais, incluindo 500 casos e replay. [Evidências e limites](../phase-07b-kapilab/aceite-pr-3.md); isso não é homologação de inferência T4 ou de grants externos.
+
 **Título:** preparação do EsilvaSoft.KapibaraStudio para KapiCoder-Mongo.
 **Data:** 09/10/2026.
 **Estado:** implementação parcial em andamento no checkout Windows, dividida entre frentes Sol (contratos/provider local) e Luna (tools/registry). Não é aceite integral dos 78 itens.

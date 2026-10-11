@@ -1,5 +1,7 @@
 # Catálogo funcional
 
+**ADV-09 / EDT-02 — PR 3 em 11/10/2026:** KapiLab exporta catálogo local completo por modo e executa tools pelo runtime/registry real em fixture MongoDB isolado. [Aceite e limites](phases/phase-07b-kapilab/aceite-pr-3.md). Sem alteração de comportamento/UI ou novas permissões do Desktop.
+
 **ADV-09 / EDT-02 — contrato de agente local em 11/10/2026:** builder público `local-agent-qwen3-v1`, descrições compartilhadas, 200 goldens e paridade de texto/IDs nativos Cpu/Python aprovados. O KapiLab renderiza/tokeniza/diff sem mudar permissões ou disponibilidade de providers. [Aceite PR 2 e limites](phases/phase-07b-kapilab/aceite-pr-2.md); inferência T4 e WinML nativo continuam sem homologação.
 
 **ADV-09 / EDT-02 — Fase 7B em implementação local:** [KapiLab](phases/phase-07b-kapilab/README.md) organiza a ferramenta de desenvolvimento para contratos, catálogo e avaliação ONNX. O console e os testes próprios foram compilados/testados para Cpu e WinML; isso complementa as superfícies da 7A, não altera status funcional da UI nem homologa modelos. Consulte [evidências locais](phases/phase-07b-kapilab/evidencias-locais.md).

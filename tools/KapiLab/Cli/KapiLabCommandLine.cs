@@ -2,6 +2,7 @@ using System.CommandLine;
 using System.Globalization;
 using System.Text.Json;
 using EsilvaSoft.KapibaraStudio.KapiLab.Core;
+using EsilvaSoft.KapibaraStudio.Core.Agents;
 
 namespace EsilvaSoft.KapibaraStudio.KapiLab.Cli;
 
@@ -28,8 +29,30 @@ internal static class KapiLabCommandLine
         root.Subcommands.Add(BuildSamplesCommand(workspace));
         root.Subcommands.Add(BuildParityCommand(workspace));
         root.Subcommands.Add(BuildAgentCommand(workspace));
+        root.Subcommands.Add(BuildFixtureCommand(workspace));
         root.Subcommands.Add(BuildMatrixCommand(workspace));
         return root;
+    }
+
+    private static Command BuildFixtureCommand(Option<string?> workspace)
+    {
+        var fixture = new Command("fixture", "Prepara exclusivamente dados sintéticos kapi_sim_*.");
+        var seed = new Command("seed", "Recria os bancos do fixture (drop, insert e índices) de forma determinística.");
+        var input = new Option<string>("--fixture") { Required = true, Description = "Manifesto kapilab-tool-fixture-v1." };
+        seed.Options.Add(input);
+        seed.SetAction(parseResult => ExecuteAsync("fixture.seed", async () =>
+        {
+            var root = LabWorkspace.Resolve(parseResult.GetValue(workspace)) ?? throw new ArgumentException("Informe --workspace.");
+            var path = ReadArtifactPath(parseResult.GetValue(input)!, root);
+            var manifest = AgentFixtureCommand.ReadInput(root, path, false);
+            var domains = KapiSimFixture.ReadDomains(root, manifest.Domains);
+            var hash = await KapiSimFixture.SeedAsync(Environment.GetEnvironmentVariable("KAPILAB_MONGO_URI") ?? "mongodb://127.0.0.1:27017", domains, CancellationToken.None);
+            WriteJson(new { schema = "kapilab-fixture-seed-v1", fixtureSha256 = hash,
+                databases = domains.Select(domain => domain.Database), synthetic = true });
+            return 0;
+        }));
+        fixture.Subcommands.Add(seed);
+        return fixture;
     }
 
     private static Command BuildMatrixCommand(Option<string?> workspace)
@@ -296,14 +319,19 @@ internal static class KapiLabCommandLine
 
         var export = new Command("export", "Exporta a superfície máxima de ferramentas da registry composta; não inclui grants ou plano de execução.");
         var exportProvider = new Option<string>("--provider") { Description = "ID do provider registrado na composição local.", Required = true };
-        var exportSurface = new Option<string>("--surface") { Description = "Superfície in-process ou session-channel.", Required = true };
+        var exportSurface = new Option<string>("--surface") { Description = "Superfície in-process ou session-channel; padrão in-process." };
+        var exportMode = new Option<AgentOperationMode?>("--mode") { Description = "Agent, Planning, Automatic ou AskConfirmations." };
+        var exportMaximumBytes = new Option<int?>("--max-result-bytes") { Description = "MaxToolResultBytes do pacote; padrão 65536." };
         var exportOutput = new Option<string?>("--out") { Description = "Snapshot JSON em data/lab, reports/lab ou tmp; padrão stdout." };
         export.Options.Add(exportProvider);
         export.Options.Add(exportSurface);
+        export.Options.Add(exportMode);
+        export.Options.Add(exportMaximumBytes);
         export.Options.Add(exportOutput);
         export.SetAction(parseResult => ExecuteAsync("catalog.export", () => AgentCatalogExportCommand.RunAsync(
-            parseResult.GetValue(exportProvider) ?? "", parseResult.GetValue(exportSurface) ?? "",
-            parseResult.GetValue(exportOutput), parseResult.GetValue(workspace))));
+            parseResult.GetValue(exportProvider) ?? "", parseResult.GetValue(exportSurface) ?? "in-process",
+            parseResult.GetValue(exportOutput), parseResult.GetValue(workspace), parseResult.GetValue(exportMode),
+            parseResult.GetValue(exportMaximumBytes) ?? 65_536)));
         catalog.Subcommands.Add(export);
 
         var exportPlan = new Command("export-plan", "Exporta descritores in-process limitados por um único plano sintético; não verifica grants reais.");
@@ -319,12 +347,20 @@ internal static class KapiLabCommandLine
         catalog.Subcommands.Add(exportPlan);
 
         var invoke = new Command("invoke", "Invoca tools de metadados permitidas pela registry real; casos restantes exercitam negação sem grants.");
-        var invokeInput = new Option<string>("--in") { Description = "Casos JSON kapilab-agent-catalog-invocation-cases-v1 dentro do workspace.", Required = true };
+        var invokeInput = new Option<string?>("--in") { Description = "Casos legados sem acesso MongoDB." };
+        var invokeFixture = new Option<string?>("--fixture") { Description = "Fixture kapilab-tool-fixture-v1; recria apenas bancos sintéticos kapi_sim_*." };
         var invokeOutput = new Option<string?>("--out") { Description = "Relatório JSON em reports/lab, data/lab ou tmp; padrão stdout." };
         invoke.Options.Add(invokeInput);
+        invoke.Options.Add(invokeFixture);
         invoke.Options.Add(invokeOutput);
-        invoke.SetAction(parseResult => ExecuteAsync("catalog.invoke", () => AgentCatalogInvokeCommand.RunAsync(
-            parseResult.GetValue(invokeInput) ?? "", parseResult.GetValue(invokeOutput), parseResult.GetValue(workspace))));
+        invoke.SetAction(parseResult => ExecuteAsync("catalog.invoke", () =>
+        {
+            var legacy = parseResult.GetValue(invokeInput);
+            var fixture = parseResult.GetValue(invokeFixture);
+            if ((legacy is null) == (fixture is null)) throw new ArgumentException("Informe exatamente --in ou --fixture.");
+            return fixture is not null ? AgentFixtureCommand.RunAsync(fixture, parseResult.GetValue(invokeOutput), parseResult.GetValue(workspace)) :
+                AgentCatalogInvokeCommand.RunAsync(legacy!, parseResult.GetValue(invokeOutput), parseResult.GetValue(workspace));
+        }));
         catalog.Subcommands.Add(invoke);
 
         var check = new Command("check", "Compara dois snapshots provider-maximum sem inferir plano ou grants.");

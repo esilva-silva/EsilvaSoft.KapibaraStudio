@@ -281,8 +281,8 @@ class KapiLabWrapperTests(unittest.TestCase):
         self.assertEqual(export_code, 0)
         self.assertEqual(export_summary["cmd"], "catalog.export")
         self.assertEqual(export["scope"], "provider-maximum")
-        self.assertFalse(export["complete"])
-        self.assertGreater(len(export["tools"]), 0)
+        self.assertTrue(export["complete"])
+        self.assertEqual(len(export["tools"]), 11)
 
     def test_published_agent_replay_is_synthetic_and_rejects_invalid_fixture(self) -> None:
         if os.name != "nt":

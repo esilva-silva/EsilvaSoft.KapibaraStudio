@@ -720,3 +720,17 @@ O tamanho do contexto é calculado em bytes UTF-8 a partir do texto já resolvid
 **Paridade:** o nativo GenAI 0.15.2 simplifica schemas antes do template, incluindo `string` → `str`. O fallback C# e o espelho Python reproduzem essa transformação observada; produção continua usando o formatter/template do pacote. Não acrescentar providers, grants, autenticação ou fallback silencioso. Exportar texto somente com `--emit-text`, saída explícita e correspondência com fixtures sintéticas versionadas/verificadas; casos novos recebem somente hashes.
 
 **Consequências e prova:** 200 goldens, oráculo pré-refatoração, testes de captura/falha/concorrência/recuperação, comparação de tokens nativos e `RewindTo` explícito. Isso não homologa pesos T4, MongoDB ou sucesso de tarefas. Detalhes: [contrato](architecture/local-agent-qwen3-v1.md) e [aceite](phases/phase-07b-kapilab/aceite-pr-2.md).
+
+## ADR-073 — Catálogo completo por modo e host real de fixture isolado no KapiLab (11/10/2026)
+
+**Status:** implementado no recorte local do PR 3; paridade com simulador externo e sucesso Atlas mantêm gates separados.
+
+**Contexto:** o pipeline T4 precisa conhecer os contratos vigentes e comparar respostas reais de tools sem acessar dados, cofre ou grants da instalação do usuário. O export anterior declarava incompletude e as invocações cobriam um recorte pequeno.
+
+**Decisão:** compor a infraestrutura existente no executável KapiLab com LiteDB e workspace temporários, provider recorder local, portas sintéticas e a mesma política de produção. `complete=true` no catálogo significa cobertura do máximo **por modo** para o provider local in-process, com descrições/schemas/hashes/cotas/escopos/limite de resposta; não significa autorização para uma sessão. Outras superfícies/export-plan conservam seus contratos. `approve` pertence à confirmação do turno e fica omitida; nenhuma tool removida é restaurada.
+
+Antes de exportar resultados, o host valida todo o manifesto e recria somente os domínios sintéticos `kapi_sim_*`. URI exige IP loopback e `directConnection=true`; não há credenciais, SRV, DNS, expansão de ambiente ou descoberta de outros servidores. Query/cache são preparados pelos serviços reais da IDE fora do turno do agente. Durante tools, amostragem pela porta de metadados é recusada e os comandos do driver das fontes de índices são observados sem conteúdo. Os grants locais continuam transitórios por turno; o host marca sua origem sintética e mantém vazio o anchor durável. Encerramento/revogação da scope representa término desse grant, sem inventar TTL persistido ou relaxar a política Desktop.
+
+**Compatibilidade:** `create_workspace_file` preserva ADR-067, criando somente na pasta temporária após confirmação; propostas não salvam alterações. O Community preserva a falha real de `$listSearchIndexes`, sem `$search` ou fallback. Cota excedida encerra o turno antes de entregar nova mensagem; o relatório registra `toolResponse=null` e o erro real do runtime. Toda mensagem efetivamente entregue usa `LocalAgentPromptBuilder.BuildToolResponse` do ADR-072. Nenhum registro sintético entra na instalação do usuário.
+
+**Consequências:** fixtures versionados, replay com tolerâncias restritas e comparador externo de 500 chamadas; nenhum `Succeeded` do simulador diante de falha/recusa real é tolerado. Não há inferência, dataset de treino, provider/autenticação de produção novo ou mudança visual. [Contrato operacional](../tools/KapiLab/Fixtures/kapi-sim/README.md), [evidências e limites](phases/phase-07b-kapilab/aceite-pr-3.md).

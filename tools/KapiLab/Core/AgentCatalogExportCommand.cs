@@ -1,5 +1,6 @@
 using System.Text.Json;
 using EsilvaSoft.KapibaraStudio.Application.Agents;
+using EsilvaSoft.KapibaraStudio.Core.Agents;
 using EsilvaSoft.KapibaraStudio.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -9,7 +10,8 @@ internal static class AgentCatalogExportCommand
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
-    internal static async Task<int> RunAsync(string providerId, string surface, string? output, string? workspace)
+    internal static async Task<int> RunAsync(string providerId, string surface, string? output, string? workspace,
+        AgentOperationMode? mode = null, int maxResultBytes = 65_536)
     {
         var root = LabWorkspace.Resolve(workspace) ?? throw new ArgumentException("Informe --workspace ou KAPILAB_WORKSPACE.");
         ArgumentException.ThrowIfNullOrWhiteSpace(providerId);
@@ -24,8 +26,9 @@ internal static class AgentCatalogExportCommand
             var services = new ServiceCollection();
             services.AddKapibaraStudioInfrastructure(Path.Combine(tempRoot, "workspace.db"),
                 new AgentPlatformOptions { InProcessToolExposureStage = AgentToolExposureStage.Metadata });
+            AgentFixturePorts.Register(services);
             await using var provider = services.BuildServiceProvider();
-            snapshot = AgentToolCatalogSnapshot.Export(provider.GetRequiredService<IAgentToolRegistry>(), providerId, surface);
+            snapshot = AgentToolCatalogSnapshot.Export(provider.GetRequiredService<IAgentToolRegistry>(), providerId, surface, mode, maxResultBytes);
         }
         finally
         {

@@ -1,5 +1,7 @@
 # Fase 7B — KapiLab: contratos e avaliação pelo caminho da IDE
 
+**PR 3 — 11/10/2026:** catálogo local por modo, host de fixture real (315 casos), replay de 44 passos e comparador externo entregues. [Aceite e limites](aceite-pr-3.md). Os recortes v1/v2 descritos adiante são históricos/legados; `--fixture` e trajetórias v1 usam o host real atual.
+
 **PR 2 — 11/10/2026:** contrato público `local-agent-qwen3-v1`, 200 goldens e paridade nativa Cpu/Python aprovados; descrições compartilhadas conforme ADR-072. [Aceite e limitações](aceite-pr-2.md).
 
 **Situação:** implementação local em andamento; meta definida em 09/10/2026.

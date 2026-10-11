@@ -1,5 +1,7 @@
 # Design system e revisão de UI/UX
 
+**Laboratório PR 3 — 11/10/2026:** o host sintético captura contexto/saídas por turno para testar as tools existentes. Não altera UI, seleção do explorer, consentimentos, sessão persistida ou confirmações do Desktop. [Escopo e limites](phases/phase-07b-kapilab/aceite-pr-3.md).
+
 **Contrato de conteúdo do agente local — 11/10/2026:** ADR-072 congela o sistema em pt-BR e mensagens role/content, com descrições curtas em inglês das tools internas. Raciocínio entre turnos continua removido pela sessão; a exportação KapiLab usa hashes por padrão. As superfícies visuais e políticas de contexto/retenção existentes permanecem conforme seus aceites. [Contrato técnico e limites](architecture/local-agent-qwen3-v1.md).
 
 **Fase 7A — apresentação parcialmente implementada em 09/10/2026 (ADR-070):** [meta KapiCoder-Mongo](phases/phase-07a-kapicoder-mongo/meta-de-implementacao.md) adiciona controles de orçamento e habilitação de raciocínio disponíveis conforme capacidade local, além de item recolhível transitório, nos quatro idiomas. O conteúdo permanece inerte; retenção local é opt-in, desligada por padrão, limitada a 1/7/30 dias e vedada em conversas que solicitam dados/diagnósticos capturados. Inspeção de PNGs claro/escuro e validação dos testes de retenção seguem pendentes; a composição Release agora inclui IA local e Copilot.

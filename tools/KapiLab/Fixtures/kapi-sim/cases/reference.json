@@ -1,0 +1,4205 @@
+{
+  "schema": "kapilab-tool-fixture-v1",
+  "domains": [
+    "tools/KapiLab/Fixtures/kapi-sim/domains/store.json",
+    "tools/KapiLab/Fixtures/kapi-sim/domains/logistics.json",
+    "tools/KapiLab/Fixtures/kapi-sim/domains/iot.json"
+  ],
+  "maxToolResultBytes": 65536,
+  "cases": [
+    {
+      "id": "list_connections-success-00",
+      "tool": "list_connections",
+      "arguments": {},
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_connections-success-01",
+      "tool": "list_connections",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_connections-success-02",
+      "tool": "list_connections",
+      "arguments": {},
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_connections-success-03",
+      "tool": "list_connections",
+      "arguments": {},
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_connections-success-04",
+      "tool": "list_connections",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_connections-success-05",
+      "tool": "list_connections",
+      "arguments": {},
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_connections-success-06",
+      "tool": "list_connections",
+      "arguments": {},
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_connections-success-07",
+      "tool": "list_connections",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_connections-success-08",
+      "tool": "list_connections",
+      "arguments": {},
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_connections-success-09",
+      "tool": "list_connections",
+      "arguments": {},
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_connections-success-10",
+      "tool": "list_connections",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_connections-success-11",
+      "tool": "list_connections",
+      "arguments": {},
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_connections-success-12",
+      "tool": "list_connections",
+      "arguments": {},
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_connections-success-13",
+      "tool": "list_connections",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_connections-success-14",
+      "tool": "list_connections",
+      "arguments": {},
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_connections-success-15",
+      "tool": "list_connections",
+      "arguments": {},
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_connections-success-16",
+      "tool": "list_connections",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_connections-success-17",
+      "tool": "list_connections",
+      "arguments": {},
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_connections-success-18",
+      "tool": "list_connections",
+      "arguments": {},
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_connections-success-19",
+      "tool": "list_connections",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_connections-permission_missing",
+      "tool": "list_connections",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "permission_missing",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_connections-grant_expired",
+      "tool": "list_connections",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "grant_expired",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_connections-grant_revoked",
+      "tool": "list_connections",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "grant_revoked",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_connections-confirmation_denied",
+      "tool": "list_connections",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "confirmation_denied",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "ConfirmationRejected",
+      "expectedAuditReason": "ApprovalRejected"
+    },
+    {
+      "id": "list_connections-invalid_arguments",
+      "tool": "list_connections",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "invalid_arguments",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "InvalidArguments",
+      "expectedAuditReason": "ValidationRejected"
+    },
+    {
+      "id": "list_connections-quota_exceeded",
+      "tool": "list_connections",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "quota_exceeded",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ToolCallLimitExceeded"
+    },
+    {
+      "id": "list_connections-truncated",
+      "tool": "list_connections",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "truncated",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_databases-success-00",
+      "tool": "list_databases",
+      "arguments": {
+        "connectionId": "$fixture"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_databases-success-01",
+      "tool": "list_databases",
+      "arguments": {
+        "connectionId": "$fixture"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_databases-success-02",
+      "tool": "list_databases",
+      "arguments": {
+        "connectionId": "$fixture"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_databases-success-03",
+      "tool": "list_databases",
+      "arguments": {
+        "connectionId": "$fixture"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_databases-success-04",
+      "tool": "list_databases",
+      "arguments": {
+        "connectionId": "$fixture"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_databases-success-05",
+      "tool": "list_databases",
+      "arguments": {
+        "connectionId": "$fixture"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_databases-success-06",
+      "tool": "list_databases",
+      "arguments": {
+        "connectionId": "$fixture"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_databases-success-07",
+      "tool": "list_databases",
+      "arguments": {
+        "connectionId": "$fixture"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_databases-success-08",
+      "tool": "list_databases",
+      "arguments": {
+        "connectionId": "$fixture"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_databases-success-09",
+      "tool": "list_databases",
+      "arguments": {
+        "connectionId": "$fixture"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_databases-success-10",
+      "tool": "list_databases",
+      "arguments": {
+        "connectionId": "$fixture"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_databases-success-11",
+      "tool": "list_databases",
+      "arguments": {
+        "connectionId": "$fixture"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_databases-success-12",
+      "tool": "list_databases",
+      "arguments": {
+        "connectionId": "$fixture"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_databases-success-13",
+      "tool": "list_databases",
+      "arguments": {
+        "connectionId": "$fixture"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_databases-success-14",
+      "tool": "list_databases",
+      "arguments": {
+        "connectionId": "$fixture"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_databases-success-15",
+      "tool": "list_databases",
+      "arguments": {
+        "connectionId": "$fixture"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_databases-success-16",
+      "tool": "list_databases",
+      "arguments": {
+        "connectionId": "$fixture"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_databases-success-17",
+      "tool": "list_databases",
+      "arguments": {
+        "connectionId": "$fixture"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_databases-success-18",
+      "tool": "list_databases",
+      "arguments": {
+        "connectionId": "$fixture"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_databases-success-19",
+      "tool": "list_databases",
+      "arguments": {
+        "connectionId": "$fixture"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_databases-permission_missing",
+      "tool": "list_databases",
+      "arguments": {
+        "connectionId": "$fixture"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "permission_missing",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "PermissionDenied",
+      "expectedAuditReason": "PermissionMissing"
+    },
+    {
+      "id": "list_databases-grant_expired",
+      "tool": "list_databases",
+      "arguments": {
+        "connectionId": "$fixture"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "grant_expired",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "PermissionDenied",
+      "expectedAuditReason": "PermissionMissing"
+    },
+    {
+      "id": "list_databases-grant_revoked",
+      "tool": "list_databases",
+      "arguments": {
+        "connectionId": "$fixture"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "grant_revoked",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "PermissionDenied",
+      "expectedAuditReason": "PermissionMissing"
+    },
+    {
+      "id": "list_databases-confirmation_denied",
+      "tool": "list_databases",
+      "arguments": {
+        "connectionId": "$fixture"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "confirmation_denied",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "ConfirmationRejected",
+      "expectedAuditReason": "ApprovalRejected"
+    },
+    {
+      "id": "list_databases-invalid_arguments",
+      "tool": "list_databases",
+      "arguments": {
+        "connectionId": "$fixture"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "invalid_arguments",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "InvalidArguments",
+      "expectedAuditReason": "ValidationRejected"
+    },
+    {
+      "id": "list_databases-quota_exceeded",
+      "tool": "list_databases",
+      "arguments": {
+        "connectionId": "$fixture"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "quota_exceeded",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ToolCallLimitExceeded"
+    },
+    {
+      "id": "list_databases-truncated",
+      "tool": "list_databases",
+      "arguments": {
+        "connectionId": "$fixture"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "truncated",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_databases-connection_missing",
+      "tool": "list_databases",
+      "arguments": {
+        "connectionId": "$fixture"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "connection_missing",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "PermissionDenied",
+      "expectedAuditReason": "ValidationRejected"
+    },
+    {
+      "id": "list_collections-success-00",
+      "tool": "list_collections",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_store"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_collections-success-01",
+      "tool": "list_collections",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_collections-success-02",
+      "tool": "list_collections",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_iot"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_collections-success-03",
+      "tool": "list_collections",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_store"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_collections-success-04",
+      "tool": "list_collections",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_collections-success-05",
+      "tool": "list_collections",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_iot"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_collections-success-06",
+      "tool": "list_collections",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_store"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_collections-success-07",
+      "tool": "list_collections",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_collections-success-08",
+      "tool": "list_collections",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_iot"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_collections-success-09",
+      "tool": "list_collections",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_store"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_collections-success-10",
+      "tool": "list_collections",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_collections-success-11",
+      "tool": "list_collections",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_iot"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_collections-success-12",
+      "tool": "list_collections",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_store"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_collections-success-13",
+      "tool": "list_collections",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_collections-success-14",
+      "tool": "list_collections",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_iot"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_collections-success-15",
+      "tool": "list_collections",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_store"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_collections-success-16",
+      "tool": "list_collections",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_collections-success-17",
+      "tool": "list_collections",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_iot"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_collections-success-18",
+      "tool": "list_collections",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_store"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_collections-success-19",
+      "tool": "list_collections",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_collections-permission_missing",
+      "tool": "list_collections",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "permission_missing",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "PermissionDenied",
+      "expectedAuditReason": "PermissionMissing"
+    },
+    {
+      "id": "list_collections-grant_expired",
+      "tool": "list_collections",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "grant_expired",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "PermissionDenied",
+      "expectedAuditReason": "PermissionMissing"
+    },
+    {
+      "id": "list_collections-grant_revoked",
+      "tool": "list_collections",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "grant_revoked",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "PermissionDenied",
+      "expectedAuditReason": "PermissionMissing"
+    },
+    {
+      "id": "list_collections-confirmation_denied",
+      "tool": "list_collections",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "confirmation_denied",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "ConfirmationRejected",
+      "expectedAuditReason": "ApprovalRejected"
+    },
+    {
+      "id": "list_collections-invalid_arguments",
+      "tool": "list_collections",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "invalid_arguments",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "InvalidArguments",
+      "expectedAuditReason": "ValidationRejected"
+    },
+    {
+      "id": "list_collections-quota_exceeded",
+      "tool": "list_collections",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "quota_exceeded",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ToolCallLimitExceeded"
+    },
+    {
+      "id": "list_collections-truncated",
+      "tool": "list_collections",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "truncated",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "list_collections-connection_missing",
+      "tool": "list_collections",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "connection_missing",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "PermissionDenied",
+      "expectedAuditReason": "ValidationRejected"
+    },
+    {
+      "id": "list_collections-database_missing",
+      "tool": "list_collections",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "database_missing",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_indexes-success-00",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_store",
+        "collection": "items"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_indexes-success-01",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_indexes-success-02",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_iot",
+        "collection": "items"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_indexes-success-03",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_store",
+        "collection": "items"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_indexes-success-04",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_indexes-success-05",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_iot",
+        "collection": "items"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_indexes-success-06",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_store",
+        "collection": "items"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_indexes-success-07",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_indexes-success-08",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_iot",
+        "collection": "items"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_indexes-success-09",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_store",
+        "collection": "items"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_indexes-success-10",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_indexes-success-11",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_iot",
+        "collection": "items"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_indexes-success-12",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_store",
+        "collection": "items"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_indexes-success-13",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_indexes-success-14",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_iot",
+        "collection": "items"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_indexes-success-15",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_store",
+        "collection": "items"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_indexes-success-16",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_indexes-success-17",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_iot",
+        "collection": "items"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_indexes-success-18",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_store",
+        "collection": "items"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_indexes-success-19",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_indexes-permission_missing",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "permission_missing",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "PermissionDenied",
+      "expectedAuditReason": "PermissionMissing"
+    },
+    {
+      "id": "get_indexes-grant_expired",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "grant_expired",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "PermissionDenied",
+      "expectedAuditReason": "PermissionMissing"
+    },
+    {
+      "id": "get_indexes-grant_revoked",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "grant_revoked",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "PermissionDenied",
+      "expectedAuditReason": "PermissionMissing"
+    },
+    {
+      "id": "get_indexes-confirmation_denied",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "confirmation_denied",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "ConfirmationRejected",
+      "expectedAuditReason": "ApprovalRejected"
+    },
+    {
+      "id": "get_indexes-invalid_arguments",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "invalid_arguments",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "InvalidArguments",
+      "expectedAuditReason": "ValidationRejected"
+    },
+    {
+      "id": "get_indexes-quota_exceeded",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "quota_exceeded",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ToolCallLimitExceeded"
+    },
+    {
+      "id": "get_indexes-truncated",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "truncated",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_indexes-connection_missing",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "connection_missing",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "PermissionDenied",
+      "expectedAuditReason": "ValidationRejected"
+    },
+    {
+      "id": "get_indexes-database_missing",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "database_missing",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "PermissionDenied",
+      "expectedAuditReason": "ValidationRejected"
+    },
+    {
+      "id": "get_indexes-collection_missing",
+      "tool": "get_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "collection_missing",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "PermissionDenied",
+      "expectedAuditReason": "ValidationRejected"
+    },
+    {
+      "id": "get_search_indexes-success-00",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_store",
+        "collection": "items"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ExecutionFailed",
+      "expectedAuditReason": "ExecutionFailed"
+    },
+    {
+      "id": "get_search_indexes-success-01",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ExecutionFailed",
+      "expectedAuditReason": "ExecutionFailed"
+    },
+    {
+      "id": "get_search_indexes-success-02",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_iot",
+        "collection": "items"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ExecutionFailed",
+      "expectedAuditReason": "ExecutionFailed"
+    },
+    {
+      "id": "get_search_indexes-success-03",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_store",
+        "collection": "items"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ExecutionFailed",
+      "expectedAuditReason": "ExecutionFailed"
+    },
+    {
+      "id": "get_search_indexes-success-04",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ExecutionFailed",
+      "expectedAuditReason": "ExecutionFailed"
+    },
+    {
+      "id": "get_search_indexes-success-05",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_iot",
+        "collection": "items"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ExecutionFailed",
+      "expectedAuditReason": "ExecutionFailed"
+    },
+    {
+      "id": "get_search_indexes-success-06",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_store",
+        "collection": "items"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ExecutionFailed",
+      "expectedAuditReason": "ExecutionFailed"
+    },
+    {
+      "id": "get_search_indexes-success-07",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ExecutionFailed",
+      "expectedAuditReason": "ExecutionFailed"
+    },
+    {
+      "id": "get_search_indexes-success-08",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_iot",
+        "collection": "items"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ExecutionFailed",
+      "expectedAuditReason": "ExecutionFailed"
+    },
+    {
+      "id": "get_search_indexes-success-09",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_store",
+        "collection": "items"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ExecutionFailed",
+      "expectedAuditReason": "ExecutionFailed"
+    },
+    {
+      "id": "get_search_indexes-success-10",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ExecutionFailed",
+      "expectedAuditReason": "ExecutionFailed"
+    },
+    {
+      "id": "get_search_indexes-success-11",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_iot",
+        "collection": "items"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ExecutionFailed",
+      "expectedAuditReason": "ExecutionFailed"
+    },
+    {
+      "id": "get_search_indexes-success-12",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_store",
+        "collection": "items"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ExecutionFailed",
+      "expectedAuditReason": "ExecutionFailed"
+    },
+    {
+      "id": "get_search_indexes-success-13",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ExecutionFailed",
+      "expectedAuditReason": "ExecutionFailed"
+    },
+    {
+      "id": "get_search_indexes-success-14",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_iot",
+        "collection": "items"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ExecutionFailed",
+      "expectedAuditReason": "ExecutionFailed"
+    },
+    {
+      "id": "get_search_indexes-success-15",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_store",
+        "collection": "items"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ExecutionFailed",
+      "expectedAuditReason": "ExecutionFailed"
+    },
+    {
+      "id": "get_search_indexes-success-16",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ExecutionFailed",
+      "expectedAuditReason": "ExecutionFailed"
+    },
+    {
+      "id": "get_search_indexes-success-17",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_iot",
+        "collection": "items"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ExecutionFailed",
+      "expectedAuditReason": "ExecutionFailed"
+    },
+    {
+      "id": "get_search_indexes-success-18",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_store",
+        "collection": "items"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ExecutionFailed",
+      "expectedAuditReason": "ExecutionFailed"
+    },
+    {
+      "id": "get_search_indexes-success-19",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ExecutionFailed",
+      "expectedAuditReason": "ExecutionFailed"
+    },
+    {
+      "id": "get_search_indexes-permission_missing",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "permission_missing",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "PermissionDenied",
+      "expectedAuditReason": "PermissionMissing"
+    },
+    {
+      "id": "get_search_indexes-grant_expired",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "grant_expired",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "PermissionDenied",
+      "expectedAuditReason": "PermissionMissing"
+    },
+    {
+      "id": "get_search_indexes-grant_revoked",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "grant_revoked",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "PermissionDenied",
+      "expectedAuditReason": "PermissionMissing"
+    },
+    {
+      "id": "get_search_indexes-confirmation_denied",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "confirmation_denied",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "ConfirmationRejected",
+      "expectedAuditReason": "ApprovalRejected"
+    },
+    {
+      "id": "get_search_indexes-invalid_arguments",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "invalid_arguments",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "InvalidArguments",
+      "expectedAuditReason": "ValidationRejected"
+    },
+    {
+      "id": "get_search_indexes-quota_exceeded",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "quota_exceeded",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ToolCallLimitExceeded"
+    },
+    {
+      "id": "get_search_indexes-truncated",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "truncated",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ExecutionFailed",
+      "expectedAuditReason": "ExecutionFailed"
+    },
+    {
+      "id": "get_search_indexes-connection_missing",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "connection_missing",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "PermissionDenied",
+      "expectedAuditReason": "ValidationRejected"
+    },
+    {
+      "id": "get_search_indexes-database_missing",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "database_missing",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "PermissionDenied",
+      "expectedAuditReason": "ValidationRejected"
+    },
+    {
+      "id": "get_search_indexes-collection_missing",
+      "tool": "get_search_indexes",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "collection_missing",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "PermissionDenied",
+      "expectedAuditReason": "ValidationRejected"
+    },
+    {
+      "id": "get_cached_schema-success-00",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_store",
+        "collection": "items"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_cached_schema-success-01",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_cached_schema-success-02",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_iot",
+        "collection": "items"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_cached_schema-success-03",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_store",
+        "collection": "items"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_cached_schema-success-04",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_cached_schema-success-05",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_iot",
+        "collection": "items"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_cached_schema-success-06",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_store",
+        "collection": "items"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_cached_schema-success-07",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_cached_schema-success-08",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_iot",
+        "collection": "items"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_cached_schema-success-09",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_store",
+        "collection": "items"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_cached_schema-success-10",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_cached_schema-success-11",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_iot",
+        "collection": "items"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_cached_schema-success-12",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_store",
+        "collection": "items"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_cached_schema-success-13",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_cached_schema-success-14",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_iot",
+        "collection": "items"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_cached_schema-success-15",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_store",
+        "collection": "items"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_cached_schema-success-16",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_cached_schema-success-17",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_iot",
+        "collection": "items"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_cached_schema-success-18",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_store",
+        "collection": "items"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_cached_schema-success-19",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_cached_schema-permission_missing",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "permission_missing",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "PermissionDenied",
+      "expectedAuditReason": "PermissionMissing"
+    },
+    {
+      "id": "get_cached_schema-grant_expired",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "grant_expired",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "UnknownTool"
+    },
+    {
+      "id": "get_cached_schema-grant_revoked",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "grant_revoked",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "UnknownTool"
+    },
+    {
+      "id": "get_cached_schema-confirmation_denied",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "confirmation_denied",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "ConfirmationRejected",
+      "expectedAuditReason": "ApprovalRejected"
+    },
+    {
+      "id": "get_cached_schema-invalid_arguments",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "invalid_arguments",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "InvalidArguments",
+      "expectedAuditReason": "ValidationRejected"
+    },
+    {
+      "id": "get_cached_schema-quota_exceeded",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "quota_exceeded",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ToolCallLimitExceeded"
+    },
+    {
+      "id": "get_cached_schema-truncated",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "truncated",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_cached_schema-connection_missing",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "connection_missing",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "PermissionDenied",
+      "expectedAuditReason": "ValidationRejected"
+    },
+    {
+      "id": "get_cached_schema-database_missing",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "database_missing",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_cached_schema-collection_missing",
+      "tool": "get_cached_schema",
+      "arguments": {
+        "connectionId": "$fixture",
+        "database": "kapi_sim_logistics",
+        "collection": "items"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "collection_missing",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_workspace_context-success-00",
+      "tool": "get_workspace_context",
+      "arguments": {},
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_workspace_context-success-01",
+      "tool": "get_workspace_context",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_workspace_context-success-02",
+      "tool": "get_workspace_context",
+      "arguments": {},
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_workspace_context-success-03",
+      "tool": "get_workspace_context",
+      "arguments": {},
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_workspace_context-success-04",
+      "tool": "get_workspace_context",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_workspace_context-success-05",
+      "tool": "get_workspace_context",
+      "arguments": {},
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_workspace_context-success-06",
+      "tool": "get_workspace_context",
+      "arguments": {},
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_workspace_context-success-07",
+      "tool": "get_workspace_context",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_workspace_context-success-08",
+      "tool": "get_workspace_context",
+      "arguments": {},
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_workspace_context-success-09",
+      "tool": "get_workspace_context",
+      "arguments": {},
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_workspace_context-success-10",
+      "tool": "get_workspace_context",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_workspace_context-success-11",
+      "tool": "get_workspace_context",
+      "arguments": {},
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_workspace_context-success-12",
+      "tool": "get_workspace_context",
+      "arguments": {},
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_workspace_context-success-13",
+      "tool": "get_workspace_context",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_workspace_context-success-14",
+      "tool": "get_workspace_context",
+      "arguments": {},
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_workspace_context-success-15",
+      "tool": "get_workspace_context",
+      "arguments": {},
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_workspace_context-success-16",
+      "tool": "get_workspace_context",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_workspace_context-success-17",
+      "tool": "get_workspace_context",
+      "arguments": {},
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_workspace_context-success-18",
+      "tool": "get_workspace_context",
+      "arguments": {},
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_workspace_context-success-19",
+      "tool": "get_workspace_context",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_workspace_context-permission_missing",
+      "tool": "get_workspace_context",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "permission_missing",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "UnknownTool"
+    },
+    {
+      "id": "get_workspace_context-grant_expired",
+      "tool": "get_workspace_context",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "grant_expired",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "UnknownTool"
+    },
+    {
+      "id": "get_workspace_context-grant_revoked",
+      "tool": "get_workspace_context",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "grant_revoked",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "UnknownTool"
+    },
+    {
+      "id": "get_workspace_context-confirmation_denied",
+      "tool": "get_workspace_context",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "confirmation_denied",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "ConfirmationRejected",
+      "expectedAuditReason": "ApprovalRejected"
+    },
+    {
+      "id": "get_workspace_context-invalid_arguments",
+      "tool": "get_workspace_context",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "invalid_arguments",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "InvalidArguments",
+      "expectedAuditReason": "ValidationRejected"
+    },
+    {
+      "id": "get_workspace_context-quota_exceeded",
+      "tool": "get_workspace_context",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "quota_exceeded",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ToolCallLimitExceeded"
+    },
+    {
+      "id": "get_workspace_context-truncated",
+      "tool": "get_workspace_context",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "truncated",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_results-success-00",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 0,
+        "limit": 3
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_results-success-01",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 1,
+        "limit": 3
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_results-success-02",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 2,
+        "limit": 3
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_results-success-03",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 3,
+        "limit": 3
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_results-success-04",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 4,
+        "limit": 3
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_results-success-05",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 5,
+        "limit": 3
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_results-success-06",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 6,
+        "limit": 3
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_results-success-07",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 7,
+        "limit": 3
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_results-success-08",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 8,
+        "limit": 3
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_results-success-09",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 9,
+        "limit": 3
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_results-success-10",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 10,
+        "limit": 3
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_results-success-11",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 11,
+        "limit": 3
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_results-success-12",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 12,
+        "limit": 3
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_results-success-13",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 13,
+        "limit": 3
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_results-success-14",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 14,
+        "limit": 3
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_results-success-15",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 15,
+        "limit": 3
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_results-success-16",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 16,
+        "limit": 3
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_results-success-17",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 17,
+        "limit": 3
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_results-success-18",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 18,
+        "limit": 3
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_results-success-19",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 19,
+        "limit": 3
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_results-permission_missing",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 19,
+        "limit": 3
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "permission_missing",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "PermissionDenied",
+      "expectedAuditReason": "ValidationRejected"
+    },
+    {
+      "id": "get_query_results-grant_expired",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 19,
+        "limit": 3
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "grant_expired",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "UnknownTool"
+    },
+    {
+      "id": "get_query_results-grant_revoked",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 19,
+        "limit": 3
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "grant_revoked",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "UnknownTool"
+    },
+    {
+      "id": "get_query_results-confirmation_denied",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 19,
+        "limit": 3
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "confirmation_denied",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "ConfirmationRejected",
+      "expectedAuditReason": "ApprovalRejected"
+    },
+    {
+      "id": "get_query_results-invalid_arguments",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 19,
+        "limit": 3
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "invalid_arguments",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "InvalidArguments",
+      "expectedAuditReason": "ValidationRejected"
+    },
+    {
+      "id": "get_query_results-quota_exceeded",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 19,
+        "limit": 3
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "quota_exceeded",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ToolCallLimitExceeded"
+    },
+    {
+      "id": "get_query_results-truncated",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 19,
+        "limit": 3
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "truncated",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_results-database_missing",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 19,
+        "limit": 3
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "database_missing",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_results-collection_missing",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 19,
+        "limit": 3
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "collection_missing",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_diagnostics-success-00",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_diagnostics-success-01",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_diagnostics-success-02",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_diagnostics-success-03",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_diagnostics-success-04",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_diagnostics-success-05",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_diagnostics-success-06",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_diagnostics-success-07",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_diagnostics-success-08",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_diagnostics-success-09",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_diagnostics-success-10",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_diagnostics-success-11",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_diagnostics-success-12",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_diagnostics-success-13",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_diagnostics-success-14",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_diagnostics-success-15",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_diagnostics-success-16",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_diagnostics-success-17",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_diagnostics-success-18",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_diagnostics-success-19",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_diagnostics-permission_missing",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "permission_missing",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "PermissionDenied",
+      "expectedAuditReason": "ValidationRejected"
+    },
+    {
+      "id": "get_query_diagnostics-grant_expired",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "grant_expired",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "UnknownTool"
+    },
+    {
+      "id": "get_query_diagnostics-grant_revoked",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "grant_revoked",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "UnknownTool"
+    },
+    {
+      "id": "get_query_diagnostics-confirmation_denied",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "confirmation_denied",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "ConfirmationRejected",
+      "expectedAuditReason": "ApprovalRejected"
+    },
+    {
+      "id": "get_query_diagnostics-invalid_arguments",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "invalid_arguments",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "InvalidArguments",
+      "expectedAuditReason": "ValidationRejected"
+    },
+    {
+      "id": "get_query_diagnostics-quota_exceeded",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "quota_exceeded",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ToolCallLimitExceeded"
+    },
+    {
+      "id": "get_query_diagnostics-truncated",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "truncated",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_diagnostics-database_missing",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "database_missing",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_diagnostics-collection_missing",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "collection_missing",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "propose_file_edit-success-00",
+      "tool": "propose_file_edit",
+      "arguments": {
+        "path": "query.js",
+        "new_content": "// proposta sintetica 0\ndb.items.find({});\n"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "propose_file_edit-success-01",
+      "tool": "propose_file_edit",
+      "arguments": {
+        "path": "query.js",
+        "new_content": "// proposta sintetica 1\ndb.items.find({});\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "propose_file_edit-success-02",
+      "tool": "propose_file_edit",
+      "arguments": {
+        "path": "query.js",
+        "new_content": "// proposta sintetica 2\ndb.items.find({});\n"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "propose_file_edit-success-03",
+      "tool": "propose_file_edit",
+      "arguments": {
+        "path": "query.js",
+        "new_content": "// proposta sintetica 3\ndb.items.find({});\n"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "propose_file_edit-success-04",
+      "tool": "propose_file_edit",
+      "arguments": {
+        "path": "query.js",
+        "new_content": "// proposta sintetica 4\ndb.items.find({});\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "propose_file_edit-success-05",
+      "tool": "propose_file_edit",
+      "arguments": {
+        "path": "query.js",
+        "new_content": "// proposta sintetica 5\ndb.items.find({});\n"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "propose_file_edit-success-06",
+      "tool": "propose_file_edit",
+      "arguments": {
+        "path": "query.js",
+        "new_content": "// proposta sintetica 6\ndb.items.find({});\n"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "propose_file_edit-success-07",
+      "tool": "propose_file_edit",
+      "arguments": {
+        "path": "query.js",
+        "new_content": "// proposta sintetica 7\ndb.items.find({});\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "propose_file_edit-success-08",
+      "tool": "propose_file_edit",
+      "arguments": {
+        "path": "query.js",
+        "new_content": "// proposta sintetica 8\ndb.items.find({});\n"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "propose_file_edit-success-09",
+      "tool": "propose_file_edit",
+      "arguments": {
+        "path": "query.js",
+        "new_content": "// proposta sintetica 9\ndb.items.find({});\n"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "propose_file_edit-success-10",
+      "tool": "propose_file_edit",
+      "arguments": {
+        "path": "query.js",
+        "new_content": "// proposta sintetica 10\ndb.items.find({});\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "propose_file_edit-success-11",
+      "tool": "propose_file_edit",
+      "arguments": {
+        "path": "query.js",
+        "new_content": "// proposta sintetica 11\ndb.items.find({});\n"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "propose_file_edit-success-12",
+      "tool": "propose_file_edit",
+      "arguments": {
+        "path": "query.js",
+        "new_content": "// proposta sintetica 12\ndb.items.find({});\n"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "propose_file_edit-success-13",
+      "tool": "propose_file_edit",
+      "arguments": {
+        "path": "query.js",
+        "new_content": "// proposta sintetica 13\ndb.items.find({});\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "propose_file_edit-success-14",
+      "tool": "propose_file_edit",
+      "arguments": {
+        "path": "query.js",
+        "new_content": "// proposta sintetica 14\ndb.items.find({});\n"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "propose_file_edit-success-15",
+      "tool": "propose_file_edit",
+      "arguments": {
+        "path": "query.js",
+        "new_content": "// proposta sintetica 15\ndb.items.find({});\n"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "propose_file_edit-success-16",
+      "tool": "propose_file_edit",
+      "arguments": {
+        "path": "query.js",
+        "new_content": "// proposta sintetica 16\ndb.items.find({});\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "propose_file_edit-success-17",
+      "tool": "propose_file_edit",
+      "arguments": {
+        "path": "query.js",
+        "new_content": "// proposta sintetica 17\ndb.items.find({});\n"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "propose_file_edit-success-18",
+      "tool": "propose_file_edit",
+      "arguments": {
+        "path": "query.js",
+        "new_content": "// proposta sintetica 18\ndb.items.find({});\n"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "propose_file_edit-success-19",
+      "tool": "propose_file_edit",
+      "arguments": {
+        "path": "query.js",
+        "new_content": "// proposta sintetica 19\ndb.items.find({});\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "propose_file_edit-permission_missing",
+      "tool": "propose_file_edit",
+      "arguments": {
+        "path": "query.js",
+        "new_content": "// proposta sintetica 19\ndb.items.find({});\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "permission_missing",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "UnknownTool"
+    },
+    {
+      "id": "propose_file_edit-grant_expired",
+      "tool": "propose_file_edit",
+      "arguments": {
+        "path": "query.js",
+        "new_content": "// proposta sintetica 19\ndb.items.find({});\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "grant_expired",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "UnknownTool"
+    },
+    {
+      "id": "propose_file_edit-grant_revoked",
+      "tool": "propose_file_edit",
+      "arguments": {
+        "path": "query.js",
+        "new_content": "// proposta sintetica 19\ndb.items.find({});\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "grant_revoked",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "UnknownTool"
+    },
+    {
+      "id": "propose_file_edit-confirmation_denied",
+      "tool": "propose_file_edit",
+      "arguments": {
+        "path": "query.js",
+        "new_content": "// proposta sintetica 19\ndb.items.find({});\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "confirmation_denied",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "propose_file_edit-invalid_arguments",
+      "tool": "propose_file_edit",
+      "arguments": {
+        "path": "query.js",
+        "new_content": "// proposta sintetica 19\ndb.items.find({});\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "invalid_arguments",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "InvalidArguments",
+      "expectedAuditReason": "ValidationRejected"
+    },
+    {
+      "id": "propose_file_edit-quota_exceeded",
+      "tool": "propose_file_edit",
+      "arguments": {
+        "path": "query.js",
+        "new_content": "// proposta sintetica 19\ndb.items.find({});\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "quota_exceeded",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ToolCallLimitExceeded"
+    },
+    {
+      "id": "propose_file_edit-truncated",
+      "tool": "propose_file_edit",
+      "arguments": {
+        "path": "query.js",
+        "new_content": "// proposta sintetica 19\ndb.items.find({});\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "truncated",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "create_workspace_file-success-00",
+      "tool": "create_workspace_file",
+      "arguments": {
+        "path": "created.js",
+        "content": "// arquivo sintetico 0\n"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "ApprovalGranted"
+    },
+    {
+      "id": "create_workspace_file-success-01",
+      "tool": "create_workspace_file",
+      "arguments": {
+        "path": "created.js",
+        "content": "// arquivo sintetico 1\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "ApprovalGranted"
+    },
+    {
+      "id": "create_workspace_file-success-02",
+      "tool": "create_workspace_file",
+      "arguments": {
+        "path": "created.js",
+        "content": "// arquivo sintetico 2\n"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "ApprovalGranted"
+    },
+    {
+      "id": "create_workspace_file-success-03",
+      "tool": "create_workspace_file",
+      "arguments": {
+        "path": "created.js",
+        "content": "// arquivo sintetico 3\n"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "ApprovalGranted"
+    },
+    {
+      "id": "create_workspace_file-success-04",
+      "tool": "create_workspace_file",
+      "arguments": {
+        "path": "created.js",
+        "content": "// arquivo sintetico 4\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "ApprovalGranted"
+    },
+    {
+      "id": "create_workspace_file-success-05",
+      "tool": "create_workspace_file",
+      "arguments": {
+        "path": "created.js",
+        "content": "// arquivo sintetico 5\n"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "ApprovalGranted"
+    },
+    {
+      "id": "create_workspace_file-success-06",
+      "tool": "create_workspace_file",
+      "arguments": {
+        "path": "created.js",
+        "content": "// arquivo sintetico 6\n"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "ApprovalGranted"
+    },
+    {
+      "id": "create_workspace_file-success-07",
+      "tool": "create_workspace_file",
+      "arguments": {
+        "path": "created.js",
+        "content": "// arquivo sintetico 7\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "ApprovalGranted"
+    },
+    {
+      "id": "create_workspace_file-success-08",
+      "tool": "create_workspace_file",
+      "arguments": {
+        "path": "created.js",
+        "content": "// arquivo sintetico 8\n"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "ApprovalGranted"
+    },
+    {
+      "id": "create_workspace_file-success-09",
+      "tool": "create_workspace_file",
+      "arguments": {
+        "path": "created.js",
+        "content": "// arquivo sintetico 9\n"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "ApprovalGranted"
+    },
+    {
+      "id": "create_workspace_file-success-10",
+      "tool": "create_workspace_file",
+      "arguments": {
+        "path": "created.js",
+        "content": "// arquivo sintetico 10\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "ApprovalGranted"
+    },
+    {
+      "id": "create_workspace_file-success-11",
+      "tool": "create_workspace_file",
+      "arguments": {
+        "path": "created.js",
+        "content": "// arquivo sintetico 11\n"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "ApprovalGranted"
+    },
+    {
+      "id": "create_workspace_file-success-12",
+      "tool": "create_workspace_file",
+      "arguments": {
+        "path": "created.js",
+        "content": "// arquivo sintetico 12\n"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "ApprovalGranted"
+    },
+    {
+      "id": "create_workspace_file-success-13",
+      "tool": "create_workspace_file",
+      "arguments": {
+        "path": "created.js",
+        "content": "// arquivo sintetico 13\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "ApprovalGranted"
+    },
+    {
+      "id": "create_workspace_file-success-14",
+      "tool": "create_workspace_file",
+      "arguments": {
+        "path": "created.js",
+        "content": "// arquivo sintetico 14\n"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "ApprovalGranted"
+    },
+    {
+      "id": "create_workspace_file-success-15",
+      "tool": "create_workspace_file",
+      "arguments": {
+        "path": "created.js",
+        "content": "// arquivo sintetico 15\n"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "ApprovalGranted"
+    },
+    {
+      "id": "create_workspace_file-success-16",
+      "tool": "create_workspace_file",
+      "arguments": {
+        "path": "created.js",
+        "content": "// arquivo sintetico 16\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "ApprovalGranted"
+    },
+    {
+      "id": "create_workspace_file-success-17",
+      "tool": "create_workspace_file",
+      "arguments": {
+        "path": "created.js",
+        "content": "// arquivo sintetico 17\n"
+      },
+      "database": "kapi_sim_iot",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "ApprovalGranted"
+    },
+    {
+      "id": "create_workspace_file-success-18",
+      "tool": "create_workspace_file",
+      "arguments": {
+        "path": "created.js",
+        "content": "// arquivo sintetico 18\n"
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "ApprovalGranted"
+    },
+    {
+      "id": "create_workspace_file-success-19",
+      "tool": "create_workspace_file",
+      "arguments": {
+        "path": "created.js",
+        "content": "// arquivo sintetico 19\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "success",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "ApprovalGranted"
+    },
+    {
+      "id": "create_workspace_file-permission_missing",
+      "tool": "create_workspace_file",
+      "arguments": {
+        "path": "created.js",
+        "content": "// arquivo sintetico 19\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "permission_missing",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "UnknownTool"
+    },
+    {
+      "id": "create_workspace_file-grant_expired",
+      "tool": "create_workspace_file",
+      "arguments": {
+        "path": "created.js",
+        "content": "// arquivo sintetico 19\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "grant_expired",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "UnknownTool"
+    },
+    {
+      "id": "create_workspace_file-grant_revoked",
+      "tool": "create_workspace_file",
+      "arguments": {
+        "path": "created.js",
+        "content": "// arquivo sintetico 19\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "grant_revoked",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "UnknownTool"
+    },
+    {
+      "id": "create_workspace_file-confirmation_denied",
+      "tool": "create_workspace_file",
+      "arguments": {
+        "path": "created.js",
+        "content": "// arquivo sintetico 19\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "confirmation_denied",
+      "expectedStatus": "Denied",
+      "expectedErrorCode": "ConfirmationRejected",
+      "expectedAuditReason": "ApprovalRejected"
+    },
+    {
+      "id": "create_workspace_file-invalid_arguments",
+      "tool": "create_workspace_file",
+      "arguments": {
+        "path": "created.js",
+        "content": "// arquivo sintetico 19\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "invalid_arguments",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "InvalidArguments",
+      "expectedAuditReason": "ApprovalGranted"
+    },
+    {
+      "id": "create_workspace_file-quota_exceeded",
+      "tool": "create_workspace_file",
+      "arguments": {
+        "path": "created.js",
+        "content": "// arquivo sintetico 19\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "quota_exceeded",
+      "expectedStatus": "Failed",
+      "expectedErrorCode": "ToolCallLimitExceeded"
+    },
+    {
+      "id": "create_workspace_file-truncated",
+      "tool": "create_workspace_file",
+      "arguments": {
+        "path": "created.js",
+        "content": "// arquivo sintetico 19\n"
+      },
+      "database": "kapi_sim_logistics",
+      "collection": "items",
+      "scenario": "truncated",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "ApprovalGranted"
+    },
+    {
+      "id": "get_query_results-captured_error",
+      "tool": "get_query_results",
+      "arguments": {
+        "skip": 0,
+        "limit": 3
+      },
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "captured_error",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    },
+    {
+      "id": "get_query_diagnostics-captured_error",
+      "tool": "get_query_diagnostics",
+      "arguments": {},
+      "database": "kapi_sim_store",
+      "collection": "items",
+      "scenario": "captured_error",
+      "expectedStatus": "Succeeded",
+      "expectedErrorCode": null,
+      "expectedAuditReason": "PolicyAllowed"
+    }
+  ]
+}

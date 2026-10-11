@@ -4,8 +4,8 @@ namespace EsilvaSoft.KapibaraStudio.Application.Agents;
 internal sealed class AgentToolInvocationQuota
 {
     internal const int MaximumPerSession = 2;
-    private const int MaximumPerConnection = 4;
-    private const int MaximumGlobal = 8;
+    internal const int MaximumPerConnection = 4;
+    internal const int MaximumGlobal = 8;
     internal const int LegacyMaximumPerTurn = 20;
     private const int MaximumTrackedTurns = 4_096;
     private static readonly TimeSpan TurnIdleLifetime = TimeSpan.FromHours(1);

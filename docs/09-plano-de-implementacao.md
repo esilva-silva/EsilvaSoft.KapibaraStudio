@@ -1,5 +1,7 @@
 # Roadmap de evolução do Kapibara Studio
 
+**Preparação T4 / PR 3 — 11/10/2026:** catálogo, host de fixture, replay e comparador de 500 chamadas disponíveis no KapiLab. [Aceite](phases/phase-07b-kapilab/aceite-pr-3.md). Paridade com simulador externo e output de sucesso Atlas permanecem pendentes; Fase 8 conserva prioridade.
+
 **Fase 7A/7B — PR 2 em 11/10/2026:** a preparação da Fase 04 externa entrega contrato público do prompt Qwen3, 200 goldens, paridade nativa Cpu/Python e ferramentas KapiLab render/tokenize/diff. A prioridade da Fase 8 permanece; treino, inferência T4, loop experimental e homologação de hardware conservam seus gates. [Aceite e rastreabilidade](phases/phase-07b-kapilab/aceite-pr-2.md).
 
 **Fase 6 / v0.10.0 — Marco A concluído em 09/10/2026:** [F6-IMPL](phases/phase-06-v0.10.0/meta-de-implementacao.md) organiza 32 requisitos de administração/manutenção por connection string (ADR-069). Restore locked, build e gate serial passaram; smokes conectados e crashes F6-24/28 estão registrados em [F6-HOM](phases/phase-06-v0.10.0/meta-homologacao-finalizacao.md). RBAC restrito, topologias reais, acessibilidade/UI nativa e multiplataforma são Marco B manual da Fase 10. A prioridade de entrega da Fase 8 permanece preservada e este aceite não publica release.

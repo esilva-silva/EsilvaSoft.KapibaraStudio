@@ -232,7 +232,7 @@ def _command_name(args: Sequence[str]) -> str:
         if len(args) < 3:
             raise ValueError("A knowledge subcommand is required.")
         return f"catalog.knowledge.{args[2]}"
-    if args[0] in {"agent", "bench", "catalog", "contract", "guidance", "matrix", "npu", "parity", "report", "samples"}:
+    if args[0] in {"agent", "bench", "catalog", "contract", "fixture", "guidance", "matrix", "npu", "parity", "report", "samples"}:
         if len(args) < 2:
             raise ValueError("A KapiLab subcommand is required.")
         return f"{args[0]}.{args[1]}"
