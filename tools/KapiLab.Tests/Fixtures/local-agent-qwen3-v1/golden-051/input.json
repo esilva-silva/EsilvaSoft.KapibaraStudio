@@ -1,0 +1,72 @@
+{
+  "schema": "kapilab-agent-turn-input-v1",
+  "id": "golden-051",
+  "synthetic": true,
+  "input": {
+    "systemPromptExtra": null,
+    "userMessage": "Fixture sintética 051: explique os metadados.",
+    "authorizedContext": "",
+    "attachments": [
+      {
+        "kind": "ActiveFile",
+        "displayName": "fixture.js",
+        "pathOrName": "fixture.js",
+        "content": "const coleção = \"ação\";\r\n// fixture 🐾",
+        "sizeBytes": 52,
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    ],
+    "tools": [
+      {
+        "name": "fixture_metadata_0",
+        "description": "Read synthetic metadata fixture 0.",
+        "inputSchemaJson": "{\"$schema\": \"https://json-schema.org/draft/2020-12/schema\", \"$id\": \"synthetic\", \"type\": \"object\", \"properties\": {\"collection\": {\"type\": \"string\"}, \"options\": {\"type\": \"object\", \"properties\": {\"limit\": {\"type\": \"integer\", \"minimum\": 1}}}}, \"additionalProperties\": false}"
+      }
+    ],
+    "history": [
+      {
+        "role": "user",
+        "content": "{\"message\":\"Turno 0\",\"context\":\"\",\"attachments\":[]}"
+      },
+      {
+        "role": "assistant",
+        "content": "Metadados sintéticos do turno 0."
+      },
+      {
+        "role": "user",
+        "content": "{\"message\":\"Turno 1\",\"context\":\"\",\"attachments\":[]}"
+      },
+      {
+        "role": "assistant",
+        "content": "Metadados sintéticos do turno 1."
+      },
+      {
+        "role": "user",
+        "content": "{\"message\":\"Turno 2\",\"context\":\"\",\"attachments\":[]}"
+      },
+      {
+        "role": "assistant",
+        "content": "Metadados sintéticos do turno 2."
+      },
+      {
+        "role": "user",
+        "content": "{\"message\":\"Turno 3\",\"context\":\"\",\"attachments\":[]}"
+      },
+      {
+        "role": "assistant",
+        "content": "Metadados sintéticos do turno 3."
+      },
+      {
+        "role": "user",
+        "content": "{\"message\":\"Turno 4\",\"context\":\"\",\"attachments\":[]}"
+      },
+      {
+        "role": "assistant",
+        "content": "Metadados sintéticos do turno 4."
+      }
+    ],
+    "reasoningEnabled": false
+  },
+  "addGenerationPrompt": true,
+  "disabledReasoningSuffix": "<think>\n\n</think>\n\n"
+}

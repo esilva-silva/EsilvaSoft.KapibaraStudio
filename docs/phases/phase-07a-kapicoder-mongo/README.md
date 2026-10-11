@@ -1,5 +1,7 @@
 # Fase 7A — preparação da IDE para KapiCoder-Mongo
 
+**PR 2 — 11/10/2026:** contrato público `local-agent-qwen3-v1`, 200 goldens e paridade nativa Cpu/Python aprovados; descrições compartilhadas conforme ADR-072. [Aceite e limitações](../phase-07b-kapilab/aceite-pr-2.md).
+
 **Situação:** implementação parcial no checkout Windows; validação local em andamento. Linux manual, pesos reais e hardware NPU não fazem parte da meta deste chat.
 **Meta:** F7A-KAPI.
 **Versão:** sem release própria; etapa de preparação vinculada à Fase 8 / v0.12.0.

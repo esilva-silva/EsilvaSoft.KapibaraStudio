@@ -137,3 +137,8 @@ Inspeção/validação não fazem geração. A segunda linha só se aplica a pac
 - Não execute benchmarks de latência/alocação em CI ou release. Eles são medições manuais de desenvolvimento.
 
 Revalidação após F7B-20: KapiLab Cpu e WinML passaram com 262/265 testes (3 opt-in ignorados); `AgentReplayCommandTests` passou 19/19 e o wrapper Python 14/14 incluindo replay v2 grant/negação pelo apphost. TRXs, hashes e limites desse recorte estão em [evidências locais](evidencias-locais.md).
+
+
+## PR 2 — prompt do agente local
+
+Schema, exemplos completos de render/tokenize (entrada original ou render sintético verificado), parity Python e comandos opt-in estão no [README KapiLab](../../../tools/KapiLab/README.md#contrato-de-agente-local-qwen3). Para reexecutar a prova nativa use o backend Cpu e `KAPI_QWEN3_TOKENIZER_PACKAGE`; confira tokenizer/template contra `reference.json`. Não usar o carrier sintético como modelo treinado. WinML nativo apresentou falha de DLL antes da tokenização neste host. [Aceite e evidências](aceite-pr-2.md).

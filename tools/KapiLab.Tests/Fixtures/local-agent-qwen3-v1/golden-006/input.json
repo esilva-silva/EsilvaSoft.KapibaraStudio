@@ -1,0 +1,67 @@
+{
+  "schema": "kapilab-agent-turn-input-v1",
+  "id": "golden-006",
+  "synthetic": true,
+  "input": {
+    "systemPromptExtra": null,
+    "userMessage": "Fixture sintética 006: explique os metadados.",
+    "authorizedContext": "",
+    "attachments": [],
+    "tools": [
+      {
+        "name": "fixture_metadata_0",
+        "description": "Read synthetic metadata fixture 0.",
+        "inputSchemaJson": "{\"$schema\": \"https://json-schema.org/draft/2020-12/schema\", \"$id\": \"synthetic\", \"type\": \"object\", \"properties\": {\"collection\": {\"type\": \"string\"}, \"options\": {\"type\": \"object\", \"properties\": {\"limit\": {\"type\": \"integer\", \"minimum\": 1}}}}, \"additionalProperties\": false}"
+      }
+    ],
+    "history": [
+      {
+        "role": "user",
+        "content": "{\"message\":\"Turno 0\",\"context\":\"\",\"attachments\":[]}"
+      },
+      {
+        "role": "assistant",
+        "content": "Metadados sintéticos do turno 0."
+      },
+      {
+        "role": "user",
+        "content": "{\"message\":\"Turno 1\",\"context\":\"\",\"attachments\":[]}"
+      },
+      {
+        "role": "assistant",
+        "content": "Metadados sintéticos do turno 1."
+      },
+      {
+        "role": "user",
+        "content": "{\"message\":\"Turno 2\",\"context\":\"\",\"attachments\":[]}"
+      },
+      {
+        "role": "assistant",
+        "content": "Metadados sintéticos do turno 2."
+      },
+      {
+        "role": "user",
+        "content": "{\"message\":\"Turno 3\",\"context\":\"\",\"attachments\":[]}"
+      },
+      {
+        "role": "assistant",
+        "content": "Metadados sintéticos do turno 3."
+      },
+      {
+        "role": "assistant",
+        "content": "<tool_call>{\"name\":\"fixture_metadata_0\",\"arguments\":{\"collection\":\"orders\"}}</tool_call>"
+      },
+      {
+        "role": "tool",
+        "content": "{\"status\":\"Succeeded\",\"result\":\"\\u00EDndices sint\\u00E9ticos\",\"error\":null,\"truncated\":false}"
+      },
+      {
+        "role": "tool",
+        "content": "{\"status\":\"Succeeded\",\"result\":\"segunda tool\",\"error\":null,\"truncated\":false}"
+      }
+    ],
+    "reasoningEnabled": true
+  },
+  "addGenerationPrompt": true,
+  "disabledReasoningSuffix": "<think>\n\n</think>\n\n"
+}

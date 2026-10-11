@@ -1,0 +1,16 @@
+{
+  "schema": "kapilab-agent-turn-input-v1",
+  "id": "golden-020",
+  "synthetic": true,
+  "input": {
+    "systemPromptExtra": null,
+    "userMessage": "Fixture sintética 020: explique os metadados.",
+    "authorizedContext": "",
+    "attachments": [],
+    "tools": [],
+    "history": [],
+    "reasoningEnabled": true
+  },
+  "addGenerationPrompt": true,
+  "disabledReasoningSuffix": "<think>\n\n</think>\n\n"
+}

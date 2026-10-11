@@ -142,3 +142,45 @@ Ausência de gates, métrica, valor ou referência; execução/métrica desquali
 `report merge` exige pelo menos dois relatórios locais `kapilab-report-v2`/`kapilab-report-v3`/`kapilab-report-v4` dentro do workspace. Rejeita ausência de proveniência, IDs duplicados, diferenças de build/pacote/backend/provider, gate set ou definições/owners; ordena membros por `runId` e preserva cada relatório e gate sem sintetizar métricas. A CLI limita a 1000 entradas, 4 MiB por arquivo e 16 Mi caracteres após decodificação no total; conta texto em streaming antes de carregar o lote, decodifica UTF-8 estritamente nas duas passagens e limita cada leitura materializada ao orçamento restante. A agregação só passa quando todos os membros são qualificados, completos e aprovados; membro skipped/inconclusive não pode passar, e mistura de skipped com outro resultado fica `inconclusive` no resumo (o resultado individual é mantido). A saída usa `kapilab-merged-report-v1`, contrato local restrito, não a implementação completa do schema externo §5.11/§9.4. Os arquivos devem ficar dentro do workspace e não podem sobrescrever nenhuma entrada.
 
 O console ainda está em implementação. A paridade Python do PR 1 está comprovada em 1.300 registros reais + 700 sintéticos, com tokenização do pacote real. Continuam pendentes paridade em 2.000 registros exclusivamente reais, host tokenizer sem carregar decoder, export live de sessão/grants e catálogo canônico externo. Os demais limites e gates mantêm o estado registrado na rastreabilidade.
+
+
+## Contrato de agente local Qwen3
+
+`contract render --contract local-agent-qwen3-v1` usa `LocalAgentPromptBuilder` e o espelho fixo de renderização GenAI 0.15.2. Entrada JSONL `kapilab-agent-turn-input-v1`, um turno por linha, com `id` único. Exemplo completo (formatado para leitura; grave em uma linha):
+
+```json
+{
+  "schema": "kapilab-agent-turn-input-v1",
+  "id": "example-metadata",
+  "synthetic": true,
+  "input": {
+    "systemPromptExtra": null,
+    "userMessage": "Explique os índices da coleção sintética.",
+    "authorizedContext": "Coleção: orders; somente metadados autorizados.",
+    "attachments": [],
+    "tools": [{
+      "name": "get_indexes",
+      "description": "Read ordinary index metadata for an authorized collection.",
+      "inputSchemaJson": "{\"type\":\"object\",\"properties\":{\"collection\":{\"type\":\"string\"}},\"required\":[\"collection\"]}"
+    }],
+    "history": [],
+    "reasoningEnabled": false
+  },
+  "addGenerationPrompt": true,
+  "disabledReasoningSuffix": "<think>\n\n</think>\n\n"
+}
+```
+
+`history` tem mensagens `{ "role": "user|assistant|tool", "content": "..." }`. Entre turnos, forneça histórico sem raciocínio anterior; durante um passo, preserve as mensagens efetivas capturadas. Anexos usam `AgentContextAttachment`: `kind`, `displayName`, `pathOrName`, `content`, `sizeBytes`, `sha256` (somente sintéticos no laboratório). O sistema permanece pt-BR, os envelopes assistant são texto bruto e o builder reapresenta o usuário após respostas de tool conforme o runtime existente. O fallback espelha a simplificação nativa de schemas antes do template; não aplique o template HF diretamente aos schemas completos. [Contrato e diferença GenAI × HF](../../docs/architecture/local-agent-qwen3-v1.md).
+
+A saída `kapilab-render-v1` contém `contract`, `id`, `modelPrefixSha256`, `suffixSha256`. Sem opt-in, não inclui texto nem o input. `--emit-text` exige `--out` em `data/lab`, `reports/lab` ou `tmp` e igualdade com um dos 200 registros sintéticos embutidos/versionados (a declaração `synthetic:true` sozinha não autoriza). Inclui `modelPrefix`, `suffix` vazio e `agentInput` para replay pelo formatter nativo. O exemplo acima pode ser usado para hashes; para exportar texto use `turns.jsonl` verificado:
+
+```powershell
+dotnet tools/KapiLab/bin/Debug/net10.0/EsilvaSoft.KapibaraStudio.KapiLab.dll --workspace . contract render --contract local-agent-qwen3-v1 --in tools/KapiLab.Tests/Fixtures/local-agent-qwen3-v1/turns.jsonl --emit-text --out reports/lab/parity-local-agent-qwen3/ide-render.jsonl
+dotnet tools/KapiLab/bin/Debug/net10.0/EsilvaSoft.KapibaraStudio.KapiLab.dll --workspace . contract tokenize --contract local-agent-qwen3-v1 --package <pacote-Qwen3> --in reports/lab/parity-local-agent-qwen3/ide-render.jsonl --context-tokens 8192 --out reports/lab/parity-local-agent-qwen3/ide-tokens.jsonl
+python scripts/lab/parity_local_agent_qwen3.py --tokenizer C:/IA/models/KapibaraStudio.MongoIA/BaseRepos/Qwen3-8B --ide-render reports/lab/parity-local-agent-qwen3/ide-render.jsonl --ide-tokens reports/lab/parity-local-agent-qwen3/ide-tokens.jsonl --kapilab tools/KapiLab/bin/Debug/net10.0/EsilvaSoft.KapibaraStudio.KapiLab.dll
+```
+
+`contract tokenize` usa `Qwen3ChatPromptFormatter.RenderTokens` pelo adapter do pacote. Aceita tanto a saída textual verificada quanto diretamente o JSONL `kapilab-agent-turn-input-v1` original. A entrada direta permite tokenizar trajetórias inéditas sem exportar o texto (a saída contém somente hashes/IDs). Hashes sem input não podem ser reconstruídos. Recusa pacote incompatível, sufixo diferente ou trajetória acima do orçamento; não trunca o histórico. A CLI inicializa o decoder para acessar o tokenizer, porém não gera resposta. `contract diff` compara IDs com o snapshot Python e retorna 11 em divergência. O script gera relatório em `reports/lab/parity-local-agent-qwen3/`; validação não altera goldens, `--generate-fixtures` é autoria explícita. Os testes nativos são opt-in com `KAPI_QWEN3_TOKENIZER_PACKAGE`; testes comuns não carregam pesos.
+
+Pacotes de agente novos declaram `agentContract: "local-agent-qwen3-v1"` e preservam `contextContract: "editor-context-v1"`; `model validate --strict-kapi` recusa contrato ausente/desconhecido no bloco agent. `catalog export` agora inclui a descrição compartilhada, e `catalog check` identifica seu drift. [Metadata de exemplo](../../docs/models/qwen3-agent-v1.example.json), [aceite e limites](../../docs/phases/phase-07b-kapilab/aceite-pr-2.md).

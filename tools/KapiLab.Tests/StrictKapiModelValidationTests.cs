@@ -101,6 +101,7 @@ public sealed class StrictKapiModelValidationTests
             schema = StrictKapiModelValidation.MetadataSchema,
             contextContract = "editor-context-v1",
             capabilities = AgentCapabilities,
+            agentContract = "local-agent-qwen3-v1",
             runtime = new { minimumGenAi = "0.15.2" },
             agent = new
             {
@@ -132,6 +133,16 @@ public sealed class StrictKapiModelValidationTests
 
         package.Write("kapibarastudio-model.json", MetadataWithBudget(512, Hash(template)));
         Assert.That(StrictKapiModelValidation.ValidateMetadata(package.Root, package.Files).Valid, Is.True);
+        var agentMetadata = System.Text.Json.Nodes.JsonNode.Parse(MetadataWithBudget(512, Hash(template)))!.AsObject();
+        agentMetadata.Remove("agentContract");
+        package.Write("kapibarastudio-model.json", agentMetadata.ToJsonString());
+        Assert.That(StrictKapiModelValidation.ValidateMetadata(package.Root, package.Files).Issues,
+            Does.Contain("metadata.agent_contract_unsupported"));
+        agentMetadata["agentContract"] = "unknown-agent-contract";
+        package.Write("kapibarastudio-model.json", agentMetadata.ToJsonString());
+        Assert.That(StrictKapiModelValidation.ValidateMetadata(package.Root, package.Files).Issues,
+            Does.Contain("metadata.agent_contract_unsupported"));
+        package.Write("kapibarastudio-model.json", MetadataWithBudget(512, Hash(template)));
 
         package.Write("chat_template.jinja", "changed");
         Assert.That(StrictKapiModelValidation.ValidateMetadata(package.Root, package.Files).Issues,

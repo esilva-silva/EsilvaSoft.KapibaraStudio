@@ -16,6 +16,7 @@ workspace.db-*
 *.safetensors
 *.gguf
 artifacts/
+/reports/
 /logs/
 /tests/EsilvaSoft.KapibaraStudio.Benchmarks/BenchmarkDotNet.Artifacts
 /BenchmarkDotNet.Artifacts

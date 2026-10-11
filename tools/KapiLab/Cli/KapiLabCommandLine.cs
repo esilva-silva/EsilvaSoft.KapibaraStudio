@@ -680,6 +680,8 @@ internal static class KapiLabCommandLine
         var limit = new Option<int?>("--limit") { Description = "Número máximo de registros lidos." };
         var ids = new Option<string?>("--ids") { Description = "Lista de IDs separada por vírgulas." };
         var noEditorContext = new Option<bool>("--no-editor-context") { Description = "Renderiza sem o contexto do editor." };
+        var emitText = new Option<bool>("--emit-text") { Description = "Inclui texto somente para fixtures sintéticas do agente local." };
+        render.Options.Add(emitText);
         render.Options.Add(input);
         render.Options.Add(contractName);
         render.Options.Add(output);
@@ -690,7 +692,10 @@ internal static class KapiLabCommandLine
         {
             var selectedContract = parseResult.GetValue(contractName) ?? "editor-context-v1";
             var command = selectedContract == LegacyChatRenderCommand.Contract ? "contract.render.legacy-chat" : "contract.render";
-            return ExecuteAsync(command, () => selectedContract == LegacyChatRenderCommand.Contract
+            return ExecuteAsync(command, () => selectedContract == Application.Agents.LocalAgentPromptBuilder.ContractId
+                ? LocalAgentRenderCommand.RunAsync(parseResult.GetValue(input) ?? "", parseResult.GetValue(output),
+                    parseResult.GetValue(limit), parseResult.GetValue(ids), parseResult.GetValue(emitText), parseResult.GetValue(workspace))
+                : selectedContract == LegacyChatRenderCommand.Contract
                 ? LegacyChatRenderCommand.RunAsync(parseResult.GetValue(input) ?? "", parseResult.GetValue(output),
                     parseResult.GetValue(limit), parseResult.GetValue(ids), parseResult.GetValue(noEditorContext),
                     parseResult.GetValue(workspace))
@@ -707,6 +712,8 @@ internal static class KapiLabCommandLine
         var contextTokens = new Option<int>("--context-tokens") { Description = "Orçamento solicitado; o CLI calcula o limite efetivo da IDE.", DefaultValueFactory = _ => 2048 };
         var completionTokens = new Option<int>("--completion-tokens") { Description = "Teto de completion usado para calcular o contexto efetivo; padrão 32.", DefaultValueFactory = _ => 32 };
         var tokenLimit = new Option<int?>("--limit") { Description = "Quantidade máxima explícita de registros." };
+        var tokenContract = new Option<string?>("--contract") { Description = "Contrato esperado; por padrão usa o registro renderizado." };
+        tokenize.Options.Add(tokenContract);
         tokenize.Options.Add(package);
         tokenize.Options.Add(tokenInput);
         tokenize.Options.Add(tokenOutput);
@@ -715,7 +722,7 @@ internal static class KapiLabCommandLine
         tokenize.Options.Add(tokenLimit);
         tokenize.SetAction(parseResult => ExecuteAsync("contract.tokenize", () => ContractTokenCommand.TokenizeAsync(
             parseResult.GetValue(package) ?? "", parseResult.GetValue(tokenInput) ?? "", parseResult.GetValue(tokenOutput),
-            parseResult.GetValue(contextTokens), parseResult.GetValue(completionTokens), parseResult.GetValue(tokenLimit), parseResult.GetValue(workspace))));
+            parseResult.GetValue(contextTokens), parseResult.GetValue(completionTokens), parseResult.GetValue(tokenLimit), parseResult.GetValue(workspace), parseResult.GetValue(tokenContract))));
         contract.Subcommands.Add(tokenize);
 
         var diff = new Command("diff", "Compara texto e IDs tokenizados de dois contratos versionados.");

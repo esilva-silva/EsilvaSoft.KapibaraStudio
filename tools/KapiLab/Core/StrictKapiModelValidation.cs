@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using EsilvaSoft.KapibaraStudio.Application.Agents;
 using EsilvaSoft.KapibaraStudio.LocalAi.Core;
 
 namespace EsilvaSoft.KapibaraStudio.KapiLab.Core;
@@ -49,6 +50,8 @@ internal static class StrictKapiModelValidation
             else issues.Add("metadata.runtime.minimum_genai_missing");
             if (agent is { } agentObject)
             {
+                if (!String(root, "agentContract", 64, out var agentContract) || agentContract != LocalAgentPromptBuilder.ContractId)
+                    issues.Add("metadata.agent_contract_unsupported");
                 if (!capabilities.Contains("chat") || !capabilities.Contains("agent") || !capabilities.Contains("tools"))
                     issues.Add("metadata.agent.capabilities_missing");
                 CheckLiteral(agentObject, "promptFormat", LocalModelPromptFormats.Qwen3ChatMlTools, issues);

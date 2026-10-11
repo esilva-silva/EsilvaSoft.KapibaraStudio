@@ -1,0 +1,27 @@
+{
+  "schema": "kapilab-agent-turn-input-v1",
+  "id": "golden-139",
+  "synthetic": true,
+  "input": {
+    "systemPromptExtra": null,
+    "userMessage": "Fixture sintética 139: explique os metadados.",
+    "authorizedContext": "",
+    "attachments": [],
+    "tools": [
+      {
+        "name": "fixture_metadata_0",
+        "description": "Read synthetic metadata fixture 0.",
+        "inputSchemaJson": "{\"$schema\": \"https://json-schema.org/draft/2020-12/schema\", \"$id\": \"synthetic\", \"type\": \"object\", \"properties\": {\"collection\": {\"type\": \"string\"}, \"options\": {\"type\": \"object\", \"properties\": {\"limit\": {\"type\": \"integer\", \"minimum\": 1}}}}, \"additionalProperties\": false}"
+      },
+      {
+        "name": "fixture_metadata_1",
+        "description": "Read synthetic metadata fixture 1.",
+        "inputSchemaJson": "{\"$schema\": \"https://json-schema.org/draft/2020-12/schema\", \"$id\": \"synthetic\", \"type\": \"object\", \"properties\": {\"collection\": {\"type\": \"string\"}, \"options\": {\"type\": \"object\", \"properties\": {\"limit\": {\"type\": \"integer\", \"minimum\": 1}}}}, \"additionalProperties\": false}"
+      }
+    ],
+    "history": [],
+    "reasoningEnabled": true
+  },
+  "addGenerationPrompt": false,
+  "disabledReasoningSuffix": "<think>\n\n</think>\n\n"
+}

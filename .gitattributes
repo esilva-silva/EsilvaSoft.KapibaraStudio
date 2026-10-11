@@ -9,6 +9,8 @@
 # CRLF, or the "text=" bodies captured as LF would silently stop matching what is on disk on Windows.
 ###############################################################################
 *.golden text eol=lf
+tools/KapiLab.Tests/Fixtures/local-agent-qwen3-v1/** -text
+reports/lab/parity-local-agent-qwen3/** -text
 
 ###############################################################################
 # Set default behavior for command prompt diff.

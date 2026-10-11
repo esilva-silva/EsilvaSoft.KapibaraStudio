@@ -64,6 +64,7 @@ internal static class LocalModelMetadataReader
             Capabilities = capabilities,
             Hardware = Texts(json, "hardware")?.Where(HardwareNames.ContainsKey).Select(item => HardwareNames[item]).Distinct().ToArray(),
             ContextContract = Text(json, "contextContract", 64),
+            AgentContract = Text(json, "agentContract", 64),
             SupportsRepositoryContext = Boolean(json, "supportsRepositoryContext"),
             RecommendedContextTokens = Integer(json, "recommendedContextTokens", 64, AutocompleteSettings.AbsoluteContextMaximum),
             RecommendedCompletionTokens = Integer(json, "recommendedCompletionTokens", 1, AutocompleteSettings.AbsoluteCompletionMaximum),

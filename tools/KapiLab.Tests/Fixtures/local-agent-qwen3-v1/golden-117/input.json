@@ -1,0 +1,22 @@
+{
+  "schema": "kapilab-agent-turn-input-v1",
+  "id": "golden-117",
+  "synthetic": true,
+  "input": {
+    "systemPromptExtra": "Instrução sintética autorizada.\r\nSomente metadados.",
+    "userMessage": "Fixture sintética 117: explique os metadados.",
+    "authorizedContext": "",
+    "attachments": [],
+    "tools": [
+      {
+        "name": "fixture_metadata_0",
+        "description": "Read synthetic metadata fixture 0.",
+        "inputSchemaJson": "{\"$schema\": \"https://json-schema.org/draft/2020-12/schema\", \"$id\": \"synthetic\", \"type\": \"object\", \"properties\": {\"collection\": {\"type\": \"string\"}, \"options\": {\"type\": \"object\", \"properties\": {\"limit\": {\"type\": \"integer\", \"minimum\": 1}}}}, \"additionalProperties\": false}"
+      }
+    ],
+    "history": [],
+    "reasoningEnabled": false
+  },
+  "addGenerationPrompt": true,
+  "disabledReasoningSuffix": "<think>\n\n</think>\n\n"
+}

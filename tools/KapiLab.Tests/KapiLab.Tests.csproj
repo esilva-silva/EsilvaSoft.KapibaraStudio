@@ -7,6 +7,7 @@
   <ItemGroup>
     <Compile Remove="GpuLockChild/**/*.cs" />
     <Content Include="Fixtures/local-agent-tool-call-parser-v1.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Fixtures/local-agent-qwen3-v1/**/*" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../KapiLab/Fixtures/autocomplete-raw-ghost-v1.jsonl" Link="Fixtures/autocomplete-raw-ghost-v1.jsonl" CopyToOutputDirectory="PreserveNewest" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" VersionOverride="10.0.10" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />

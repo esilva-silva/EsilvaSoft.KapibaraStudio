@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using EsilvaSoft.KapibaraStudio.Application;
+using EsilvaSoft.KapibaraStudio.Application.Agents;
 using EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi;
 using EsilvaSoft.KapibaraStudio.KapiLab.Core;
 using EsilvaSoft.KapibaraStudio.LocalAi.Core;
@@ -22,7 +23,7 @@ internal static class ContractTokenCommand
     };
 
     public static async Task<int> TokenizeAsync(string package, string input, string? output, int contextTokens, int completionTokens,
-        int? limit, string? workspaceOption)
+        int? limit, string? workspaceOption, string? contract = null)
     {
         var workspace = LabWorkspace.Resolve(workspaceOption);
         if (workspace is null) return Usage("informe --workspace ou KAPILAB_WORKSPACE.");
@@ -57,12 +58,15 @@ internal static class ContractTokenCommand
             }
             tokenizer = adapter.CreateTokenizer(nativeModel, model.Path);
             var promptBuilder = adapter.CreatePromptBuilder();
+            var chatFormatter = adapter.CreateChatPromptFormatter(tokenizer, model.Path, model.Metadata);
             var identity = new TokenizerPackageIdentity(model.Architecture, model.PromptFormat,
                 ContractTokenDiff.Sha256(Path.Combine(model.Path, "genai_config.json")),
                 ContractTokenDiff.Sha256(Path.Combine(model.Path, "tokenizer.json")),
                 ContractTokenDiff.Sha256(Path.Combine(model.Path, "tokenizer_config.json")),
                 File.Exists(Path.Combine(model.Path, DeepSeekCoderModelAdapter.ManifestFileName))
-                    ? ContractTokenDiff.Sha256(Path.Combine(model.Path, DeepSeekCoderModelAdapter.ManifestFileName)) : "");
+                    ? ContractTokenDiff.Sha256(Path.Combine(model.Path, DeepSeekCoderModelAdapter.ManifestFileName))
+                    : model.PromptFormat == LocalModelPromptFormats.Qwen3ChatMlTools
+                        ? ContractTokenDiff.Sha256(Path.Combine(model.Path, "chat_template.jinja")) : "");
             var lines = new List<string>();
             var effectiveCompletionTokens = Math.Min(completionTokens, model.EffectiveAutocompleteMaximumTokens);
             var effectiveContextTokens = ContractTokenBudget.EffectiveContextTokens(contextTokens, completionTokens,
@@ -85,22 +89,55 @@ internal static class ContractTokenCommand
                     if (limit is null) throw new InvalidDataException("Arquivo excede o limite; use --limit para selecionar prefixo explícito.");
                     break;
                 }
-                var rendered = JsonSerializer.Deserialize<RenderedContract>(line, JsonOptions)
+                using var sourceJson = JsonDocument.Parse(line);
+                LocalAgentRenderCommand.InputRecord? sourceAgent = null;
+                RenderedContract rendered;
+                if (sourceJson.RootElement.ValueKind == JsonValueKind.Object &&
+                    sourceJson.RootElement.TryGetProperty("schema", out var sourceSchema) && sourceSchema.ValueKind == JsonValueKind.String &&
+                    sourceSchema.GetString() == "kapilab-agent-turn-input-v1")
+                {
+                    sourceAgent = LocalAgentRenderCommand.ParseLine(line);
+                    var text = Qwen3ChatMlFallbackRenderer.Render(LocalAgentPromptBuilder.Build(sourceAgent.Input,
+                        sourceAgent.AddGenerationPrompt), sourceAgent.DisabledReasoningSuffix);
+                    rendered = new("kapilab-render-v1", sourceAgent.Id, LocalAgentPromptBuilder.ContractId, text, "",
+                        LocalAgentRenderCommand.Hash(text), LocalAgentRenderCommand.Hash(""));
+                }
+                else rendered = JsonSerializer.Deserialize<RenderedContract>(line, JsonOptions)
                     ?? throw new InvalidDataException("Registro renderizado inválido.");
-                if (rendered.Schema != "kapilab-render-v1" || rendered.Contract != "editor-context-v1"
+                if (rendered.Schema != "kapilab-render-v1" || rendered.Contract is not ("editor-context-v1" or LocalAgentPromptBuilder.ContractId)
+                    || contract is not null && rendered.Contract != contract
                     || string.IsNullOrWhiteSpace(rendered.Id) || rendered.Id.Length > 256
                     || rendered.ModelPrefix is null || rendered.Suffix is null
                     || !IsSha256(rendered.ModelPrefixSha256) || !IsSha256(rendered.SuffixSha256))
                     throw new InvalidDataException("Registro não corresponde a kapilab-render-v1/editor-context-v1.");
                 if (!ids.Add(rendered.Id)) throw new InvalidDataException("Entrada contém id duplicado.");
-                if (CompletionOutputProcessor.ContainsReservedOrSensitiveText(rendered.ModelPrefix)
-                    || CompletionOutputProcessor.ContainsReservedOrSensitiveText(rendered.Suffix))
+                if (rendered.Contract == "editor-context-v1" && (CompletionOutputProcessor.ContainsReservedOrSensitiveText(rendered.ModelPrefix)
+                    || CompletionOutputProcessor.ContainsReservedOrSensitiveText(rendered.Suffix)))
                     throw new UnauthorizedAccessException("Contrato contém marcador reservado ou texto sensível.");
                 if (!HashMatches(rendered.ModelPrefix, rendered.ModelPrefixSha256)
                     || !HashMatches(rendered.Suffix, rendered.SuffixSha256))
                     throw new InvalidDataException("Hashes de texto não correspondem ao contrato renderizado.");
 
-                var tokens = promptBuilder.Build(rendered.ModelPrefix, rendered.Suffix, effectiveContextTokens, tokenizer);
+                IReadOnlyList<int> tokens;
+                if (rendered.Contract == LocalAgentPromptBuilder.ContractId)
+                {
+                    if (model.PromptFormat != LocalModelPromptFormats.Qwen3ChatMlTools || chatFormatter is null)
+                        throw new NotSupportedException();
+                    var agent = sourceAgent ?? LocalAgentRenderCommand.ParseLine(sourceJson.RootElement.GetProperty("agentInput").GetRawText());
+                    var fallbackText = Qwen3ChatMlFallbackRenderer.Render(LocalAgentPromptBuilder.Build(agent.Input,
+                        agent.AddGenerationPrompt), agent.DisabledReasoningSuffix);
+                    if (sourceAgent is null) _ = LocalAgentRenderCommand.Render(agent, emitText: true);
+                    if (LocalAgentRenderCommand.Hash(fallbackText) != rendered.ModelPrefixSha256 || fallbackText != rendered.ModelPrefix)
+                        throw new InvalidDataException();
+                    if (!agent.Input.ReasoningEnabled && agent.DisabledReasoningSuffix != model.Metadata?.Reasoning?.DisabledGenerationSuffix)
+                        throw new InvalidDataException();
+                    tokens = chatFormatter.RenderTokens(LocalAgentPromptBuilder.Build(agent.Input, agent.AddGenerationPrompt));
+                    if (!tokens.SequenceEqual(tokenizer.Encode(fallbackText)))
+                        throw new InvalidDataException("O template do pacote diverge do contrato fixo do agente.");
+                    // Never silently truncate an agent/tool trajectory.
+                    if (tokens.Count > effectiveContextTokens) throw new InvalidDataException();
+                }
+                else tokens = promptBuilder.Build(rendered.ModelPrefix, rendered.Suffix, effectiveContextTokens, tokenizer);
                 if (tokens.Count > MaximumTokenIdsPerRecord || tokens.Any(token => token < 0))
                     throw new InvalidDataException("Builder retornou lista de token IDs inválida ou acima do limite.");
                 var serialized = JsonSerializer.Serialize(new TokenizedContractRecord("kapilab-tokenized-contract-v2", rendered.Id,

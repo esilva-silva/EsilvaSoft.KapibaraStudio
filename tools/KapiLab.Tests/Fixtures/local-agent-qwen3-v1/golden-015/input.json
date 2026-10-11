@@ -1,0 +1,63 @@
+{
+  "schema": "kapilab-agent-turn-input-v1",
+  "id": "golden-015",
+  "synthetic": true,
+  "input": {
+    "systemPromptExtra": null,
+    "userMessage": "Fixture: \"aspas\", \\barra, <xml>, + & apóstrofo'\r\nUnicode: ação 中文 🐾 é\t.",
+    "authorizedContext": "",
+    "attachments": [],
+    "tools": [
+      {
+        "name": "fixture_metadata_0",
+        "description": "Read synthetic metadata fixture 0. Unicode fixture: ação 中文 🐾 \"quoted\".\r\n",
+        "inputSchemaJson": "{\"$schema\": \"https://json-schema.org/draft/2020-12/schema\", \"$id\": \"synthetic\", \"type\": \"object\", \"properties\": {\"collection\": {\"type\": \"string\"}, \"options\": {\"type\": \"object\", \"properties\": {\"limit\": {\"type\": \"integer\", \"minimum\": 1}}}, \"flag\": {\"type\": \"boolean\"}, \"count\": {\"type\": \"integer\", \"minimum\": 1}, \"ratio\": {\"type\": \"number\"}, \"fields\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"choice\": {\"description\": \"Synthetic choice\", \"type\": \"string\", \"enum\": [\"a\", \"b\"]}, \"union\": {\"type\": [\"string\", \"null\"]}, \"optional\": {\"description\": \"No type\"}, \"país🐾\": {\"type\": \"string\", \"description\": \"ação 中文 🐾\"}}, \"additionalProperties\": false, \"required\": [\"choice\"]}"
+      }
+    ],
+    "history": [
+      {
+        "role": "user",
+        "content": "{\"message\":\"Turno 0\",\"context\":\"\",\"attachments\":[]}"
+      },
+      {
+        "role": "assistant",
+        "content": "Metadados sintéticos do turno 0."
+      },
+      {
+        "role": "user",
+        "content": "{\"message\":\"Turno 1\",\"context\":\"\",\"attachments\":[]}"
+      },
+      {
+        "role": "assistant",
+        "content": "Metadados sintéticos do turno 1."
+      },
+      {
+        "role": "user",
+        "content": "{\"message\":\"Turno 2\",\"context\":\"\",\"attachments\":[]}"
+      },
+      {
+        "role": "assistant",
+        "content": "Metadados sintéticos do turno 2."
+      },
+      {
+        "role": "user",
+        "content": "{\"message\":\"Turno 3\",\"context\":\"\",\"attachments\":[]}"
+      },
+      {
+        "role": "assistant",
+        "content": "Metadados sintéticos do turno 3."
+      },
+      {
+        "role": "user",
+        "content": "{\"message\":\"Turno 4\",\"context\":\"\",\"attachments\":[]}"
+      },
+      {
+        "role": "assistant",
+        "content": "Metadados sintéticos do turno 4."
+      }
+    ],
+    "reasoningEnabled": false
+  },
+  "addGenerationPrompt": true,
+  "disabledReasoningSuffix": "<think>\n\n</think>\n\n"
+}

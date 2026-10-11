@@ -710,3 +710,13 @@ O tamanho do contexto é calculado em bytes UTF-8 a partir do texto já resolvid
 **Consequências:** lockfiles e testes próprios; catálogo real sem quantidade fixa de tools; host tokenizer por compatibilidade comprovada; privacidade e contenção de caminhos; registro/download de EP somente em comando explícito de laboratório. O parser compartilhado limita o objeto `arguments` a profundidade 8 e não expõe tipos de principal, autorização, registry ou execução. Detalhes de dependências/CPM, acesso temporário a descrições e eventual extração do harness são resolvidos com evidência, sem enfraquecer analisadores. Nenhuma mudança de UI, retenção do Desktop, disponibilidade de providers ou guarda Claude Release nesta fase.
 
 **Validação exigida:** F7B-00..24, marcos K0–K4 e critérios da meta; aceites sem pesos, MVP real e integração completa separados. Esta decisão não encerra a Fase 7A, a Fase 8 ou a homologação da Fase 10.
+
+## ADR-072 — Contrato de prompt do agente local (11/10/2026)
+
+**Contexto:** o dataset externo de trajetórias precisa reproduzir os bytes/token IDs da IDE. A montagem privada não era exportável, e as tools recebiam apenas seus nomes como descrição.
+
+**Decisão aprovada pelo usuário:** extrair `LocalAgentPromptBuilder` puro/público e congelar `local-agent-qwen3-v1`; manter sistema em pt-BR, assistant como texto bruto, sequência de mensagens e limites existentes. Usar descrições curtas em inglês, até 200 caracteres, da tabela única `AgentToolDescriptions` tanto no prompt local quanto no catálogo. Essa é a única mudança intencional no prompt de produção. Pacotes existentes conservam seu force-close; exemplo e goldens adotam o texto de referência Qwen3 aprovado. `agentContract` é metadata aditivo separado do contrato de autocomplete; gate estrito exige a versão conhecida para novos pacotes de agente.
+
+**Paridade:** o nativo GenAI 0.15.2 simplifica schemas antes do template, incluindo `string` → `str`. O fallback C# e o espelho Python reproduzem essa transformação observada; produção continua usando o formatter/template do pacote. Não acrescentar providers, grants, autenticação ou fallback silencioso. Exportar texto somente com `--emit-text`, saída explícita e correspondência com fixtures sintéticas versionadas/verificadas; casos novos recebem somente hashes.
+
+**Consequências e prova:** 200 goldens, oráculo pré-refatoração, testes de captura/falha/concorrência/recuperação, comparação de tokens nativos e `RewindTo` explícito. Isso não homologa pesos T4, MongoDB ou sucesso de tarefas. Detalhes: [contrato](architecture/local-agent-qwen3-v1.md) e [aceite](phases/phase-07b-kapilab/aceite-pr-2.md).

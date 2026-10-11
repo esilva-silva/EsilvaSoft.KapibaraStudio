@@ -1,0 +1,61 @@
+{
+  "schema": "kapilab-agent-turn-input-v1",
+  "id": "golden-188",
+  "synthetic": true,
+  "input": {
+    "systemPromptExtra": null,
+    "userMessage": "Fixture sintética 188: explique os metadados.",
+    "authorizedContext": "",
+    "attachments": [],
+    "tools": [
+      {
+        "name": "fixture_metadata_0",
+        "description": "Read synthetic metadata fixture 0.",
+        "inputSchemaJson": "{\"$schema\": \"https://json-schema.org/draft/2020-12/schema\", \"$id\": \"synthetic\", \"type\": \"object\", \"properties\": {\"collection\": {\"type\": \"string\"}, \"options\": {\"type\": \"object\", \"properties\": {\"limit\": {\"type\": \"integer\", \"minimum\": 1}}}}, \"additionalProperties\": false}"
+      },
+      {
+        "name": "fixture_metadata_1",
+        "description": "Read synthetic metadata fixture 1.",
+        "inputSchemaJson": "{\"$schema\": \"https://json-schema.org/draft/2020-12/schema\", \"$id\": \"synthetic\", \"type\": \"object\", \"properties\": {\"collection\": {\"type\": \"string\"}, \"options\": {\"type\": \"object\", \"properties\": {\"limit\": {\"type\": \"integer\", \"minimum\": 1}}}}, \"additionalProperties\": false}"
+      },
+      {
+        "name": "fixture_metadata_2",
+        "description": "Read synthetic metadata fixture 2.",
+        "inputSchemaJson": "{\"$schema\": \"https://json-schema.org/draft/2020-12/schema\", \"$id\": \"synthetic\", \"type\": \"object\", \"properties\": {\"collection\": {\"type\": \"string\"}, \"options\": {\"type\": \"object\", \"properties\": {\"limit\": {\"type\": \"integer\", \"minimum\": 1}}}}, \"additionalProperties\": false}"
+      }
+    ],
+    "history": [
+      {
+        "role": "user",
+        "content": "{\"message\":\"Turno 0\",\"context\":\"\",\"attachments\":[]}"
+      },
+      {
+        "role": "assistant",
+        "content": "Metadados sintéticos do turno 0."
+      },
+      {
+        "role": "user",
+        "content": "{\"message\":\"Turno 1\",\"context\":\"\",\"attachments\":[]}"
+      },
+      {
+        "role": "assistant",
+        "content": "Metadados sintéticos do turno 1."
+      },
+      {
+        "role": "assistant",
+        "content": "<tool_call>{\"name\":\"fixture_metadata_0\",\"arguments\":{\"collection\":\"orders\"}}</tool_call>"
+      },
+      {
+        "role": "tool",
+        "content": "{\"status\":\"Succeeded\",\"result\":\"\\u00EDndices sint\\u00E9ticos\",\"error\":null,\"truncated\":false}"
+      },
+      {
+        "role": "assistant",
+        "content": "<think>raciocínio transitório sintético\nConsidering the limited time by the user, I have to give the solution based on the thinking directly now.\n</think>\n\n"
+      }
+    ],
+    "reasoningEnabled": false
+  },
+  "addGenerationPrompt": true,
+  "disabledReasoningSuffix": "<think>\n\n</think>\n\n"
+}

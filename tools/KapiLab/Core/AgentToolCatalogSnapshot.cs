@@ -37,7 +37,7 @@ public static class AgentToolCatalogSnapshot
                     : registry.GetInProcessOutputSchemaJson(providerId, descriptor.Name);
                 return new Tool(descriptor.Name, descriptor.Version, descriptor.Risk.ToString(),
                     descriptor.RequiredPermissions.Select(static permission => permission.ToString()).ToArray(),
-                    input, output, Hash(input), Hash(output));
+                    input, output, Hash(input), Hash(output), AgentToolDescriptions.Get(descriptor.Name));
             }).ToArray();
 
         return new Snapshot(Schema, providerId, surface, ProviderMaximumScope, false, tools);
@@ -63,7 +63,7 @@ public static class AgentToolCatalogSnapshot
         {
             var a = left[name];
             var b = right[name];
-            if (a.Version != b.Version || a.Risk != b.Risk ||
+            if (a.Version != b.Version || a.Risk != b.Risk || a.Description != b.Description ||
                 !a.RequiredPermissions.SequenceEqual(b.RequiredPermissions, StringComparer.Ordinal) ||
                 a.InputSchemaJson != b.InputSchemaJson || a.OutputSchemaJson != b.OutputSchemaJson)
                 differences.Add("tool_contract_changed:" + name);
@@ -101,6 +101,7 @@ public static class AgentToolCatalogSnapshot
 
     public sealed record Snapshot(string Schema, string ProviderId, string Surface, string Scope, bool Complete, Tool[] Tools);
     public sealed record Tool(string Name, int Version, string Risk, string[] RequiredPermissions,
-        string? InputSchemaJson, string? OutputSchemaJson, string? InputSchemaSha256, string? OutputSchemaSha256);
+        string? InputSchemaJson, string? OutputSchemaJson, string? InputSchemaSha256, string? OutputSchemaSha256,
+        string? Description = null);
     public sealed record CheckResult(bool Matches, IReadOnlyList<string> Differences);
 }

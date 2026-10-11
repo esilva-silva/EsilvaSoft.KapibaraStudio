@@ -1,0 +1,5 @@
+{
+  "contract": "local-agent-qwen3-v1",
+  "tokenizerSha256": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4",
+  "tokenizerConfigSha256": "d5d09f07b48c3086c508b30d1c9114bd1189145b74e982a265350c923acd8101"
+}

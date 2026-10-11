@@ -20,6 +20,8 @@ public sealed record LocalModelMetadata
     /// declares none, which is treated as the frozen <c>editor-context-v1</c> and never as an incompatibility.
     /// </summary>
     public string? ContextContract { get; init; }
+    /// <summary>Optional version of the local agent prompt; independent of autocomplete context.</summary>
+    public string? AgentContract { get; init; }
     /// <summary>
     /// Whether the model can exploit context from other files besides the current tab. Null means undeclared and
     /// behaves as false; the distinction is preserved so a future package can state false explicitly.

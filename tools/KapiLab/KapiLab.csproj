@@ -11,6 +11,7 @@
     <AssemblyMetadata Include="KapibaraStudio.GenAiVersion" Value="$(KapibaraGenAiVersion)" />
     <AssemblyMetadata Include="KapibaraStudio.OnnxBackend" Value="$(SlopOnnxBackend)" />
     <Content Include="Fixtures/autocomplete-raw-ghost-v1.jsonl" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="../KapiLab.Tests/Fixtures/local-agent-qwen3-v1/turns.jsonl" LogicalName="local-agent-qwen3-v1.turns.jsonl" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="EsilvaSoft.KapibaraStudio.KapiLab.Tests" />

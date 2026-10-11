@@ -102,6 +102,24 @@ public sealed class AgentToolCatalogSnapshotTests
         Assert.That(() => AgentToolCatalogSnapshot.Parse(json), Throws.TypeOf<InvalidDataException>());
     }
 
+    [Test]
+    public void CatalogDescriptionMatchesPromptAndDescriptionDriftIsDetected()
+    {
+        var snapshot = AgentToolCatalogSnapshot.Export(new RegistryStub(), "local", "in-process");
+        var tool = snapshot.Tools[0];
+        using var prompt = System.Text.Json.JsonDocument.Parse(LocalAgentPromptBuilder.BuildToolsJson(
+            [new(tool.Name, AgentToolDescriptions.Get(tool.Name), tool.InputSchemaJson!)])!);
+        Assert.That(tool.Description, Is.EqualTo(prompt.RootElement[0].GetProperty("function").GetProperty("description").GetString()));
+        var changed = snapshot with { Tools = [tool with { Description = "Changed description" }] };
+        Assert.That(AgentToolCatalogSnapshot.Check(snapshot, changed).Matches, Is.False);
+        foreach (var name in new[] { "list_connections", "list_databases", "list_collections", "get_indexes", "get_search_indexes",
+            "get_cached_schema", "get_workspace_context", "get_query_results", "get_query_diagnostics", "propose_file_edit", "create_workspace_file", "approve" })
+        {
+            Assert.That(AgentToolDescriptions.Get(name), Has.Length.InRange(1, 200));
+            Assert.That(AgentToolDescriptions.Get(name), Is.Not.EqualTo(name));
+        }
+    }
+
     private sealed class RegistryStub : IAgentToolRegistry
     {
         public string? InputSchema { get; set; } = "{\"type\":\"object\"}";

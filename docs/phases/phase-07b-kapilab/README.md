@@ -1,5 +1,7 @@
 # Fase 7B — KapiLab: contratos e avaliação pelo caminho da IDE
 
+**PR 2 — 11/10/2026:** contrato público `local-agent-qwen3-v1`, 200 goldens e paridade nativa Cpu/Python aprovados; descrições compartilhadas conforme ADR-072. [Aceite e limitações](aceite-pr-2.md).
+
 **Situação:** implementação local em andamento; meta definida em 09/10/2026.
 **Meta:** F7B-KAPILAB.
 **Versão:** ferramenta de desenvolvimento vinculada à Fase 8 / v0.12.0, sem release própria do produto.
