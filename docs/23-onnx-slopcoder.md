@@ -1,5 +1,7 @@
 # ONNX: SlopCoder, CPU/GPU e chat do editor
 
+> Atualização Snapdragon: o build usa GenAI 0.18.0, com locks por backend e lock Windows ARM64 adicional. As versões e medições de 0.15.2 abaixo são históricas; veja [dependências QNN](architecture/snapdragon-qnn-dependencies.md) e [estado da validação](architecture/remote-kapicoder-catalog.md).
+
 ## Escopo
 
 Qwen2.5-Coder continua disponível. O catálogo também aceita `llama` com manifesto `slopcoder_manifest.json` no formato `deepseek-coder-fim`, validando os textos/IDs BOS, EOS, FIM, EOT e os tokens de parada. A exportação SlopCoder exige o decoder e seu arquivo externo `.data`, ambos não vazios. Isso valida o contrato e a presença dos arquivos; não é verificação criptográfica integral dos pesos.

@@ -1,5 +1,7 @@
 # Design system e revisão de UI/UX
 
+> O preparo automático de modelos Snapdragon usa a área existente de operações para progresso, cancelamento e resultado, sem substituir a seleção de modelo. Veja [catálogo](architecture/remote-kapicoder-catalog.md).
+
 **Catálogo KapiCoder — 26/10/2026:** Preferências usa os repositórios ONNX dedicados, ordena Nano CPU INT4 primeiro e mantém o card do modelo base. Safetensors de fontes personalizadas continua informativo e não instalável. Não há alteração de layout; nomes CPU INT4/INT8 reconhecem também as pastas cpu-int4/cpu-int8. [Contrato e evidências](architecture/remote-kapicoder-catalog.md).
 
 **IA local — 26/10/2026:** correção de EOS e experimento de cache CPU não acrescentam controles visuais. Sessões de cache são transitórias e isoladas por aba/destino; fechar a aba cancela sua sessão sem descartar um generator ainda em uso. O cache permanece desabilitado até homologação por pacote. [Comportamento e limites](architecture/local-ai-eos-prefix-cache.md).

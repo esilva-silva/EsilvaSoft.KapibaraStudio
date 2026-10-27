@@ -3,6 +3,8 @@ using EsilvaSoft.KapibaraStudio.Core;
 using EsilvaSoft.KapibaraStudio.LocalAi.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.ML.OnnxRuntimeGenAI;
+using System.Reflection;
+using System.Runtime.InteropServices;
 
 namespace EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi;
 
@@ -16,9 +18,22 @@ public static class ServiceCollectionExtensions
             adapters: provider.GetRequiredService<IReadOnlyList<IModelAdapter>>(),
             fileAccess: provider.GetRequiredService<ILocalModelFileAccess>(),
             workspacePaths: provider.GetRequiredService<ILocalWorkspacePaths>()));
-        services.AddSingleton<IRemoteModelSource>(provider => new HuggingFaceModelSource(
-            provider.GetRequiredService<IRemoteModelStorage>()));
         services.AddSingleton<IAiHardwareProbe, OnnxHardwareProbe>();
+        services.AddSingleton<ISnapdragonRuntimeAvailability>(provider => new SnapdragonRuntimeAvailability(
+            provider.GetRequiredService<IAiHardwareProbe>(), () =>
+            {
+                var access = provider.GetRequiredService<ILocalModelFileAccess>();
+                var plugin = Path.Combine(AppContext.BaseDirectory, "onnxruntime_providers_qnn.dll");
+                var version = typeof(ServiceCollectionExtensions).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
+                    .FirstOrDefault(attribute => attribute.Key == "KapibaraGenAiPackageVersion")?.Value;
+                return SnapdragonRuntimeAvailability.SupportsBuild(OperatingSystem.IsWindows(), RuntimeInformation.ProcessArchitecture == Architecture.Arm64,
+                    version, access.FileExists(plugin) && access.GetFileLength(plugin) > 0);
+            }));
+        services.AddSingleton<IRemoteModelSource>(provider => new HuggingFaceModelSource(
+            provider.GetRequiredService<IRemoteModelStorage>(), snapdragonRuntime: provider.GetRequiredService<ISnapdragonRuntimeAvailability>()));
+        services.AddSingleton<ISnapdragonModelProvisioner>(provider => new SnapdragonModelProvisioner(
+            provider.GetRequiredService<ISnapdragonRuntimeAvailability>(), provider.GetRequiredService<IRemoteModelSource>(),
+            provider.GetRequiredService<IApplicationOperationService>()));
         // One model service shared by autocomplete, chat and the preferences window.
         services.AddSingleton<ILocalAiModelService>(provider => new LocalAiModelService(
             provider.GetRequiredService<ILocalModelCatalog>(),
@@ -57,7 +72,7 @@ public static class ServiceCollectionExtensions
 /// <para><strong>Sem estado de domínio.</strong> A classe só guarda sessão, tokenizador e construtor de prompt por
 /// caminho de pasta; nada de MongoDB, nada de texto do editor.</para>
 /// </remarks>
-internal sealed class AdapterTokenizerFactory(IReadOnlyList<IModelAdapter> adapters) : IDisposable
+internal sealed class AdapterTokenizerFactory(IReadOnlyList<IModelAdapter> adapters, IAiHardwareProbe hardware) : IDisposable
 {
     private readonly IReadOnlyList<IModelAdapter> _adapters = adapters ?? throw new ArgumentNullException(nameof(adapters));
     private const int Limit = 2;
@@ -112,8 +127,12 @@ internal sealed class AdapterTokenizerFactory(IReadOnlyList<IModelAdapter> adapt
         {
             using (var config = new Config(model.Path))
             {
-                // Sem provider acelerado: este modelo existe só para dar acesso ao tokenizador do pacote.
-                config.ClearProviders();
+                if (model.IsHtpPipeline)
+                {
+                    OnnxHardwareProbe.RequireHtpPlatform();
+                    _ = AiProviderSelector.Plan(new(), hardware.GetAvailableHardwareAsync().GetAwaiter().GetResult(), model);
+                }
+                else config.ClearProviders();
                 session = new Model(config);
             }
             return new(model.Path, session, adapter.CreateTokenizer(session, model.Path), adapter.CreatePromptBuilder());

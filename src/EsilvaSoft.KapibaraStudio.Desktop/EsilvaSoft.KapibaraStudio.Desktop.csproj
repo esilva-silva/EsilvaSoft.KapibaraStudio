@@ -1,4 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup Condition="'$(SlopOnnxBackend)' == 'WinML'">
+    <PackageReference Include="Qualcomm.ML.OnnxRuntime.QNN" ExcludeAssets="all" GeneratePathProperty="true" />
+  </ItemGroup>
+  <!-- Copy only for explicit win-arm64 or native ARM64 Windows builds without a RID. -->
+  <PropertyGroup>
+    <KapibaraQnnNativeCopy Condition="'$(SlopOnnxBackend)' == 'WinML' and ('$(RuntimeIdentifier)' == 'win-arm64' or ('$(RuntimeIdentifier)' == '' and '$(OS)' == 'Windows_NT' and '$([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture)' == 'Arm64'))">true</KapibaraQnnNativeCopy>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(KapibaraQnnNativeCopy)' == 'true' and '$(PkgQualcomm_ML_OnnxRuntime_QNN)' != ''">
+    <None Include="$(PkgQualcomm_ML_OnnxRuntime_QNN)/runtimes/win-arm64/native/**/*" Link="%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="$(PkgQualcomm_ML_OnnxRuntime_QNN)/LICENSE" Link="licenses/Qualcomm-QNN-LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="$(PkgQualcomm_ML_OnnxRuntime_QNN)/Qualcomm_LICENSE.pdf" Link="licenses/Qualcomm-AI-Stack-LICENSE.pdf" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="$(PkgQualcomm_ML_OnnxRuntime_QNN)/ThirdPartyNotices.txt" Link="licenses/Qualcomm-QNN-ThirdPartyNotices.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <ApplicationManifest>app.manifest</ApplicationManifest>

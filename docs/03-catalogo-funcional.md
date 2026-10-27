@@ -1,5 +1,7 @@
 # Catálogo funcional
 
+> Snapdragon: o catálogo inclui variantes públicas HTP Nano e Small; em Windows ARM64 elegível, a IDE prepara os pacotes automaticamente. A seleção existente é preservada e Nano CPU int4 continua padrão. A validação no notebook ainda está pendente. [Detalhes](architecture/remote-kapicoder-catalog.md).
+
 **Pacotes ONNX publicados — 26/10/2026:** as fontes padrão são KapiCoder-Mongo-Nano-ONNX e Small-ONNX, com Nano CPU INT4 selecionado primeiro. Os exports completos e manifestos estão publicados com a tag v0.1.0-preview, com integridade verificada no Hub. Safetensors permanece informativo quando listado por fonte personalizada. [Contrato e evidências](architecture/remote-kapicoder-catalog.md).
 
 **IA local — 26/10/2026:** [EOS e cache CPU experimental](architecture/local-ai-eos-prefix-cache.md). EOS corrigido; cache por sessão disponível somente como experimento, sem pacote homologado. Paridade/qualidade/latência reais e seleção de nova versão GenAI permanecem pendentes.

@@ -258,8 +258,8 @@
       },
       "Microsoft.ML.OnnxRuntimeGenAI.Managed": {
         "type": "Transitive",
-        "resolved": "0.15.2",
-        "contentHash": "qILyIlkcecRZb1S+CW76hcV8UxFussgbC7BrD89hP7M+ZiUPoT8NDFCmvxWEhUBWvYfKF2sflQDI0eCBFgjfFQ==",
+        "resolved": "0.18.0",
+        "contentHash": "EaJ3xnWwhcV35BK8tETmOXtOPbc0nIaEIkHFjh+U8N7+CIlGiVRZ4bzjkPlE0KL2ETV3XARHBEl5sr8YOXIJvg==",
         "dependencies": {
           "Microsoft.Extensions.AI.Abstractions": "9.8.0"
         }
@@ -458,7 +458,8 @@
           "EsilvaSoft.KapibaraStudio.Infrastructure.Agents": "[1.0.0, )",
           "EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi": "[1.0.0, )",
           "Microsoft.Extensions.DependencyInjection": "[10.0.0, )",
-          "Microsoft.Extensions.Logging.Abstractions": "[10.0.10, )"
+          "Microsoft.Extensions.Logging.Abstractions": "[10.0.10, )",
+          "Qualcomm.ML.OnnxRuntime.QNN": "[2.7.0, )"
         }
       },
       "esilvasoft.kapibarastudio.infrastructure": {
@@ -497,8 +498,8 @@
           "EsilvaSoft.KapibaraStudio.Application": "[1.0.0, )",
           "EsilvaSoft.KapibaraStudio.LocalAi.Core": "[1.0.0, )",
           "Microsoft.Extensions.DependencyInjection": "[10.0.0, )",
-          "Microsoft.ML.OnnxRuntime.Managed": "[1.28.0, )",
-          "Microsoft.ML.OnnxRuntimeGenAI.WinML": "[0.15.2, )"
+          "Microsoft.ML.OnnxRuntime.Managed": "[1.31.0, )",
+          "Microsoft.ML.OnnxRuntimeGenAI.WinML": "[0.18.0, )"
         }
       },
       "esilvasoft.kapibarastudio.infrastructure.system": {
@@ -641,20 +642,20 @@
       },
       "Microsoft.ML.OnnxRuntime.Managed": {
         "type": "CentralTransitive",
-        "requested": "[1.28.0, )",
-        "resolved": "1.28.0",
-        "contentHash": "4ecKjwASHhAZXczK/xm5KU6MdvoIGfMd23UAwDbM9vfcfgqZgNqvFWPZPT0Elc1wu5vXWs2Kij1ZBmHCcv1UlA==",
+        "requested": "[1.31.0, )",
+        "resolved": "1.31.0",
+        "contentHash": "o9nvEiddLLlAMOHN0XZ/06Oal0W6S7iWiSb8lzQAwfQKNOZtX4C8he5/I7Mc/DlSprNfovAW6kCkwX2BAE0JHw==",
         "dependencies": {
           "System.Numerics.Tensors": "9.0.0"
         }
       },
       "Microsoft.ML.OnnxRuntimeGenAI.WinML": {
         "type": "CentralTransitive",
-        "requested": "[0.15.2, )",
-        "resolved": "0.15.2",
-        "contentHash": "ECpsCeGUfPlXVHPd5pYAXyo1EEY3rkfrqtFF3wwA6AvzOkDAoxc+Rak+ahXZ5aJ3IuzVDU2lPGKTGtfYXN4iKQ==",
+        "requested": "[0.18.0, )",
+        "resolved": "0.18.0",
+        "contentHash": "bucpxSGzJeLDjt9OHW0IaBKo/JjxAskNVoPjxFfVmuIjjHDs5TpobVPyXOtuTc2K8mZsBDqUJZ8fdTiuL4r9MQ==",
         "dependencies": {
-          "Microsoft.ML.OnnxRuntimeGenAI.Managed": "0.15.2",
+          "Microsoft.ML.OnnxRuntimeGenAI.Managed": "0.18.0",
           "Microsoft.Windows.AI.MachineLearning": "2.1.1"
         }
       },
@@ -680,6 +681,12 @@
         "dependencies": {
           "System.ClientModel": "1.15.0"
         }
+      },
+      "Qualcomm.ML.OnnxRuntime.QNN": {
+        "type": "CentralTransitive",
+        "requested": "[2.7.0, )",
+        "resolved": "2.7.0",
+        "contentHash": "RFSLOc/2O7gqUe9bMyDNTfWbPDJSi9WJeXLDfsA46/kEzHccWF3D6ptW9uxMvyjoPYzqTCVBtHNHmtBTa3ZaxA=="
       },
       "Tmds.DBus.Protocol": {
         "type": "CentralTransitive",

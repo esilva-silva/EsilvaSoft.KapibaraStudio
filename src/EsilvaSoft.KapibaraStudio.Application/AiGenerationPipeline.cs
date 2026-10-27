@@ -275,6 +275,11 @@ public sealed class AiGenerationPipeline
         // ContextOverflow, a resposta da matriz de fallback é reduzir o orçamento uma vez — o que reaproveita o corte
         // da Fase 3 (menos fatos, janela do editor menor) — e repetir. Persistindo, aí sim é recusa.
         var contextTokens = request.Settings.ContextTokens;
+        if (model!.IsHtpPipeline && request.Role == LocalModelRole.Autocomplete)
+        {
+            var reserved = Math.Min(request.ReservedCompletionTokens ?? request.Settings.MaximumCompletionTokens, model.EffectiveAutocompleteMaximumTokens);
+            contextTokens = Math.Min(contextTokens, (model.EffectiveContextLength - reserved) / 32 * 32 + reserved);
+        }
         var reduced = false;
         var published = false;
         while (true)
@@ -342,6 +347,8 @@ public sealed class AiGenerationPipeline
         int contextTokens)
     {
         var reserved = request.ReservedCompletionTokens ?? request.Settings.MaximumCompletionTokens;
+        if (model.IsHtpPipeline && request.Role == LocalModelRole.Autocomplete)
+            reserved = Math.Min(reserved, model.EffectiveAutocompleteMaximumTokens);
         var cost = model.PromptFormat is LocalModelPromptFormats.QwenFim or LocalModelPromptFormats.DeepSeekCoderFim
             ? AiPromptFormatCost.QwenFim(reserved)
             : new AiPromptFormatCost(0, 0, reserved);

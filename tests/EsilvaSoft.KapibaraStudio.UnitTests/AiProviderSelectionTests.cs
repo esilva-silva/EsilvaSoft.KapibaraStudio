@@ -68,12 +68,51 @@ public sealed class AiProviderSelectionTests
             [new("QNNExecutionProvider", AiAccelerationMode.Npu, "Qualcomm NPU")]);
         Assert.That(withDevice.Single(device => device.Kind == AiAccelerationMode.Npu).IsAvailable, Is.True);
         var pluginDevice = OnnxHardwareProbe.Describe(["CPUExecutionProvider"],
-            [new("QNNExecutionProvider", AiAccelerationMode.Npu, "Qualcomm NPU")]);
+            [new("QNNExecutionProvider", AiAccelerationMode.Npu, "Qualcomm NPU") { Vendor = "Qualcomm Technologies, Inc." }]);
         Assert.That(pluginDevice.Single(device => device.Kind == AiAccelerationMode.Npu).Provider, Is.EqualTo("QNN"));
         Assert.That(pluginDevice.Single(device => device.Kind == AiAccelerationMode.Npu).IsAvailable, Is.True);
+        Assert.That(pluginDevice.Single(device => device.Kind == AiAccelerationMode.Npu).Vendor, Is.EqualTo("Qualcomm Technologies, Inc."));
         var unrelatedDevice = OnnxHardwareProbe.Describe(["CPUExecutionProvider", "QNNExecutionProvider"],
             [new("QNNExecutionProvider", AiAccelerationMode.Cpu, "QNN CPU backend")]);
         Assert.That(unrelatedDevice.Single(device => device.Kind == AiAccelerationMode.Npu).IsAvailable, Is.False);
+    }
+
+    [TestCase("Qualcomm Technologies, Inc.", true)]
+    [TestCase(" QUALCOMM ", true)]
+    [TestCase("Other Qualcomm", false)]
+    [TestCase(null, false)]
+    public void QualcommHardwareRequiresAReportedManufacturer(string? vendor, bool expected) =>
+        Assert.That(OnnxHardwareProbe.IsQualcommVendor(vendor), Is.EqualTo(expected));
+
+    [Test]
+    public void HtpPlanRequiresActualQualcommQnnNpuAndNeverFallsBack()
+    {
+        var model = CpuOnlyModel() with { IsHtpPipeline = true };
+        var unverified = new AiHardwareDevice(AiAccelerationMode.Npu, "QNN", "NPU", true);
+        Assert.Throws<AiProviderUnavailableException>(() => AiProviderSelector.Plan(new(), [Cpu, unverified], model));
+        var qnn = unverified with { Vendor = "Qualcomm Technologies, Inc." };
+        var plan = AiProviderSelector.Plan(new(), [Cpu, qnn], model);
+        Assert.That(plan.AllowFallback, Is.False);
+        Assert.That(plan.Candidates.Select(candidate => candidate.Kind), Is.EqualTo(new[] { AiAccelerationMode.Npu }));
+        Assert.Throws<AiProviderUnavailableException>(() => AiProviderSelector.Plan(new() { Acceleration = AiAccelerationMode.Cpu }, [Cpu, qnn], model));
+    }
+
+    [TestCase(2016, 32, true)]
+    [TestCase(2017, 32, false)]
+    [TestCase(2017, 16, false)]
+    [TestCase(1985, 32, true)]
+    [TestCase(1, 33, false)]
+    public void HtpBudgetAccountsForStaticPrefillPadding(int prompt, int generated, bool accepted)
+    {
+        if (accepted) Assert.DoesNotThrow(() => OnnxLocalModelRuntime.ValidateHtpBudget(prompt, generated));
+        else Assert.Throws<LocalModelContextException>(() => OnnxLocalModelRuntime.ValidateHtpBudget(prompt, generated));
+    }
+
+    [Test]
+    public void HtpBudgetReportsExcessiveGenerationClearly()
+    {
+        var error = Assert.Throws<LocalModelContextException>(() => OnnxLocalModelRuntime.ValidateHtpBudget(16, 33));
+        Assert.That(error!.Message, Does.Contain("32 tokens"));
     }
 
     [Test]

@@ -32,8 +32,8 @@ public sealed class HuggingFaceModelSource : IRemoteModelSource, IDisposable
             new("cpu-int8", "Alternativa em CPU: INT8.", "remoteHintCpuInt8Alternative"),
             new("dml-fp16", "GPU DirectML experimental: FP16.", "remoteHintDirectMlFp16")
         ]),
-        SnapdragonRepository("Nano", "a85d11c9f8db2f4388836c991b292b1cdb160d39"),
-        SnapdragonRepository("Small", "c03ba2339ba263a3881134d0acd3ee24e1a80717")
+        SnapdragonRepository("Nano", SnapdragonModelPublications.NanoRevision),
+        SnapdragonRepository("Small", SnapdragonModelPublications.SmallRevision)
     ];
 
     private static RemoteModelRepository SnapdragonRepository(string family, string revision) =>
@@ -49,12 +49,18 @@ public sealed class HuggingFaceModelSource : IRemoteModelSource, IDisposable
     private readonly IRemoteModelStorage _storage;
     private readonly Uri _baseAddress;
     private readonly HttpClient _http;
+    private readonly ISnapdragonRuntimeAvailability? _snapdragonRuntime;
+    private readonly SemaphoreSlim _transfers = new(1, 1);
+    private readonly CancellationTokenSource _shutdown = new();
+    private int _disposed;
     private Func<string, string> _localize = static key => key;
 
-    public HuggingFaceModelSource(IRemoteModelStorage storage, IReadOnlyList<RemoteModelRepository>? repositories = null, HttpMessageHandler? handler = null, Uri? baseAddress = null)
+    public HuggingFaceModelSource(IRemoteModelStorage storage, IReadOnlyList<RemoteModelRepository>? repositories = null, HttpMessageHandler? handler = null, Uri? baseAddress = null,
+        ISnapdragonRuntimeAvailability? snapdragonRuntime = null)
     {
         _storage = storage ?? throw new ArgumentNullException(nameof(storage));
         _repositories = repositories ?? DefaultRepositories;
+        _snapdragonRuntime = snapdragonRuntime;
         if (_repositories.Count == 0 || _repositories.Any(repository => !IsSafeRelativePath(repository.Repository) || !repository.Repository.Contains('/')
             || repository.Revision is { } revision && !IsHex(revision, 40)
             || repository.VariantFolder is { } folder && (!IsSafeRelativePath(folder) || folder.Contains('/'))))
@@ -79,11 +85,17 @@ public sealed class HuggingFaceModelSource : IRemoteModelSource, IDisposable
 
     public async Task<IReadOnlyList<RemoteModelVariant>> ListAsync(CancellationToken cancellationToken)
     {
+        var runtimeAvailable = false;
+        if (_snapdragonRuntime is not null)
+        {
+            try { runtimeAvailable = await _snapdragonRuntime.IsAvailableAsync(cancellationToken).ConfigureAwait(false); }
+            catch (Exception) when (!cancellationToken.IsCancellationRequested) { /* Listing stays available with a runtime warning. */ }
+        }
         var variants = new List<RemoteModelVariant>();
         Exception? failure = null;
         foreach (var repository in _repositories)
         {
-            try { variants.AddRange(await ListRepositoryAsync(repository, cancellationToken)); }
+            try { variants.AddRange(await ListRepositoryAsync(repository, runtimeAvailable, cancellationToken)); }
             // One unreachable repository must not hide the models of the others.
             catch (Exception ex) when (!cancellationToken.IsCancellationRequested && ex is HttpRequestException or TimeoutException or InvalidDataException or IOException)
             {
@@ -94,7 +106,47 @@ public sealed class HuggingFaceModelSource : IRemoteModelSource, IDisposable
         return variants;
     }
 
-    public async Task<string> DownloadAsync(RemoteModelVariant variant, string modelsDirectory, IProgress<RemoteModelProgress>? progress, CancellationToken cancellationToken)
+    public Task<string> DownloadAsync(RemoteModelVariant variant, string modelsDirectory, IProgress<RemoteModelProgress>? progress, CancellationToken cancellationToken) =>
+        TransferAsync(variant, modelsDirectory, progress, false, cancellationToken);
+
+    public Task<string> EnsureDownloadedAsync(RemoteModelVariant variant, string modelsDirectory, IProgress<RemoteModelProgress>? progress, CancellationToken cancellationToken) =>
+        TransferAsync(variant, modelsDirectory, progress, true, cancellationToken);
+
+    private async Task<string> TransferAsync(RemoteModelVariant variant, string modelsDirectory, IProgress<RemoteModelProgress>? progress, bool reuse, CancellationToken cancellationToken)
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        ValidateDescription(variant, modelsDirectory);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _shutdown.Token);
+        await _transfers.WaitAsync(linked.Token).ConfigureAwait(false);
+        try
+        {
+            var target = _storage.Combine(_storage.GetFullPath(modelsDirectory), variant.FolderName);
+            if (reuse && _storage.DirectoryExists(target))
+            {
+                long completed = 0;
+                foreach (var file in variant.Files)
+                {
+                    linked.Token.ThrowIfCancellationRequested();
+                    var relative = file.Path[(variant.Variant.Length + 1)..];
+                    var destination = _storage.Combine(new[] { target }.Concat(relative.Split('/')).ToArray());
+                    if (!_storage.FileExists(destination) || _storage.GetFileLength(destination) != file.Size
+                        || !string.Equals(await HashFileAsync(destination, file, linked.Token).ConfigureAwait(false), Expected(file), StringComparison.Ordinal))
+                        throw new InvalidDataException(L("remoteInstalledIntegrityMismatch", "A pasta existente {0} não confere com a publicação fixada e foi preservada.", target));
+                    completed += file.Size;
+                    progress?.Report(new(completed, variant.SizeBytes, relative));
+                }
+                return target;
+            }
+            return await DownloadCoreAsync(variant, modelsDirectory, progress, linked.Token).ConfigureAwait(false);
+        }
+        finally
+        {
+            try { _transfers.Release(); }
+            catch (ObjectDisposedException) when (Volatile.Read(ref _disposed) != 0) { }
+        }
+    }
+
+    private void ValidateDescription(RemoteModelVariant variant, string modelsDirectory)
     {
         ArgumentNullException.ThrowIfNull(variant);
         ArgumentException.ThrowIfNullOrWhiteSpace(modelsDirectory);
@@ -116,6 +168,10 @@ public sealed class HuggingFaceModelSource : IRemoteModelSource, IDisposable
             || !variant.Files.Any(file => file.Path == variant.Variant + "/genai_config.json")
             || variant.Files.Any(file => !file.Path.StartsWith(variant.Variant + "/", StringComparison.Ordinal) || !IsSafeRelativePath(file.Path)))
             throw new InvalidDataException(L("remoteInvalidModelDescription", "Descrição de modelo inválida."));
+    }
+
+    private async Task<string> DownloadCoreAsync(RemoteModelVariant variant, string modelsDirectory, IProgress<RemoteModelProgress>? progress, CancellationToken cancellationToken)
+    {
         var root = _storage.GetFullPath(modelsDirectory);
         var target = _storage.Combine(root, variant.FolderName);
         if (_storage.DirectoryExists(target)) throw new IOException(L("remoteModelAlreadyInstalled", "O modelo já está instalado em {0}. Remova a pasta para baixar novamente.", target));
@@ -141,14 +197,22 @@ public sealed class HuggingFaceModelSource : IRemoteModelSource, IDisposable
             _storage.DeleteFile(destination);
             completed = await DownloadFileAsync(variant, file, destination, completed, relative, reporter, cancellationToken);
         }
+        cancellationToken.ThrowIfCancellationRequested();
         _storage.MoveDirectory(staging, target);
         reporter.Report(variant.SizeBytes, "", force: true);
         return target;
     }
 
-    public void Dispose() => _http.Dispose();
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        _shutdown.Cancel();
+        _http.Dispose();
+        _transfers.Dispose();
+        _shutdown.Dispose();
+    }
 
-    private async Task<RemoteModelVariant[]> ListRepositoryAsync(RemoteModelRepository repository, CancellationToken cancellationToken)
+    private async Task<RemoteModelVariant[]> ListRepositoryAsync(RemoteModelRepository repository, bool runtimeAvailable, CancellationToken cancellationToken)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(ListTimeout);
@@ -164,7 +228,7 @@ public sealed class HuggingFaceModelSource : IRemoteModelSource, IDisposable
                 ? TryString(card, "license_name") ?? TryString(card, "license") : null;
             var folder = repository.VariantFolder is null ? "" : "/" + Uri.EscapeDataString(repository.VariantFolder);
             using var tree = await GetJsonAsync($"api/models/{repository.Repository}/tree/{revision}{folder}?recursive=true", timeout.Token);
-            return BuildVariants(repository, tree.RootElement, revision!, license);
+            return BuildVariants(repository, tree.RootElement, revision!, license, runtimeAvailable);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -176,7 +240,7 @@ public sealed class HuggingFaceModelSource : IRemoteModelSource, IDisposable
         }
     }
 
-    private RemoteModelVariant[] BuildVariants(RemoteModelRepository repository, JsonElement tree, string revision, string? license)
+    private RemoteModelVariant[] BuildVariants(RemoteModelRepository repository, JsonElement tree, string revision, string? license, bool runtimeAvailable)
     {
         var files = new List<(string Variant, RemoteModelFile File)>();
         long? safetensorsSize = null;
@@ -224,10 +288,13 @@ public sealed class HuggingFaceModelSource : IRemoteModelSource, IDisposable
                 license, new Uri($"{repositoryUrl}/tree/{revision}/{Uri.EscapeDataString(group.Key)}"), group.Select(item => item.File).ToArray())
             {
                 IsInstallable = repository.IsInstallable,
-                RequiresUnsupportedRuntime = repository.RequiresUnsupportedRuntime,
+                RequiresUnsupportedRuntime = repository.RequiresUnsupportedRuntime && !runtimeAvailable,
                 Family = family,
-                Hint = repository.Variants.FirstOrDefault(hint => hint.Folder == group.Key)?.Hint,
-                HintKey = repository.Variants.FirstOrDefault(hint => hint.Folder == group.Key)?.LocalizationKey,
+                Hint = repository.RequiresUnsupportedRuntime && runtimeAvailable
+                    ? "NPU QNN Qualcomm e runtime compatível detectados. Pacote experimental; selecione e teste o modelo explicitamente antes de usar."
+                    : repository.Variants.FirstOrDefault(hint => hint.Folder == group.Key)?.Hint,
+                HintKey = repository.RequiresUnsupportedRuntime && runtimeAvailable ? "remoteHintSnapdragonAvailable"
+                    : repository.Variants.FirstOrDefault(hint => hint.Folder == group.Key)?.LocalizationKey,
                 BaseModelUrl = baseModelUrl
             })
             .ToList();

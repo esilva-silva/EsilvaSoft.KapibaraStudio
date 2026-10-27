@@ -1,5 +1,7 @@
 # Guia rápido de uso
 
+> No Windows ARM64 com NPU Qualcomm e runtime elegível, a IDE prepara automaticamente os pacotes Snapdragon Nano e Small em segundo plano e informa o progresso nas operações. A seleção do usuário não muda. A integração aguarda validação no notebook. [Pacotes e requisitos](architecture/remote-kapicoder-catalog.md).
+
 **Pacotes ONNX publicados — 26/10/2026:** as fontes padrão são KapiCoder-Mongo-Nano-ONNX e Small-ONNX, com Nano CPU INT4 selecionado primeiro. Os exports completos e manifestos estão publicados com a tag v0.1.0-preview, com integridade verificada no Hub. Safetensors permanece informativo quando listado por fonte personalizada. [Contrato e evidências](architecture/remote-kapicoder-catalog.md).
 
 **IA local — 26/10/2026:** [EOS e cache CPU experimental](architecture/local-ai-eos-prefix-cache.md). EOS corrigido; cache por sessão disponível somente como experimento, sem pacote homologado. Paridade/qualidade/latência reais e seleção de nova versão GenAI permanecem pendentes.

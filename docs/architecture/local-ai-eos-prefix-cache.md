@@ -1,5 +1,7 @@
 # EOS e cache experimental de prefixo — 26/10/2026
 
+> Atualização: a integração Snapdragon passou a usar GenAI 0.18.0. A avaliação e recomendação abaixo são históricas; a autorização para incorporar QNN motivou a mudança de versão. A equivalência de qualidade dos modelos anteriores na nova versão não está demonstrada por aquela avaliação.
+
 O runtime lê um token somente quando a sequência cresce após `GenerateNextToken`. GenAI 0.15.2 pode concluir por EOS sem anexá-lo; reler o último ID duplicava saída. A verificação de crescimento preserva também um último token válido, mesmo se a geração já estiver concluída. Streaming e coleta usam o mesmo laço, com os mesmos marcadores e contratos.
 
 ## Reuso por sessão

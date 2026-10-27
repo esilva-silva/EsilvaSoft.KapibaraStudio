@@ -12,7 +12,7 @@ public sealed class LocalModelCatalog(string? defaultDirectory = null, IReadOnly
 {
     private const int MaximumCandidates = 100;
     // Kept in sync with the centrally pinned GenAI packages in Directory.Packages.props.
-    private static readonly Version GenAiPackageVersion = new(0, 15, 2);
+    private static readonly Version GenAiPackageVersion = new(0, 18, 0);
     private readonly ILocalModelFileAccess _fileAccess = fileAccess ?? throw new ArgumentNullException(nameof(fileAccess));
     private readonly IReadOnlyList<IModelAdapter> _adapters = adapters ?? ModelAdapters.CreateDefault(fileAccess ?? throw new ArgumentNullException(nameof(fileAccess)));
     private Func<string, string>? _localize;
@@ -59,26 +59,32 @@ public sealed class LocalModelCatalog(string? defaultDirectory = null, IReadOnly
                 && contextValue.ValueKind == JsonValueKind.Number && contextValue.TryGetInt32(out var parsedContext)
                 && parsedContext is >= 64 and <= 1_048_576 ? parsedContext : null;
             var decoderObject = model.GetProperty("decoder");
-            if (type == "decoder-pipeline")
+            var htpPipeline = type == "decoder-pipeline";
+            string decoderPath;
+            if (htpPipeline)
             {
                 var pipelineFiles = PipelineFiles(decoderObject, root);
-                var required = pipelineFiles.Concat([Path.Combine(root, "tokenizer.json"), Path.Combine(root, "tokenizer_config.json")]);
+                ValidateHtpPipeline(model, decoderObject);
+                var required = pipelineFiles.Concat([Path.Combine(root, "00_context_ctx_qnn.bin"), Path.Combine(root, "tokenizer.json"), Path.Combine(root, "tokenizer_config.json")]);
                 var missingPipeline = required.Where(file => !_fileAccess.FileExists(file) || _fileAccess.GetFileLength(file) == 0)
                     .Select(Path.GetFileName).ToArray();
                 if (missingPipeline.Length > 0)
                     return Rejected(LocalModelState.MissingFiles, F("aiCatalogMissingFiles", "Arquivos ausentes ou vazios: {0}.", string.Join(", ", missingPipeline)));
-                return Rejected(LocalModelState.Unsupported, L("aiCatalogPipelineUnvalidated", "Pacote de pipeline encontrado, mas sua execução ainda não foi validada neste runtime."));
+                decoderPath = pipelineFiles[0];
             }
+            else
+            {
             var decoder = decoderObject.GetProperty("filename").GetString();
             if (string.IsNullOrWhiteSpace(decoder) || Path.IsPathRooted(decoder)) throw new InvalidDataException();
-            var decoderPath = Path.GetFullPath(Path.Combine(root, decoder));
+            decoderPath = Path.GetFullPath(Path.Combine(root, decoder));
             var containedRoot = Path.EndsInDirectorySeparator(root) ? root : root + Path.DirectorySeparatorChar;
             if (!decoderPath.StartsWith(containedRoot, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
                 throw new InvalidDataException();
             var missing = new[] { decoderPath, Path.Combine(root, "tokenizer.json"), Path.Combine(root, "tokenizer_config.json") }
                 .Where(file => !_fileAccess.FileExists(file) || _fileAccess.GetFileLength(file) == 0).Select(Path.GetFileName).ToArray();
             if (missing.Length > 0) return Rejected(LocalModelState.MissingFiles, F("aiCatalogMissingFiles", "Arquivos ausentes ou vazios: {0}.", string.Join(", ", missing)));
-            var adapter = _adapters.FirstOrDefault(candidate => candidate.CanHandle(type, root));
+            }
+            var adapter = _adapters.FirstOrDefault(candidate => candidate.CanHandle(htpPipeline ? "qwen2" : type, root));
             if (adapter is null)
                 return Rejected(LocalModelState.Unsupported, F("aiCatalogUnsupportedArchitecture", "Arquitetura \"{0}\" não suportada. Suportadas: {1}.", type[..Math.Min(type.Length, 64)], string.Join("; ", _adapters.Select(a => a.Description))));
             LocalModelMetadata? metadata;
@@ -106,10 +112,12 @@ public sealed class LocalModelCatalog(string? defaultDirectory = null, IReadOnly
             var name = string.IsNullOrWhiteSpace(metadata?.Name) ? folder : metadata.Name;
             var definition = new LocalModelDefinition(folder, name, root, adapter.Architecture, Path.Combine(root, "tokenizer.json"))
             {
-                PromptFormat = adapter.PromptFormat, Capabilities = metadata?.Capabilities ?? adapter.DefaultCapabilities, Metadata = metadata,
-                ContextLength = contextLength, AutocompleteMaximumTokens = metadata?.Autocomplete.MaximumTokens,
+                PromptFormat = adapter.PromptFormat, Capabilities = htpPipeline ? LocalModelCapabilities.Autocomplete | LocalModelCapabilities.Fim : metadata?.Capabilities ?? adapter.DefaultCapabilities, Metadata = metadata,
+                ContextLength = contextLength, AutocompleteMaximumTokens = htpPipeline ? 32 : metadata?.Autocomplete.MaximumTokens,
+                IsHtpPipeline = htpPipeline,
                 ModelSizeBytes = _fileAccess.EnumerateTopLevelFiles(root)
-                    .Where(file => file.Path.EndsWith(".onnx", StringComparison.OrdinalIgnoreCase) || file.Path.EndsWith(".data", StringComparison.OrdinalIgnoreCase))
+                    .Where(file => file.Path.EndsWith(".onnx", StringComparison.OrdinalIgnoreCase) || file.Path.EndsWith(".data", StringComparison.OrdinalIgnoreCase)
+                        || htpPipeline && Path.GetFileName(file.Path) == "00_context_ctx_qnn.bin")
                     .Sum(file => file.Length)
             };
             return new(definition, new(LocalModelState.Available, L("aiCatalogAvailable", "Arquivos encontrados. Use Testar modelo para validar inferência e provider.")) { ModelName = name }) { Path = root };
@@ -118,6 +126,34 @@ public sealed class LocalModelCatalog(string? defaultDirectory = null, IReadOnly
         {
             return Rejected(LocalModelState.Invalid, L("aiCatalogInvalid", "Modelo inválido: confira genai_config.json, decoder ONNX, tokenizer.json e tokenizer_config.json."));
         }
+    }
+
+    private static void ValidateHtpPipeline(JsonElement model, JsonElement decoder)
+    {
+        if (model.GetProperty("context_length").GetInt32() != 2048) throw new InvalidDataException();
+        var globalOptions = decoder.GetProperty("session_options");
+        if (globalOptions.GetProperty("provider_options").GetArrayLength() != 0) throw new InvalidDataException();
+        var window = decoder.GetProperty("sliding_window");
+        if (window.GetProperty("window_size").GetInt32() != 32 || window.GetProperty("pad_value").GetInt32() != 0 || window.GetProperty("alignment").GetString() != "left"
+            || window.GetProperty("slide_key_value_cache").GetBoolean()) throw new InvalidDataException();
+        var group = decoder.GetProperty("pipeline")[0];
+        var names = new[] { ("embeddings", "embeddings.onnx"), ("context", "00_context_ctx.onnx"), ("iterator", "01_iterator_ctx.onnx"), ("lm_head", "lm_head.onnx") };
+        foreach (var (role, filename) in names)
+            if (group.GetProperty(role).GetProperty("filename").GetString() != filename) throw new InvalidDataException();
+        foreach (var role in new[] { "context", "iterator" })
+        {
+            var options = group.GetProperty(role).GetProperty("session_options");
+            var providers = options.GetProperty("provider_options");
+            if (options.GetProperty("disable_cpu_ep_fallback").GetString() != "1" || providers.GetArrayLength() != 1
+                || providers[0].EnumerateObject().Count() != 1
+                || providers[0].GetProperty("qnn").EnumerateObject().Count() != 1
+                || providers[0].GetProperty("qnn").GetProperty("backend_type").GetString() != "htp") throw new InvalidDataException();
+        }
+        if (group.GetProperty("context").GetProperty("run_on_token_gen").GetBoolean()
+            || group.GetProperty("iterator").GetProperty("run_on_prompt").GetBoolean()
+            || !group.GetProperty("lm_head").GetProperty("is_lm_head").GetBoolean()) throw new InvalidDataException();
+        foreach (var role in new[] { "embeddings", "lm_head" })
+            if (group.GetProperty(role).TryGetProperty("session_options", out _)) throw new InvalidDataException();
     }
 
     private static List<string> PipelineFiles(JsonElement decoder, string root)

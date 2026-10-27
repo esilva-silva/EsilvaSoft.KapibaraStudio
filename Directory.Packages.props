@@ -2,14 +2,15 @@
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
-    <KapibaraGenAiVersion>0.15.2</KapibaraGenAiVersion>
+    <KapibaraGenAiVersion>0.18.0</KapibaraGenAiVersion>
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="Tmds.DBus.Protocol" Version="0.94.1" />
     <PackageVersion Include="Microsoft.ML.OnnxRuntimeGenAI" Version="$(KapibaraGenAiVersion)" />
     <PackageVersion Include="Microsoft.ML.OnnxRuntimeGenAI.WinML" Version="$(KapibaraGenAiVersion)" />
     <PackageVersion Include="Microsoft.ML.OnnxRuntimeGenAI.Cuda" Version="$(KapibaraGenAiVersion)" />
-    <PackageVersion Include="Microsoft.ML.OnnxRuntime.Managed" Version="1.28.0" />
+    <PackageVersion Include="Microsoft.ML.OnnxRuntime.Managed" Version="1.31.0" />
+    <PackageVersion Include="Qualcomm.ML.OnnxRuntime.QNN" Version="2.7.0" />
     <PackageVersion Include="Jint" Version="4.16.0" />
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
     <PackageVersion Include="Avalonia" Version="12.1.2" />

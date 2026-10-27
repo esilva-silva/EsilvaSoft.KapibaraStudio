@@ -15,4 +15,8 @@ public interface IRemoteModelSource
 
     /// <summary>Downloads and verifies every file, then installs the variant folder and returns its path. Never replaces an existing folder.</summary>
     Task<string> DownloadAsync(RemoteModelVariant variant, string modelsDirectory, IProgress<RemoteModelProgress>? progress, CancellationToken cancellationToken);
+
+    /// <summary>Reuses only a fully verified installation; otherwise uses the ordinary staged downloader.</summary>
+    Task<string> EnsureDownloadedAsync(RemoteModelVariant variant, string modelsDirectory, IProgress<RemoteModelProgress>? progress, CancellationToken cancellationToken) =>
+        DownloadAsync(variant, modelsDirectory, progress, cancellationToken);
 }

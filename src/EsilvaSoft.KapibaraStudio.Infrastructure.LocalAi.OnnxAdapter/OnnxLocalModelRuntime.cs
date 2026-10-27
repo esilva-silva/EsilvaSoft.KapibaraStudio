@@ -78,6 +78,7 @@ public sealed class OnnxLocalModelRuntime(IAutocompleteDiagnostics? diagnostics 
                 : LocalModelDefinition.ConservativeContextLength;
         }
         var devices = hardware is null ? OnnxHardwareProbe.Detect() : await hardware.GetAvailableHardwareAsync(cancellationToken).ConfigureAwait(false);
+        if (model.IsHtpPipeline) OnnxHardwareProbe.RequireHtpPlatform();
         var plan = AiProviderSelector.Plan(settings, devices, model);
         _plan = plan;
         for (var index = 0; index < plan.Candidates.Count; index++)
@@ -198,16 +199,19 @@ public sealed class OnnxLocalModelRuntime(IAutocompleteDiagnostics? diagnostics 
         using (var config = new Config(model.Path))
         {
             diagnostics?.Record("provider.config.created");
-            diagnostics?.Record("provider.clearing");
-            config.ClearProviders();
-            if (candidate.GenAiName != CpuCandidate.GenAiName)
+            if (!model.IsHtpPipeline)
             {
-                diagnostics?.Record("provider.appending");
-                config.AppendProvider(candidate.GenAiName);
-                diagnostics?.Record("provider.appended");
+                diagnostics?.Record("provider.clearing");
+                config.ClearProviders();
+                if (candidate.GenAiName != CpuCandidate.GenAiName)
+                {
+                    diagnostics?.Record("provider.appending");
+                    config.AppendProvider(candidate.GenAiName);
+                    diagnostics?.Record("provider.appended");
+                }
+                diagnostics?.Record("provider.overlaying");
+                config.Overlay(SessionOverlay);
             }
-            diagnostics?.Record("provider.overlaying");
-            config.Overlay(SessionOverlay);
             diagnostics?.Record("provider.model.creating");
             _model = new Model(config);
             diagnostics?.Record("provider.model.created");
@@ -237,6 +241,7 @@ public sealed class OnnxLocalModelRuntime(IAutocompleteDiagnostics? diagnostics 
         var model = _model ?? throw new InvalidOperationException(L("aiModelNotInitialized", "Modelo não inicializado."));
         var tokenizer = _tokenizer ?? throw new InvalidOperationException(L("aiTokenizerNotInitialized", "Tokenizer não inicializado."));
         var input = BuildPrompt(request, tokenizer);
+        if (_definition?.IsHtpPipeline == true) ValidateHtpBudget(input.Length, request.MaximumTokens);
         var channel = Channel.CreateUnbounded<GeneratedChunk>(new UnboundedChannelOptions { SingleReader = true, SingleWriter = true });
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, request.PrefixCache?.SessionLifetime ?? default);
         var token = linked.Token;
@@ -278,6 +283,8 @@ public sealed class OnnxLocalModelRuntime(IAutocompleteDiagnostics? diagnostics 
     private int[] BuildPrompt(ModelGenerationRequest request, ITokenizer tokenizer)
     {
         if (request.MaximumTokens < 1) throw new LocalModelContextException(L("aiContextWindowInsufficient", "Janela de contexto insuficiente."));
+        if (_definition?.IsHtpPipeline == true && request.MaximumTokens > 32)
+            throw new LocalModelContextException("O pipeline HTP permite até 32 tokens por geração.");
         if (request.ChatPrompt is { } chat)
         {
             if (request.PromptTokens is not null) throw new InvalidOperationException("Escolha um único formato de prompt.");
@@ -293,11 +300,22 @@ public sealed class OnnxLocalModelRuntime(IAutocompleteDiagnostics? diagnostics 
             if (tokens.Length + request.MaximumTokens > _contextLength) throw new LocalModelContextException(L("aiContextExceedsWindow", "O contexto completo excede a janela do modelo."));
             return tokens;
         }
-        var context = Math.Min(request.ContextTokens, _contextLength - request.MaximumTokens);
+        var available = _contextLength - request.MaximumTokens;
+        if (_definition?.IsHtpPipeline == true) available = available / 32 * 32;
+        var context = Math.Min(request.ContextTokens, available);
         if (context < 4) throw new LocalModelContextException(L("aiContextWindowInsufficient", "Janela de contexto insuficiente."));
         if (request.RequireFullContext && tokenizer.Encode(request.Prefix).Count + tokenizer.Encode(request.Suffix).Count + 4 > context)
             throw new LocalModelContextException(L("aiContextExceedsWindow", "O contexto completo excede a janela do modelo."));
         return _promptBuilder.Build(request.Prefix, request.Suffix, context, tokenizer).ToArray();
+    }
+
+    public static void ValidateHtpBudget(int promptTokens, int maximumTokens)
+    {
+        if (maximumTokens is < 1 or > 32)
+            throw new LocalModelContextException("O pipeline HTP permite de 1 a 32 tokens por geração.");
+        if (promptTokens < 1 || promptTokens > 2048
+            || ((promptTokens + 31) / 32 * 32) + maximumTokens > 2048)
+            throw new LocalModelContextException("O prompt com padding excede a janela HTP de 2048 tokens.");
     }
 
     /// <summary>Parada por texto: o sufixo do editor (como antes) mais as sequências que o chamador declarar.</summary>
@@ -321,7 +339,7 @@ public sealed class OnnxLocalModelRuntime(IAutocompleteDiagnostics? diagnostics 
         reuse &= allowUnvalidatedPrefixCache || _definition?.Metadata?.CpuPrefixCacheValidated == true;
         var cacheContextLength = Math.Min(_contextLength, Math.Max(request.ContextTokens, input.Length + request.MaximumTokens));
         using var parameters = new GeneratorParams(model);
-        parameters.SetSearchOption("max_length", reuse ? cacheContextLength : input.Length + request.MaximumTokens);
+        parameters.SetSearchOption("max_length", _definition?.IsHtpPipeline == true ? 2048 : reuse ? cacheContextLength : input.Length + request.MaximumTokens);
         parameters.SetSearchOption("do_sample", request.Temperature > 0);
         if (request.Temperature > 0) parameters.SetSearchOption("temperature", request.Temperature);
         if (request.TopP is { } topP && double.IsFinite(topP) && topP is > 0 and <= 1) parameters.SetSearchOption("top_p", topP);

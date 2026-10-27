@@ -11,10 +11,12 @@ public sealed record LocalModelDefinition(string Id, string Name, string Path, s
     public LocalModelMetadata? Metadata { get; init; }
     public int? ContextLength { get; init; }
     public int? AutocompleteMaximumTokens { get; init; }
+    /// <summary>Pipeline híbrido QNN HTP estruturalmente validado pelo catálogo.</summary>
+    public bool IsHtpPipeline { get; init; }
     public long? ModelSizeBytes { get; init; }
     public int EffectiveContextLength => ContextLength ?? ConservativeContextLength;
     public int EffectiveAutocompleteMaximumTokens => AutocompleteMaximumTokens ?? ConservativeAutocompleteMaximumTokens;
     public string ContextLengthSource => ContextLength is null ? "teto conservador do produto (8192)" : "genai_config.json";
-    public string AutocompleteMaximumTokensSource => AutocompleteMaximumTokens is null ? "teto conservador do produto (256)" : "metadata.autocomplete.maxTokens";
+    public string AutocompleteMaximumTokensSource => IsHtpPipeline ? "limite do pipeline HTP (32)" : AutocompleteMaximumTokens is null ? "teto conservador do produto (256)" : "metadata.autocomplete.maxTokens";
     public string BudgetConfidence => ContextLength is null || AutocompleteMaximumTokens is null ? "estimativa" : "declarado pelo modelo";
 }

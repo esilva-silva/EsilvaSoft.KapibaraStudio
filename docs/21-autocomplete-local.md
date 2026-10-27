@@ -1,5 +1,7 @@
 # Autocomplete local — análise e contrato de implementação
 
+> A partir da integração Snapdragon, o build usa GenAI 0.18.0; as referências a 0.15.2 abaixo descrevem a implementação e os testes históricos. A compatibilidade com os modelos anteriores após a atualização deve ser avaliada pelos testes atuais, sem presumir identidade de saída. Veja [catálogo e limites](architecture/remote-kapicoder-catalog.md).
+
 > **Nota de estrutura (ADR-040, 17/09/2026):** as seções abaixo registram a análise original de 11/09/2026, quando a solução tinha quatro projetos (`Core`, `Application`, `Infrastructure`, `Desktop`). Desde a ADR-040, o núcleo determinístico de autocomplete/highlighting foi extraído para `EsilvaSoft.KapibaraStudio.Autocomplete.Core`, os contratos e políticas puras de IA local para `EsilvaSoft.KapibaraStudio.LocalAi.Core`, e os adaptadores ONNX Runtime GenAI para `EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi`. Ver [arquitetura atual](05-arquitetura.md) e [ADR-040](10-decisoes-arquiteturais.md).
 
 ## Análise inicial da solução (11/09/2026)

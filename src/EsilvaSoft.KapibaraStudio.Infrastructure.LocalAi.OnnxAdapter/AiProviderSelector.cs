@@ -16,6 +16,16 @@ public static class AiProviderSelector
     {
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(hardware);
+        if (model?.IsHtpPipeline == true)
+        {
+            if (settings.Acceleration is not (AiAccelerationMode.Auto or AiAccelerationMode.Npu)
+                || settings.ExecutionProvider is not (AiExecutionProvider.Auto or AiExecutionProvider.Qnn))
+                throw new AiProviderUnavailableException(AiAccelerationMode.Npu, "Este pacote exige NPU Qualcomm com QNN.");
+            var npu = hardware.FirstOrDefault(device => device.IsAvailable && device.Kind == AiAccelerationMode.Npu
+                && device.Provider == "QNN" && OnnxHardwareProbe.IsQualcommVendor(device.Vendor))
+                ?? throw new AiProviderUnavailableException(AiAccelerationMode.Npu, "NPU Qualcomm com QNN não detectada.");
+            return new([Candidate(npu, OnnxExecutionProviders.ByDisplayName("QNN")!)], false);
+        }
         var declared = model?.Metadata?.Hardware;
         bool Compatible(AiAccelerationMode kind) => declared is null || declared.Contains(kind);
         if (settings.ExecutionProvider != AiExecutionProvider.Auto)

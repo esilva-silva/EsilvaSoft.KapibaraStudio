@@ -1,5 +1,7 @@
 # Registro de decisões arquiteturais
 
+> Atualização da integração Snapdragon: GenAI 0.18.0 e QNN 2.7 foram incorporados ao build Windows ARM64 com autorização do usuário; as decisões e evidências de versões anteriores abaixo permanecem históricas. A validação na NPU e a equivalência de qualidade na nova versão seguem pendentes. [Detalhes](architecture/remote-kapicoder-catalog.md).
+
 **Reorganização documental — 03/10/2026:** o roadmap atual tem onze fases; IA local é a prioridade da Fase 8 / v0.12.0, agentes pertencem à Fase 5 / v0.9.0, workflow à Fase 7 / v0.11.0, polimento à Fase 9 / v0.13.0, homologação à Fase 10 / v0.14.0 e estabilidade à Fase 11 / v1.0.0. Os registros datados abaixo preservam a numeração usada na época, IDs, contagens e resultados; seus links apontam para o destino atual. Consulte o [mapa de migração](phases/README.md#reorganização-de-03102026). Esta revisão não executou novos testes do produto nem encerrou gates.
 
 **P7-UX2 — contrato implementado em 03/10/2026:** ver [ADR-064](#adr-064--métricas-tipadas-de-uso-e-tamanho-do-snapshot-do-agente-03102026). Eventos opcionais e neutros carregam métricas oficiais até a conversa/turno de origem; prévia de bytes UTF-8 e uso observado ficam apenas em memória. Dados ausentes continuam distintos de zero. Janela, cota e tokenização não são inferidas.

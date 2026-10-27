@@ -90,9 +90,10 @@ public sealed partial class WorkspaceViewModel : ObservableObject, IDisposable
         Agents.DesktopAgentWorkspaceContextSource? agentWorkspaceContext = null,
         Agents.AgentEditProposalStore? agentEditProposals = null,
         IAgentWorkspacePathProbe? agentPaths = null, IModelDirectoryService? modelDirectories = null,
-        ILocalDirectoryLauncher? directoryLauncher = null, TimeProvider? timeProvider = null)
+        ILocalDirectoryLauncher? directoryLauncher = null, TimeProvider? timeProvider = null, ISnapdragonModelProvisioner? modelProvisioner = null)
     {
         _workspace = workspace;
+        _modelProvisioner = modelProvisioner;
         _timeProvider = timeProvider ?? TimeProvider.System;
         // P7-L06-HOST: both optional. The chat factory is only invoked when the agent panel is opened; the credential
         // status is read once in the background after startup, through the operation coordinator.
@@ -200,6 +201,7 @@ public sealed partial class WorkspaceViewModel : ObservableObject, IDisposable
             if (Tabs.Count == 0) NewTab();
             SessionStatus = session.Tabs.Length > 0 ? LocalizationViewModel.Current.Resolve("draftsRecovered") : string.Empty;
             LayoutChanged?.Invoke(this, EventArgs.Empty);
+            StartModelProvisioning();
         }
         catch (Exception ex)
         {
@@ -280,6 +282,8 @@ public sealed partial class WorkspaceViewModel : ObservableObject, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        _modelProvisioningLifetime.Cancel();
+        _modelProvisioningLifetime.Dispose();
         CancelCredentialRecoveryCheck();
         Operations.Dispose();
         Updates.Dispose();

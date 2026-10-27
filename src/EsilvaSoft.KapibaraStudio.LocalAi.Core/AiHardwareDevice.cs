@@ -6,5 +6,6 @@ namespace EsilvaSoft.KapibaraStudio.LocalAi.Core;
 public sealed record AiHardwareDevice(AiAccelerationMode Kind, string Provider, string Name, bool IsAvailable)
 {
     public long? MemoryBytes { get; init; }
+    public string? Vendor { get; init; }
     public string? Reason { get; init; }
 }

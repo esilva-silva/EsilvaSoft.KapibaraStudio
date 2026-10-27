@@ -14,5 +14,7 @@
     <SlopOnnxBackend Condition="'$(SlopOnnxBackend)' == '' and ('$(RuntimeIdentifier)' == 'win-x64' or '$(RuntimeIdentifier)' == 'win-arm64' or ('$(RuntimeIdentifier)' == '' and '$(OS)' == 'Windows_NT'))">WinML</SlopOnnxBackend>
     <SlopOnnxBackend Condition="'$(SlopOnnxBackend)' == ''">Cpu</SlopOnnxBackend>
     <NuGetLockFilePath Condition="'$(SlopOnnxBackend)' != 'Cpu'">packages.$(SlopOnnxBackend).lock.json</NuGetLockFilePath>
+    <!-- dotnet restore -r sets RuntimeIdentifiers; build/publish -r sets RuntimeIdentifier. -->
+    <NuGetLockFilePath Condition="'$(SlopOnnxBackend)' == 'WinML' and ('$(RuntimeIdentifier)' == 'win-arm64' or '$(RuntimeIdentifiers)' == 'win-arm64')">packages.WinML.win-arm64.lock.json</NuGetLockFilePath>
   </PropertyGroup>
 </Project>

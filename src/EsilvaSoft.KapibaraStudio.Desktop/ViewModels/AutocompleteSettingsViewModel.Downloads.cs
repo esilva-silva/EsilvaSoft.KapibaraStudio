@@ -134,6 +134,10 @@ public sealed partial class AutocompleteSettingsViewModel
             {
                 DownloadStatus = F("modelDownloadedRuntimePending", variant.Title, path);
             }
+            else if (SnapdragonModelPublications.Matches(variant))
+            {
+                DownloadStatus = F("modelDownloadedSnapdragonReady", variant.Title, path);
+            }
             else if (Models.FirstOrDefault(model => !model.IsExternal && string.Equals(model.Reference, variant.FolderName, PathComparison)) is { } installed)
             {
                 SelectedModelOption = installed;

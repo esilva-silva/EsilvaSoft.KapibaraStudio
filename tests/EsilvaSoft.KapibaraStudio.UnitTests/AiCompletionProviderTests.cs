@@ -179,6 +179,25 @@ public sealed class AiCompletionProviderTests
         });
     }
 
+    [TestCase(32)]
+    [TestCase(64)]
+    [TestCase(256)]
+    public async Task HtpAutocompleteCapsExistingSettingsAndPromptWindow(int configuredTokens)
+    {
+        var service = new StreamingModelServiceFake
+        {
+            Definition = new("htp", "HTP", "models", "Qwen2.5-Coder")
+            {
+                IsHtpPipeline = true, ContextLength = 2048, AutocompleteMaximumTokens = 32,
+                Capabilities = LocalModelCapabilities.Autocomplete | LocalModelCapabilities.Fim
+            }
+        };
+        var request = Request() with { Settings = new AutocompleteSettings { ContextTokens = 4096, MaximumCompletionTokens = configuredTokens } };
+        await CollectAsync(Provider(service), request);
+        Assert.That(service.Requests.Single().MaximumTokens, Is.EqualTo(32));
+        Assert.That(service.Requests.Single().ContextTokens, Is.EqualTo(2048));
+    }
+
     /// <summary>O eco do sufixo do documento é removido pelo processor compartilhado, como no caminho automático.</summary>
     [Test]
     public async Task AnEchoedSuffixIsRemovedFromTheCandidate()

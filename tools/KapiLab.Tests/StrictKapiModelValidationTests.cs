@@ -57,7 +57,7 @@ public sealed class StrictKapiModelValidationTests
         {
             added_tokens = QwenFimPromptBuilder.SpecialTokens.Select((token, index) => new { content = token, id = 1000 + index }),
         }));
-        package.Write("kapibarastudio-model.json", Metadata(minimum: "0.17.1"));
+        package.Write("kapibarastudio-model.json", Metadata(minimum: "0.19.1"));
 
         var schema = StrictKapiModelValidation.ValidateMetadata(package.Root, package.Files);
         var ide = await new LocalModelCatalog(package.Root, fileAccess: package.Files).ValidateAsync(package.Root);

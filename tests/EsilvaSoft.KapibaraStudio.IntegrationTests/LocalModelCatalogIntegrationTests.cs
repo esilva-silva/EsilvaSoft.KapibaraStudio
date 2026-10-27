@@ -10,20 +10,31 @@ namespace EsilvaSoft.KapibaraStudio.IntegrationTests;
 [TestFixture]
 public sealed class LocalModelCatalogIntegrationTests
 {
+    [TestCase("0.18.0", LocalModelValidity.Valid)]
+    [TestCase("0.18.1", LocalModelValidity.Unsupported)]
+    public async Task MinimumGenAiVersionIsCheckedAgainstTheBundledRuntime(string minimum, LocalModelValidity expected)
+    {
+        using var models = new SyntheticDirectory();
+        var metadata = System.Text.Json.JsonSerializer.Serialize(new { runtime = new { minimumGenAi = minimum } });
+        var path = CreateQwenModel(models.Path, "Runtime-Minimum", metadata);
+        var validation = await new LocalModelCatalog(models.Path, fileAccess: new LocalModelFileAccess()).ValidateAsync(path);
+        Assert.That(validation.Validity, Is.EqualTo(expected), validation.Status.Message);
+    }
+
     [Test]
-    public async Task PipelineRequiresEveryComponentAndRemainsUnavailableUntilRuntimeValidated()
+    public async Task HtpPipelineRequiresEveryComponentAndSharedContextBinary()
     {
         using var models = new SyntheticDirectory();
         var path = CreatePipeline(models.Path);
         var catalog = new LocalModelCatalog(models.Path, fileAccess: new LocalModelFileAccess());
         var complete = await catalog.ValidateAsync(path);
-        Assert.That(complete.Validity, Is.EqualTo(LocalModelValidity.Unsupported));
-        Assert.That(complete.Model, Is.Null);
-        Assert.That(complete.Status.Message, Does.Contain("ainda não foi validada"));
-        File.Delete(Path.Combine(path, "iterator.onnx"));
+        Assert.That(complete.Model?.IsHtpPipeline, Is.True, complete.Status.Message);
+        Assert.That(complete.Model!.AutocompleteMaximumTokens, Is.EqualTo(32));
+        Assert.That(complete.Model.Capabilities, Is.EqualTo(LocalModelCapabilities.Autocomplete | LocalModelCapabilities.Fim));
+        File.Delete(Path.Combine(path, "00_context_ctx_qnn.bin"));
         var missing = await catalog.ValidateAsync(path);
         Assert.That(missing.Validity, Is.EqualTo(LocalModelValidity.MissingFiles));
-        Assert.That(missing.Status.Message, Does.Contain("iterator.onnx"));
+        Assert.That(missing.Status.Message, Does.Contain("00_context_ctx_qnn.bin"));
     }
 
     [TestCase("../outside.onnx")]
@@ -39,17 +50,31 @@ public sealed class LocalModelCatalogIntegrationTests
         Assert.That(validation.Model, Is.Null);
     }
 
-    private static string CreatePipeline(string directory, string context = "context.onnx")
+    [Test]
+    public async Task HtpPipelineRejectsCpuFallbackInContext()
+    {
+        using var models = new SyntheticDirectory();
+        var path = CreatePipeline(models.Path);
+        var config = Path.Combine(path, "genai_config.json");
+        File.WriteAllText(config, File.ReadAllText(config).Replace("\"disable_cpu_ep_fallback\":\"1\"", "\"disable_cpu_ep_fallback\":\"0\"", StringComparison.Ordinal));
+        var validation = await new LocalModelCatalog(models.Path, fileAccess: new LocalModelFileAccess()).ValidateAsync(path);
+        Assert.That(validation.Validity, Is.EqualTo(LocalModelValidity.Invalid));
+    }
+
+    private static string CreatePipeline(string directory, string context = "00_context_ctx.onnx")
     {
         var root = CreateQwenModel(directory, "Pipeline");
-        foreach (var name in new[] { "embeddings.onnx", "context.onnx", "iterator.onnx", "head.onnx" })
+        foreach (var name in new[] { "embeddings.onnx", "00_context_ctx.onnx", "00_context_ctx_qnn.bin", "01_iterator_ctx.onnx", "lm_head.onnx" })
             File.WriteAllText(Path.Combine(root, name), "fixture");
         File.WriteAllText(Path.Combine(root, "genai_config.json"), System.Text.Json.JsonSerializer.Serialize(new
         {
-            model = new { type = "decoder-pipeline", context_length = 2048, decoder = new { pipeline = new[]
+            model = new { type = "decoder-pipeline", context_length = 2048, decoder = new { session_options = new { provider_options = Array.Empty<object>() }, sliding_window = new { window_size = 32, pad_value = 0, alignment = "left", slide_key_value_cache = false }, pipeline = new[]
             {
-                new { embeddings = new { filename = "embeddings.onnx" }, context = new { filename = context },
-                    iterator = new { filename = "iterator.onnx" }, lm_head = new { filename = "head.onnx" } }
+                new { embeddings = new { filename = "embeddings.onnx" }, context = new { filename = context, run_on_token_gen = false,
+                        session_options = new { disable_cpu_ep_fallback = "1", provider_options = new[] { new { qnn = new { backend_type = "htp" } } } } },
+                    iterator = new { filename = "01_iterator_ctx.onnx", run_on_prompt = false,
+                        session_options = new { disable_cpu_ep_fallback = "1", provider_options = new[] { new { qnn = new { backend_type = "htp" } } } } },
+                    lm_head = new { filename = "lm_head.onnx", is_lm_head = true } }
             } } }
         }));
         return root;

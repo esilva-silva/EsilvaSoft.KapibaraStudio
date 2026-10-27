@@ -1,5 +1,6 @@
 using EsilvaSoft.KapibaraStudio.LocalAi.Core;
 using System.Globalization;
+using System.Runtime.InteropServices;
 using EsilvaSoft.KapibaraStudio.Application;
 using EsilvaSoft.KapibaraStudio.Core;
 using Microsoft.ML.OnnxRuntime;
@@ -9,6 +10,7 @@ namespace EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi;
 /// <summary>Reports what the ONNX Runtime of this build exposes on this machine, so the UI never promises an absent backend.</summary>
 public sealed class OnnxHardwareProbe : IAiHardwareProbe
 {
+    private static readonly Lazy<bool> QnnRegistration = new(RegisterQnn, LazyThreadSafetyMode.ExecutionAndPublication);
     private readonly Lazy<IReadOnlyList<AiHardwareDevice>> _devices = new(Detect, LazyThreadSafetyMode.ExecutionAndPublication);
 
     public Task<IReadOnlyList<AiHardwareDevice>> GetAvailableHardwareAsync(CancellationToken cancellationToken = default) =>
@@ -20,6 +22,7 @@ public sealed class OnnxHardwareProbe : IAiHardwareProbe
         {
             var environment = OrtEnv.Instance();
             environment.DisableTelemetryEvents();
+            _ = QnnRegistration.Value;
             var providers = environment.GetAvailableProviders();
             IReadOnlyList<OnnxEpDevice> devices;
             // Device enumeration needs a recent native runtime; provider names alone remain a valid, less detailed answer.
@@ -31,6 +34,32 @@ public sealed class OnnxHardwareProbe : IAiHardwareProbe
         {
             return Describe([], []);
         }
+    }
+
+    private static bool RegisterQnn()
+    {
+        if (!OperatingSystem.IsWindows() || RuntimeInformation.ProcessArchitecture != Architecture.Arm64) return false;
+        try
+        {
+            var environment = OrtEnv.Instance();
+            var path = Path.Combine(AppContext.BaseDirectory, "onnxruntime_providers_qnn.dll");
+            if (!File.Exists(path) || (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0) return false;
+            environment.RegisterExecutionProviderLibrary("QNNExecutionProvider", path);
+            return true;
+        }
+        catch (Exception ex) when (ex is OnnxRuntimeException or IOException or UnauthorizedAccessException or DllNotFoundException or EntryPointNotFoundException or BadImageFormatException or NotSupportedException)
+        {
+            return false;
+        }
+    }
+
+    public static bool IsQualcommVendor(string? vendor) =>
+        vendor?.Trim().StartsWith("Qualcomm", StringComparison.OrdinalIgnoreCase) == true;
+
+    public static void RequireHtpPlatform()
+    {
+        if (!OperatingSystem.IsWindows() || RuntimeInformation.ProcessArchitecture != Architecture.Arm64)
+            throw new AiProviderUnavailableException(AiAccelerationMode.Npu, "O pipeline HTP exige Windows ARM64.");
     }
 
     /// <summary>Describes configured providers reported by the runtime; NPU requires an enumerated NPU device.</summary>
@@ -49,7 +78,7 @@ public sealed class OnnxHardwareProbe : IAiHardwareProbe
                 // OpenVINO, for example, also exposes CPU and GPU devices: only a device of this kind counts.
                 var device = reported.Where(device => device.Kind == kind).OrderBy(device => device.AdapterIndex ?? int.MaxValue).FirstOrDefault();
                 if (device is null && (kind == AiAccelerationMode.Npu || reported.Length > 0)) continue;
-                result.Add(new(kind, descriptor.DisplayName, device?.Description ?? LocalAiStatusFormatter.HardwareLabel(kind), true) { MemoryBytes = device?.MemoryBytes });
+                result.Add(new(kind, descriptor.DisplayName, device?.Description ?? LocalAiStatusFormatter.HardwareLabel(kind), true) { MemoryBytes = device?.MemoryBytes, Vendor = device?.Vendor });
                 added = true;
             }
             if (!added)
@@ -81,6 +110,6 @@ public sealed class OnnxHardwareProbe : IAiHardwareProbe
             && long.TryParse(video.Split(' ', 2)[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var megabytes) ? megabytes * 1024 * 1024 : null;
         int? adapter = metadata.TryGetValue("DxgiAdapterNumber", out var number)
             && int.TryParse(number, NumberStyles.Integer, CultureInfo.InvariantCulture, out var index) ? index : null;
-        return new(device.EpName, kind, description, memory, adapter);
+        return new(device.EpName, kind, description, memory, adapter) { Vendor = hardware.Vendor?.Trim() };
     }
 }
