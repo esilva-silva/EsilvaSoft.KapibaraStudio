@@ -53,6 +53,7 @@ A internacionalização da interface está concluída no recorte automatizado pa
 | Segurança das ferramentas de agentes | [Metadados, índices e saídas já executadas — ADR-066](architecture/agent-tool-safety.md) |
 | Planejamento e histórico | [03 — Catálogo funcional](03-catalogo-funcional.md), [09 — Roadmap](09-plano-de-implementacao.md), [12 — Acompanhamento](12-acompanhamento-da-implementacao.md), [24 — Inventário](24-inventario-roadmap.md) |
 | Qualidade e validação | [08 — Testes](08-testes-e-qualidade.md), [11 — Fontes/evidências](11-fontes-e-evidencias.md), [15 — Matriz de validação](15-matriz-de-validacao.md), [16 — Checklist de homologação](16-checklist-homologacao.md) |
+| Pacotes Linux (.deb, .rpm, AUR) | [Formato, comandos, atualização gerenciada e validação — 27/10/2026](architecture/linux-packages.md) |
 | Licenças dos pacotes Windows | [Revisão dos ZIPs e runtimes — 03/10/2026](architecture/windows-license-review-2026-10-03.md) |
 
 ## Rastreabilidade e manutenção

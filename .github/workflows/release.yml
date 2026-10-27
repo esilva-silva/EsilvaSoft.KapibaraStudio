@@ -108,8 +108,260 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
+  # .deb and .rpm are repackaged from the Linux tarballs above; .NET is not published again.
+  linux-packages:
+    name: linux-packages (${{ matrix.rid }})
+    needs: [version, package]
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        rid: [linux-x64, linux-arm64]
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      PACKAGE: EsilvaSoft.KapibaraStudio-${{ needs.version.outputs.version }}-${{ matrix.rid }}
+      # nfpm only packs files, so the x86_64 build also produces the arm64 packages.
+      NFPM_VERSION: 2.48.0
+      NFPM_SHA256: 6d7f9a28b2f397934403950fcbba83f598b08d02edbe79a0815b3b4897341750
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.PACKAGE }}
+          path: archive
+      # rpm and cpio let Assert-KapibaraDistroPackage inspect the .rpm; a missing tool fails the job on CI.
+      - name: Install package inspection tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends rpm cpio
+      - name: Install pinned nfpm
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          curl -fsSL --retry 3 -o "$tmp/nfpm.tar.gz" "https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/nfpm_${NFPM_VERSION}_Linux_x86_64.tar.gz"
+          (cd "$tmp" && echo "${NFPM_SHA256}  nfpm.tar.gz" | sha256sum -c -)
+          tar -xzf "$tmp/nfpm.tar.gz" -C "$tmp" nfpm
+          sudo install -m 0755 "$tmp/nfpm" /usr/local/bin/nfpm
+          nfpm --version
+      # Test-only version, always greater than the release version (e.g. 1.2.3-rc.1 -> 1.2.4-ci.upgrade).
+      - name: Compute upgrade test version
+        run: |
+          set -euo pipefail
+          IFS=. read -r major minor patch <<< "${VERSION%%-*}"
+          echo "UPGRADE_VERSION=${major}.${minor}.$((patch + 1))-ci.upgrade" >> "$GITHUB_ENV"
+      - name: Build release packages
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          . ./eng/LinuxDistroPackaging.ps1
+          New-KapibaraDistroPackages -Archive (Join-Path $PWD "archive/$env:PACKAGE.tar.gz") -Rid '${{ matrix.rid }}' -Version $env:VERSION -OutputDirectory (Join-Path $PWD 'dist')
+      - name: Build upgrade test packages (never published)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          . ./eng/LinuxDistroPackaging.ps1
+          New-KapibaraDistroPackages -Archive (Join-Path $PWD "archive/$env:PACKAGE.tar.gz") -Rid '${{ matrix.rid }}' -Version $env:UPGRADE_VERSION -OutputDirectory (Join-Path $PWD 'upgrade')
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-packages-${{ matrix.rid }}
+          path: dist/*
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-upgrade-test-${{ matrix.rid }}
+          path: upgrade/*
+          if-no-files-found: error
+
+  # Install, run, upgrade, roll back and remove each .deb in a minimal container, so Depends is really exercised.
+  linux-packages-test-deb:
+    name: linux-packages-test (deb, ${{ matrix.rid }})
+    needs: linux-packages
+    runs-on: ${{ matrix.runner }}
+    container: ubuntu:24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { rid: linux-x64, runner: ubuntu-24.04 }
+          - { rid: linux-arm64, runner: ubuntu-24.04-arm }
+    steps:
+      - name: Install test dependencies
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates xvfb xauth desktop-file-utils procps diffutils
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-packages-${{ matrix.rid }}
+          path: pkgs
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-upgrade-test-${{ matrix.rid }}
+          path: upgrade
+      - name: Test install, upgrade, rollback and removal
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          v1=(pkgs/*.deb)
+          v2=(upgrade/*.deb)
+          if [[ ${#v1[@]} -ne 1 || ${#v2[@]} -ne 1 ]]; then echo "::error::Expected exactly one .deb per set."; exit 1; fi
+          # Stage in a world-readable path so the package manager can read the files.
+          stage=/tmp/kapibara-test
+          mkdir -p "$stage" test-logs
+          cp "${v1[0]}" "$stage/v1.deb"
+          cp "${v2[0]}" "$stage/v2.deb"
+          chmod -R a+rX "$stage"
+          useradd -m kapibara-test
+          bash eng/Test-LinuxDistroPackages.sh --format deb --package "$stage/v1.deb" --upgrade "$stage/v2.deb" --run-seconds 30 --user kapibara-test 2>&1 | tee "test-logs/deb-${{ matrix.rid }}.log"
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-test-log-deb-${{ matrix.rid }}
+          path: test-logs
+          if-no-files-found: warn
+
+  # Same flow for .rpm in a Fedora container (kept separate from deb because only rpm uses a container).
+  linux-packages-test-rpm:
+    name: linux-packages-test (rpm, ${{ matrix.rid }})
+    needs: linux-packages
+    runs-on: ${{ matrix.runner }}
+    container: fedora:44
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { rid: linux-x64, runner: ubuntu-24.04 }
+          - { rid: linux-arm64, runner: ubuntu-24.04-arm }
+    steps:
+      - name: Install test dependencies
+        run: dnf install -y git xorg-x11-server-Xvfb xorg-x11-xauth desktop-file-utils util-linux findutils procps-ng which shadow-utils diffutils
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-packages-${{ matrix.rid }}
+          path: pkgs
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-upgrade-test-${{ matrix.rid }}
+          path: upgrade
+      - name: Test install, upgrade, rollback and removal
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          v1=(pkgs/*.rpm)
+          v2=(upgrade/*.rpm)
+          if [[ ${#v1[@]} -ne 1 || ${#v2[@]} -ne 1 ]]; then echo "::error::Expected exactly one .rpm per set."; exit 1; fi
+          stage=/tmp/kapibara-test
+          mkdir -p "$stage" test-logs
+          cp "${v1[0]}" "$stage/v1.rpm"
+          cp "${v2[0]}" "$stage/v2.rpm"
+          chmod -R a+rX "$stage"
+          useradd -m kapibara-test
+          bash eng/Test-LinuxDistroPackages.sh --format rpm --package "$stage/v1.rpm" --upgrade "$stage/v2.rpm" --run-seconds 30 --user kapibara-test 2>&1 | tee "test-logs/rpm-${{ matrix.rid }}.log"
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-test-log-rpm-${{ matrix.rid }}
+          path: test-logs
+          if-no-files-found: warn
+
+  # AUR source package (PKGBUILD downloads the release tarballs); generated on Ubuntu where pwsh is available.
+  aur-package:
+    needs: [version, package]
+    runs-on: ubuntu-24.04
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: EsilvaSoft.KapibaraStudio-${{ needs.version.outputs.version }}-linux-*
+          merge-multiple: true
+          path: archives
+      - name: Build AUR package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          . ./eng/LinuxDistroPackaging.ps1
+          New-KapibaraAurPackage -Version $env:VERSION `
+            -X64Archive (Join-Path $PWD "archives/EsilvaSoft.KapibaraStudio-$env:VERSION-linux-x64.tar.gz") `
+            -Arm64Archive (Join-Path $PWD "archives/EsilvaSoft.KapibaraStudio-$env:VERSION-linux-arm64.tar.gz") `
+            -OutputDirectory (Join-Path $PWD 'aur')
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-aur
+          path: aur/*
+          if-no-files-found: error
+
+  # Build the PKGBUILD with makepkg in Arch (using the local x64 tarball instead of downloading), then install/upgrade/remove it.
+  aur-test:
+    needs: [version, package, aur-package]
+    runs-on: ubuntu-24.04
+    container: archlinux:base-devel
+    timeout-minutes: 45
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - name: Install test dependencies
+        run: pacman -Syu --noconfirm --needed git sudo xorg-server-xvfb xorg-xauth desktop-file-utils procps-ng which diffutils
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-aur
+          path: aur
+      - uses: actions/download-artifact@v4
+        with:
+          name: EsilvaSoft.KapibaraStudio-${{ needs.version.outputs.version }}-linux-x64
+          path: archives
+      - name: Build, upgrade and test with makepkg
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          # makepkg refuses to run as root.
+          useradd -m builder
+          useradd -m kapibara-test
+          echo 'builder ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/builder
+          chmod 0440 /etc/sudoers.d/builder
+          aur=(aur/*-aur.tar.gz)
+          if [[ ${#aur[@]} -ne 1 ]]; then echo "::error::Expected exactly one AUR tarball."; exit 1; fi
+          root=/home/builder/aur
+          mkdir -p "$root/v1" test-logs
+          tar -xzf "${aur[0]}" -C "$root/v1"
+          dir="$root/v1/kapibarastudio-bin"
+          # A local file with the expected name is used by makepkg instead of downloading the (unpublished) release asset.
+          cp archives/*.tar.gz "$dir/"
+          # Test-only second package: a higher pkgrel upgrades the first without changing source names.
+          mkdir "$root/v2"
+          cp -a "$dir" "$root/v2/kapibarastudio-bin"
+          dir2="$root/v2/kapibarastudio-bin"
+          rel="$(sed -n "s/^pkgrel=['\"]\{0,1\}\([0-9]\+\)['\"]\{0,1\}\$/\1/p" "$dir/PKGBUILD")"
+          if [[ -z "$rel" ]]; then echo "::error::Could not read pkgrel from PKGBUILD."; exit 1; fi
+          sed -i "s/^pkgrel=.*/pkgrel=$((rel + 1))/" "$dir2/PKGBUILD"
+          chown -R builder:builder "$root"
+          echo "::group::.SRCINFO must match PKGBUILD"
+          sudo -u builder bash -c "cd '$dir' && makepkg --printsrcinfo | diff - .SRCINFO"
+          echo "::endgroup::"
+          sudo -u builder bash -c "cd '$dir' && makepkg -f -s --noconfirm"
+          sudo -u builder bash -c "cd '$dir2' && makepkg -f -s --noconfirm"
+          v1=()
+          v2=()
+          for f in "$dir"/*.pkg.tar.zst; do [[ "$f" == *-debug-* ]] || v1+=("$f"); done
+          for f in "$dir2"/*.pkg.tar.zst; do [[ "$f" == *-debug-* ]] || v2+=("$f"); done
+          if [[ ${#v1[@]} -ne 1 || ${#v2[@]} -ne 1 ]]; then echo "::error::Expected exactly one package per build."; exit 1; fi
+          bash eng/Test-LinuxDistroPackages.sh --format pacman --package "${v1[0]}" --upgrade "${v2[0]}" --run-seconds 30 --user kapibara-test 2>&1 | tee test-logs/pacman-linux-x64.log
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-test-log-pacman-linux-x64
+          path: test-logs
+          if-no-files-found: warn
+
+  # Nothing is published until every test above has passed.
   release:
-    needs: [version, test, package]
+    needs: [version, test, package, linux-packages, linux-packages-test-deb, linux-packages-test-rpm, aur-package, aur-test]
     if: github.event_name == 'push' && github.repository == 'esilva-silva/EsilvaSoft.KapibaraStudio'
     runs-on: ubuntu-latest
     permissions:
@@ -120,9 +372,19 @@ jobs:
           pattern: EsilvaSoft.KapibaraStudio-*
           merge-multiple: true
           path: dist
+      # Explicit names: linux-upgrade-test-* and linux-test-log-* are never published.
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: linux-packages-linux-*
+          merge-multiple: true
+          path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-aur
+          path: dist
       - name: Checksums
         working-directory: dist
-        run: sha256sum -- *.zip *.tar.gz > SHA256SUMS.txt
+        run: sha256sum -- *.zip *.tar.gz *.deb *.rpm > SHA256SUMS.txt
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}

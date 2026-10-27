@@ -27,12 +27,19 @@ public sealed partial class AppUpdateViewModel : ObservableObject, IDisposable
         _updates = updates;
         _operations = operations;
         if (updates is null || updates.Availability == AppUpdateAvailability.Disabled) return;
-        if (updates.GetStagedUpdate() is { } staged) SetReady(staged);
+        // A package-managed installation never applies a staged package, so it must never offer Restart.
+        if (updates.Availability != AppUpdateAvailability.PackageManaged && updates.GetStagedUpdate() is { } staged) SetReady(staged);
         _schedule = new Timer(_ => Dispatch(() => _ = CheckAsync()), null, FirstCheckDelay, CheckInterval);
     }
 
     public AppUpdateRelease? Release { get; private set; }
     public AppVersion? ReadyVersion { get; private set; }
+
+    /// <summary>Command that updates a package-managed installation; empty in every other state.</summary>
+    public string PackageCommand { get; private set; } = "";
+
+    /// <summary>Package manager shown to the user (APT, DNF, pacman/AUR); empty outside PackageManaged.</summary>
+    public string PackageManagerName { get; private set; } = "";
     public bool IsVisible => State != AppUpdateUiState.Hidden;
     public string Label => State switch
     {
@@ -51,7 +58,16 @@ public sealed partial class AppUpdateViewModel : ObservableObject, IDisposable
         catch (Exception) { return; }
         if (_disposed || release is null || State is AppUpdateUiState.Downloading or AppUpdateUiState.Ready) return;
         Release = release;
-        if (_updates.Availability == AppUpdateAvailability.ManualOnly)
+        if (_updates.Availability == AppUpdateAvailability.PackageManaged && _updates.PackageManager is { } manager)
+        {
+            PackageCommand = LinuxPackageUpdateGuidance.GetCommand(manager, release.Version, _updates.Rid);
+            PackageManagerName = LinuxPackageUpdateGuidance.GetDisplayName(manager);
+            State = AppUpdateUiState.PackageManaged;
+            ToolTip = F("updateAvailablePackageManaged", release.Version, PackageManagerName);
+            return;
+        }
+        // Without a known manager a package-managed installation still never downloads: the release page is the fallback.
+        if (_updates.Availability is AppUpdateAvailability.ManualOnly or AppUpdateAvailability.PackageManaged)
         {
             State = AppUpdateUiState.ManualOnly;
             ToolTip = F("updateAvailableManual", release.Version);

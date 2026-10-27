@@ -1,0 +1,163 @@
+# Configuração do nfpm 2.48.0 para os pacotes .deb e .rpm do KapibaraStudio.
+# Chamada por eng/LinuxDistroPackaging.ps1 (New-KapibaraDistroPackages), que define:
+#   KAPIBARA_ARCH     arquitetura do formato (amd64/arm64 no deb; x86_64/aarch64 no rpm)
+#   KAPIBARA_VERSION  versão já convertida por ConvertTo-KapibaraDistroVersion (ex.: 1.0.0~beta.1)
+#   KAPIBARA_STAGING  diretório de staging com payload/, assets/ e markers/
+# A versão usa version_schema none: o nfpm não interpreta o texto e o til é gravado como está.
+# O campo release fica vazio de propósito: o deb não ganha revisão e o rpm assume "1".
+name: kapibarastudio
+arch: ${KAPIBARA_ARCH}
+platform: linux
+version_schema: none
+version: ${KAPIBARA_VERSION}
+section: devel
+priority: optional
+maintainer: EsilvaSoft <esilva-silva@users.noreply.github.com>
+description: |-
+  Desktop IDE for MongoDB
+  KapibaraStudio is a desktop IDE for MongoDB with a query editor, results
+  views, an explorer for connections, databases and collections, and agent
+  integrations. Updates are installed through the system package manager.
+vendor: EsilvaSoft
+homepage: https://github.com/esilva-silva/EsilvaSoft.KapibaraStudio
+license: MIT
+
+# Dependências: único lugar para ajustar (deb e rpm). A lista do Arch fica em eng/LinuxDistroPackaging.ps1.
+overrides:
+  deb:
+    depends:
+      - libc6 (>= 2.35)
+      - libgcc-s1
+      - libstdc++6
+      - libicu78 | libicu76 | libicu74 | libicu72 | libicu70
+      - libssl3t64 | libssl3
+      - zlib1g
+      - libfontconfig1
+      # Avalonia aborts at startup when no font is installed.
+      - fonts-dejavu-core | fonts-liberation2 | fonts-noto-core
+      - hicolor-icon-theme
+      - libx11-6
+      - libice6
+      - libsm6
+      - libxrandr2
+      - libxi6
+      - libxcursor1
+    # Loaded with dlopen when present (OpenGL rendering, Secret Service over D-Bus).
+    recommends:
+      - libgl1
+      - libdbus-1-3
+    suggests:
+      - gnome-keyring
+  rpm:
+    depends:
+      - glibc
+      - libgcc
+      - libstdc++
+      - libicu
+      - openssl-libs
+      # Dependência por soname em vez de "zlib or zlib-ng-compat": funciona no Fedora e no RHEL.
+      - libz.so.1()(64bit)
+      - fontconfig
+      # Avalonia aborts at startup when no font is installed.
+      - dejavu-sans-fonts
+      - hicolor-icon-theme
+      - libX11
+      - libICE
+      - libSM
+      - libXrandr
+      - libXi
+      - libXcursor
+    # Loaded with dlopen when present (OpenGL rendering, Secret Service over D-Bus).
+    recommends:
+      - libglvnd-glx
+      - dbus-libs
+
+contents:
+  # Conteúdo do tarball intacto, com os modos preservados pelo staging.
+  - src: ${KAPIBARA_STAGING}/payload
+    dst: /usr/lib/kapibarastudio
+    type: tree
+    expand: true
+  # O app detecta instalação gerenciada por este arquivo e então não se autoatualiza.
+  - src: ${KAPIBARA_STAGING}/markers/package-manager.apt
+    dst: /usr/lib/kapibarastudio/package-manager
+    packager: deb
+    expand: true
+    file_info:
+      mode: 0644
+  - src: ${KAPIBARA_STAGING}/markers/package-manager.dnf
+    dst: /usr/lib/kapibarastudio/package-manager
+    packager: rpm
+    expand: true
+    file_info:
+      mode: 0644
+  - src: /usr/lib/kapibarastudio/EsilvaSoft.KapibaraStudio.Desktop
+    dst: /usr/bin/kapibarastudio
+    type: symlink
+    # nfpm 2.48 records the rpm symlink as l--------- even with file_info.mode (rpmlint zero-perms);
+    # Linux ignores symlink modes, so the link works for every user.
+  - src: ${KAPIBARA_STAGING}/assets/kapibarastudio.desktop
+    dst: /usr/share/applications/kapibarastudio.desktop
+    expand: true
+    file_info:
+      mode: 0644
+  - src: ${KAPIBARA_STAGING}/assets/icon-16.png
+    dst: /usr/share/icons/hicolor/16x16/apps/kapibarastudio.png
+    expand: true
+    file_info:
+      mode: 0644
+  - src: ${KAPIBARA_STAGING}/assets/icon-24.png
+    dst: /usr/share/icons/hicolor/24x24/apps/kapibarastudio.png
+    expand: true
+    file_info:
+      mode: 0644
+  - src: ${KAPIBARA_STAGING}/assets/icon-32.png
+    dst: /usr/share/icons/hicolor/32x32/apps/kapibarastudio.png
+    expand: true
+    file_info:
+      mode: 0644
+  - src: ${KAPIBARA_STAGING}/assets/icon-48.png
+    dst: /usr/share/icons/hicolor/48x48/apps/kapibarastudio.png
+    expand: true
+    file_info:
+      mode: 0644
+  - src: ${KAPIBARA_STAGING}/assets/icon-64.png
+    dst: /usr/share/icons/hicolor/64x64/apps/kapibarastudio.png
+    expand: true
+    file_info:
+      mode: 0644
+  - src: ${KAPIBARA_STAGING}/assets/icon-128.png
+    dst: /usr/share/icons/hicolor/128x128/apps/kapibarastudio.png
+    expand: true
+    file_info:
+      mode: 0644
+  - src: ${KAPIBARA_STAGING}/assets/icon-256.png
+    dst: /usr/share/icons/hicolor/256x256/apps/kapibarastudio.png
+    expand: true
+    file_info:
+      mode: 0644
+  - src: ${KAPIBARA_STAGING}/assets/icon-512.png
+    dst: /usr/share/icons/hicolor/512x512/apps/kapibarastudio.png
+    expand: true
+    file_info:
+      mode: 0644
+  # Licença: deb usa o arquivo copyright (DEP-5); rpm usa o tipo license.
+  - src: ${KAPIBARA_STAGING}/assets/copyright
+    dst: /usr/share/doc/kapibarastudio/copyright
+    packager: deb
+    expand: true
+    file_info:
+      mode: 0644
+  # The rpm must own its license directory, otherwise dnf remove leaves it behind.
+  - dst: /usr/share/licenses/kapibarastudio
+    type: dir
+    packager: rpm
+    file_info:
+      mode: 0755
+  - src: ${KAPIBARA_STAGING}/payload/LICENSE
+    dst: /usr/share/licenses/kapibarastudio/LICENSE
+    type: license
+    packager: rpm
+    expand: true
+    file_info:
+      mode: 0644

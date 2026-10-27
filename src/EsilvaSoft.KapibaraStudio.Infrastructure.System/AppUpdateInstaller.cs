@@ -138,17 +138,45 @@ internal static class AppUpdateInstaller
             FileShare.None, 1, FileOptions.DeleteOnClose);
     }
 
-    internal static AppUpdateAvailability DetectAvailability(string? processPath, AppVersion version, string? rid)
+    internal static AppUpdateAvailability DetectAvailability(string? processPath, AppVersion version, string? rid) =>
+        DetectMode(processPath, version, rid).Availability;
+
+    /// <summary>
+    /// A Linux package (.deb/.rpm/AUR) installs a <see cref="LinuxPackageUpdateGuidance.MarkerFileName"/> marker next
+    /// to the executable. A valid marker makes the installation PackageManaged even when the folder is writable (root),
+    /// so files owned by the package manager are never replaced; an invalid or unreadable marker never yields Supported.
+    /// </summary>
+    internal static (AppUpdateAvailability Availability, LinuxPackageManager? PackageManager) DetectMode(string? processPath, AppVersion version, string? rid)
     {
         if (Environment.GetEnvironmentVariable("SLOPSTUDIO_DISABLE_UPDATES") is "1" or "true" || rid is null || processPath is null
-            || version is { Major: 0, Minor: 0, Patch: 0 }) return AppUpdateAvailability.Disabled;
+            || version is { Major: 0, Minor: 0, Patch: 0 }) return (AppUpdateAvailability.Disabled, null);
         var directory = Path.GetDirectoryName(processPath)!;
         // Only the published single-file executable replaces itself; build output keeps the assembly next to the host.
         var executable = Path.GetFileName(processPath);
         var suffix = rid.StartsWith("win-", StringComparison.Ordinal) ? ".exe" : "";
         if (!ExecutableBaseNames.Any(name => string.Equals(executable, name + suffix, StringComparison.Ordinal))
-            || ExecutableBaseNames.Any(name => File.Exists(Path.Combine(directory, name + ".dll")))) return AppUpdateAvailability.Disabled;
-        return CanWrite(directory) ? AppUpdateAvailability.Supported : AppUpdateAvailability.ManualOnly;
+            || ExecutableBaseNames.Any(name => File.Exists(Path.Combine(directory, name + ".dll")))) return (AppUpdateAvailability.Disabled, null);
+        if (rid.StartsWith("linux-", StringComparison.Ordinal) && ReadPackageMarker(directory) is { } marker)
+            return marker.Valid ? (AppUpdateAvailability.PackageManaged, marker.Manager) : (AppUpdateAvailability.ManualOnly, null);
+        return (CanWrite(directory) ? AppUpdateAvailability.Supported : AppUpdateAvailability.ManualOnly, null);
+    }
+
+    /// <summary>Null when there is no marker; a directory, oversized or unreadable marker is present but invalid.</summary>
+    private static (bool Valid, LinuxPackageManager Manager)? ReadPackageMarker(string directory)
+    {
+        const int MaxMarkerLength = 64;
+        var path = Path.Combine(directory, LinuxPackageUpdateGuidance.MarkerFileName);
+        if (Directory.Exists(path)) return (false, default);
+        if (!File.Exists(path)) return null;
+        try
+        {
+            using var reader = new StreamReader(path);
+            var buffer = new char[MaxMarkerLength + 1];
+            var length = reader.ReadBlock(buffer, 0, buffer.Length);
+            return length <= MaxMarkerLength && LinuxPackageUpdateGuidance.TryParseMarker(new string(buffer, 0, length), out var manager)
+                ? (true, manager) : (false, default);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return (false, default); }
     }
 
     internal static void PrepareExecutableAliases(string payloadDirectory, AppUpdateInstallation options)

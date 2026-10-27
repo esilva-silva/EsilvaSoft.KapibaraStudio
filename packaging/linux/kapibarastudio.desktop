@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=KapibaraStudio
+GenericName=MongoDB IDE
+Comment=Desktop IDE for MongoDB
+Comment[pt_BR]=IDE desktop para MongoDB
+Exec=kapibarastudio
+Icon=kapibarastudio
+Terminal=false
+Categories=Development;Database;IDE;
+Keywords=MongoDB;Database;Query;IDE;
+# Classe X11 medida com `xprop WM_CLASS` ("kapibarastudio", "EsilvaSoft.KapibaraStudio.Desktop"); a instância vem do argv0.
+StartupWMClass=EsilvaSoft.KapibaraStudio.Desktop

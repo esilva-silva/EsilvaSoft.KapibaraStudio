@@ -101,6 +101,25 @@ public sealed class AppUpdateStorageContractTests
         Assert.That(service.GetStagedUpdate(), Is.SameAs(expected));
     }
 
+    [Test]
+    public void PackageManagedInstallationNeverStagesNorReportsAPendingPackage()
+    {
+        var storage = new RecordingStorage { Pending = new StagedAppUpdate(AppVersion.Parse("0.6.0"), null) };
+        var options = Options with { Availability = AppUpdateAvailability.PackageManaged, Rid = "linux-x64", PackageManager = LinuxPackageManager.Dnf };
+        using var service = new GitHubAppUpdateService(options, storage, new PackageHandler());
+        using var operation = new ApplicationOperationService().Begin("Baixando");
+        Assert.ThrowsAsync<InvalidOperationException>(() => service.DownloadAsync(Release(), operation));
+        Assert.Multiple(() =>
+        {
+            Assert.That(storage.Installation, Is.Null, "Staging never starts for files owned by a package manager.");
+            Assert.That(service.GetStagedUpdate(), Is.Null, "A leftover package must not offer Restart.");
+            Assert.That(service.PackageManager, Is.EqualTo(LinuxPackageManager.Dnf));
+            Assert.That(service.Rid, Is.EqualTo("linux-x64"));
+        });
+        using var selfUpdating = new GitHubAppUpdateService(Options with { PackageManager = LinuxPackageManager.Apt }, storage, new PackageHandler());
+        Assert.That(selfUpdating.PackageManager, Is.Null, "Only a PackageManaged installation reports its manager.");
+    }
+
     private static AppUpdateRelease Release(string? hash = null) => new(AppVersion.Parse("0.6.0"),
         "v0.6.0", "package.zip", new Uri("https://download.test/package.zip"), Package.Length,
         hash ?? Convert.ToHexStringLower(SHA256.HashData(Package)), new Uri("https://github.test/release"), null);

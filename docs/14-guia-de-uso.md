@@ -328,6 +328,16 @@ O fluxo validado conecta o perfil `MvpNative`, expande databases sob demanda, ex
 
 A validação visual Linux está dispensada. O clipboard nativo do Windows foi validado no fluxo de resultados. Exportações canceladas após escrita parcial removem o arquivo incompleto, conforme os testes de streaming. Uma medição inicial sem inspeção visual abriu a janela em 1.396 ms e registrou 220,3 MiB de working set após estabilização; leitor de tela ainda não faz parte da evidência desta máquina.
 
+## Instalação no Linux por pacote
+
+Além do tarball, o release traz pacotes para o gerenciador da distribuição. Baixe o arquivo da sua arquitetura na página do release (releases até v0.9.5 não os têm) (use `arm64`/`aarch64` no lugar de `amd64`/`x86_64` em ARM):
+
+- Debian/Ubuntu: `sudo apt install ./kapibarastudio_<versão>_amd64.deb`; remover: `sudo apt remove kapibarastudio`.
+- Fedora: `sudo dnf install ./kapibarastudio-<versão>-1.x86_64.rpm`; remover: `sudo dnf remove kapibarastudio`.
+- Arch: `tar -xzf kapibarastudio-bin-<versão>-aur.tar.gz && cd kapibarastudio-bin && makepkg -si`; remover: `sudo pacman -R kapibarastudio-bin`. O pacote ainda não está publicado no AUR.
+
+O programa abre pelo menu (KapibaraStudio) ou por `kapibarastudio`. Seus dados ficam em `$XDG_DATA_HOME/EsilvaSoft/KapibaraStudio` e não são alterados por instalação, atualização, rollback ou remoção. Para voltar a uma versão anterior: `sudo apt install --allow-downgrades ./<antigo>.deb`, `sudo dnf downgrade ./<antigo>.rpm` (`sudo dnf history undo last` só funciona se o pacote anterior estiver em algum repositório) ou `sudo pacman -U <pacote antigo>`. Pelo menos uma fonte do sistema é necessária. Pacotes e limites: [Pacotes Linux](architecture/linux-packages.md).
+
 ## Atualizações
 
 Nos pacotes publicados (zip/tar.gz dos releases), o Kapibara Studio consulta exclusivamente [os releases de EsilvaSoft.KapibaraStudio](https://github.com/esilva-silva/EsilvaSoft.KapibaraStudio/releases), pela API pública do mesmo repositório, 10 s após abrir e a cada 6 h. Havendo versão nova, aparece **Atualizar** à direita da barra superior (só o ícone em janelas estreitas; a dica mostra a versão). Clique para baixar: o progresso e **Cancelar** ficam na barra inferior. Ao concluir, o botão vira **Reiniciar**: escolha **Reiniciar agora** ou **Depois**. Em ambos os casos a nova versão é instalada quando o programa fecha, com as confirmações habituais de execuções e rascunhos.
@@ -335,6 +345,7 @@ Nos pacotes publicados (zip/tar.gz dos releases), o Kapibara Studio consulta exc
 - Instalação estável recebe apenas versões estáveis; instalação em pré-release recebe também pré-releases mais novas.
 - O pacote só é instalado se o SHA-256 conferir com o publicado no release.
 - Se a pasta do programa não permitir escrita, o botão abre a página do release para download manual.
+- Instalação por pacote Linux (.deb, .rpm, AUR) é gerenciada pelo sistema: o botão **Atualizar** continua aparecendo quando há versão nova, mas o programa não baixa nem troca arquivos. O clique abre **Atualizar KapibaraStudio** com o comando (`sudo apt install ./kapibarastudio_<versão>_amd64.deb`, `sudo dnf upgrade ./kapibarastudio-<versão>-1.x86_64.rpm` ou `tar -xzf kapibarastudio-bin-<versão>-aur.tar.gz && cd kapibarastudio-bin && makepkg -si`) e as ações **Copiar comando**, **Abrir página do release** e **Fechar**. O tarball portátil e o Windows continuam se atualizando sozinhos.
 - Falha na troca restaura os arquivos originais; a dica do botão mostra o motivo e uma nova tentativa ocorre no próximo fechamento.
 - Execução pelo código-fonte (`dotnet run`) não se atualiza. Para desativar numa instalação, defina `SLOPSTUDIO_DISABLE_UPDATES=1`. [Decisão e limites](10-decisoes-arquiteturais.md).
 

@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Styling;
 using Avalonia.Threading;
@@ -93,6 +94,61 @@ public sealed class AppUpdateUiTests
         }, CancellationToken.None);
     }
 
+    private static readonly string[] PackageManagedChoices = ["Copiar comando", "Abrir página do release", "Fechar"];
+
+    [Test]
+    public async Task PackageManagedInstallationExplainsTheManagerCommandAndNeverDownloads()
+    {
+        var session = HeadlessUnitTestSession.GetOrStartForAssembly(typeof(IntegrationUiTestApp).Assembly);
+        await session.Dispatch<bool>(async () =>
+        {
+            using var context = new WorkspaceTestContext();
+            var updates = new ControlledAppUpdates
+            {
+                Availability = AppUpdateAvailability.PackageManaged, Rid = "linux-x64", PackageManager = LinuxPackageManager.Apt,
+                // A leftover package from a former portable install must not turn into Restart.
+                Staged = new(AppVersion.Parse("0.6.0"), null)
+            };
+            using var vm = new WorkspaceViewModel(context.Workspace, context.Repository, updates: updates);
+            Assert.That(vm.Updates.IsVisible, Is.False);
+            var window = new MainWindow { DataContext = vm };
+            window.Show(); await window.InitializationTask;
+            window.UpdateLayout(); Dispatcher.UIThread.RunJobs();
+            var button = window.FindControl<Button>("UpdateButton")!;
+
+            updates.Release = ControlledAppUpdates.NewRelease;
+            await vm.Updates.CheckAsync();
+            window.UpdateLayout(); Dispatcher.UIThread.RunJobs();
+            Assert.That(vm.Updates.State, Is.EqualTo(AppUpdateUiState.PackageManaged));
+            Assert.That(button.IsVisible, Is.True);
+            Assert.That(vm.Updates.Label, Is.EqualTo("Atualizar"));
+            Assert.That(vm.Updates.PackageCommand, Is.EqualTo("sudo apt install ./kapibarastudio_0.6.0_amd64.deb"));
+            Assert.That(ToolTip.GetTip(button) as string, Is.EqualTo(
+                "Versão 0.6.0 disponível. Esta instalação é gerenciada pelo APT; clique para ver como atualizar."));
+            RenderTopBar(window, button, "packagemanaged");
+
+            button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Dispatcher.UIThread.RunJobs();
+            var dialog = window.OwnedWindows.Single();
+            Assert.That(dialog.Title, Is.EqualTo("Atualizar KapibaraStudio"));
+            var message = dialog.GetVisualDescendants().OfType<TextBlock>().First().Text;
+            Assert.That(message, Does.Contain("pertence ao APT").And.Contain("\n\nsudo apt install ./kapibarastudio_0.6.0_amd64.deb\n\n")
+                .And.Contain("configurações são preservadas"));
+            var choices = dialog.GetVisualDescendants().OfType<Button>().Select(b => b.Content as string).ToArray();
+            Assert.That(choices, Is.EqualTo(PackageManagedChoices));
+            dialog.GetVisualDescendants().OfType<Button>().First().RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await window.UpdateActionTask;
+            var clipboard = window.Clipboard!;
+            string? copied = null;
+            for (var i = 0; i < 100 && copied != vm.Updates.PackageCommand; i++) { await Task.Delay(10); Dispatcher.UIThread.RunJobs(); copied = await clipboard.TryGetTextAsync(); }
+            Assert.That(copied, Is.EqualTo(vm.Updates.PackageCommand));
+            Assert.That(updates.Downloads, Is.Zero);
+            Assert.That(vm.Updates.State, Is.EqualTo(AppUpdateUiState.PackageManaged), "The action stays available after the dialog closes.");
+            window.Close();
+            return true;
+        }, CancellationToken.None);
+    }
+
     private static async Task WaitUntil(Func<bool> condition)
     {
         for (var attempt = 0; attempt < 300 && !condition(); attempt++)
@@ -141,6 +197,8 @@ internal sealed class ControlledAppUpdates : IAppUpdateService
         new Uri("https://example.test/package.zip"), 100, new string('a', 64), new Uri("https://example.test/releases/v0.6.0"), null);
     public AppUpdateAvailability Availability { get; init; } = AppUpdateAvailability.Supported;
     public AppVersion CurrentVersion { get; } = AppVersion.Parse("0.5.0");
+    public string Rid { get; init; } = "win-x64";
+    public LinuxPackageManager? PackageManager { get; init; }
     public AppUpdateRelease? Release { get; set; }
     public StagedAppUpdate? Staged { get; set; }
     public TaskCompletionSource Gate { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);

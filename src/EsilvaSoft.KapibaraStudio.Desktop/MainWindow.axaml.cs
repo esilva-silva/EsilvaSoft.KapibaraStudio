@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Platform.Storage;
@@ -311,12 +312,31 @@ public partial class MainWindow : Window
             case AppUpdateUiState.ManualOnly when updates.Release is { } release:
                 await Launcher.LaunchUriAsync(release.PageUrl);
                 break;
+            case AppUpdateUiState.PackageManaged when updates.Release is { } packaged:
+                await ShowPackageManagedUpdateAsync(updates, packaged);
+                break;
             case AppUpdateUiState.Ready:
             case AppUpdateUiState.InstallFailed:
                 var choice = await Dialogs.ChooseAsync(this, T("updateRestart"), F("updateReadyPrompt", updates.ReadyVersion), T("restartNow"), T("later"));
                 if (choice == T("restartNow")) RestartForUpdate();
                 break;
         }
+    }
+
+    /// <summary>The package manager owns the files: explain the command and offer copying it or opening the release.</summary>
+    private async Task ShowPackageManagedUpdateAsync(AppUpdateViewModel updates, Core.AppUpdateRelease release)
+    {
+        var copy = T("updateCopyCommand");
+        var open = T("updateOpenReleasePage");
+        var choice = await Dialogs.ChooseAsync(this, T("updatePackageManagedTitle"),
+            F("updatePackageManagedPrompt", release.Version, updates.PackageManagerName, updates.PackageCommand), copy, open, T("close"));
+        try
+        {
+            if (choice == copy && Clipboard is { } clipboard) await clipboard.SetTextAsync(updates.PackageCommand);
+            else if (choice == open) await Launcher.LaunchUriAsync(release.PageUrl);
+        }
+        // The command stays readable in the dialog and in the release notes; copying and opening are conveniences.
+        catch (Exception) { }
     }
 
     /// <summary>Closes through the normal flow; the entry point installs the update and starts the new version.</summary>

@@ -166,6 +166,8 @@ Publicação self-contained para **Windows (`win-x64`) e Linux (`linux-x64`)**; 
 
 Release exige pacote, checksum, inventário de componentes/SBOM, notas de compatibilidade, licença e procedimento de atualização/rollback. Atualização automática só aceitará artefatos de origem confiável com verificação de integridade/autenticidade.
 
+**Pacotes Linux — 27/10/2026.** Além do tarball portátil, o release gera `.deb` e `.rpm` (nfpm) e o fonte AUR `kapibarastudio-bin` a partir do mesmo tarball, em `/usr/lib/kapibarastudio` com marcador `package-manager`. Com o marcador, o updater entra em `AppUpdateAvailability.PackageManaged`: consulta versões, mas não baixa nem troca arquivos, e a UI mostra o comando do gerenciador. Windows e tarball seguem pela ADR-038. [ADR-078](10-decisoes-arquiteturais.md) e [formato, comandos e validação](architecture/linux-packages.md).
+
 ## Revisão desktop — contexto isolado (10/09/2026)
 
 O shell é coordenado por WorkspaceViewModel; WorkspaceTabViewModel mantém cada edição/execução, ExplorerNodeViewModel carrega a árvore sob demanda e ConnectionsViewModel controla a modal. As views tratam janelas, foco e seletores nativos. MainWindowViewModel continua como adaptador das ferramentas existentes em uma janela contextual proprietária, sem compartilhar a seleção global com as abas. A consulta usa um editor textual único com autocomplete; a seleção do explorer apenas fornece o contexto inicial da aba.

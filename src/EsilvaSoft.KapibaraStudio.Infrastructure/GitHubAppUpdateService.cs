@@ -33,8 +33,12 @@ public sealed class GitHubAppUpdateService : IAppUpdateService, IDisposable
 
     public AppUpdateAvailability Availability => _options.Availability;
     public AppVersion CurrentVersion => _options.CurrentVersion;
+    public string Rid => _options.Rid;
+    public LinuxPackageManager? PackageManager => Availability == AppUpdateAvailability.PackageManaged ? _options.PackageManager : null;
 
-    public StagedAppUpdate? GetStagedUpdate() => Availability == AppUpdateAvailability.Disabled ? null : _storage.GetStagedUpdate(_options);
+    /// <summary>A package-managed installation never applies a staged package, so it never reports one.</summary>
+    public StagedAppUpdate? GetStagedUpdate() => Availability is AppUpdateAvailability.Disabled or AppUpdateAvailability.PackageManaged
+        ? null : _storage.GetStagedUpdate(_options);
 
     public async Task<AppUpdateRelease?> CheckAsync(CancellationToken cancellationToken)
     {

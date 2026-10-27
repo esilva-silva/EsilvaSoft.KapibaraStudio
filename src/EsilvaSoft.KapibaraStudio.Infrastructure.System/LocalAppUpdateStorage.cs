@@ -33,11 +33,13 @@ public sealed class LocalAppUpdateStorage : IAppUpdateStorage
         var informational = Assembly.GetEntryAssembly()?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
         var version = AppVersion.TryParse(informational, out var parsed) ? parsed : AppVersion.Parse("0.0.0-local");
         var rid = AppUpdateInstaller.CurrentRid();
-        return new(AppUpdateInstaller.DetectAvailability(processPath, version, rid), version, rid ?? "",
+        var (availability, packageManager) = AppUpdateInstaller.DetectMode(processPath, version, rid);
+        return new(availability, version, rid ?? "",
             processPath is null ? AppContext.BaseDirectory : Path.GetDirectoryName(processPath)!,
-            processPath is null ? "" : Path.GetFileName(processPath), updatesDirectory);
+            processPath is null ? "" : Path.GetFileName(processPath), updatesDirectory, packageManager);
     }
 
+    /// <summary>Only a Supported installation replaces files; ManualOnly and PackageManaged leave the folder untouched.</summary>
     public static void ApplyPendingOnExit(AppUpdateInstallation installation, bool restart)
     {
         try
