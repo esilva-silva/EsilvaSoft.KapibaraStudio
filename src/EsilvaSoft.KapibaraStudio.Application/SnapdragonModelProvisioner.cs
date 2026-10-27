@@ -75,18 +75,15 @@ public sealed class SnapdragonModelProvisioner(ISnapdragonRuntimeAvailability av
                     + (errors.Length == 0 ? "" : " " + errors));
             return _attempts[directory] = new(true, results);
         }
-        finally
-        {
-            try { _gate.Release(); }
-            catch (ObjectDisposedException) when (Volatile.Read(ref _disposed) != 0) { }
-        }
+        finally { _gate.Release(); }
     }
 
+    /// <summary>Cancels active and waiting callers. The gate is never disposed: SemaphoreSlim.Dispose drops pending async
+    /// waiters without completing them, which would leave a cancelled caller awaiting forever.</summary>
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _shutdown.Cancel();
-        _gate.Dispose();
         _shutdown.Dispose();
     }
 

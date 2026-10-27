@@ -135,7 +135,7 @@ public sealed class SnapdragonProvisioningTests
         var waiting = service.ProvisionAsync(Path.GetTempPath());
         service.Dispose();
         foreach (var task in new[] { active, waiting })
-            Assert.ThrowsAsync<OperationCanceledException>(async () => await task.WaitAsync(TimeSpan.FromSeconds(5)));
+            Assert.CatchAsync<OperationCanceledException>(async () => await task.WaitAsync(TimeSpan.FromSeconds(5)));
         Assert.ThrowsAsync<ObjectDisposedException>(() => service.ProvisionAsync(Path.GetTempPath()));
     }
 
