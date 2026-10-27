@@ -522,7 +522,7 @@ public sealed class LocalAiModelService(ILocalModelCatalog catalog, Func<ILocalM
 
     /// <summary>
     /// Toma a vez na fila do proprietário único. <see cref="AiRequestPriority.Interactive"/> espera sem limite — é
-    /// ação explícita (chat, <c>Ctrl+.</c>, teste de modelo) e o usuário está esperando. <see cref="AiRequestPriority.Background"/>
+    /// ação explícita (chat, <c>Ctrl+;</c>, teste de modelo) e o usuário está esperando. <see cref="AiRequestPriority.Background"/>
     /// espera no máximo <see cref="BackgroundQueueBudget"/> atrás de um turno já em andamento (ver o comentário da
     /// constante); vencido o orçamento, a espera termina em <see cref="LocalModelPreemptedException"/> — não em
     /// <see cref="OperationCanceledException"/> crua — porque quem chama (<see cref="AiAutocompleteProvider"/>) já

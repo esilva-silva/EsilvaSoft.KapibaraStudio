@@ -7,8 +7,9 @@
 >   não são mais propostas.
 > - O **presenter nativo e os snippets existem** (`CompletionWindowPresenter`, `SnippetTemplate`), assim como o
 >   parser tolerante (`Autocomplete.Core/Syntax/TolerantParser`).
-> - **`Ctrl+.` e `Ctrl+Espaço` estão implementados** e são o padrão em `EditorKeyBindings` (`editor.completion.show`),
->   com atalhos persistidos e rebindáveis; não são planejados. `Ctrl+;` (IA explícita) ganhou handler no lote A42 (19/09/2026): indicador, prévia inline multilinha, `Tab`/`Esc` e fallback para a lista tradicional com o motivo. O provider vem por injeção (`IAiCompletionProvider`, registrado em `AddKapibaraStudioLocalAiInfrastructure`) e é compartilhado por todas as abas; sem modelo configurado, o atalho cai no fallback com o motivo.
+> - **`Ctrl+Espaço` está implementado** e é o padrão em `EditorKeyBindings` (`editor.completion.show`), com atalhos
+>   persistidos e rebindáveis; `Ctrl+.` não é padrão desde 18/09/2026 (um override salvo continua funcionando).
+>   Desde 27/10/2026 ([DEC-AI-SPLIT](decisions.md#dec-ai-split)) o ghost é só determinístico e a IA só roda em `Ctrl+;` com "Habilitar autocomplete com IA" ligado. `Ctrl+;` (IA explícita) ganhou handler no lote A42 (19/09/2026): indicador, prévia inline multilinha, `Tab`/`Esc` e fallback para a lista tradicional com o motivo. O provider vem por injeção (`IAiCompletionProvider`, registrado em `AddKapibaraStudioLocalAiInfrastructure`) e é compartilhado por todas as abas; sem modelo configurado, o atalho cai no fallback com o motivo.
 > - `PipelineStageReader` liga o fluxo de campos do pipeline ao contexto (ADR-041), então campos posteriores a um
 >   `$group`/`$project` deixam de vir da coleção de origem.
 > - O link para `src/EsilvaSoft.KapibaraStudio.Core/Autocomplete.cs` **aponta para um arquivo que não existe mais**; as
@@ -121,7 +122,7 @@ Snapshot da sessão sem resultados/credenciais; alvo capturado antes de await; E
 
 ## 10. Configuração e atalhos
 
-[AutocompleteSettings](../../src/EsilvaSoft.KapibaraStudio.Core/AutocompleteSettings.cs) v1 já possui Enabled/Mode/UseDictionary, atraso 50–2000 (padrão 150), contexto 64–8192 (2048), saída 1–256 (32), modelo/provider e opções de contexto. Os dois fluxos preemptivos têm políticas independentes; `Ctrl+Espaço` abre a lista padrão e `Ctrl+;` aciona IA explícita, enquanto overrides persistidos continuam legíveis. [Migração e precedência](configuration.md).
+[AutocompleteSettings](../../src/EsilvaSoft.KapibaraStudio.Core/AutocompleteSettings.cs) v1 já possui Enabled/Mode/UseDictionary, atraso 50–2000 (padrão 150), contexto 64–8192 (2048), saída 1–256 (32), modelo/provider e opções de contexto. Desde 27/10/2026 só existe o preemptivo determinístico (a IA saiu do ghost) e `AiCompletionEnabled` governa a IA explícita; `Ctrl+Espaço` abre a lista padrão e `Ctrl+;` aciona IA explícita, enquanto overrides persistidos continuam legíveis. [Migração e precedência](configuration.md).
 
 ## 11. Testes e evidências existentes
 

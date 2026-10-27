@@ -3,7 +3,7 @@ using EsilvaSoft.KapibaraStudio.LocalAi.Core;
 namespace EsilvaSoft.KapibaraStudio.Application;
 
 /// <summary>
-/// Autocomplete por IA pedido explicitamente pelo usuário (<c>Ctrl+.</c>).
+/// Autocomplete por IA pedido explicitamente pelo usuário (<c>Ctrl+;</c>).
 /// </summary>
 /// <remarks>
 /// Contrato de fluxo, e não de resultado único: a interface devolve <see cref="IAsyncEnumerable{T}"/> porque a
@@ -30,7 +30,7 @@ public interface IAiCompletionProvider
 /// e silencioso, o explícito pode pagar a montagem de contexto da Fase 3 (fatos, janela sintática, orçamento medido
 /// pelo tokenizador real) porque o usuário pediu e está esperando.</para>
 /// <para><strong>Prioridade.</strong> Todo pedido sai como <see cref="AiRequestPriority.Interactive"/>, seja qual for
-/// a prioridade escrita no <see cref="AiGenerationRequest"/>. É o que faz <c>Ctrl+.</c> preemptar uma geração de
+/// a prioridade escrita no <see cref="AiGenerationRequest"/>. É o que faz <c>Ctrl+;</c> preemptar uma geração de
 /// fundo em andamento, e não o contrário.</para>
 /// <para><strong>Sem duplicar runtime.</strong> O provider não conhece <see cref="ILocalModelRuntime"/> e não
 /// constrói serviço nenhum: ele delega ao <see cref="AiGenerationPipeline"/> recebido, que por sua vez usa o

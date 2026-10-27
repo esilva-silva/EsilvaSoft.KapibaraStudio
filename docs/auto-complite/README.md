@@ -10,8 +10,8 @@ Quatro modalidades, duas formas de geração e infraestrutura comum:
 
 | Modalidade | Disparo | Geração | Apresentação |
 | --- | --- | --- | --- |
-| Traditional Manual Completion | Ctrl+. / Ctrl+Espaço | Determinística | Lista e snippets |
-| AI Manual Completion | Ctrl+; | ONNX local | Prévia rica |
+| Traditional Manual Completion | Ctrl+Espaço | Determinística | Lista e snippets |
+| AI Manual Completion | Ctrl+; (só com "Habilitar autocomplete com IA") | ONNX local | Prévia rica; único caminho que envia texto ao modelo |
 | Traditional Preemptive Completion | Edição elegível | Determinística contextual | Ghost curto |
 | AI Preemptive Completion | Edição + pausa elegível | ONNX local opcional | Ghost validado |
 

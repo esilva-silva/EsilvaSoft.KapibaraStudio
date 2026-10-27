@@ -140,7 +140,7 @@ public sealed class InlineCompletionUiTests
             editor.Focus();
 
             // O autocomplete com IA está habilitado, o modelo está pronto e a sessão legada ainda traz InlineUseAi:
-            // mesmo assim digitar nunca envia texto ao modelo. A IA só roda pelo atalho explícito (Ctrl+.).
+            // mesmo assim digitar nunca envia texto ao modelo. A IA só roda pelo atalho explícito (Ctrl+;).
             await service.ConfigureAsync(service.Settings with { AiCompletionEnabled = true, InlineUseAi = true, DelayMilliseconds = 50 });
             foreach (var text in TypedTexts)
             {

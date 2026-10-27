@@ -48,7 +48,7 @@ public partial class WorkspaceTabView
     }
 
     /// <summary>
-    /// Motivo que abriu esta lista como fallback da IA explícita (<c>Ctrl+.</c>), quando foi o caso. Vive no mesmo
+    /// Motivo que abriu esta lista como fallback da IA explícita (<c>Ctrl+;</c>), quando foi o caso. Vive no mesmo
     /// ciclo da lista: é definido logo depois da invalidação que precede a consulta e apagado por
     /// <see cref="CloseTraditionalCompletion"/>. Fica em um campo, e não escrito uma vez na linha de estado, porque
     /// refiltrar a lista reescreve aquela linha — e o motivo precisa sobreviver ao refiltro.

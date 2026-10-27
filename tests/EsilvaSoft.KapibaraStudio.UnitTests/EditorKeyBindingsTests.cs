@@ -106,18 +106,18 @@ public sealed class EditorKeyBindingsTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(defaults.Match(new(EditorKeyModifiers.Control, '.', null, '/'), EditorCommandScope.Global), Is.EqualTo(EditorCommandIds.CompletionAi),
+            Assert.That(defaults.Match(new(EditorKeyModifiers.Control, ';', null, '/'), EditorCommandScope.Global), Is.EqualTo(EditorCommandIds.CompletionAi),
                 "O símbolo produzido funciona em layouts não-US.");
-            Assert.That(defaults.Match(new(EditorKeyModifiers.Control, null, null, '.'), EditorCommandScope.Global), Is.EqualTo(EditorCommandIds.CompletionAi),
+            Assert.That(defaults.Match(new(EditorKeyModifiers.Control, null, null, ';'), EditorCommandScope.Global), Is.EqualTo(EditorCommandIds.CompletionAi),
                 "Sem símbolo produzido, a pontuação da tecla física é o fallback.");
-            Assert.That(defaults.Match(new(EditorKeyModifiers.Control, ':', null, '.'), EditorCommandScope.Global), Is.Null,
+            Assert.That(defaults.Match(new(EditorKeyModifiers.Control, ':', null, ';'), EditorCommandScope.Global), Is.Null,
                 "Símbolo presente e diferente bloqueia o fallback físico.");
             Assert.That(defaults.Match(new(EditorKeyModifiers.Control, ' ', EditorKey.Space), EditorCommandScope.Global), Is.EqualTo(EditorCommandIds.CompletionShow),
                 "Gesto de tecla nomeada casa por identidade de tecla, mesmo com símbolo produzido.");
             Assert.That(defaults.Match(new(EditorKeyModifiers.Control, null, EditorKey.Space), EditorCommandScope.Global), Is.EqualTo(EditorCommandIds.CompletionShow));
             Assert.That(defaults.Match(new(EditorKeyModifiers.None, null, EditorKey.Tab), EditorCommandScope.Inline), Is.EqualTo(EditorCommandIds.InlineAccept));
             Assert.That(custom.Match(new(EditorKeyModifiers.Control | EditorKeyModifiers.Shift, null, EditorKey.Space), EditorCommandScope.Global), Is.EqualTo(EditorCommandIds.CompletionShow));
-            Assert.That(custom.Match(new(EditorKeyModifiers.Control, null, EditorKey.Space), EditorCommandScope.Global), Is.Null,
+            Assert.That(custom.Match(new(EditorKeyModifiers.Control, '.', EditorKey.Space, '.'), EditorCommandScope.Global), Is.Null,
                 "A preferência substitui, em vez de complementar, o padrão do comando.");
         });
     }
@@ -174,29 +174,24 @@ public sealed class EditorKeyBindingsTests
     }
 
     [Test]
-    public void ScopesDoNotFallBackToGlobalAndCtrlDotIsTheAiDefault()
+    public void ScopesDoNotFallBackToGlobalAndCtrlDotIsNoLongerADefault()
     {
         var dispatcher = new EditorCommandDispatcher(EditorKeyBindings.Resolve(null));
         var show = new EditorKeyEvent(EditorKeyModifiers.Control, null, EditorKey.Space);
         var ctrlDot = new EditorKeyEvent(EditorKeyModifiers.Control, '.', null, '.');
-        var ctrlSemicolon = new EditorKeyEvent(EditorKeyModifiers.Control, ';', null, ';');
         Assert.Multiple(() =>
         {
             Assert.That(dispatcher.Match(show, EditorCommandScope.Global), Is.EqualTo(EditorCommandIds.CompletionShow));
-            Assert.That(dispatcher.Match(ctrlDot, EditorCommandScope.Global), Is.EqualTo(EditorCommandIds.CompletionAi));
             foreach (var scope in NonGlobalScopes)
-            {
                 Assert.That(dispatcher.Match(show, scope), Is.Null, $"Sem fallback implícito de {scope} para Global.");
-                Assert.That(dispatcher.Match(ctrlDot, scope), Is.Null, $"Ctrl+. só existe no escopo Global ({scope}).");
-            }
             foreach (var scope in Enum.GetValues<EditorCommandScope>())
-                Assert.That(dispatcher.Match(ctrlSemicolon, scope), Is.Null, $"Ctrl+; saiu dos padrões (escopo {scope}).");
-            Assert.That(EditorKeyBindings.Defaults.SelectMany(entry => entry.Value), Has.None.EqualTo("Ctrl+;"));
+                Assert.That(dispatcher.Match(ctrlDot, scope), Is.Null, $"Ctrl+. saiu dos padrões (escopo {scope}).");
+            Assert.That(EditorKeyBindings.Defaults.SelectMany(entry => entry.Value), Has.None.EqualTo("Ctrl+."));
         });
     }
 
     [Test]
-    public void AUserOverrideOfCtrlDotWinsOverTheNewAiDefaultWithoutInvalidatingTheSession()
+    public void CtrlDotKeepsWorkingAsAnExplicitOverrideWrittenByTheUser()
     {
         var session = new EditorKeyBindings { Bindings = new() { ["editor.completion.show"] = ["Ctrl+."] } };
         var resolved = Texts(EditorKeyBindings.Resolve(session.Validate()));
@@ -204,28 +199,10 @@ public sealed class EditorKeyBindingsTests
         Assert.Multiple(() =>
         {
             Assert.That(resolved["editor.completion.show"], Is.EqualTo(CtrlDotOnly).AsCollection, "O override explícito substitui o padrão.");
-            Assert.That(resolved["editor.completion.ai"], Is.Empty, "O padrão da IA que colide com o override é descartado, não invalida a sessão.");
             Assert.That(resolved, Has.Count.EqualTo(ExpectedDefaults.Count), "Os demais comandos continuam nos padrões.");
             Assert.That(dispatcher.Match(new(EditorKeyModifiers.Control, '.', null, '.'), EditorCommandScope.Global), Is.EqualTo(EditorCommandIds.CompletionShow));
             Assert.That(dispatcher.Match(new(EditorKeyModifiers.Control, null, EditorKey.Space), EditorCommandScope.Global), Is.Null, "O override substitui, não complementa.");
             Assert.That(session.Bindings, Has.Count.EqualTo(1), "Validar não reescreve nem remove entradas da sessão.");
-        });
-    }
-
-    [Test]
-    public void OnlyTheNewAiDefaultYieldsAndTwoExplicitOverridesOfTheSameGestureStayInvalid()
-    {
-        Assert.Multiple(() =>
-        {
-            var twoOverrides = Assert.Throws<InvalidDataException>(() => EditorKeyBindings.Resolve(new EditorKeyBindings
-            {
-                Bindings = new() { ["editor.completion.show"] = ["Ctrl+."], ["editor.completion.ai"] = ["Ctrl+."] }
-            }));
-            Assert.That(twoOverrides!.Message, Does.Contain("editor.completion.show").And.Contain("editor.completion.ai"));
-            Assert.That(() => EditorKeyBindings.Resolve(new EditorKeyBindings { Bindings = new() { ["editor.completion.show"] = ["Ctrl+."], ["editor.completion.ai"] = ["Ctrl+;"] } }),
-                Throws.Nothing, "O usuário pode devolver a IA para Ctrl+; explicitamente.");
-            Assert.That(() => EditorKeyBindings.Resolve(new EditorKeyBindings { Bindings = new() { ["editor.completion.ai"] = ["Ctrl+Space"] } }),
-                Throws.InstanceOf<InvalidDataException>(), "Os demais padrões continuam não cedendo a um override em conflito.");
         });
     }
 

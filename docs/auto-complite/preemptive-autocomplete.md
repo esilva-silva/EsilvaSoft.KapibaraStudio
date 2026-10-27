@@ -2,7 +2,7 @@
 
 Revisão de 22/09/2026. **5.1 (Traditional Preemptive), 5.2 (AI Preemptive) e 5.3 (estratégia híbrida) implementados no escopo automatizado**. Preemptivo descreve o disparo automático, não a tecnologia de geração. O gate de edição→ghost p95 ≤ 20 ms passou em Headless; modelo ONNX real e homologação nativa permanecem na Fase 10.
 
-> **Atualização de 27/10/2026 ([ADR-076](../10-decisoes-arquiteturais.md)):** autocomplete normal e autocomplete com IA são separados. O normal (catálogo, schema, dicionário) sugere sempre em texto fantasma ao digitar e abre a lista com `Ctrl+Espaço`; o com IA só envia texto ao modelo quando o usuário aperta `Ctrl+.` (`Ctrl+;` saiu dos padrões). A IA nunca participa do ghost e `InlineEnabled`/`InlineUseTraditional`/`InlineUseAi` não têm mais efeito. Os parágrafos abaixo com datas anteriores são registro histórico.
+> **Atualização de 27/10/2026 ([ADR-076](../10-decisoes-arquiteturais.md)):** autocomplete normal e autocomplete com IA são separados. O normal (catálogo, schema, dicionário) sugere sempre em texto fantasma ao digitar e abre a lista com `Ctrl+Espaço`; o com IA só envia texto ao modelo quando o usuário aperta `Ctrl+;` (`Ctrl+.` não é atalho padrão). A IA nunca participa do ghost e `InlineEnabled`/`InlineUseTraditional`/`InlineUseAi` não têm mais efeito. Os parágrafos abaixo com datas anteriores são registro histórico.
 
 **Ordem de fonte efetiva do ghost, implementada em 5.1 (IA removida do ghost em 27/10/2026):** determinístico (`TraditionalPreemptiveCompletionProvider`) → dicionário lexical local → IA. A IA automática só entra com `InlineUseAi = true` **e** modelo já em `Ready` (LoadedOnly); nenhum caminho de digitação carrega, troca ou inicializa modelo. Detalhe e evidência em [phase-5-preemptive](phases/phase-5-preemptive.md#51-traditional-preemptive-completion--concluído-em-18092026-com-pendências-abertas).
 
@@ -29,7 +29,7 @@ Implementado por `InlineCompletionCoordinator`, `TraditionalPreemptiveCompletion
 
 Fontes determinísticas: campos/tipos, operadores, métodos, collections, databases, stages, snippets, estruturas de filtros/updates. Sem modelo, rede, amostragem ou contexto IA. Cache ausente não dispara carga pelo automático: usar o disponível; enriquecimento vem do Explorer, comando explícito ou refresh autorizado.
 
-Exemplo (barra é cursor): `db.Projects.find({ "Customer.I|": 1 })`. Com Id forte, mostrar `d`; aceitar produz `"Customer.Id"`. Já `db.Projects.find({ Customer.| })` exige substituir texto anterior para obter `"Customer.Id"`. Primeiro ghost é só inserção no cursor: abster-se nesse caso; a lista (Ctrl+Espaço) ou a IA (Ctrl+.) oferecem a correção completa. Prévia de substituição é evolução visual com teste próprio.
+Exemplo (barra é cursor): `db.Projects.find({ "Customer.I|": 1 })`. Com Id forte, mostrar `d`; aceitar produz `"Customer.Id"`. Já `db.Projects.find({ Customer.| })` exige substituir texto anterior para obter `"Customer.Id"`. Primeiro ghost é só inserção no cursor: abster-se nesse caso; a lista (Ctrl+Espaço) ou a IA (Ctrl+;) oferecem a correção completa. Prévia de substituição é evolução visual com teste próprio.
 
 Snippets podem gerar continuação literal inequívoca; placeholders que exigem escolha pertencem à lista. Não inventar valores/UUIDs nem reproduzir literais do histórico automaticamente. Histórico de aceites de símbolos, em memória, pode contribuir para ranking; modelos de statements com valores ficam adiados.
 
@@ -86,7 +86,7 @@ Edição elegível
       → senão descartar
 ```
 
-Padrão não troca ghost tradicional visível por IA, nem abre lista como fallback automático. Ctrl+. (antes Ctrl+;) é outra ação explícita e pode substituí-lo. Ambos preemptivos desligados não desabilitam os comandos explícitos.
+Padrão não troca ghost tradicional visível por IA, nem abre lista como fallback automático. Ctrl+; é outra ação explícita e pode substituí-lo. Ambos preemptivos desligados não desabilitam os comandos explícitos.
 
 Experimento futuro de extensão: só após 5.1/5.2, no máximo uma extensão, mesmo prefixo/faixa, sem aceite parcial em curso, sem diagnóstico novo e dentro do prazo. Comparar aceite/reversão, trocas visuais, CPU/energia, inferências evitáveis e latência; não comparar numericamente score IA com tradicional. Promoção exige relatório de uso real.
 

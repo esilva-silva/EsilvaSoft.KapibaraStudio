@@ -214,7 +214,7 @@ public sealed class AutocompleteUiTests
             window.Show();
             window.UpdateLayout(); Dispatcher.UIThread.RunJobs();
             var texts = window.GetVisualDescendants().OfType<TextBlock>().Select(block => block.Text).ToArray();
-            Assert.That(texts, Does.Contain("Autocomplete").And.Contain("Autocomplete com IA (Ctrl+.)").And.Contain("Modelo local"));
+            Assert.That(texts, Does.Contain("Autocomplete").And.Contain("Autocomplete com IA (Ctrl+;)").And.Contain("Modelo local"));
             var boxes = window.GetVisualDescendants().OfType<CheckBox>().Select(box => box.Content as string).ToArray();
             Assert.That(boxes, Does.Contain("Habilitar autocomplete").And.Contain("Habilitar autocomplete com IA"));
             Assert.That(boxes, Has.None.EqualTo("Usar IA local nas sugestões automáticas"), "A IA não participa mais da digitação.");

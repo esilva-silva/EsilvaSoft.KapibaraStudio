@@ -6,7 +6,7 @@ namespace EsilvaSoft.KapibaraStudio.Application;
 /// Separação entre o autocomplete normal e o autocomplete com IA, conforme <c>docs/auto-complite/configuration.md</c>.
 /// É a única fonte dessa decisão: nenhum consumidor recombina as flags. O normal (determinístico) mostra o ghost
 /// enquanto o usuário digita e abre a lista com <c>Ctrl+Espaço</c>; a IA nunca participa da digitação e só roda pelo
-/// atalho explícito (<c>Ctrl+.</c>).
+/// atalho explícito (<c>Ctrl+;</c>).
 /// </summary>
 public static class InlineCompletionPolicy
 {

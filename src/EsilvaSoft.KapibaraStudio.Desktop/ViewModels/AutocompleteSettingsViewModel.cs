@@ -67,7 +67,7 @@ public sealed partial class AutocompleteSettingsViewModel(IAutocompleteService s
     ];
 
     [ObservableProperty] private bool _enabled = true;
-    /// <summary>Autocomplete com IA (<c>Ctrl+.</c>), independente do autocomplete normal (<see cref="Enabled"/>).</summary>
+    /// <summary>Autocomplete com IA (<c>Ctrl+;</c>), independente do autocomplete normal (<see cref="Enabled"/>).</summary>
     [ObservableProperty] private bool _aiCompletionEnabled = true;
     [ObservableProperty] private int _hardwareIndex;
     [ObservableProperty, NotifyPropertyChangedFor(nameof(EffectiveModelDirectory))] private string _modelDirectory = "";

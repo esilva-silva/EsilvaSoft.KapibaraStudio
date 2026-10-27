@@ -475,7 +475,7 @@ public partial class WorkspaceTabView
             if (command == EditorCommandIds.SnippetPrevious && MoveSnippetPlaceholder(reverse: true)) { e.Handled = true; return; }
             if (command == EditorCommandIds.SnippetCancel) { _snippetSession = null; e.Handled = true; return; }
         }
-        // A prévia da IA explícita ocupa o mesmo escopo Inline do ghost (AC-18: Ctrl+. é uma prévia inline) e as duas
+        // A prévia da IA explícita ocupa o mesmo escopo Inline do ghost (AC-18: Ctrl+; é uma prévia inline) e as duas
         // nunca estão ativas ao mesmo tempo, então não há ambiguidade: Tab insere a prévia, Esc cancela a geração.
         if (_aiPresenter.IsActive)
         {

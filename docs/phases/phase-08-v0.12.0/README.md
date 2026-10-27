@@ -21,7 +21,7 @@ Assistência técnica local integrada à IDE, mantendo o autocomplete determiní
 ## Escopo incluído (IDs do catálogo)
 
 - ADV-09 — modelos ONNX, ghost text aceito por Tab, propostas de chat revisáveis com diff, catálogo multimodelo e seleção de CPU/GPU/NPU.
-- EDT-02 (extensão preemptiva) — sugestão inline determinística sem solicitação explícita. Desde 27/10/2026 ([ADR-076](../../10-decisoes-arquiteturais.md)) a IA local não participa da digitação: o autocomplete com IA só envia texto ao modelo pelo atalho explícito `Ctrl+.`.
+- EDT-02 (extensão preemptiva) — sugestão inline determinística sem solicitação explícita. Desde 27/10/2026 ([ADR-076](../../10-decisoes-arquiteturais.md)) a IA local não participa da digitação: o autocomplete com IA só envia texto ao modelo pelo atalho explícito `Ctrl+;`.
 
 ## Fora de escopo
 

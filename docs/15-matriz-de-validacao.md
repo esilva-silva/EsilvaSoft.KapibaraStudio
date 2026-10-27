@@ -281,7 +281,7 @@ Build `dotnet build EsilvaSoft.KapibaraStudio.slnx --no-restore`: **0 avisos, 0 
 - K17 (relatório de performance do catálogo) permanece fora desta meta; L11–L15 estão implementados com testes, enquanto L16 (benchmark/gate de performance) permanece fora desta meta.
 - `InlineEnabled`/`InlineUseTraditional`/`InlineUseAi` tiveram controles em `AutocompleteSettingsWindow` de 18/09 a 27/10/2026; desde então são legados sem efeito e sem controle.
 - Registro histórico: os arquivos `.case` em `tests/.../Language/Cases/` estavam sem runner. Desde 21/09/2026, o runner automatizado cobre parsing, papéis, shapes, kinds, aspas, `ReplaceSpan`, edições/snippets e ranking tipado (**675 fixtures aprovados**); o gate agregado publica MRR/top-1/top-5 e as integrações de namespace metadata, schema learning e `$lookup` têm cobertura determinística complementar.
-- Fases 5.2 e 5.3 estão implementadas no fluxo automático com fakes: `LoadedOnly`, debounce, cancelamento, descarte por geração e arbitragem tradicional → IA são cobertos. A Fase 4 também tem a IA explícita (`Ctrl+;`, hoje `Ctrl+.`), indicador, prévia inline multilinha e matriz de fallback; o caminho com modelo ONNX real continua fora da validação desta meta.
+- Fases 5.2 e 5.3 estão implementadas no fluxo automático com fakes: `LoadedOnly`, debounce, cancelamento, descarte por geração e arbitragem tradicional → IA são cobertos. A Fase 4 também tem a IA explícita (`Ctrl+;`), indicador, prévia inline multilinha e matriz de fallback; o caminho com modelo ONNX real continua fora da validação desta meta.
 
 Detalhe: [acompanhamento](12-acompanhamento-da-implementacao.md#fase-1-k11k16-k16-b-e-fase-51-traditional-preemptive--18092026),
 [phase-1-data-traditional](auto-complite/phases/phase-1-data-traditional.md),
@@ -302,11 +302,11 @@ Build Windows x64: **0 avisos, 0 erros**. Suíte completa: **1170 aprovados, 0 f
 | Política: ghost segue `Enabled`, IA segue `AiCompletionEnabled`, flags `Inline*` ignoradas, migração de `Mode` | `InlineCompletionSettingsTests` |
 | Digitar nunca chega à IA, mesmo com `InlineUseAi` legado e modelo pronto | `InlineCompletionUiTests.TypingNeverReachesTheAiEvenWithTheLegacyOptInAndAModelReady` |
 | Fallback do dicionário segue só `UseDictionary` | `InlineCompletionUiTests.TheDictionaryFallbackFollowsOnlyUseDictionaryAndIgnoresLegacyInlineFlags` |
-| `Ctrl+.` padrão da IA, `Ctrl+;` fora dos padrões, override salvo de `Ctrl+.` vence | `EditorKeyBindingsTests`, `EditorKeyBindingsSessionTests` |
-| `Ctrl+.` no editor: prévia, fallback com motivo, IA desligada não consulta o modelo, `.` nunca inserido | `AiCompletionUiTests`, `TraditionalCompletionUiTests` |
+| `Ctrl+;` padrão da IA, `Ctrl+.` fora dos padrões, override salvo de `Ctrl+.` continua legível | `EditorKeyBindingsTests`, `EditorKeyBindingsSessionTests` |
+| `Ctrl+;` no editor: prévia, fallback com motivo, IA desligada não consulta o modelo, `;` nunca inserido; `Ctrl+.` sem efeito | `AiCompletionUiTests`, `TraditionalCompletionUiTests` |
 | Tela em seções, Básico legado não religa IA/agente | `AutocompleteSettingsViewModelTests`, `AutocompleteUiTests.SettingsSeparateNormalAndAiAutocompleteInBothThemes` (PNGs claro/escuro) |
 
-Não homologado: `Ctrl+.` em teclado físico ABNT2/US, IMEs asiáticos, leitor de tela e modelo ONNX real. [ADR-076](10-decisoes-arquiteturais.md) e [DEC-AI-SPLIT](auto-complite/decisions.md#dec-ai-split).
+Não homologado: `Ctrl+;` em teclado físico ABNT2 (Ctrl+Shift+,) e US, IMEs asiáticos, leitor de tela e modelo ONNX real. [ADR-076](10-decisoes-arquiteturais.md) e [DEC-AI-SPLIT](auto-complite/decisions.md#dec-ai-split).
 
 ## Autocomplete — Fase 1: catálogo de conhecimento — 14/09/2026
 

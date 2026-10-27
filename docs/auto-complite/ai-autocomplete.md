@@ -2,9 +2,9 @@
 
 ## Papel
 
-> **Atualização de 27/10/2026 ([ADR-076](../10-decisoes-arquiteturais.md)):** autocomplete normal e autocomplete com IA são separados. O normal (catálogo, schema, dicionário) sugere sempre em texto fantasma ao digitar e abre a lista com `Ctrl+Espaço`; o com IA só envia texto ao modelo quando o usuário aperta `Ctrl+.` (`Ctrl+;` saiu dos padrões). A IA nunca participa do ghost e `InlineEnabled`/`InlineUseTraditional`/`InlineUseAi` não têm mais efeito. Os parágrafos abaixo com datas anteriores são registro histórico.
+> **Atualização de 27/10/2026 ([ADR-076](../10-decisoes-arquiteturais.md)):** autocomplete normal e autocomplete com IA são separados. O normal (catálogo, schema, dicionário) sugere sempre em texto fantasma ao digitar e abre a lista com `Ctrl+Espaço`; o com IA só envia texto ao modelo quando o usuário aperta `Ctrl+;` (`Ctrl+.` não é atalho padrão). A IA nunca participa do ghost e `InlineEnabled`/`InlineUseTraditional`/`InlineUseAi` não têm mais efeito. Os parágrafos abaixo com datas anteriores são registro histórico.
 
-Conclusão mais rica sob demanda (`Ctrl+.`, antes `Ctrl+;`), usando o modelo local; é o único caminho do editor que envia texto ao modelo, e só existe com "Habilitar autocomplete com IA" (`AiCompletionEnabled`) ligado. Compartilha AiGenerationPipeline e Output Processor com AiPreemptiveCompletionProvider; os providers são independentes. Falha explícita pode abrir lista tradicional se habilitada; falha automática apenas descarta.
+Conclusão mais rica sob demanda (`Ctrl+;`), usando o modelo local; é o único caminho do editor que envia texto ao modelo, e só existe com "Habilitar autocomplete com IA" (`AiCompletionEnabled`) ligado. Compartilha AiGenerationPipeline e Output Processor com AiPreemptiveCompletionProvider; os providers são independentes. Falha explícita pode abrir lista tradicional se habilitada; falha automática apenas descarta.
 
 ## Cadeia
 
@@ -26,7 +26,7 @@ Ranking / apresentação
 
 Regras MongoDB ficam apenas nas duas primeiras etapas e no Output Processor. O runtime não conhece shapes, catálogo ou dialetos.
 
-## Comportamento de `Ctrl+.`
+## Comportamento de `Ctrl+;`
 
 1. Captura o contexto (mesma versão usada pela lista).
 2. Mostra indicador de geração no cursor (camada de fundo, sem alterar texto).

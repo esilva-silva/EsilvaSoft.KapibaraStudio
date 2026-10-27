@@ -8,7 +8,7 @@
 public static class EditorCommandIds
 {
     public const string CompletionShow = "editor.completion.show";
-    /// <summary>Autocomplete with AI, always explicit (Ctrl+. since 27/10/2026), handled by the editor view.</summary>
+    /// <summary>Explicit AI completion (Ctrl+;), handled by the editor view since phase 4.</summary>
     public const string CompletionAi = "editor.completion.ai";
     public const string CompletionNext = "editor.completion.next";
     public const string CompletionPrevious = "editor.completion.previous";

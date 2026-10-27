@@ -8,6 +8,19 @@ O núcleo determinístico do autocomplete, o aprendizado de schema, a integraç�
 
 Este fechamento não inclui gates de performance, validação multiplataforma, MongoDB real, modelos reais, leitor de tela ou homologação nativa. A matriz MRR/top-K publicada, a integração de namespaces metadata/schema learning e a resolução de `$lookup` com schema estrangeiro foram fechadas com testes automatizados; extensões futuras de corpus não alteram este aceite.
 
+## Revisão de escopo — 27/10/2026 (DEC-AI-SPLIT)
+
+O autocomplete normal e o autocomplete com IA passam a ser recursos separados ([ADR-076](../10-decisoes-arquiteturais.md), [DEC-AI-SPLIT](decisions.md#dec-ai-split)). Efeito nos lotes abaixo:
+
+| Lote | Situação após a revisão |
+| --- | --- |
+| T08 | Atalhos: `Ctrl+Espaço` abre a lista, `Ctrl+;` pede a IA, `Ctrl+.` não é padrão. Flags: o ghost segue só `Enabled`; `AiCompletionEnabled` (novo, ausente = `Mode != Basic`) governa a IA; `InlineEnabled`/`InlineUseTraditional`/`InlineUseAi` são legados sem efeito, preservados na sessão. Concluído com testes automatizados |
+| A42 | IA explícita em `Ctrl+;` só com `AiCompletionEnabled`; desligada, cai na lista com o motivo sem consultar o modelo. Concluído |
+| P51–P53 | Ghost determinístico + fallback do dicionário, sem IA. Concluídos |
+| P54–P56 | **Cancelados por decisão de produto:** a IA não participa da digitação. `LoadedOnly` e a prioridade `Background` continuam como contrato do serviço, sem chamador no editor |
+| P57 | A matriz passa a cobrir normal × IA (dois recursos), não quatro providers automáticos |
+| Pendências | Homologação de `Ctrl+;` em teclado real (no ABNT2, Ctrl+Shift+,), IME, leitor de tela e modelo ONNX real |
+
 ## Convenções e ordem
 
 Componentes abaixo são relativos a `src/EsilvaSoft.KapibaraStudio.*`: **A** Application, **C** Core, **I** Infrastructure, **D** Desktop, **X** Autocomplete.Core; **U** tests/EsilvaSoft.KapibaraStudio.UnitTests; **B** tests/EsilvaSoft.KapibaraStudio.Benchmarks. Arquivo/componente novo está marcado `(novo)`. Perfis completos em [agents](agents/README.md).

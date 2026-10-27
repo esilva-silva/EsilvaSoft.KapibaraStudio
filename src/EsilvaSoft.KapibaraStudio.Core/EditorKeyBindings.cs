@@ -3,10 +3,8 @@ namespace EsilvaSoft.KapibaraStudio.Core;
 /// <summary>
 /// Additive to session version 1. <see cref="Bindings"/> overrides <see cref="Defaults"/> per command: a command without an
 /// entry keeps its defaults and an empty list leaves it unbound. Unknown commands, malformed gestures, null lists, a gesture
-/// the user bound twice <em>inside the same <see cref="EditorCommandScope"/></em> and versions other than 1 are invalid and make
-/// the whole session unreadable, including an override that collides with another command's default. The only exception
-/// is <see cref="YieldingDefaults"/>: a default introduced after users could already have bound that gesture yields to
-/// their explicit override (and leaves its command without it) instead of invalidating a session that was valid before. The same gesture in two different scopes is legal and is resolved by scope precedence at the
+/// bound twice <em>inside the same <see cref="EditorCommandScope"/></em> and versions other than 1 are invalid and make the
+/// whole session unreadable. The same gesture in two different scopes is legal and is resolved by scope precedence at the
 /// call site, which is what lets Tab accept a completion item, jump to the next snippet placeholder and accept ghost text.
 /// </summary>
 public sealed record EditorKeyBindings
@@ -18,7 +16,7 @@ public sealed record EditorKeyBindings
     public static IReadOnlyDictionary<string, IReadOnlyList<string>> Defaults { get; } = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal)
     {
         [EditorCommandIds.CompletionShow] = ["Ctrl+Space"],
-        [EditorCommandIds.CompletionAi] = ["Ctrl+."],
+        [EditorCommandIds.CompletionAi] = ["Ctrl+;"],
         [EditorCommandIds.CompletionNext] = ["Down"],
         [EditorCommandIds.CompletionPrevious] = ["Up"],
         [EditorCommandIds.CompletionAccept] = ["Tab"],
@@ -30,13 +28,6 @@ public sealed record EditorKeyBindings
         [EditorCommandIds.InlineAccept] = ["Tab"],
         [EditorCommandIds.InlineDismiss] = ["Escape"]
     };
-
-    /// <summary>
-    /// Defaults that yield to an explicit override of the same gesture in the same scope. <c>Ctrl+.</c> became the AI
-    /// default on 27/10/2026; sessions saved before then may legitimately bind it to another command.
-    /// </summary>
-    public static IReadOnlySet<(string Command, string Gesture)> YieldingDefaults { get; } =
-        new HashSet<(string Command, string Gesture)> { (EditorCommandIds.CompletionAi, "Ctrl+.") };
 
     /// <summary>Throws <see cref="InvalidDataException"/> with a visible reason; returns this instance when valid.</summary>
     public EditorKeyBindings Validate()
@@ -59,33 +50,29 @@ public sealed record EditorKeyBindings
         }
         var effective = new Dictionary<string, IReadOnlyList<EditorKeyGesture>>(StringComparer.Ordinal);
         var owners = new Dictionary<(EditorCommandScope Scope, EditorKeyGesture Gesture), string>();
-        // Two passes: explicit overrides claim their gestures first, then defaults fill in what is still free.
-        foreach (var overridesPass in new[] { true, false })
-            foreach (var command in EditorCommandIds.All)
+        foreach (var command in EditorCommandIds.All)
+        {
+            _ = EditorCommandIds.TryGetScope(command, out var scope);
+            string[]? custom = null;
+            var overridden = bindings is not null && bindings.Bindings.TryGetValue(command, out custom);
+            IReadOnlyList<string>? texts = overridden ? custom : Defaults[command];
+            if (texts is null) throw Invalid($"lista de gestos nula para '{command}'.");
+            var gestures = new EditorKeyGesture[texts.Count];
+            for (var index = 0; index < texts.Count; index++)
             {
-                _ = EditorCommandIds.TryGetScope(command, out var scope);
-                string[]? custom = null;
-                var overridden = bindings is not null && bindings.Bindings.TryGetValue(command, out custom);
-                if (overridden != overridesPass) continue;
-                IReadOnlyList<string>? texts = overridden ? custom : Defaults[command];
-                if (texts is null) throw Invalid($"lista de gestos nula para '{command}'.");
-                var gestures = new List<EditorKeyGesture>(texts.Count);
-                foreach (var text in texts)
+                if (!EditorKeyGesture.TryParse(texts[index], out var gesture, out var error)) throw Invalid($"{error} (comando '{command}').");
+                if (!owners.TryAdd((scope, gesture), command))
                 {
-                    if (!EditorKeyGesture.TryParse(text, out var gesture, out var error)) throw Invalid($"{error} (comando '{command}').");
-                    if (!owners.TryAdd((scope, gesture), command))
-                    {
-                        var owner = owners[(scope, gesture)];
-                        if (!overridden && owner != command && bindings!.Bindings.ContainsKey(owner) && YieldingDefaults.Contains((command, text))) continue;
-                        throw Invalid(owner == command
-                            ? $"gesto '{gesture}' repetido em '{command}' (escopo {scope})."
-                            : $"gesto '{gesture}' atribuído a '{owner}' e '{command}' no mesmo escopo {scope}.");
-                    }
-                    gestures.Add(gesture);
+                    var owner = owners[(scope, gesture)];
+                    throw Invalid(owner == command
+                        ? $"gesto '{gesture}' repetido em '{command}' (escopo {scope})."
+                        : $"gesto '{gesture}' atribuído a '{owner}' e '{command}' no mesmo escopo {scope}.");
                 }
-                effective[command] = gestures;
+                gestures[index] = gesture;
             }
-        return EditorCommandIds.All.ToDictionary(command => command, command => effective[command], StringComparer.Ordinal);
+            effective[command] = gestures;
+        }
+        return effective;
     }
 
     private static InvalidDataException Invalid(string reason) => new("Preferência de atalhos do editor inválida: " + reason);

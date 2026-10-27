@@ -23,7 +23,7 @@ public sealed partial class WorkspaceTabViewModel
         return (_prefixCacheKey, _prefixCacheLifetime.Token);
     }
     /// <summary>
-    /// Provider da IA explícita (<c>Ctrl+.</c>), atribuído pela composição do workspace. Nulo em abas isoladas
+    /// Provider da IA explícita (<c>Ctrl+;</c>), atribuído pela composição do workspace. Nulo em abas isoladas
     /// (design-time ou teste), caso em que o atalho cai direto no fallback da lista tradicional.
     /// </summary>
     /// <remarks>

@@ -54,8 +54,6 @@ Estado: **Plano revisado** em 15/09/2026. AC-03/04/05/06/11/14 têm base impleme
 
 ## AC-08 — Atalhos
 
-> **Substituído em parte por [DEC-AI-SPLIT](#dec-ai-split) (27/10/2026):** a IA explícita passou de `Ctrl+;` para `Ctrl+.`; `Ctrl+;` saiu dos padrões.
-
 **Estado: implementado (W0, 18/09/2026).** Build 0 avisos; suíte 1170 aprovados, 0 falhas.
 
 **Decisão revisada.** `Ctrl+.` foi removido dos padrões por decisão explícita do produto; `Ctrl+Espaço` é o único gatilho padrão da lista básica, `Ctrl+;` pede IA (reconhecido, mas sem runtime nesta entrega — nunca insere `;`, nunca abre a lista no lugar). Doze comandos (`EditorCommandIds`) organizados em quatro escopos (`EditorCommandScope { Global, List, Snippet, Inline }`), cada um resolvido isoladamente por `EditorCommandDispatcher.Match`; o mesmo gesto pode ser padrão em escopos diferentes (`Tab`/`Esc` servem lista, snippet e ghost), mas duplicidade dentro do mesmo escopo torna a sessão ilegível. Registro persistido de forma aditiva em `EditorKeyBindings` (`CurrentVersion = 1`, sem migração de dado), sem tela de edição nesta meta. Como os padrões nunca são gravados na sessão, um override anterior de `Ctrl+.` continua legível e funcional, sem ser removido, adicionado ou reescrito. Pontuação casa pelo símbolo produzido pelo layout, com o símbolo físico como alternativa; teclas nomeadas casam por identidade de tecla — corrigido um defeito em que a decisão anterior (`||` entre as duas comparações) deixava `Ctrl` sozinho abrir a lista e uma tecla desconhecida aceitar o ghost, por `null == null` casar com qualquer gesto quando o evento não carregava tecla nem símbolo. Ver [editor-integration.md](editor-integration.md#arbitragem-de-teclado).
@@ -107,7 +105,6 @@ Estado: **Plano revisado** em 15/09/2026. AC-03/04/05/06/11/14 têm base impleme
 
 ## AC-18 — `Ctrl+;` como prévia inline
 
-> **Atalho atualizado por [DEC-AI-SPLIT](#dec-ai-split) (27/10/2026):** a prévia inline continua, agora em `Ctrl+.`.
 
 **Decisão.** A IA explícita apresenta uma prévia inline rica com indicador e streaming; se indisponível, abre a lista tradicional com o motivo.
 **Alternativas.** Lista de sugestões de IA (modelos pequenos greedy geram um candidato; lista com um item é pior que prévia).
@@ -908,8 +905,8 @@ Reuso CPU por sessão implementado, desligado por padrão e condicionado à homo
 
 ### DEC-AI-SPLIT
 
-**Decisão.** O autocomplete normal (determinístico) e o autocomplete com IA são recursos separados ([ADR-076](../10-decisoes-arquiteturais.md)). O normal segue só `Enabled`: ghost sempre ligado ao digitar e lista com `Ctrl+Espaço`. A IA segue só `AiCompletionEnabled` e só envia texto ao modelo quando o usuário aperta `Ctrl+.`; o ghost passa `CompletionSourcePolicy(Dictionary: UseDictionary, Ai: false, MayLoadModel: false)` e nunca consulta a IA. `Ctrl+;` sai dos padrões. Com a IA desligada, `Ctrl+.` abre a lista com o motivo, sem consultar o modelo.
-**Compatibilidade.** `InlineEnabled`, `InlineUseTraditional` e `InlineUseAi` são lidos e preservados, mas sem efeito. `AiCompletionEnabled` ausente deriva de `Mode != Basic`; a tela grava `Mode = Automatic` e reflete o Básico legado em "Usar o modelo local no Agente IA". `EditorKeyBindings.YieldingDefaults` faz só o padrão `Ctrl+.` da IA ceder a um override salvo do mesmo gesto; dois overrides em conflito, ou um override contra outro padrão, continuam invalidando a sessão.
-**Substitui.** AC-08 (atalho `Ctrl+;` da IA), AC-18 (o nome do atalho; a prévia inline continua), DEC-INLINE-SOURCES e DEC-INLINE-LOADEDONLY no que se refere à IA no ghost. `LoadedOnly` continua como contrato do serviço para outros chamadores automáticos.
-**Alternativas.** Manter a IA como opt-in no ghost (rejeitado pelo produto: digitar não deve enviar texto ao modelo); manter `Ctrl+;` como alternativo (rejeitado: um único atalho padrão).
+**Decisão.** O autocomplete normal (determinístico) e o autocomplete com IA são recursos separados ([ADR-076](../10-decisoes-arquiteturais.md)). O normal segue só `Enabled`: ghost sempre ligado ao digitar e lista com `Ctrl+Espaço`. A IA segue só `AiCompletionEnabled` e só envia texto ao modelo quando o usuário aperta `Ctrl+;`; o ghost passa `CompletionSourcePolicy(Dictionary: UseDictionary, Ai: false, MayLoadModel: false)` e nunca consulta a IA. `Ctrl+.` não é atalho padrão. Com a IA desligada, `Ctrl+;` abre a lista com o motivo, sem consultar o modelo.
+**Compatibilidade.** `InlineEnabled`, `InlineUseTraditional` e `InlineUseAi` são lidos e preservados, mas sem efeito. `AiCompletionEnabled` ausente deriva de `Mode != Basic`; a tela grava `Mode = Automatic` e reflete o Básico legado em "Usar o modelo local no Agente IA". Os atalhos não mudaram: `Ctrl+;` já era o padrão da IA.
+**Substitui.** DEC-INLINE-SOURCES e DEC-INLINE-LOADEDONLY no que se refere à IA no ghost. `LoadedOnly` continua como contrato do serviço para outros chamadores automáticos.
+**Alternativas.** Manter a IA como opt-in no ghost (rejeitado pelo produto: digitar não deve enviar texto ao modelo); mover a IA para `Ctrl+.` (tentado e revertido no mesmo dia: parecia um segundo atalho para a lista, duplicando `Ctrl+Espaço`).
 **Evidência.** `InlineCompletionSettingsTests`, `InlineCompletionUiTests.TypingNeverReachesTheAiEvenWithTheLegacyOptInAndAModelReady`, `EditorKeyBindingsTests`, `AiCompletionUiTests.WithTheAiAutocompleteDisabledCtrlPeriodNeverReachesTheModelAndOpensTheList`, `TraditionalCompletionUiTests` e `AutocompleteUiTests.SettingsSeparateNormalAndAiAutocompleteInBothThemes`. Teclado real (ABNT2/US), IME e leitor de tela permanecem pendentes.

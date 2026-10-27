@@ -371,11 +371,13 @@ public sealed class TraditionalCompletionUiTests
     }
 
     /// <summary>
-    /// Desde 27/10/2026 a IA explícita usa Ctrl+. e "Ctrl+;" saiu dos padrões. Este teste prova que Ctrl+; sozinho
-    /// não abre nada nem altera o texto, e cobre Esc fechando a lista sem alterar conteúdo não confirmado.
+    /// "Ctrl+." deixou de ser padrão nesta entrega (apenas "Ctrl+Space" abre a lista); o teste antigo
+    /// "CtrlPeriodOpensTheTraditionalCompletionList" pressupunha o alias antigo e passaria a mascarar essa mudança de
+    /// contrato. Ele foi reescrito para provar exatamente o oposto — Ctrl+. sozinho não abre nada — e para cobrir
+    /// Esc fechando a lista sem alterar conteúdo não confirmado, que era a parte ainda válida do teste original.
     /// </summary>
     [Test]
-    public async Task CtrlSemicolonIsNoLongerADefaultAndEscapeClosesTheListWithoutChangingText()
+    public async Task CtrlPeriodDoesNotOpenTheListAndEscapeClosesItWithoutChangingText()
     {
         var session = HeadlessUnitTestSession.GetOrStartForAssembly(typeof(IntegrationUiTestApp).Assembly);
         await session.Dispatch<bool>(async () =>
@@ -393,9 +395,9 @@ public sealed class TraditionalCompletionUiTests
             var panel = view.FindControl<Border>("TraditionalCompletionPanel")!;
             editor.Focus(); editor.CaretIndex = editor.SelectionStart = editor.SelectionEnd = tab.Text.Length;
 
-            window.KeyPress(Key.OemSemicolon, RawInputModifiers.Control, PhysicalKey.Semicolon, null);
+            window.KeyPress(Key.OemPeriod, RawInputModifiers.Control, PhysicalKey.Period, null);
             await Task.Delay(30); Dispatcher.UIThread.RunJobs();
-            Assert.That(panel.IsVisible, Is.False, "Ctrl+; não é mais um atalho padrão; nem a IA nem a lista são abertas.");
+            Assert.That(panel.IsVisible, Is.False, "Ctrl+. não é mais um atalho padrão; só Ctrl+Espaço abre a lista.");
             Assert.That(tab.Text, Is.EqualTo("db."), "Nenhum ponto e vírgula ou pontuação foi inserido pela tecla não reconhecida.");
 
             var status = view.FindControl<TextBlock>("TraditionalCompletionStatus")!;
@@ -443,7 +445,7 @@ public sealed class TraditionalCompletionUiTests
     }
 
     [Test]
-    public async Task CtrlPeriodNeverInsertsTheCharacterAndWithoutAiFallsBackToTheList()
+    public async Task CtrlSemicolonNeverInsertsTheCharacterOrOpensTheTraditionalList()
     {
         var session = HeadlessUnitTestSession.GetOrStartForAssembly(typeof(IntegrationUiTestApp).Assembly);
         await session.Dispatch<bool>(async () =>
@@ -461,14 +463,14 @@ public sealed class TraditionalCompletionUiTests
             var panel = view.FindControl<Border>("TraditionalCompletionPanel")!;
             editor.Focus(); editor.CaretIndex = editor.SelectionStart = editor.SelectionEnd = tab.Text.Length;
 
-            window.KeyPress(Key.OemPeriod, RawInputModifiers.Control, PhysicalKey.Period, ".");
+            window.KeyPress(Key.OemSemicolon, RawInputModifiers.Control, PhysicalKey.Semicolon, ";");
             await Task.Delay(30); Dispatcher.UIThread.RunJobs();
 
-            Assert.That(tab.Text, Is.EqualTo("db"), "Ctrl+. nunca insere '.' literal no documento.");
+            Assert.That(tab.Text, Is.EqualTo("db"), "Ctrl+; nunca insere ';' literal no documento.");
             // A partir do lote A42 o atalho tem handler: sem provider de IA nesta aba, ele cai no fallback previsto
             // pela fase 4 — a lista tradicional com uma linha de estado dizendo por quê. O que continua proibido é o
             // que este teste sempre protegeu: inserir o caractere do gesto ou disparar qualquer execução.
-            Assert.That(panel.IsVisible, Is.True, "Sem IA disponível, Ctrl+. abre a lista tradicional com o motivo.");
+            Assert.That(panel.IsVisible, Is.True, "Sem IA disponível, Ctrl+; abre a lista tradicional com o motivo.");
             Assert.That(view.FindControl<TextBlock>("TraditionalCompletionStatus")!.Text,
                 Does.Contain("IA explícita não está disponível"), "A linha de estado é discreta e honesta, sem diálogo.");
             typeof(MainWindow).GetField("_allowClose", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.SetValue(window, true);
@@ -618,8 +620,7 @@ public sealed class TraditionalCompletionUiTests
             var editor = view.FindControl<MongoTextEditor>("CodeEditor")!;
             var panel = view.FindControl<Border>("TraditionalCompletionPanel")!;
             editor.Focus(); editor.CaretIndex = editor.SelectionStart = editor.SelectionEnd = tab.Text.Length;
-            // O padrão substituído (Ctrl+Espaço) deixa de abrir a lista; Ctrl+. agora é da IA e não serve de controle aqui.
-            window.KeyPress(Key.Space, RawInputModifiers.Control, PhysicalKey.Space, null);
+            window.KeyPress(Key.OemPeriod, RawInputModifiers.Control, PhysicalKey.Period, null);
             await Task.Delay(50); Dispatcher.UIThread.RunJobs();
             Assert.That(panel.IsVisible, Is.False);
             window.KeyPress(Key.Space, RawInputModifiers.Control | RawInputModifiers.Shift, PhysicalKey.Space, null);

@@ -47,7 +47,7 @@ public sealed record AutocompleteSettings
     public string SelectedHardwareProfile { get; init; } = "";
 
     /// <summary>
-    /// Additive to version 1: hard timeout of an explicit AI completion (<c>Ctrl+.</c>), measured end to end — queue,
+    /// Additive to version 1: hard timeout of an explicit AI completion (<c>Ctrl+;</c>), measured end to end — queue,
     /// model load and generation included. Expiring never fails the request outright: a partial preview that is
     /// already valid is kept, and only a generation that produced nothing falls back to the list.
     /// </summary>
@@ -90,7 +90,7 @@ public sealed record AutocompleteSettings
 
     /// <summary>
     /// Additive to version 1: the autocomplete with AI (local model) is available. It only ever runs on the explicit
-    /// shortcut (<c>Ctrl+.</c>) — typing never sends text to the model. Independent of <see cref="Enabled"/>, which
+    /// shortcut (<c>Ctrl+;</c>) — typing never sends text to the model. Independent of <see cref="Enabled"/>, which
     /// governs the normal (deterministic) autocomplete. Absent derives from the legacy <see cref="Mode"/>:
     /// <c>Basic</c> was "no AI", so it migrates to false; any other mode migrates to true.
     /// </summary>
