@@ -55,16 +55,22 @@ internal sealed class CompletionServiceFake : IAutocompleteService
     /// <summary>
     /// Representa o serviço real, não só o transporte: a origem de IA só responde quando a política a permite, e com
     /// <see cref="CompletionSourcePolicy.MayLoadModel"/> falso (LoadedOnly) ela exige o modelo já pronto — sem isso o
-    /// duplo geraria onde o produto se abstém. Este duplo não tem dicionário lexical, então só a IA responde.
+    /// duplo geraria onde o produto se abstém. Por padrão este duplo não tem dicionário lexical, então só a IA
+    /// responde; com <see cref="AnswersAsDictionary"/> o <see cref="Handler"/> faz o papel do dicionário lexical, a
+    /// única origem não determinística-contextual que o ghost ainda consulta.
     /// </summary>
     public Task<AutocompleteResult?> GetCompletionAsync(AutocompleteRequest request, CompletionSourcePolicy policy,
         CancellationToken cancellationToken = default)
     {
         LastPolicy = policy;
+        if (AnswersAsDictionary && policy.Dictionary) return Handler(request);
         return policy.Ai && (policy.MayLoadModel || Status.State == LocalModelState.Ready)
             ? Handler(request)
             : Task.FromResult<AutocompleteResult?>(null);
     }
+
+    /// <summary>O <see cref="Handler"/> responde pela origem dicionário (fallback do ghost) em vez da IA.</summary>
+    public bool AnswersAsDictionary { get; set; }
 
     /// <summary>Política do último pedido recebido; o teste confere que o caminho automático pede sob LoadedOnly.</summary>
     public CompletionSourcePolicy? LastPolicy { get; private set; }

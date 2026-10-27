@@ -103,7 +103,9 @@ public sealed class LocalAutocompleteTests
         var service = new AutocompleteService(ai);
         var first = service.GetCompletionAsync(new("db.", ""));
         await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        await service.ConfigureAsync(new() { Enabled = false }).WaitAsync(TimeSpan.FromSeconds(5));
+        // Desde 27/10/2026 Enabled governa só o autocomplete normal; o modelo deixa de estar em uso quando o
+        // autocomplete com IA e o agente local estão desligados.
+        await service.ConfigureAsync(new() { Enabled = false, AiCompletionEnabled = false, ChatEnabled = false }).WaitAsync(TimeSpan.FromSeconds(5));
         Assert.That(async () => await first, Throws.InstanceOf<OperationCanceledException>());
         Assert.That(runtime.Disposed, Is.True);
         Assert.That(await service.GetCompletionAsync(new("cons", "")), Is.Null);

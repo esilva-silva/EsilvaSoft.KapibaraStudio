@@ -107,7 +107,7 @@ internal sealed class AiUiModelServiceFake : ILocalAiModelService
 }
 
 /// <summary>
-/// Lote A42: o comando <c>Ctrl+;</c> de verdade — indicador, prévia inline progressiva multilinha, aceite em uma
+/// Lote A42: o comando <c>Ctrl+.</c> de verdade — indicador, prévia inline progressiva multilinha, aceite em uma
 /// única edição, cancelamento e a matriz de fallback abrindo a lista tradicional com o motivo.
 /// </summary>
 /// <remarks>
@@ -141,7 +141,7 @@ public sealed class AiCompletionUiTests
             Dispatcher.UIThread.RunJobs();
         }
 
-        public void PressAi() => Window.KeyPress(Key.OemSemicolon, RawInputModifiers.Control, PhysicalKey.Semicolon, ";");
+        public void PressAi() => Window.KeyPress(Key.OemPeriod, RawInputModifiers.Control, PhysicalKey.Period, ".");
         public void Press(Key key, PhysicalKey physical) => Window.KeyPress(key, RawInputModifiers.None, physical, null);
     }
 
@@ -188,7 +188,7 @@ public sealed class AiCompletionUiTests
 
     /// <summary>
     /// Critério de aceite 1 da Fase 4, uma linha por vez: sem modelo, com pacote inválido, sem capacidade, com
-    /// provider indisponível e em cooldown, <c>Ctrl+;</c> abre a <em>lista tradicional</em> com a mensagem do motivo
+    /// provider indisponível e em cooldown, <c>Ctrl+.</c> abre a <em>lista tradicional</em> com a mensagem do motivo
     /// — nunca um diálogo, nunca um popup e nunca uma inserção no documento.
     /// </summary>
     [TestCase(LocalModelUnavailableReason.NoModelConfigured, "Nenhum modelo de IA selecionado")]
@@ -215,7 +215,7 @@ public sealed class AiCompletionUiTests
                 Assert.That(harness.ListPanel.IsVisible, Is.True, "A recusa da IA abre a lista tradicional.");
                 Assert.That(harness.ListStatus.Text, Does.Contain(expected), "A linha de estado explica o motivo.");
                 Assert.That(harness.AiPanel.IsVisible, Is.False, "O indicador de geração some junto com a recusa.");
-                Assert.That(harness.Tab.Text, Is.EqualTo(Document), "Ctrl+; nunca insere texto — nem o ';' do gesto.");
+                Assert.That(harness.Tab.Text, Is.EqualTo(Document), "Ctrl+. nunca insere texto — nem o '.' do gesto.");
             });
             if (reason == LocalModelUnavailableReason.Cooldown)
                 Assert.That(harness.ListStatus.Text, Does.Contain("Nova tentativa em"), "O cooldown mostra o tempo restante.");
@@ -354,7 +354,7 @@ public sealed class AiCompletionUiTests
     }
 
     /// <summary>
-    /// Arbitragem de apresentação: só existe um presenter visível por vez. <c>Ctrl+;</c> fecha a lista tradicional e
+    /// Arbitragem de apresentação: só existe um presenter visível por vez. <c>Ctrl+.</c> fecha a lista tradicional e
     /// assume a superfície (architecture.md), e o inverso continua valendo — <c>Ctrl+Espaço</c> descarta a prévia.
     /// </summary>
     [Test]
@@ -371,7 +371,7 @@ public sealed class AiCompletionUiTests
             harness.ShowIndicator();
             Assert.Multiple(() =>
             {
-                Assert.That(harness.ListPanel.IsVisible, Is.False, "Ctrl+; fecha a lista em vez de conviver com ela.");
+                Assert.That(harness.ListPanel.IsVisible, Is.False, "Ctrl+. fecha a lista em vez de conviver com ela.");
                 Assert.That(harness.AiPanel.IsVisible, Is.True, "E assume a superfície com o indicador de geração.");
                 Assert.That(harness.Tab.Text, Is.EqualTo(Document));
             });
@@ -548,6 +548,31 @@ public sealed class AiCompletionUiTests
                 Assert.That(harness.AiPanel.IsVisible, Is.False);
                 Assert.That(harness.Tab.Autocomplete.Settings.TraditionalEnabled, Is.False, "E a preferência continua como estava.");
                 Assert.That(harness.Tab.Text, Is.EqualTo(Document));
+            });
+        });
+    }
+
+    /// <summary>
+    /// Autocomplete com IA desligado nas preferências: Ctrl+. não pede nada ao modelo, não carrega modelo e cai na
+    /// lista do autocomplete normal com o motivo. O autocomplete normal continua independente da IA.
+    /// </summary>
+    [Test]
+    public async Task WithTheAiAutocompleteDisabledCtrlPeriodNeverReachesTheModelAndOpensTheList()
+    {
+        var models = new AiUiModelServiceFake();
+        await RunAsync(models, async harness =>
+        {
+            await harness.Tab.Autocomplete.ConfigureAsync(new AutocompleteSettings { AiCompletionEnabled = false });
+            Dispatcher.UIThread.RunJobs();
+
+            harness.PressAi();
+            await PumpAsync(() => harness.ListStatus.Text?.Contains("IA desabilitada") == true);
+            Assert.Multiple(() =>
+            {
+                Assert.That(harness.ListStatus.Text, Does.Contain("IA desabilitada nas preferências"));
+                Assert.That((models.StreamStarted, models.LoadCalls), Is.EqualTo((false, 0)), "Nada chega ao modelo.");
+                Assert.That(harness.AiPanel.IsVisible, Is.False);
+                Assert.That(harness.Tab.Text, Is.EqualTo(Document), "Ctrl+. nunca insere o '.' do gesto.");
             });
         });
     }

@@ -115,8 +115,10 @@ public sealed class InlineCompletionUiTests
         }, CancellationToken.None);
     }
 
+    private static readonly string[] TypedTexts = ["db.", "db.x", "db.y"];
+
     [Test]
-    public async Task AutomaticAiIsOffByDefaultAndEvenEnabledNeverLoadsAModelByItself()
+    public async Task TypingNeverReachesTheAiEvenWithTheLegacyOptInAndAModelReady()
     {
         var session = HeadlessUnitTestSession.GetOrStartForAssembly(typeof(UiTestApp).Assembly);
         await session.Dispatch<bool>(async () =>
@@ -125,7 +127,7 @@ public sealed class InlineCompletionUiTests
             var inferences = 0;
             var service = new CompletionServiceFake
             {
-                Status = new(LocalModelState.NotInstalled, "IA não instalada"),
+                Status = new(LocalModelState.Ready, "Pronto · cpu"),
                 Handler = _ => { Interlocked.Increment(ref inferences); return Task.FromResult<EsilvaSoft.KapibaraStudio.Autocomplete.Core.AutocompleteResult?>(new("find({})", true, "IA local")); }
             };
             using var workspace = new WorkspaceViewModel(context.Workspace, context.Repository, service);
@@ -137,36 +139,21 @@ public sealed class InlineCompletionUiTests
             var ghost = view.FindControl<Border>("CompletionPanel")!;
             editor.Focus();
 
-            // (a) Padrão: InlineUseAi ausente significa desligado, e digitar jamais chega ao gerador de IA.
-            editor.Text = "db."; editor.CaretIndex = editor.SelectionStart = editor.SelectionEnd = 3;
-            Dispatcher.UIThread.RunJobs();
-            await view.InlineCompletionTask.WaitAsync(TimeSpan.FromSeconds(5));
-            Dispatcher.UIThread.RunJobs();
-            Assert.That(inferences, Is.Zero, "Por padrão, digitar nunca dispara inferência local.");
+            // O autocomplete com IA está habilitado, o modelo está pronto e a sessão legada ainda traz InlineUseAi:
+            // mesmo assim digitar nunca envia texto ao modelo. A IA só roda pelo atalho explícito (Ctrl+.).
+            await service.ConfigureAsync(service.Settings with { AiCompletionEnabled = true, InlineUseAi = true, DelayMilliseconds = 50 });
+            foreach (var text in TypedTexts)
+            {
+                editor.Text = text; editor.CaretIndex = editor.SelectionStart = editor.SelectionEnd = text.Length;
+                Dispatcher.UIThread.RunJobs();
+                await view.InlineCompletionTask.WaitAsync(TimeSpan.FromSeconds(5));
+                Dispatcher.UIThread.RunJobs();
+            }
+            Assert.That(inferences, Is.Zero, "Digitar nunca dispara inferência local.");
             Assert.That(ghost.IsVisible, Is.False);
-
-            // (b) Opt-in ligado, mas modelo não carregado: LoadedOnly abstém-se em vez de carregar.
-            await service.ConfigureAsync(service.Settings with { InlineUseAi = true, DelayMilliseconds = 50 });
-            editor.Text = "db.x"; editor.CaretIndex = editor.SelectionStart = editor.SelectionEnd = 4;
-            Dispatcher.UIThread.RunJobs();
-            await view.InlineCompletionTask.WaitAsync(TimeSpan.FromSeconds(5));
-            Dispatcher.UIThread.RunJobs();
-            Assert.That(inferences, Is.Zero, "LoadedOnly: sem modelo pronto não há inferência automática nem carga.");
-            Assert.That(ghost.IsVisible, Is.False);
-            // O pedido chegou ao serviço, e chegou pedindo LoadedOnly: a abstenção é do dono do modelo, não uma
-            // filtragem oportunista do editor pelo Status (que reflete "algum" modelo, não o desta chave). A recusa
-            // real, com modelo de outra chave carregado, é exercida contra o LocalAiModelService em
-            // LocalAiModelServiceTests.AnAutomaticRequestNeverLoadsUnloadsOrSwapsTheModelOfAnotherKey.
-            Assert.That(service.LastPolicy!.Value.MayLoadModel, Is.False);
-
-            // (c) Com o modelo já pronto, o opt-in passa a valer.
-            service.Status = new(LocalModelState.Ready, "Pronto · cpu");
-            editor.Text = "db.y"; editor.CaretIndex = editor.SelectionStart = editor.SelectionEnd = 4;
-            Dispatcher.UIThread.RunJobs();
-            await view.InlineCompletionTask.WaitAsync(TimeSpan.FromSeconds(5));
-            Dispatcher.UIThread.RunJobs();
-            Assert.That(ghost.IsVisible, Is.True);
-            Assert.That(inferences, Is.EqualTo(1));
+            Assert.That(service.LastPolicy, Is.Not.Null, "O fallback do dicionário ainda é pedido ao serviço.");
+            Assert.That((service.LastPolicy!.Value.Ai, service.LastPolicy.Value.MayLoadModel), Is.EqualTo((false, false)),
+                "O pedido automático exclui a IA e nunca pode carregar modelo.");
 
             typeof(MainWindow).GetField("_allowClose", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.SetValue(window, true);
             window.Close(); return true;
@@ -174,7 +161,7 @@ public sealed class InlineCompletionUiTests
     }
 
     [Test]
-    public async Task WithTheDeterministicSourceOffTheDictionaryNeverBecomesTheGhost()
+    public async Task TheDictionaryFallbackFollowsOnlyUseDictionaryAndIgnoresLegacyInlineFlags()
     {
         var session = HeadlessUnitTestSession.GetOrStartForAssembly(typeof(UiTestApp).Assembly);
         await session.Dispatch<bool>(async () =>
@@ -191,31 +178,28 @@ public sealed class InlineCompletionUiTests
             var ghost = view.FindControl<Border>("CompletionPanel")!;
             editor.Focus();
 
-            // Controle: com a origem determinística ligada, o dicionário é quem responde e o ghost aparece.
+            async Task TypeAsync(string text)
+            {
+                editor.Text = ""; editor.CaretIndex = editor.SelectionStart = editor.SelectionEnd = 0;
+                Dispatcher.UIThread.RunJobs();
+                await view.InlineCompletionTask.WaitAsync(TimeSpan.FromSeconds(5));
+                editor.Text = text; editor.CaretIndex = editor.SelectionStart = editor.SelectionEnd = text.Length;
+                Dispatcher.UIThread.RunJobs();
+                await view.InlineCompletionTask.WaitAsync(TimeSpan.FromSeconds(5));
+                Dispatcher.UIThread.RunJobs();
+            }
+
+            // As flags legadas que antes desligavam o ghost não têm mais efeito: o ghost segue só Enabled.
             await service.ConfigureAsync(service.Settings with
-            { UseDictionary = true, InlineUseTraditional = true, InlineUseAi = false, DelayMilliseconds = 50 });
-            editor.Text = "const customer = 1; cust";
-            editor.CaretIndex = editor.SelectionStart = editor.SelectionEnd = editor.Text.Length;
-            Dispatcher.UIThread.RunJobs();
-            await view.InlineCompletionTask.WaitAsync(TimeSpan.FromSeconds(5));
-            Dispatcher.UIThread.RunJobs();
-            Assert.That(ghost.IsVisible, Is.True, "Pré-condição: este texto tem resposta do dicionário lexical.");
+            { UseDictionary = true, InlineEnabled = false, InlineUseTraditional = false, InlineUseAi = true, DelayMilliseconds = 50 });
+            await TypeAsync("const customer = 1; cust");
+            Assert.That(ghost.IsVisible, Is.True, "O autocomplete normal sempre sugere em texto fantasma.");
             Assert.That(view.FindControl<InlineCompletionTextBlock>("CompletionText")!.Suggestion, Is.EqualTo("omer"));
 
-            // Combinação persistível e o ponto do achado: dicionário ligado, origem determinística desligada, IA
-            // ligada. O dicionário não pode voltar por um atalho interno e chegar ao editor como sugestão não-IA.
-            await service.ConfigureAsync(service.Settings with
-            { UseDictionary = true, InlineUseTraditional = false, InlineUseAi = true, DelayMilliseconds = 50 });
-            editor.Text = ""; editor.CaretIndex = editor.SelectionStart = editor.SelectionEnd = 0;
-            Dispatcher.UIThread.RunJobs();
-            await view.InlineCompletionTask.WaitAsync(TimeSpan.FromSeconds(5));
-            Dispatcher.UIThread.RunJobs();
-            editor.Text = "const customer = 1; cust";
-            editor.CaretIndex = editor.SelectionStart = editor.SelectionEnd = editor.Text.Length;
-            Dispatcher.UIThread.RunJobs();
-            await view.InlineCompletionTask.WaitAsync(TimeSpan.FromSeconds(5));
-            Dispatcher.UIThread.RunJobs();
-            Assert.That(ghost.IsVisible, Is.False, "Com InlineUseTraditional desligado, o dicionário não vira ghost.");
+            // Sem o dicionário local, este texto não tem resposta determinística e a IA não entra no lugar.
+            await service.ConfigureAsync(service.Settings with { UseDictionary = false });
+            await TypeAsync("const customer = 1; cust");
+            Assert.That(ghost.IsVisible, Is.False, "Desligar o dicionário não faz a IA aparecer no ghost.");
 
             typeof(MainWindow).GetField("_allowClose", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.SetValue(window, true);
             window.Close(); return true;

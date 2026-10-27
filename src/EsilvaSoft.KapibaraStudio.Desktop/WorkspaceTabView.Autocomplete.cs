@@ -301,20 +301,17 @@ public partial class WorkspaceTabView
     /// <summary>
     /// Geração da sugestão automática, já depois do atraso e ainda na thread de UI (a captura de contexto acontece
     /// aqui; o trabalho pesado vai para o pool dentro de cada origem). Ordem fixa: determinístico contextual primeiro;
-    /// se ele se abstém, as origens restantes permitidas pela política (dicionário lexical local e, só com opt-in
-    /// explícito, inferência de IA) — sempre sob LoadedOnly, nunca carregando, trocando ou inicializando modelo.
+    /// se ele se abstém, o dicionário lexical local. A IA nunca participa do ghost: o autocomplete com IA só roda
+    /// pelo atalho explícito (<see cref="EditorCommandIds.CompletionAi"/>), então digitar nunca envia texto ao modelo.
     /// </summary>
     private async Task<InlineCompletionSuggestion?> ComputeInlineCompletionAsync(WorkspaceTabViewModel tab,
         AutocompleteSettings settings, string original, int caret, CancellationToken token)
     {
         var traditional = InlineCompletionPolicy.TraditionalInline(settings);
         token.ThrowIfCancellationRequested();
-        // Origens do pedido decididas de uma vez pela política: o dicionário lexical só participa quando a origem
-        // determinística está ligada (com InlineUseTraditional desligado ele não reaparece por atalho interno), e
-        // MayLoadModel falso é a política LoadedOnly — quem a impõe é o dono do modelo, não este chamador, de modo que
-        // digitar não carrega, não descarrega e não troca o modelo de nenhuma chave.
-        var sources = new CompletionSourcePolicy(traditional && settings.UseDictionary,
-            InlineCompletionPolicy.AiInline(settings), MayLoadModel: false);
+        // Origens do pedido decididas de uma vez pela política: só o dicionário lexical, e nunca a IA. MayLoadModel
+        // falso continua como defesa em profundidade — digitar não carrega, não descarrega e não troca modelo algum.
+        var sources = new CompletionSourcePolicy(traditional && settings.UseDictionary, Ai: false, MayLoadModel: false);
         if (sources.None) return null;
         var request = tab.CaptureAutocompleteRequest(original, caret);
         // O atraso já foi aplicado pelo coordenador; o caminho legado não deve aplicá-lo de novo.
@@ -478,7 +475,7 @@ public partial class WorkspaceTabView
             if (command == EditorCommandIds.SnippetPrevious && MoveSnippetPlaceholder(reverse: true)) { e.Handled = true; return; }
             if (command == EditorCommandIds.SnippetCancel) { _snippetSession = null; e.Handled = true; return; }
         }
-        // A prévia da IA explícita ocupa o mesmo escopo Inline do ghost (AC-18: Ctrl+; é uma prévia inline) e as duas
+        // A prévia da IA explícita ocupa o mesmo escopo Inline do ghost (AC-18: Ctrl+. é uma prévia inline) e as duas
         // nunca estão ativas ao mesmo tempo, então não há ambiguidade: Tab insere a prévia, Esc cancela a geração.
         if (_aiPresenter.IsActive)
         {

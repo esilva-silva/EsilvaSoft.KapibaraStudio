@@ -2,6 +2,8 @@
 
 > Integração Snapdragon em andamento: distribuição Windows ARM64 com GenAI 0.18.0 e QNN 2.7, catálogo HTP e provisionamento automático dos pacotes públicos, mantendo Nano CPU int4 como padrão. A execução real no notebook e a equivalência de qualidade na nova versão ainda precisam de validação. [Estado e evidências](architecture/remote-kapicoder-catalog.md).
 
+**Autocomplete normal × autocomplete com IA — 27/10/2026:** separação implementada ([ADR-076](10-decisoes-arquiteturais.md)). O ghost determinístico segue só `Enabled` e `Ctrl+Espaço` abre a lista; a IA segue `AiCompletionEnabled` e só envia texto ao modelo em `Ctrl+.` (`Ctrl+;` saiu dos padrões). Flags `Inline*` legadas sem efeito; tela em seções Autocomplete / Autocomplete com IA / Agente IA / Modelo local. Evidência Headless em [matriz](15-matriz-de-validacao.md#separação-autocomplete-normal--autocomplete-com-ia-27102026); teclado físico, IME, leitor de tela e modelo real pendentes.
+
 **Pacotes ONNX publicados — 26/10/2026:** as fontes padrão são KapiCoder-Mongo-Nano-ONNX e Small-ONNX, com Nano CPU INT4 selecionado primeiro. Os exports completos e manifestos estão publicados com a tag v0.1.0-preview, com integridade verificada no Hub. Safetensors permanece informativo quando listado por fonte personalizada. [Contrato e evidências](architecture/remote-kapicoder-catalog.md).
 
 **IA local — 26/10/2026:** [EOS e cache CPU experimental](architecture/local-ai-eos-prefix-cache.md). EOS corrigido; cache por sessão disponível somente como experimento, sem pacote homologado. Paridade/qualidade/latência reais e seleção de nova versão GenAI permanecem pendentes.

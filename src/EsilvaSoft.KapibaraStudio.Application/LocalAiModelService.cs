@@ -138,7 +138,7 @@ public sealed class LocalAiModelService(ILocalModelCatalog catalog, Func<ILocalM
         await _gate.WaitAsync((int)AiRequestPriority.Interactive, cancellationToken).ConfigureAwait(false);
         try
         {
-            var inUse = settings.Enabled && settings.Mode != AutocompleteMode.Basic;
+            var inUse = settings.UsesLocalModel;
             // Only the model identity (folder and hardware) forces a reload; token budgets and editor options do not.
             if (!inUse || _key is not null && _key != KeyFor(LocalModelRole.Autocomplete, settings) && _key != KeyFor(LocalModelRole.Chat, settings))
                 await UnloadCoreAsync().ConfigureAwait(false);
@@ -522,7 +522,7 @@ public sealed class LocalAiModelService(ILocalModelCatalog catalog, Func<ILocalM
 
     /// <summary>
     /// Toma a vez na fila do proprietário único. <see cref="AiRequestPriority.Interactive"/> espera sem limite — é
-    /// ação explícita (chat, <c>Ctrl+;</c>, teste de modelo) e o usuário está esperando. <see cref="AiRequestPriority.Background"/>
+    /// ação explícita (chat, <c>Ctrl+.</c>, teste de modelo) e o usuário está esperando. <see cref="AiRequestPriority.Background"/>
     /// espera no máximo <see cref="BackgroundQueueBudget"/> atrás de um turno já em andamento (ver o comentário da
     /// constante); vencido o orçamento, a espera termina em <see cref="LocalModelPreemptedException"/> — não em
     /// <see cref="OperationCanceledException"/> crua — porque quem chama (<see cref="AiAutocompleteProvider"/>) já

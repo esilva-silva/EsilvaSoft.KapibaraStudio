@@ -11,11 +11,11 @@ using EsilvaSoft.KapibaraStudio.Desktop.ViewModels;
 namespace EsilvaSoft.KapibaraStudio.Desktop;
 
 /// <summary>
-/// IA explícita (<c>Ctrl+;</c>): indicador de geração, prévia inline progressiva multilinha, aceite em uma única
+/// Autocomplete com IA, sempre explícito (<c>Ctrl+.</c>): indicador de geração, prévia inline progressiva multilinha, aceite em uma única
 /// edição e fallback para a lista tradicional com o motivo.
 /// </summary>
 /// <remarks>
-/// <para><strong>Arbitragem.</strong> <c>Ctrl+;</c> é do escopo <c>Global</c> e segue a precedência já documentada
+/// <para><strong>Arbitragem.</strong> <c>Ctrl+.</c> é do escopo <c>Global</c> e segue a precedência já documentada
 /// (Lista &gt; Snippet &gt; Inline &gt; Global): ele só é alcançado quando nenhum estado ativo reivindicou a tecla.
 /// Ao ser alcançado, faz o que a arquitetura já decidiu — fecha a lista, substitui o ghost e assume a superfície.
 /// Enquanto a prévia está ativa, o ghost automático não é sequer pedido (<c>CaptureInlineState</c>), de modo que
@@ -103,12 +103,12 @@ public partial class WorkspaceTabView
     /// </summary>
     private async void StartAiCompletion(WorkspaceTabViewModel tab)
     {
-        // Ctrl+; fecha a lista e substitui o ghost: é a arbitragem já registrada em architecture.md. Também cancela
-        // um pedido explícito anterior desta mesma view — um Ctrl+; substitui o outro, nunca convive com ele.
+        // Ctrl+. fecha a lista e substitui o ghost: é a arbitragem já registrada em architecture.md. Também cancela
+        // um pedido explícito anterior desta mesma view — um Ctrl+. substitui o outro, nunca convive com ele.
         InvalidateCompletion();
         if (CodeEditor.SelectionStart != CodeEditor.SelectionEnd) return;
         var settings = tab.Autocomplete.Settings;
-        if (!settings.Enabled || settings.Mode == AutocompleteMode.Basic)
+        if (!InlineCompletionPolicy.AiCompletion(settings))
         {
             FallbackToTraditionalList(AiCompletionFallbackMessages.Disabled);
             return;

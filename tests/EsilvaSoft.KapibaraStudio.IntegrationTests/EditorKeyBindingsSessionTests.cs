@@ -125,7 +125,7 @@ public sealed class EditorKeyBindingsSessionTests
     }
 
     [Test]
-    public async Task ASessionThatOverridesTheListWithCtrlDotStaysReadableEvenThoughItIsNoLongerADefault()
+    public async Task ASessionThatOverridesTheListWithCtrlDotStaysReadableAfterCtrlDotBecameTheAiDefault()
     {
         var path = NewDatabasePath();
         var custom = new Dictionary<string, string[]> { ["editor.completion.show"] = ["Ctrl+."] };
@@ -138,7 +138,8 @@ public sealed class EditorKeyBindingsSessionTests
             {
                 Assert.That(restored!.Bindings, Is.EqualTo(custom), "O override do usuário nunca é reescrito nem removido.");
                 Assert.That(restored.Version, Is.EqualTo(1));
-                Assert.That(dispatcher.Match(new(EditorKeyModifiers.Control, '.', null, '.'), EditorCommandScope.Global), Is.EqualTo(EditorCommandIds.CompletionShow));
+                Assert.That(dispatcher.Match(new(EditorKeyModifiers.Control, '.', null, '.'), EditorCommandScope.Global), Is.EqualTo(EditorCommandIds.CompletionShow),
+                    "O override salvo antes da mudança do padrão continua vencendo o novo padrão da IA.");
             });
         }
         // O serializador escapa '+' como +; o que importa é que só a entrada escrita pelo usuário está no disco.

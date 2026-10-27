@@ -65,53 +65,41 @@ public sealed class AutocompleteSettingsViewModelTests
     }
 
     [Test]
-    public async Task UntouchedInlineFlagsStayAbsentAndFollowTheirLiveDefaults()
+    public async Task AiAutocompleteFlagIsExplicitAndLegacyInlineFlagsArePreserved()
     {
         AutocompleteSettings? saved = null;
         var preferences = new AutocompleteSettingsViewModel(new CompletionServiceFake(), catalog: null, settings => { saved = settings; return Task.CompletedTask; });
-        preferences.Load(new());
+        preferences.Load(new() { InlineEnabled = false, InlineUseAi = true });
+        Assert.That(preferences.AiCompletionEnabled, Is.True);
 
-        // Nothing was touched: the effective values mirror the defaults, and no override is materialized.
-        Assert.That((preferences.InlineEnabledEffective, preferences.InlineUseTraditionalEffective, preferences.InlineUseAiEffective), Is.EqualTo((true, true, false)));
-        Assert.That((preferences.InlineEnabledIsOverridden, preferences.InlineUseTraditionalIsOverridden, preferences.InlineUseAiIsOverridden), Is.EqualTo((false, false, false)));
-
-        // InlineUseTraditional keeps tracking UseDictionary live while it has no explicit override.
-        preferences.UseDictionary = false;
-        Assert.That(preferences.InlineUseTraditionalEffective, Is.False);
-        Assert.That(preferences.InlineUseTraditionalIsOverridden, Is.False);
-
+        preferences.AiCompletionEnabled = false;
         await preferences.ApplyCommand.ExecuteAsync(null);
-        Assert.That(saved!.InlineEnabledValue, Is.Null, "Never touched by the user: the field stays absent in the persisted document.");
-        Assert.That(saved.InlineUseTraditionalValue, Is.Null);
-        Assert.That(saved.InlineUseAiValue, Is.Null);
-        // The effective (derived) values must still be correct for a fresh load elsewhere in the app.
-        Assert.That((saved.InlineEnabled, saved.InlineUseTraditional, saved.InlineUseAi), Is.EqualTo((true, false, false)));
+        Assert.Multiple(() =>
+        {
+            Assert.That(saved!.AiCompletionEnabledValue, Is.False, "A escolha da tela é gravada como valor explícito.");
+            Assert.That(saved.Mode, Is.EqualTo(AutocompleteMode.Automatic), "O modo legado não volta a ser escrito pela tela.");
+            Assert.That((saved.InlineEnabledValue, saved.InlineUseAiValue), Is.EqualTo(((bool?)false, (bool?)true)),
+                "Campos sem controle na tela continuam como estavam no documento.");
+        });
+        preferences.Load(saved!);
+        Assert.That(preferences.AiCompletionEnabled, Is.False);
     }
 
     [Test]
-    public async Task TogglingAnInlineFlagMaterializesAnExplicitValueAndResetClearsIt()
+    public async Task LegacyBasicModeMigratesToAiAndAgentOffWithoutReenablingThem()
     {
         AutocompleteSettings? saved = null;
         var preferences = new AutocompleteSettingsViewModel(new CompletionServiceFake(), catalog: null, settings => { saved = settings; return Task.CompletedTask; });
-        preferences.Load(new());
+        preferences.Load(new() { Mode = AutocompleteMode.Basic, ChatEnabled = true });
+        Assert.That((preferences.AiCompletionEnabled, preferences.ChatEnabled), Is.EqualTo((false, false)));
 
-        preferences.InlineUseAiEffective = true;
-        Assert.That(preferences.InlineUseAiIsOverridden, Is.True);
         await preferences.ApplyCommand.ExecuteAsync(null);
-        Assert.That(saved!.InlineUseAiValue, Is.True, "A user toggle must persist as an explicit value, not just the effective default.");
-
-        preferences.ResetInlineUseAiCommand.Execute(null);
-        Assert.That(preferences.InlineUseAiIsOverridden, Is.False);
-        Assert.That(preferences.InlineUseAiEffective, Is.False);
-        await preferences.ApplyCommand.ExecuteAsync(null);
-        Assert.That(saved.InlineUseAiValue, Is.Null, "Usar padrão must restore the absent state, not just flip the checkbox back to false.");
-
-        // An explicit false must be distinguished from absence when reloaded (round-trip through Load/Snapshot).
-        preferences.InlineEnabledEffective = false;
-        var snapshot = preferences.Snapshot();
-        Assert.That(snapshot.InlineEnabledValue, Is.False);
-        preferences.Load(snapshot);
-        Assert.That((preferences.InlineEnabledEffective, preferences.InlineEnabledIsOverridden), Is.EqualTo((false, true)));
+        Assert.Multiple(() =>
+        {
+            Assert.That(saved!.Mode, Is.EqualTo(AutocompleteMode.Automatic));
+            Assert.That(saved.AiCompletionEnabled, Is.False);
+            Assert.That(saved.LocalAgentEnabled, Is.False, "Salvar a tela não liga o agente que o modo Básico desligava.");
+        });
     }
 
     [Test]

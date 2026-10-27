@@ -1,6 +1,6 @@
 namespace EsilvaSoft.KapibaraStudio.Desktop;
 
-/// <summary>Em que ponto está a prévia da IA explícita (<c>Ctrl+;</c>) deste editor.</summary>
+/// <summary>Em que ponto está a prévia da IA explícita (<c>Ctrl+.</c>) deste editor.</summary>
 public enum AiCompletionPreviewState
 {
     /// <summary>Nada pedido, nada à mostra.</summary>
@@ -30,7 +30,7 @@ public enum AiCompletionPreviewState
 /// lista, não há item, não há filtro e não há seleção — há um texto que cresce por pedaços e que só vale enquanto o
 /// documento não mudou. Reusar a classe significaria esvaziar metade dela. O que <em>não</em> é duplicado é a
 /// superfície: a prévia da IA, a lista tradicional e o ghost automático nunca aparecem juntos, porque
-/// <c>Ctrl+;</c> começa invalidando os outros dois e enquanto esta prévia está ativa o ghost não é pedido.</para>
+/// <c>Ctrl+.</c> começa invalidando os outros dois e enquanto esta prévia está ativa o ghost não é pedido.</para>
 /// <para><strong>Resultado obsoleto.</strong> <see cref="Generation"/> avança a cada pedido <em>e a cada</em>
 /// <see cref="Reset"/>. Quem consome o fluxo carrega o número que recebeu em <see cref="Begin"/> e só pode desenhar
 /// enquanto <see cref="IsCurrent"/> for verdadeiro — um provedor lento que ignore o cancelamento continua entregando

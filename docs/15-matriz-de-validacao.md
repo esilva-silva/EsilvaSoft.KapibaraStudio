@@ -260,7 +260,7 @@ Build `dotnet build EsilvaSoft.KapibaraStudio.slnx --no-restore`: **0 avisos, 0 
 | P51 — coordinator, debounce, cancelamento | 20 teclas abaixo do debounce → 20 lookups determinísticos locais, zero inferências IA; pausa gera exatamente um fallback; sete gatilhos de cancelamento cobertos |
 | P52 — provider determinístico e confiança | Abstenção por ambiguidade/truncamento/palavra completa/snippet; funcionamento sem modelo/MongoDB |
 | P53 — presenter, typeahead, undo | Aceite como operação única de undo sem executar consulta; isolamento entre abas |
-| Flags inline e migração | Quatro combinações de `InlineUseTraditional`/`InlineUseAi`; ausente ≠ `false` explícito; migração v1 com `InlineUseAi = false` |
+| Flags inline e migração | Histórico (18/09/2026): quatro combinações de `InlineUseTraditional`/`InlineUseAi`. Desde 27/10/2026 as flags são lidas e ignoradas; ver [separação normal × IA](#separação-autocomplete-normal--autocomplete-com-ia-27102026) |
 | Camada 0 do inline (computação) | p95 0,009 ms (catálogo de linguagem) e p95 0,068 ms (200 campos de schema); orçamento de 5 ms atendido |
 | Cache de tokens da Fase 2 | Refiltro com lista aberta: 64 KiB/fim 0,37×, 1 MiB/meio 0,14×, 1 MiB/início 71 ns; análise por tecla de volta a 7,38 ms (baseline 7,78 ms) |
 
@@ -279,9 +279,9 @@ Build `dotnet build EsilvaSoft.KapibaraStudio.slnx --no-restore`: **0 avisos, 0 
 ### Pendências de escopo, não de evidência
 
 - K17 (relatório de performance do catálogo) permanece fora desta meta; L11–L15 estão implementados com testes, enquanto L16 (benchmark/gate de performance) permanece fora desta meta.
-- `InlineEnabled`/`InlineUseTraditional`/`InlineUseAi` têm bindings e controles em `AutocompleteSettingsWindow`; a anotação anterior que dizia serem editáveis só via JSON estava desatualizada.
+- `InlineEnabled`/`InlineUseTraditional`/`InlineUseAi` tiveram controles em `AutocompleteSettingsWindow` de 18/09 a 27/10/2026; desde então são legados sem efeito e sem controle.
 - Registro histórico: os arquivos `.case` em `tests/.../Language/Cases/` estavam sem runner. Desde 21/09/2026, o runner automatizado cobre parsing, papéis, shapes, kinds, aspas, `ReplaceSpan`, edições/snippets e ranking tipado (**675 fixtures aprovados**); o gate agregado publica MRR/top-1/top-5 e as integrações de namespace metadata, schema learning e `$lookup` têm cobertura determinística complementar.
-- Fases 5.2 e 5.3 estão implementadas no fluxo automático com fakes: `LoadedOnly`, debounce, cancelamento, descarte por geração e arbitragem tradicional → IA são cobertos. A Fase 4 também tem `Ctrl+;`, indicador, prévia inline multilinha e matriz de fallback; o caminho com modelo ONNX real continua fora da validação desta meta.
+- Fases 5.2 e 5.3 estão implementadas no fluxo automático com fakes: `LoadedOnly`, debounce, cancelamento, descarte por geração e arbitragem tradicional → IA são cobertos. A Fase 4 também tem a IA explícita (`Ctrl+;`, hoje `Ctrl+.`), indicador, prévia inline multilinha e matriz de fallback; o caminho com modelo ONNX real continua fora da validação desta meta.
 
 Detalhe: [acompanhamento](12-acompanhamento-da-implementacao.md#fase-1-k11k16-k16-b-e-fase-51-traditional-preemptive--18092026),
 [phase-1-data-traditional](auto-complite/phases/phase-1-data-traditional.md),
@@ -294,6 +294,19 @@ Build focalizado e suíte UnitTests foram executados em Windows x64: **1126 apro
 ### W0 — Política de atalhos do autocomplete (18/09/2026)
 
 Build Windows x64: **0 avisos, 0 erros**. Suíte completa: **1170 aprovados, 0 falhas**. Evidência cobre `EditorCommandScope`/`EditorCommandDispatcher`/`EditorKeyBindings` (Core), o roteamento por escopo em `WorkspaceTabView.Autocomplete.cs` e a projeção de exibição pt-BR em `WorkspaceTabViewModel.GestureText` (Desktop), incluindo os três defeitos de casamento de tecla corrigidos (modificador solitário, `Enter` físico, no-op de `↑`/`↓`). Não homologado por esta evidência: layouts físicos reais (ABNT2/US em Windows; X11/Wayland em Linux), IME real e leitor de tela — teste Headless não os substitui. Detalhe em [política de atalhos](auto-complite/editor-integration.md#arbitragem-de-teclado), [AC-08](auto-complite/decisions.md#ac-08--atalhos) e [acompanhamento](12-acompanhamento-da-implementacao.md#w0--política-de-atalhos-do-autocomplete-18092026--concluído).
+
+### Separação autocomplete normal × autocomplete com IA (27/10/2026)
+
+| Caso | Evidência automatizada |
+| --- | --- |
+| Política: ghost segue `Enabled`, IA segue `AiCompletionEnabled`, flags `Inline*` ignoradas, migração de `Mode` | `InlineCompletionSettingsTests` |
+| Digitar nunca chega à IA, mesmo com `InlineUseAi` legado e modelo pronto | `InlineCompletionUiTests.TypingNeverReachesTheAiEvenWithTheLegacyOptInAndAModelReady` |
+| Fallback do dicionário segue só `UseDictionary` | `InlineCompletionUiTests.TheDictionaryFallbackFollowsOnlyUseDictionaryAndIgnoresLegacyInlineFlags` |
+| `Ctrl+.` padrão da IA, `Ctrl+;` fora dos padrões, override salvo de `Ctrl+.` vence | `EditorKeyBindingsTests`, `EditorKeyBindingsSessionTests` |
+| `Ctrl+.` no editor: prévia, fallback com motivo, IA desligada não consulta o modelo, `.` nunca inserido | `AiCompletionUiTests`, `TraditionalCompletionUiTests` |
+| Tela em seções, Básico legado não religa IA/agente | `AutocompleteSettingsViewModelTests`, `AutocompleteUiTests.SettingsSeparateNormalAndAiAutocompleteInBothThemes` (PNGs claro/escuro) |
+
+Não homologado: `Ctrl+.` em teclado físico ABNT2/US, IMEs asiáticos, leitor de tela e modelo ONNX real. [ADR-076](10-decisoes-arquiteturais.md) e [DEC-AI-SPLIT](auto-complite/decisions.md#dec-ai-split).
 
 ## Autocomplete — Fase 1: catálogo de conhecimento — 14/09/2026
 

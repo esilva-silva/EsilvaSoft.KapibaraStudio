@@ -45,14 +45,6 @@ public sealed partial class AutocompleteSettingsViewModel(IAutocompleteService s
         return value;
     }
 
-    public IReadOnlyList<string> Modes
-    {
-        get
-        {
-            _ = _loaded;
-            return [T("autocompleteModeAuto"), T("autocompleteModeBasic"), T("autocompleteModeLocalAi")];
-        }
-    }
     public ObservableCollection<HardwareOption> HardwareOptions { get; } = CreateHardwareOptions();
     public ObservableCollection<LocalModelOption> Models { get; } = [];
     public ObservableCollection<LocalModelOption> AgentModels { get; } = [];
@@ -75,7 +67,8 @@ public sealed partial class AutocompleteSettingsViewModel(IAutocompleteService s
     ];
 
     [ObservableProperty] private bool _enabled = true;
-    [ObservableProperty] private int _modeIndex;
+    /// <summary>Autocomplete com IA (<c>Ctrl+.</c>), independente do autocomplete normal (<see cref="Enabled"/>).</summary>
+    [ObservableProperty] private bool _aiCompletionEnabled = true;
     [ObservableProperty] private int _hardwareIndex;
     [ObservableProperty, NotifyPropertyChangedFor(nameof(EffectiveModelDirectory))] private string _modelDirectory = "";
     /// <summary>External model folder; setting it selects that folder.</summary>
@@ -96,18 +89,6 @@ public sealed partial class AutocompleteSettingsViewModel(IAutocompleteService s
     [ObservableProperty] private bool _incrementalTab = true;
     [ObservableProperty] private bool _completionAutoOpenOnTrigger;
     [ObservableProperty] private bool _completionEnterAccepts = true;
-    // As três propriedades abaixo espelham o par valor/efetivo de AutocompleteSettings: o campo privado guarda
-    // exatamente o que está persistido (nulo = ausente/nunca tocado pelo usuário nesta janela) e a propriedade
-    // "Effective" alimenta o CheckBox. Um toggle do usuário materializa o valor explícito; "Usar padrão" volta a nulo.
-    private bool? _inlineEnabledOverride;
-    private bool? _inlineUseTraditionalOverride;
-    private bool? _inlineUseAiOverride;
-    [ObservableProperty] private bool _inlineEnabledEffective = true;
-    [ObservableProperty] private bool _inlineEnabledIsOverridden;
-    [ObservableProperty] private bool _inlineUseTraditionalEffective = true;
-    [ObservableProperty] private bool _inlineUseTraditionalIsOverridden;
-    [ObservableProperty] private bool _inlineUseAiEffective;
-    [ObservableProperty] private bool _inlineUseAiIsOverridden;
     [ObservableProperty, NotifyPropertyChangedFor(nameof(HasModelDetails))] private string _modelDetails = "";
     [ObservableProperty, NotifyPropertyChangedFor(nameof(HasModelDiagnostics))] private string _modelDiagnostics = "";
     [ObservableProperty] private string _detectedHardware = T("modelHardwareNotQueried");
@@ -122,59 +103,7 @@ public sealed partial class AutocompleteSettingsViewModel(IAutocompleteService s
         RefreshTokenBudget();
     }
 
-    partial void OnInlineEnabledEffectiveChanged(bool value)
-    {
-        if (_loading) return;
-        _inlineEnabledOverride = value;
-        InlineEnabledIsOverridden = true;
-    }
-
-    partial void OnInlineUseTraditionalEffectiveChanged(bool value)
-    {
-        if (_loading) return;
-        _inlineUseTraditionalOverride = value;
-        InlineUseTraditionalIsOverridden = true;
-    }
-
-    partial void OnInlineUseAiEffectiveChanged(bool value)
-    {
-        if (_loading) return;
-        _inlineUseAiOverride = value;
-        InlineUseAiIsOverridden = true;
-    }
-
-    /// <summary>Sem override explícito, a sugestão determinística automática segue o dicionário local, como no valor efetivo do modelo.</summary>
-    partial void OnUseDictionaryChanged(bool value)
-    {
-        if (_loading || _inlineUseTraditionalOverride.HasValue) return;
-        SetEffectiveWhileLoading(() => InlineUseTraditionalEffective = value);
-    }
-
-    [RelayCommand]
-    private void ResetInlineEnabled()
-    {
-        _inlineEnabledOverride = null;
-        InlineEnabledIsOverridden = false;
-        SetEffectiveWhileLoading(() => InlineEnabledEffective = true);
-    }
-
-    [RelayCommand]
-    private void ResetInlineUseTraditional()
-    {
-        _inlineUseTraditionalOverride = null;
-        InlineUseTraditionalIsOverridden = false;
-        SetEffectiveWhileLoading(() => InlineUseTraditionalEffective = UseDictionary);
-    }
-
-    [RelayCommand]
-    private void ResetInlineUseAi()
-    {
-        _inlineUseAiOverride = null;
-        InlineUseAiIsOverridden = false;
-        SetEffectiveWhileLoading(() => InlineUseAiEffective = false);
-    }
-
-    /// <summary>Reassigns an "Effective" property without the change being mistaken for a fresh user override.</summary>
+    /// <summary>Reassigns properties without the change being mistaken for a fresh user choice.</summary>
     private void SetEffectiveWhileLoading(Action assign)
     {
         var wasLoading = _loading;
@@ -211,22 +140,17 @@ public sealed partial class AutocompleteSettingsViewModel(IAutocompleteService s
         _loading = true;
         try
         {
-            Enabled = settings.Enabled; ModeIndex = (int)settings.Mode; HardwareIndex = (int)settings.Acceleration;
+            Enabled = settings.Enabled; AiCompletionEnabled = settings.AiCompletionEnabled; HardwareIndex = (int)settings.Acceleration;
             ContextTokens = settings.ContextTokens; MaximumTokens = settings.MaximumCompletionTokens;
             DelayMilliseconds = settings.DelayMilliseconds; _executionProvider = settings.ExecutionProvider;
             UseDictionary = settings.UseDictionary; UseInputPanelContext = settings.UseInputPanelContext;
             UseResultPanelContext = settings.UseResultPanelContext; UseEditorContext = settings.UseEditorContext;
-            IncrementalTab = settings.IncrementalTab; ChatEnabled = settings.ChatEnabled;
+            // O modo legado Basic desligava também o agente; a tela não mostra mais o modo, então o reflete na caixa.
+            IncrementalTab = settings.IncrementalTab; ChatEnabled = settings.LocalAgentEnabled;
             LocalAiContextEnabled = settings.LocalAiContextEnabled; _chatModel = settings.ChatModel;
             OnPropertyChanged(nameof(ChatModel));
             IncludeInputJsonInLocalAiContext = settings.IncludeInputJsonInLocalAiContext;
             CompletionAutoOpenOnTrigger = settings.CompletionAutoOpenOnTrigger; CompletionEnterAccepts = settings.CompletionEnterAccepts;
-            _inlineEnabledOverride = settings.InlineEnabledValue; InlineEnabledIsOverridden = _inlineEnabledOverride.HasValue;
-            InlineEnabledEffective = settings.InlineEnabled;
-            _inlineUseTraditionalOverride = settings.InlineUseTraditionalValue; InlineUseTraditionalIsOverridden = _inlineUseTraditionalOverride.HasValue;
-            InlineUseTraditionalEffective = settings.InlineUseTraditional;
-            _inlineUseAiOverride = settings.InlineUseAiValue; InlineUseAiIsOverridden = _inlineUseAiOverride.HasValue;
-            InlineUseAiEffective = settings.InlineUseAi;
             ModelDirectory = settings.ModelDirectory; ModelPath = settings.ModelPath;
             Models.Clear();
             SelectedModelOption = settings.SelectedModel.Length > 0 ? Add(new(settings.SelectedModel, false))
@@ -255,10 +179,11 @@ public sealed partial class AutocompleteSettingsViewModel(IAutocompleteService s
         RefreshTokenBudget();
         if (HasTokenBudgetError) throw new ArgumentException(TokenBudgetWarning);
         var option = SelectedModelOption;
-        // Start from the loaded settings so fields without a control here (list flags) keep their saved values.
+        // Start from the loaded settings so fields without a control here (list flag, legacy inline flags) keep their
+        // saved values. The legacy mode is written as Automatic: the AI and the agent now have their own explicit flags.
         return (_loaded with
         {
-            Enabled = Enabled, Mode = (AutocompleteMode)ModeIndex, Acceleration = (AiAccelerationMode)HardwareIndex,
+            Enabled = Enabled, AiCompletionEnabled = AiCompletionEnabled, Mode = AutocompleteMode.Automatic, Acceleration = (AiAccelerationMode)HardwareIndex,
             ModelDirectory = ModelDirectory.Trim(), SelectedModel = option is { IsExternal: false } ? option.Reference : "",
             ModelPath = option is { IsExternal: true } ? option.Reference : "", ChatModel = _chatModel, ChatEnabled = ChatEnabled,
             LocalAiContextEnabled = LocalAiContextEnabled,
@@ -269,9 +194,7 @@ public sealed partial class AutocompleteSettingsViewModel(IAutocompleteService s
             DelayMilliseconds = DelayMilliseconds, ExecutionProvider = _executionProvider,
             UseDictionary = UseDictionary, UseInputPanelContext = UseInputPanelContext,
             UseResultPanelContext = UseResultPanelContext, UseEditorContext = UseEditorContext, IncrementalTab = IncrementalTab,
-            CompletionAutoOpenOnTrigger = CompletionAutoOpenOnTrigger, CompletionEnterAccepts = CompletionEnterAccepts,
-            InlineEnabledValue = _inlineEnabledOverride, InlineUseTraditionalValue = _inlineUseTraditionalOverride,
-            InlineUseAiValue = _inlineUseAiOverride
+            CompletionAutoOpenOnTrigger = CompletionAutoOpenOnTrigger, CompletionEnterAccepts = CompletionEnterAccepts
         }).Validate();
     }
 
@@ -286,7 +209,6 @@ public sealed partial class AutocompleteSettingsViewModel(IAutocompleteService s
         foreach (var option in Models) option.RefreshLanguage();
         foreach (var option in AgentModels) option.RefreshLanguage();
         foreach (var option in RemoteModels) option.RefreshLanguage();
-        OnPropertyChanged(nameof(Modes));
         OnPropertyChanged(nameof(HardwareOptions));
         OnPropertyChanged(nameof(ModelDetails));
         OnPropertyChanged(nameof(Status));

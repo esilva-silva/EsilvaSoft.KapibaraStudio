@@ -11,6 +11,11 @@ public sealed record AutocompleteSettings
 
     public int Version { get; init; } = 1;
     public bool Enabled { get; init; } = true;
+    /// <summary>
+    /// Legado: antes de 27/10/2026 o combo Modo ligava/desligava juntos a IA explícita, o agente e o modelo. Continua
+    /// serializado para manter sessões antigas legíveis; hoje só deriva <see cref="AiCompletionEnabled"/> ausente e o
+    /// agente legado (<c>Basic</c> desliga o agente). A tela grava sempre <see cref="AutocompleteMode.Automatic"/>.
+    /// </summary>
     public AutocompleteMode Mode { get; init; } = AutocompleteMode.Automatic;
     /// <summary>External model folder, used only when <see cref="SelectedModel"/> is empty.</summary>
     public string ModelPath { get; init; } = "";
@@ -42,7 +47,7 @@ public sealed record AutocompleteSettings
     public string SelectedHardwareProfile { get; init; } = "";
 
     /// <summary>
-    /// Additive to version 1: hard timeout of an explicit AI completion (<c>Ctrl+;</c>), measured end to end — queue,
+    /// Additive to version 1: hard timeout of an explicit AI completion (<c>Ctrl+.</c>), measured end to end — queue,
     /// model load and generation included. Expiring never fails the request outright: a partial preview that is
     /// already valid is kept, and only a generation that produced nothing falls back to the list.
     /// </summary>
@@ -59,7 +64,7 @@ public sealed record AutocompleteSettings
 
     /// <summary>
     /// Additive to version 1: whether persisted schema learning (Fase L) may be <em>served</em> to the catalog.
-    /// True by default — unlike the automatic AI features (<see cref="InlineUseAi"/>), this is not generation: it is
+    /// True by default — unlike the AI (<see cref="AiCompletionEnabled"/>), this is not generation: it is
     /// structural metadata (field names/types/frequencies) already collected, passively, from <c>find</c> results
     /// the user already executed, with no additional query and the same per-source quota as every other catalog
     /// source (K16-b). Turning it off only stops <em>serving</em> already learned structure; it neither deletes
@@ -69,7 +74,7 @@ public sealed record AutocompleteSettings
     /// </summary>
     public bool LearnedSchemaEnabled { get; init; } = true;
 
-    // As três opções abaixo são aditivas à versão 1 e distinguem "campo ausente" de "false explícito" pela presença no
+    // As opções abaixo são aditivas à versão 1 e distinguem "campo ausente" de "false explícito" pela presença no
     // JSON, e não pelo inicializador da propriedade: o valor persistido é o anulável, e o valor efetivo é derivado.
     // Um documento antigo (sem as flags) precisa ser migrado; um documento novo com false explícito precisa ser
     // obedecido. Só o anulável é serializado, e apenas quando alguém realmente escolheu um valor.
@@ -77,6 +82,20 @@ public sealed record AutocompleteSettings
     private readonly bool? _inlineUseTraditional;
     private readonly bool? _inlineUseAi;
     private readonly bool? _traditionalEnabled;
+    private readonly bool? _aiCompletionEnabled;
+
+    /// <summary>Valor persistido de <see cref="AiCompletionEnabled"/>; nulo significa ausente no documento salvo.</summary>
+    [JsonPropertyName(nameof(AiCompletionEnabled)), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? AiCompletionEnabledValue { get => _aiCompletionEnabled; init => _aiCompletionEnabled = value; }
+
+    /// <summary>
+    /// Additive to version 1: the autocomplete with AI (local model) is available. It only ever runs on the explicit
+    /// shortcut (<c>Ctrl+.</c>) — typing never sends text to the model. Independent of <see cref="Enabled"/>, which
+    /// governs the normal (deterministic) autocomplete. Absent derives from the legacy <see cref="Mode"/>:
+    /// <c>Basic</c> was "no AI", so it migrates to false; any other mode migrates to true.
+    /// </summary>
+    [JsonIgnore]
+    public bool AiCompletionEnabled { get => _aiCompletionEnabled ?? Mode != AutocompleteMode.Basic; init => _aiCompletionEnabled = value; }
 
     /// <summary>Valor persistido de <see cref="TraditionalEnabled"/>; nulo significa ausente no documento salvo.</summary>
     [JsonPropertyName(nameof(TraditionalEnabled)), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -104,12 +123,16 @@ public sealed record AutocompleteSettings
     [JsonPropertyName(nameof(InlineUseAi)), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? InlineUseAiValue { get => _inlineUseAi; init => _inlineUseAi = value; }
 
-    /// <summary>Additive to version 1: suspends every automatic (inline) suggestion; absent means enabled.</summary>
+    /// <summary>
+    /// Legado (sem efeito desde 27/10/2026): suspendia a sugestão automática. O ghost do autocomplete normal agora segue
+    /// apenas <see cref="Enabled"/>; o valor é lido e preservado só para compatibilidade de sessão.
+    /// </summary>
     [JsonIgnore]
     public bool InlineEnabled { get => _inlineEnabled ?? true; init => _inlineEnabled = value; }
 
     /// <summary>
-    /// Additive to version 1: deterministic generator of the automatic suggestion. Absent derives from
+    /// Legado (sem efeito desde 27/10/2026; o ghost é sempre determinístico). Gerador determinístico da sugestão
+    /// automática. Absent derives from
     /// <see cref="UseDictionary"/>, which is the closest legacy intent for "automatic suggestion without AI"; a
     /// document that stored false explicitly keeps false even with the dictionary on.
     /// </summary>
@@ -117,12 +140,20 @@ public sealed record AutocompleteSettings
     public bool InlineUseTraditional { get => _inlineUseTraditional ?? UseDictionary; init => _inlineUseTraditional = value; }
 
     /// <summary>
-    /// Additive to version 1: automatic (typing-triggered) AI inference. Absent means false — processamento automático
-    /// de IA é opt-in explícito, tanto em instalação nova quanto em documento antigo migrado. A IA explícita
-    /// (<c>Mode != Basic</c>) continua disponível e não depende desta opção.
+    /// Legado (sem efeito desde 27/10/2026): inferência de IA disparada pela digitação. A IA nunca participa do ghost;
+    /// ela só roda pelo atalho explícito (<see cref="AiCompletionEnabled"/>). O valor é lido e preservado só para
+    /// compatibilidade de sessão.
     /// </summary>
     [JsonIgnore]
     public bool InlineUseAi { get => _inlineUseAi ?? false; init => _inlineUseAi = value; }
+
+    /// <summary>The local agent may use the model: <see cref="ChatEnabled"/>, with the legacy <c>Basic</c> mode still meaning off.</summary>
+    [JsonIgnore]
+    public bool LocalAgentEnabled => ChatEnabled && Mode != AutocompleteMode.Basic;
+
+    /// <summary>Some feature may use the local model (autocomplete with AI or the local agent); false unloads it.</summary>
+    [JsonIgnore]
+    public bool UsesLocalModel => AiCompletionEnabled || LocalAgentEnabled;
 
     public AutocompleteSettings Validate()
     {

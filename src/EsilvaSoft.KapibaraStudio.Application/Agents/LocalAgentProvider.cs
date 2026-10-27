@@ -62,7 +62,7 @@ public sealed class LocalAgentProvider : IAgentProvider
     public async Task<LocalAgentAvailability> GetAvailabilityAsync(CancellationToken cancellationToken = default)
     {
         var settings = _autocomplete.Settings;
-        if (settings.Mode == AutocompleteMode.Basic || !settings.ChatEnabled)
+        if (!settings.LocalAgentEnabled)
             return new(false, LocalAgentUnavailableReason.Disabled, LocalAgentCapabilities.None);
         if (!settings.HasModelSelection(LocalModelRole.Chat))
             return new(false, LocalAgentUnavailableReason.NoModelConfigured, LocalAgentCapabilities.None);

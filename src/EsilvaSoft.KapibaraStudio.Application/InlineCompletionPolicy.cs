@@ -3,30 +3,32 @@ using EsilvaSoft.KapibaraStudio.Core;
 namespace EsilvaSoft.KapibaraStudio.Application;
 
 /// <summary>
-/// Precedência das opções de autocompletar aplicada à sugestão automática (ghost), conforme
-/// <c>docs/auto-complite/configuration.md</c>. É a única fonte dessa decisão: nenhum consumidor recombina as flags.
+/// Separação entre o autocomplete normal e o autocomplete com IA, conforme <c>docs/auto-complite/configuration.md</c>.
+/// É a única fonte dessa decisão: nenhum consumidor recombina as flags. O normal (determinístico) mostra o ghost
+/// enquanto o usuário digita e abre a lista com <c>Ctrl+Espaço</c>; a IA nunca participa da digitação e só roda pelo
+/// atalho explícito (<c>Ctrl+.</c>).
 /// </summary>
 public static class InlineCompletionPolicy
 {
-    /// <summary>traditional.inline = Enabled &amp;&amp; InlineEnabled &amp;&amp; InlineUseTraditional.</summary>
+    /// <summary>traditional.inline = Enabled. As flags legadas <c>Inline*</c> não têm mais efeito.</summary>
     public static bool TraditionalInline(AutocompleteSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
-        return settings.Enabled && settings.InlineEnabled && settings.InlineUseTraditional;
+        return settings.Enabled;
     }
 
     /// <summary>
-    /// ai.inline = Enabled &amp;&amp; InlineEnabled &amp;&amp; InlineUseAi &amp;&amp; Mode != Basic. A elegibilidade
-    /// restante (LoadedOnly e perfil de latência) é verificada pelo chamador dentro da fila, não aqui.
+    /// ai.explicit = AiCompletionEnabled. Independente de <see cref="AutocompleteSettings.Enabled"/>; só o atalho
+    /// explícito consulta esta decisão, e é o único caminho do editor que pode carregar o modelo.
     /// </summary>
-    public static bool AiInline(AutocompleteSettings settings)
+    public static bool AiCompletion(AutocompleteSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
-        return settings.Enabled && settings.InlineEnabled && settings.InlineUseAi && settings.Mode != AutocompleteMode.Basic;
+        return settings.AiCompletionEnabled;
     }
 
     /// <summary>Alguma origem automática está habilitada; falso suspende o pedido antes de qualquer computação.</summary>
-    public static bool AnyInline(AutocompleteSettings settings) => TraditionalInline(settings) || AiInline(settings);
+    public static bool AnyInline(AutocompleteSettings settings) => TraditionalInline(settings);
 
     /// <summary>
     /// Estado do editor e configuração juntos. O automático nunca disputa com a lista explícita, com uma sessão de

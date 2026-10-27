@@ -5,8 +5,9 @@ using EsilvaSoft.KapibaraStudio.Core;
 namespace EsilvaSoft.KapibaraStudio.UnitTests;
 
 /// <summary>
-/// Flags aditivas do autocompletar automático: precedência, padrões e migração da versão 1. Campo ausente e false
-/// explícito são fatos diferentes, distinguidos pela presença no JSON e não pelo inicializador da propriedade.
+/// Separação autocomplete normal × autocomplete com IA: o ghost determinístico segue só <c>Enabled</c>, a IA segue só
+/// <c>AiCompletionEnabled</c> (atalho explícito) e as flags legadas <c>Inline*</c> são lidas, preservadas e ignoradas.
+/// Campo ausente e false explícito continuam fatos diferentes, distinguidos pela presença no JSON.
 /// </summary>
 [TestFixture]
 public sealed class InlineCompletionSettingsTests
@@ -15,143 +16,101 @@ public sealed class InlineCompletionSettingsTests
         JsonSerializer.Deserialize<AutocompleteSettings>(json) ?? throw new InvalidDataException("json inválido");
 
     [Test]
-    public void NewInstallationKeepsAutomaticAiOff()
+    public void NewInstallationHasTheGhostAndTheExplicitAi()
     {
         var settings = new AutocompleteSettings();
 
         Assert.Multiple(() =>
         {
-            Assert.That(settings.InlineEnabled, Is.True);
-            Assert.That(settings.InlineUseTraditional, Is.True);
-            Assert.That(settings.InlineUseAi, Is.False, "Processamento automático de IA é opt-in explícito.");
             Assert.That(InlineCompletionPolicy.TraditionalInline(settings), Is.True);
-            Assert.That(InlineCompletionPolicy.AiInline(settings), Is.False);
+            Assert.That(InlineCompletionPolicy.AiCompletion(settings), Is.True);
+            Assert.That(settings.AiCompletionEnabledValue, Is.Null, "Nada é materializado enquanto o usuário não escolhe.");
         });
     }
 
-    // InlineEnabled, InlineUseTraditional, InlineUseAi -> tradicional automático, IA automática
-    [TestCase(true, true, true, true, true)]
-    [TestCase(true, true, false, true, false)]
-    [TestCase(true, false, true, false, true)]
-    [TestCase(true, false, false, false, false)]
-    [TestCase(false, true, true, false, false)]
-    public void PrecedenceFollowsTheConfiguredFlags(bool inlineEnabled, bool useTraditional, bool useAi, bool traditional, bool ai)
+    [TestCase(true, true, true, true)]
+    [TestCase(true, false, true, false)]
+    [TestCase(false, true, false, true)]
+    [TestCase(false, false, false, false)]
+    public void NormalAndAiAutocompleteAreIndependent(bool enabled, bool aiEnabled, bool ghost, bool ai)
     {
-        var settings = new AutocompleteSettings
-        {
-            InlineEnabled = inlineEnabled,
-            InlineUseTraditional = useTraditional,
-            InlineUseAi = useAi
-        };
+        var settings = new AutocompleteSettings { Enabled = enabled, AiCompletionEnabled = aiEnabled };
 
         Assert.Multiple(() =>
         {
-            Assert.That(InlineCompletionPolicy.TraditionalInline(settings), Is.EqualTo(traditional));
-            Assert.That(InlineCompletionPolicy.AiInline(settings), Is.EqualTo(ai));
+            Assert.That(InlineCompletionPolicy.TraditionalInline(settings), Is.EqualTo(ghost));
+            Assert.That(InlineCompletionPolicy.AnyInline(settings), Is.EqualTo(ghost));
+            Assert.That(InlineCompletionPolicy.AiCompletion(settings), Is.EqualTo(ai));
         });
     }
 
     [Test]
-    public void TurningEverythingOffAtTheTopSuspendsBothGenerators()
+    public void LegacyInlineFlagsNoLongerControlTheGhost()
     {
-        var settings = new AutocompleteSettings { Enabled = false, InlineUseAi = true };
+        var settings = Read("""{"Version":1,"UseDictionary":false,"InlineEnabled":false,"InlineUseTraditional":false,"InlineUseAi":true}""");
 
         Assert.Multiple(() =>
         {
-            Assert.That(InlineCompletionPolicy.TraditionalInline(settings), Is.False);
-            Assert.That(InlineCompletionPolicy.AiInline(settings), Is.False);
-            Assert.That(InlineCompletionPolicy.AnyInline(settings), Is.False);
+            Assert.That(InlineCompletionPolicy.TraditionalInline(settings), Is.True, "O ghost do autocomplete normal segue só Enabled.");
+            Assert.That((settings.InlineEnabledValue, settings.InlineUseTraditionalValue, settings.InlineUseAiValue),
+                Is.EqualTo(((bool?)false, (bool?)false, (bool?)true)), "Os valores legados são preservados para compatibilidade de sessão.");
         });
     }
 
-    [Test]
-    public void BasicModeKeepsTheDeterministicGhostAndRefusesAutomaticInference()
+    [TestCase(AutocompleteMode.Automatic, true)]
+    [TestCase(AutocompleteMode.Ai, true)]
+    [TestCase(AutocompleteMode.Basic, false)]
+    public void AbsentAiFlagMigratesFromTheLegacyMode(AutocompleteMode mode, bool expected)
     {
-        var settings = new AutocompleteSettings { Mode = AutocompleteMode.Basic, InlineUseAi = true };
+        var settings = Read("{\"Version\":1,\"Mode\":" + (int)mode + "}");
 
         Assert.Multiple(() =>
         {
-            Assert.That(InlineCompletionPolicy.TraditionalInline(settings), Is.True);
-            Assert.That(InlineCompletionPolicy.AiInline(settings), Is.False);
-        });
-    }
-
-    [Test]
-    public void LegacyVersionOneDocumentWithoutTheFlagsIsMigratedFromTheStoredIntent()
-    {
-        var settings = Read("""{"Version":1,"Enabled":true,"Mode":2,"UseDictionary":true,"DelayMilliseconds":150}""");
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(settings.InlineEnabledValue, Is.Null, "A ausência é preservada como ausência.");
-            Assert.That(settings.InlineUseTraditionalValue, Is.Null);
-            Assert.That(settings.InlineUseAiValue, Is.Null);
-            Assert.That(settings.InlineEnabled, Is.True);
-            Assert.That(settings.InlineUseTraditional, Is.True);
-            Assert.That(settings.InlineUseAi, Is.False, "Documento antigo não ganha inferência automática sem opt-in.");
-            Assert.That(settings.Enabled, Is.True);
-            Assert.That(settings.Mode, Is.EqualTo(AutocompleteMode.Ai));
+            Assert.That(settings.AiCompletionEnabledValue, Is.Null, "A ausência é preservada como ausência.");
+            Assert.That(settings.AiCompletionEnabled, Is.EqualTo(expected));
+            Assert.That(settings.LocalAgentEnabled, Is.EqualTo(expected), "Básico desligava também o agente.");
         });
         settings.Validate();
     }
 
     [Test]
-    public void LegacyDocumentWithoutDictionaryDerivesTheTraditionalGhostFromIt()
+    public void ExplicitAiFlagWinsOverTheLegacyMode()
     {
-        var settings = Read("""{"Version":1,"UseDictionary":false}""");
-
         Assert.Multiple(() =>
         {
-            Assert.That(settings.InlineUseTraditionalValue, Is.Null);
-            Assert.That(settings.InlineUseTraditional, Is.False);
-            Assert.That(InlineCompletionPolicy.TraditionalInline(settings), Is.False);
-            Assert.That(settings.InlineEnabled, Is.True, "Desligar o dicionário legado não desliga o preemptivo geral.");
+            Assert.That(Read("""{"Version":1,"Mode":1,"AiCompletionEnabled":true}""").AiCompletionEnabled, Is.True);
+            Assert.That(Read("""{"Version":1,"Mode":0,"AiCompletionEnabled":false}""").AiCompletionEnabled, Is.False);
         });
     }
 
-    [Test]
-    public void ExplicitFalseIsObeyedAndNeverConfusedWithAnAbsentField()
+    [TestCase(true, true, true)]
+    [TestCase(true, false, true)]
+    [TestCase(false, true, true)]
+    [TestCase(false, false, false)]
+    public void TheModelStaysInUseWhileTheAiOrTheAgentNeedsIt(bool ai, bool agent, bool expected)
     {
-        var settings = Read("""{"Version":1,"UseDictionary":true,"InlineEnabled":false,"InlineUseTraditional":false,"InlineUseAi":false}""");
+        var settings = new AutocompleteSettings { AiCompletionEnabled = ai, ChatEnabled = agent };
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(settings.InlineEnabledValue, Is.False);
-            Assert.That(settings.InlineUseTraditionalValue, Is.False);
-            Assert.That(settings.InlineUseAiValue, Is.False);
-            Assert.That(settings.InlineEnabled, Is.False);
-            Assert.That(settings.InlineUseTraditional, Is.False, "False explícito vence o dicionário ligado.");
-            Assert.That(InlineCompletionPolicy.AnyInline(settings), Is.False);
-        });
-    }
-
-    [Test]
-    public void ExplicitTrueSurvivesTheDictionaryBeingOff()
-    {
-        var settings = Read("""{"Version":1,"UseDictionary":false,"InlineUseTraditional":true}""");
-
-        Assert.That(settings.InlineUseTraditional, Is.True);
-        Assert.That(InlineCompletionPolicy.TraditionalInline(settings), Is.True);
+        Assert.That(settings.UsesLocalModel, Is.EqualTo(expected));
     }
 
     [Test]
     public void RoundTripKeepsAbsenceAbsentAndChoicesExplicit()
     {
         var absent = JsonSerializer.Serialize(new AutocompleteSettings());
-        Assert.That(absent, Does.Not.Contain("InlineUseAi"), "Nada é gravado enquanto o usuário não escolhe.");
+        Assert.That(absent, Does.Not.Contain("AiCompletionEnabled").And.Not.Contain("InlineUseAi"), "Nada é gravado enquanto o usuário não escolhe.");
         Assert.That(Read(absent), Is.EqualTo(new AutocompleteSettings()));
 
-        var chosen = new AutocompleteSettings { InlineUseAi = true, InlineUseTraditional = false };
+        var chosen = new AutocompleteSettings { AiCompletionEnabled = false, InlineUseAi = true };
         var json = JsonSerializer.Serialize(chosen);
-        Assert.That(json, Does.Contain("\"InlineUseAi\":true"));
+        Assert.That(json, Does.Contain("\"AiCompletionEnabled\":false").And.Contain("\"InlineUseAi\":true"));
         Assert.That(Read(json), Is.EqualTo(chosen));
-        Assert.That(Read(json).InlineUseTraditionalValue, Is.False);
     }
 
     [Test]
     public void InvalidConfigurationStillFailsVisiblyInsteadOfBecomingAnEmptyOne()
     {
-        var invalid = Read("""{"Version":1,"DelayMilliseconds":10,"InlineEnabled":true}""");
+        var invalid = Read("""{"Version":1,"DelayMilliseconds":10,"AiCompletionEnabled":true}""");
 
         Assert.That(() => invalid.Validate(), Throws.ArgumentException);
     }

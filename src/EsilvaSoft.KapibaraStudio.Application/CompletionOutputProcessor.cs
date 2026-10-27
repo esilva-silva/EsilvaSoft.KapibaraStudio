@@ -10,7 +10,7 @@ namespace EsilvaSoft.KapibaraStudio.Application;
 /// texto reservado/sensível e a limpeza que remove o eco do sufixo do documento. <see cref="Clean"/> reproduz aquele
 /// comportamento byte a byte — o ghost automático da Fase 5.1 continua vendo exatamente o mesmo resultado — e
 /// <see cref="CleanStructured"/> acrescenta a parada estrutural de <see cref="StructuralStopDetector"/>, usada pelo
-/// caminho explícito (<c>Ctrl+;</c>), onde o candidato é inserido inteiro e um texto sintaticamente quebrado custa
+/// caminho explícito (<c>Ctrl+.</c>), onde o candidato é inserido inteiro e um texto sintaticamente quebrado custa
 /// caro ao usuário.</para>
 /// <para><strong>Privacidade.</strong> Nada aqui persiste, registra ou agrega texto: cada chamada recebe uma
 /// <c>string</c>, devolve outra e esquece as duas. O texto reprovado não vira mensagem nem diagnóstico.</para>

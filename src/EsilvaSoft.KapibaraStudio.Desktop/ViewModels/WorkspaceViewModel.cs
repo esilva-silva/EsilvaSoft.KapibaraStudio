@@ -48,7 +48,7 @@ public sealed partial class WorkspaceViewModel : ObservableObject, IDisposable
     /// <summary>Gerador determinístico da sugestão automática; independe de modelo de IA e de conexão aberta.</summary>
     public ICompletionProvider? InlinePreemptiveCompletion { get; }
     /// <summary>
-    /// Provider da IA explícita (<c>Ctrl+;</c>), compartilhado por todas as abas — uma instância, um pipeline, um
+    /// Provider da IA explícita (<c>Ctrl+.</c>), compartilhado por todas as abas — uma instância, um pipeline, um
     /// serviço de modelo. Nulo quando a composição não o registrou: o atalho então só abre a lista com o motivo.
     /// </summary>
     public IAiCompletionProvider? AiCompletion { get; }
@@ -106,7 +106,7 @@ public sealed partial class WorkspaceViewModel : ObservableObject, IDisposable
         _workspace.OperationLocalizer = LocalizationViewModel.Current.ResolveOperationText;
         _workspace.SetLocalization(LocalizationViewModel.Current.Resolve);
         _localization.Language = _language;
-        // Provider da IA explícita (Ctrl+;), opcional: sem ele — e é o caso enquanto o registro do pipeline ONNX não
+        // Provider da IA explícita (Ctrl+.), opcional: sem ele — e é o caso enquanto o registro do pipeline ONNX não
         // existir na composição — o atalho continua reconhecido e cai no fallback da lista tradicional com o motivo,
         // nunca em silêncio e nunca inserindo texto.
         AiCompletion = aiCompletion;

@@ -6,12 +6,25 @@
     </StackPanel>
     <ScrollViewer Grid.Row="1">
       <StackPanel Spacing="8" Margin="0,0,16,0" IsEnabled="{Binding !IsBusy}">
+        <TextBlock Text="{local:Loc Key=normalAutocompleteSection}" Classes="section-title"/>
+        <TextBlock Text="{local:Loc Key=normalAutocompleteNote}" Classes="metadata" TextWrapping="Wrap"/>
         <CheckBox x:Name="EnableAutocomplete" Content="{local:Loc Key=enableAutocomplete}" IsChecked="{Binding Enabled}"/>
         <CheckBox Content="{local:Loc Key=useLocalDictionary}" IsChecked="{Binding UseDictionary}"/>
-        <CheckBox Content="{local:Loc Key=useInputContext}" IsChecked="{Binding UseInputPanelContext}"/>
+        <CheckBox Content="{local:Loc Key=acceptPartialTab}" IsChecked="{Binding IncrementalTab}"/>
+        <CheckBox Content="{local:Loc Key=openOnTrigger}" IsChecked="{Binding CompletionAutoOpenOnTrigger}" AutomationProperties.Name="{local:Loc Key=openOnTriggerAccessible}"/>
+        <CheckBox Content="{local:Loc Key=enterAccepts}" IsChecked="{Binding CompletionEnterAccepts}" AutomationProperties.Name="{local:Loc Key=enterAccepts}"/>
         <CheckBox Content="{local:Loc Key=useResultFields}" IsChecked="{Binding UseResultPanelContext}"/>
         <CheckBox Content="{local:Loc Key=useEditorHistoryContext}" IsChecked="{Binding UseEditorContext}"/>
-        <CheckBox Content="{local:Loc Key=acceptPartialTab}" IsChecked="{Binding IncrementalTab}"/>
+        <TextBlock Text="{local:Loc Key=sharedContextNote}" Classes="metadata" TextWrapping="Wrap"/>
+        <TextBlock Text="{local:Loc Key=inlineDelay}" TextWrapping="Wrap"/>
+        <NumericUpDown Minimum="50" Maximum="2000" Value="{Binding DelayMilliseconds}" HorizontalAlignment="Left" MinWidth="160" ToolTip.Tip="{local:Loc Key=inlineDelayTip}" AutomationProperties.Name="{local:Loc Key=inlineDelay}"/>
+
+        <TextBlock Text="{local:Loc Key=aiAutocompleteSection}" Classes="section-title" Margin="0,12,0,0"/>
+        <CheckBox Content="{local:Loc Key=enableAiAutocomplete}" IsChecked="{Binding AiCompletionEnabled}"/>
+        <TextBlock Text="{local:Loc Key=aiAutocompleteNote}" Classes="metadata" TextWrapping="Wrap"/>
+        <CheckBox Content="{local:Loc Key=useInputContext}" IsChecked="{Binding UseInputPanelContext}" IsEnabled="{Binding AiCompletionEnabled}"/>
+
+        <TextBlock Text="{local:Loc Key=localAgentSection}" Classes="section-title" Margin="0,12,0,0"/>
         <CheckBox Content="{local:Loc Key=useLocalModelAssistant}" IsChecked="{Binding ChatEnabled}"/>
         <TextBlock Text="{local:Loc Key=localAgentModel}" IsVisible="{Binding ChatEnabled}"/>
         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" IsVisible="{Binding ChatEnabled}">
@@ -34,27 +47,8 @@
         </Grid>
         <TextBlock Text="{local:Loc Key=localAgentModelNote}" Classes="metadata" TextWrapping="Wrap" IsVisible="{Binding ChatEnabled}"/>
 
-        <TextBlock Text="{local:Loc Key=inlineSuggestion}" Classes="section-title"/>
-        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-          <CheckBox Content="{local:Loc Key=suggestAfterPause}" IsChecked="{Binding InlineEnabledEffective}" AutomationProperties.Name="{local:Loc Key=suggestAfterPause}"/>
-          <Button Grid.Column="1" Content="{local:Loc Key=useDefault}" Command="{Binding ResetInlineEnabledCommand}" IsVisible="{Binding InlineEnabledIsOverridden}" ToolTip.Tip="{local:Loc Key=resetInlineEnabledTip}" AutomationProperties.Name="{local:Loc Key=useDefault}"/>
-        </Grid>
-        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" IsEnabled="{Binding InlineEnabledEffective}">
-          <CheckBox Content="{local:Loc Key=useDeterministicSuggestions}" IsChecked="{Binding InlineUseTraditionalEffective}" AutomationProperties.Name="{local:Loc Key=deterministicSuggestionsAccessible}"/>
-          <Button Grid.Column="1" Content="{local:Loc Key=useDefault}" Command="{Binding ResetInlineUseTraditionalCommand}" IsVisible="{Binding InlineUseTraditionalIsOverridden}" ToolTip.Tip="{local:Loc Key=resetDictionaryTip}" AutomationProperties.Name="{local:Loc Key=useDefault}"/>
-        </Grid>
-        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" IsEnabled="{Binding InlineEnabledEffective}">
-          <CheckBox Content="{local:Loc Key=useAiSuggestions}" IsChecked="{Binding InlineUseAiEffective}" AutomationProperties.Name="{local:Loc Key=aiSuggestionsAccessible}"/>
-          <Button Grid.Column="1" Content="{local:Loc Key=useDefault}" Command="{Binding ResetInlineUseAiCommand}" IsVisible="{Binding InlineUseAiIsOverridden}" ToolTip.Tip="{local:Loc Key=resetAiTip}" AutomationProperties.Name="{local:Loc Key=useDefault}"/>
-        </Grid>
-        <TextBlock Text="{local:Loc Key=inlineDisabledNote}" Classes="metadata" TextWrapping="Wrap" IsVisible="{Binding !InlineEnabledEffective}"/>
-        <TextBlock Text="{local:Loc Key=inlineAiLoadNote}" Classes="metadata" TextWrapping="Wrap"/>
-
-        <TextBlock Text="{local:Loc Key=suggestionList}" Classes="section-title"/>
-        <CheckBox Content="{local:Loc Key=openOnTrigger}" IsChecked="{Binding CompletionAutoOpenOnTrigger}" AutomationProperties.Name="{local:Loc Key=openOnTriggerAccessible}"/>
-        <CheckBox Content="{local:Loc Key=enterAccepts}" IsChecked="{Binding CompletionEnterAccepts}" AutomationProperties.Name="{local:Loc Key=enterAccepts}"/>
-        <TextBlock Text="{local:Loc Key=mode}"/>
-        <ComboBox ItemsSource="{Binding Modes}" SelectedIndex="{Binding ModeIndex}" HorizontalAlignment="Stretch" AutomationProperties.Name="{local:Loc Key=autocompleteMode}"/>
+        <TextBlock Text="{local:Loc Key=localModelSection}" Classes="section-title" Margin="0,12,0,0"/>
+        <TextBlock Text="{local:Loc Key=localModelSectionNote}" Classes="metadata" TextWrapping="Wrap"/>
         <TextBlock Text="{local:Loc Key=modelsDirectory}"/>
         <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
           <TextBox Text="{Binding ModelDirectory}" PlaceholderText="{Binding DefaultDirectory}" AutomationProperties.Name="{local:Loc Key=modelsDirectory}"/>
@@ -142,13 +136,11 @@
         </Grid>
         <Button Content="{local:Loc Key=removeSelectedProfile}" Command="{Binding RemoveHardwareProfileCommand}" IsVisible="{Binding HasSelectedHardwareProfile}" HorizontalAlignment="Left"/>
         <TextBlock Text="{local:Loc Key=hardwareMemoryNote}" Classes="metadata" TextWrapping="Wrap"/>
-        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="4">
+        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="4">
           <TextBlock Text="{local:Loc Key=contextTokens}"/>
           <TextBlock Grid.Column="1" Text="{local:Loc Key=maximumGeneratedTokens}"/>
           <ComboBox x:Name="ContextTokenBox" Grid.Row="1" ItemsSource="{Binding ContextTokenSuggestions}" Text="{Binding ContextTokensText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsEditable="True" PlaceholderText="{local:Loc Key=typeOrSelect}" SelectionChanged="TokenSuggestionChanged" LostFocus="TokenEditorLostFocus" AutomationProperties.Name="{local:Loc Key=contextTokens}"/>
           <ComboBox x:Name="MaximumTokenBox" Grid.Row="1" Grid.Column="1" ItemsSource="{Binding MaximumTokenSuggestions}" Text="{Binding MaximumTokensText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsEditable="True" PlaceholderText="{local:Loc Key=typeOrSelect}" SelectionChanged="TokenSuggestionChanged" LostFocus="TokenEditorLostFocus" AutomationProperties.Name="{local:Loc Key=maximumGeneratedTokens}"/>
-          <TextBlock Grid.Row="2" Text="{local:Loc Key=inlineDelay}" TextWrapping="Wrap"/>
-          <NumericUpDown Grid.Row="3" Minimum="50" Maximum="2000" Value="{Binding DelayMilliseconds}" ToolTip.Tip="{local:Loc Key=inlineDelayTip}" AutomationProperties.Name="{local:Loc Key=inlineDelay}"/>
         </Grid>
         <TextBlock Text="{Binding TokenBudgetWarning}" Classes="warning" TextWrapping="Wrap" IsVisible="{Binding HasTokenBudgetWarning}" AutomationProperties.Name="{local:Loc Key=tokenBudgetValidation}"/>
         <TextBlock Text="{local:Loc Key=inlineHint}" Classes="metadata" TextWrapping="Wrap"/>

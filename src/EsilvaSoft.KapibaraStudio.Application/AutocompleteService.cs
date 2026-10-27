@@ -61,7 +61,7 @@ public sealed class AutocompleteService(AiAutocompleteProvider? ai = null, IAuto
         }
         var dictionary = settings.UseDictionary && policy.Dictionary;
         AutocompleteResult? result = dictionary ? BasicAutocompleteProvider.GetCompletion(request) : null;
-        if (result is null && policy.Ai && settings.Mode != AutocompleteMode.Basic && ai is not null
+        if (result is null && policy.Ai && settings.AiCompletionEnabled && ai is not null
             && !CompletionPrivacy.ContainsSensitiveText(request.Prefix + request.Suffix + request.Context))
             result = await ai.GetCompletionAsync(request, settings,
                 policy.MayLoadModel ? AiModelLoadPolicy.LoadIfNeeded : AiModelLoadPolicy.LoadedOnly, cancellationToken).ConfigureAwait(false);
@@ -95,8 +95,8 @@ public sealed class AutocompleteService(AiAutocompleteProvider? ai = null, IAuto
     {
         if (ai is null) return new(false, "IA local não configurada nesta instalação; autocomplete básico disponível.", []);
         var settings = Settings;
-        if (settings.Mode == AutocompleteMode.Basic)
-            return new(false, "O modo Básico não usa IA local. Selecione Automático ou IA local para testar.", []) { Hardware = settings.Acceleration };
+        if (!settings.UsesLocalModel)
+            return new(false, "A IA local está desligada. Habilite o autocomplete com IA ou o Agente IA local para testar.", []) { Hardware = settings.Acceleration };
         return await ai.Models.TestModelAsync(settings, cancellationToken).ConfigureAwait(false);
     }
 }

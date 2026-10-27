@@ -10,7 +10,7 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests;
 [TestFixture]
 public sealed class InlineCompletionCoordinatorTests
 {
-    private static readonly AutocompleteSettings Settings = new() { DelayMilliseconds = 150, InlineUseTraditional = false, InlineUseAi = true };
+    private static readonly AutocompleteSettings Settings = new() { DelayMilliseconds = 150 };
     private static readonly InlineCompletionEditorState Ready = InlineCompletionEditorState.Ready;
 
     private static InlineCompletionSuggestion Suggestion(string text = "ectionPool") => new(text, "", "dsl/ConnectionPool", null);
@@ -89,10 +89,9 @@ public sealed class InlineCompletionCoordinatorTests
         Assert.That(computations, Is.Zero);
     }
 
-    [TestCase(false, true, true, TestName = "DesligarAutocompleteGeral")]
-    [TestCase(true, false, true, TestName = "DesligarSugestaoAutomatica")]
-    [TestCase(true, true, false, TestName = "PedidoExplicitoEmVoo")]
-    public async Task DisabledConfigurationOrAnExplicitRequestSuspendsTheAutomaticSuggestion(bool enabled, bool inlineEnabled, bool editorFree)
+    [TestCase(false, true, TestName = "DesligarAutocompleteGeral")]
+    [TestCase(true, false, TestName = "PedidoExplicitoEmVoo")]
+    public async Task DisabledConfigurationOrAnExplicitRequestSuspendsTheAutomaticSuggestion(bool enabled, bool editorFree)
     {
         var clock = new ManualTimeProvider();
         using var coordinator = new InlineCompletionCoordinator(clock);
@@ -107,7 +106,7 @@ public sealed class InlineCompletionCoordinatorTests
         // Uma pendência normal em voo é cancelada pelo próprio evento que a torna inelegível.
         var first = Request(Settings, Ready);
         clock.Advance(TimeSpan.FromMilliseconds(50));
-        var blocked = Request(Settings with { Enabled = enabled, InlineEnabled = inlineEnabled },
+        var blocked = Request(Settings with { Enabled = enabled },
             editorFree ? Ready : Ready with { ExplicitRequestPending = true });
         clock.Advance(TimeSpan.FromMilliseconds(500));
 
@@ -252,27 +251,27 @@ public sealed class InlineCompletionCoordinatorTests
     }
 
     [Test]
-    public async Task DefaultTraditionalAndAiFlagsDebounceOnlyFallbackAcrossTypingBurst()
+    public async Task DeterministicIsImmediateAndOnlyTheDictionaryFallbackIsDebouncedAcrossTypingBurst()
     {
         var clock = new ManualTimeProvider();
         using var coordinator = new InlineCompletionCoordinator(clock);
         var deterministicCalls = 0;
-        var aiCalls = 0;
+        var fallbackCalls = 0;
         var requests = new List<Task<InlineCompletionSuggestion?>>();
-        var settings = new AutocompleteSettings { DelayMilliseconds = 150, InlineUseAi = true };
+        var settings = new AutocompleteSettings { DelayMilliseconds = 150 };
 
         for (var key = 0; key < 20; key++)
         {
             requests.Add(coordinator.RequestAsync(settings, Ready,
                 _ => { Interlocked.Increment(ref deterministicCalls); return Task.FromResult<InlineCompletionSuggestion?>(null); },
-                _ => { Interlocked.Increment(ref aiCalls); return Task.FromResult<InlineCompletionSuggestion?>(Suggestion()); }));
+                _ => { Interlocked.Increment(ref fallbackCalls); return Task.FromResult<InlineCompletionSuggestion?>(Suggestion()); }));
             clock.Advance(TimeSpan.FromMilliseconds(20));
         }
 
         Assert.That(deterministicCalls, Is.EqualTo(20), "Lookup determinístico é local e imediato.");
-        Assert.That(aiCalls, Is.Zero, "Nenhuma inferência roda durante a rajada nem antes do debounce.");
+        Assert.That(fallbackCalls, Is.Zero, "O fallback não roda durante a rajada nem antes do debounce.");
         clock.Advance(TimeSpan.FromMilliseconds(150));
         await Task.WhenAll(requests);
-        Assert.That(aiCalls, Is.EqualTo(1), "Apenas o último pedido sobrevive ao debounce para fallback.");
+        Assert.That(fallbackCalls, Is.EqualTo(1), "Apenas o último pedido sobrevive ao debounce para fallback.");
     }
 }

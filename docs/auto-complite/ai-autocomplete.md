@@ -2,7 +2,9 @@
 
 ## Papel
 
-Conclusão mais rica sob demanda (`Ctrl+;`), usando o modelo local. Compartilha AiGenerationPipeline e Output Processor com AiPreemptiveCompletionProvider; os providers são independentes. Falha explícita pode abrir lista tradicional se habilitada; falha automática apenas descarta.
+> **Atualização de 27/10/2026 ([ADR-076](../10-decisoes-arquiteturais.md)):** autocomplete normal e autocomplete com IA são separados. O normal (catálogo, schema, dicionário) sugere sempre em texto fantasma ao digitar e abre a lista com `Ctrl+Espaço`; o com IA só envia texto ao modelo quando o usuário aperta `Ctrl+.` (`Ctrl+;` saiu dos padrões). A IA nunca participa do ghost e `InlineEnabled`/`InlineUseTraditional`/`InlineUseAi` não têm mais efeito. Os parágrafos abaixo com datas anteriores são registro histórico.
+
+Conclusão mais rica sob demanda (`Ctrl+.`, antes `Ctrl+;`), usando o modelo local; é o único caminho do editor que envia texto ao modelo, e só existe com "Habilitar autocomplete com IA" (`AiCompletionEnabled`) ligado. Compartilha AiGenerationPipeline e Output Processor com AiPreemptiveCompletionProvider; os providers são independentes. Falha explícita pode abrir lista tradicional se habilitada; falha automática apenas descarta.
 
 ## Cadeia
 
@@ -24,7 +26,7 @@ Ranking / apresentação
 
 Regras MongoDB ficam apenas nas duas primeiras etapas e no Output Processor. O runtime não conhece shapes, catálogo ou dialetos.
 
-## Comportamento de `Ctrl+;`
+## Comportamento de `Ctrl+.`
 
 1. Captura o contexto (mesma versão usada pela lista).
 2. Mostra indicador de geração no cursor (camada de fundo, sem alterar texto).
@@ -33,7 +35,7 @@ Regras MongoDB ficam apenas nas duas primeiras etapas e no Output Processor. O r
 5. Tab aceita (inteiro ou incremental), Esc cancela/descarta. Alternativas e atalhos adicionais ficam adiados.
 6. Se a IA não puder atender, abre a lista tradicional com uma linha de estado explicando o motivo.
 
-A lista tradicional não espera a IA; `Ctrl+.` continua imediato mesmo com geração em andamento.
+A lista tradicional não espera a IA; `Ctrl+Espaço` continua imediato mesmo com geração em andamento.
 
 ## Output Processor
 

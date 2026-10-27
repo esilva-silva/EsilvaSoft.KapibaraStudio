@@ -33,13 +33,11 @@ public sealed class AutocompleteUiTests
             var service = new CompletionServiceFake { Handler = _ => { entered.TrySetResult(); return pending.Task; } };
             using var workspace = new WorkspaceViewModel(context.Workspace, context.Repository, service);
             var window = new MainWindow { DataContext = workspace }; window.Show(); await window.InitializationTask;
-            // A inferência automática de IA é opt-in e vem desligada por padrão (W3). Este teste cobre justamente
-            // esse caminho — resposta obsoleta descartada, ghost que não edita o documento, Tab/Esc e renderização —,
-            // então habilita a opção explicitamente, como faria o usuário. A carga da sessão já ocorreu acima, e é ela
-            // quem define a configuração efetiva do serviço. As demais origens ficam desligadas no próprio setup: com
-            // elas ligadas, o que chega ao ghost dependeria de o catálogo determinístico se abster para este texto,
-            // e o teste passaria por coincidência de dados em vez de exercitar a origem que diz cobrir.
-            await service.ConfigureAsync(service.Settings with { InlineUseAi = true, InlineUseTraditional = false, UseDictionary = false });
+            // O ghost nunca usa IA: a origem assíncrona que ele ainda consulta depois do determinístico é o dicionário
+            // lexical, e é ela que o duplo representa aqui — resposta obsoleta descartada, ghost que não edita o
+            // documento, Tab/Esc e renderização. A carga da sessão já ocorreu acima e define a configuração efetiva.
+            service.AnswersAsDictionary = true;
+            await service.ConfigureAsync(service.Settings with { UseDictionary = true });
             var tab = workspace.ActiveTab!; window.UpdateLayout(); Dispatcher.UIThread.RunJobs();
             var view = window.GetVisualDescendants().OfType<WorkspaceTabView>().Single(v => v.DataContext == tab);
             var editor = view.FindControl<MongoTextEditor>("CodeEditor")!;
@@ -142,13 +140,11 @@ public sealed class AutocompleteUiTests
             var service = new CompletionServiceFake();
             using var workspace = new WorkspaceViewModel(context.Workspace, context.Repository, service, new CompletionCatalogFake());
             var window = new MainWindow { DataContext = workspace }; window.Show(); await window.InitializationTask;
-            // A inferência automática de IA é opt-in e vem desligada por padrão (W3). Este teste cobre justamente
-            // esse caminho — resposta obsoleta descartada, ghost que não edita o documento, Tab/Esc e renderização —,
-            // então habilita a opção explicitamente, como faria o usuário. A carga da sessão já ocorreu acima, e é ela
-            // quem define a configuração efetiva do serviço. As demais origens ficam desligadas no próprio setup: com
-            // elas ligadas, o que chega ao ghost dependeria de o catálogo determinístico se abster para este texto,
-            // e o teste passaria por coincidência de dados em vez de exercitar a origem que diz cobrir.
-            await service.ConfigureAsync(service.Settings with { InlineUseAi = true, InlineUseTraditional = false, UseDictionary = false });
+            // O ghost nunca usa IA: a origem assíncrona que ele ainda consulta depois do determinístico é o dicionário
+            // lexical, e é ela que o duplo representa aqui — resposta obsoleta descartada, ghost que não edita o
+            // documento, Tab/Esc e renderização. A carga da sessão já ocorreu acima e define a configuração efetiva.
+            service.AnswersAsDictionary = true;
+            await service.ConfigureAsync(service.Settings with { UseDictionary = true });
             var tab = workspace.ActiveTab!;
             window.UpdateLayout(); Dispatcher.UIThread.RunJobs();
             var view = window.GetVisualDescendants().OfType<WorkspaceTabView>().Single(v => v.DataContext == tab);
@@ -205,7 +201,7 @@ public sealed class AutocompleteUiTests
     }
 
     [Test]
-    public async Task InlineOverridesShowResetButtonsAndDisableDependentOptionsInBothThemes()
+    public async Task SettingsSeparateNormalAndAiAutocompleteInBothThemes()
     {
         var session = HeadlessUnitTestSession.GetOrStartForAssembly(typeof(IntegrationUiTestApp).Assembly);
         await session.Dispatch<bool>(async () =>
@@ -216,31 +212,33 @@ public sealed class AutocompleteUiTests
             var preferences = workspace.AutocompletePreferences;
             var window = new AutocompleteSettingsWindow { DataContext = preferences, Width = 660, Height = 680 };
             window.Show();
-            // A user override materializes an explicit value and reveals "Usar padrão"; the reset command restores absence.
-            preferences.InlineUseAiEffective = true;
-            Assert.That(preferences.InlineUseAiIsOverridden, Is.True);
-            var snapshotWithOverride = preferences.Snapshot();
-            Assert.That(snapshotWithOverride.InlineUseAiValue, Is.True);
-            // With the automatic suggestion off, the two dependent checkboxes must stay visually disabled without losing their saved value.
-            preferences.InlineEnabledEffective = false;
             window.UpdateLayout(); Dispatcher.UIThread.RunJobs();
-            var traditional = window.GetVisualDescendants().OfType<CheckBox>().Single(box => (string?)box.Content == "Usar sugestões determinísticas (catálogo e schema)");
-            var ai = window.GetVisualDescendants().OfType<CheckBox>().Single(box => (string?)box.Content == "Usar IA local nas sugestões automáticas");
-            Assert.That(traditional.GetVisualAncestors().OfType<Grid>().First().IsEffectivelyEnabled, Is.False);
-            Assert.That(ai.GetVisualAncestors().OfType<Grid>().First().IsEffectivelyEnabled, Is.False);
-            Assert.That(ai.IsChecked, Is.True, "Disabling the master switch must not erase the saved value of a dependent option.");
+            var texts = window.GetVisualDescendants().OfType<TextBlock>().Select(block => block.Text).ToArray();
+            Assert.That(texts, Does.Contain("Autocomplete").And.Contain("Autocomplete com IA (Ctrl+.)").And.Contain("Modelo local"));
+            var boxes = window.GetVisualDescendants().OfType<CheckBox>().Select(box => box.Content as string).ToArray();
+            Assert.That(boxes, Does.Contain("Habilitar autocomplete").And.Contain("Habilitar autocomplete com IA"));
+            Assert.That(boxes, Has.None.EqualTo("Usar IA local nas sugestões automáticas"), "A IA não participa mais da digitação.");
+            Assert.That(boxes, Has.None.EqualTo("Sugerir automaticamente após uma pausa na digitação"), "O ghost do autocomplete normal é sempre ligado.");
+            Assert.That(window.GetVisualDescendants().OfType<ComboBox>().Any(box => Avalonia.Automation.AutomationProperties.GetName(box) == "Modo de autocomplete"), Is.False,
+                "O combo Modo foi substituído pela caixa do autocomplete com IA.");
+
+            // Turning the AI off disables only its context option and never the normal autocomplete.
+            preferences.AiCompletionEnabled = false;
+            window.UpdateLayout(); Dispatcher.UIThread.RunJobs();
+            var inputContext = window.GetVisualDescendants().OfType<CheckBox>().Single(box => (string?)box.Content == "Usar contexto do Input");
+            var normal = window.GetVisualDescendants().OfType<CheckBox>().Single(box => (string?)box.Content == "Habilitar autocomplete");
+            Assert.That((inputContext.IsEffectivelyEnabled, normal.IsEffectivelyEnabled, normal.IsChecked), Is.EqualTo((false, true, (bool?)true)));
+            Assert.That(preferences.Snapshot().AiCompletionEnabledValue, Is.False);
             var directory = UiEvidenceDirectory.Current(); Directory.CreateDirectory(directory);
             foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
             {
                 Avalonia.Application.Current!.RequestedThemeVariant = theme;
                 window.UpdateLayout(); Dispatcher.UIThread.RunJobs();
                 using var frame = window.CaptureRenderedFrame();
-                frame!.Save(Path.Combine(directory, $"autocomplete-settings-inline-overrides-{theme}.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+                frame!.Save(Path.Combine(directory, $"autocomplete-settings-sections-{theme}.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
             }
-            preferences.ResetInlineUseAiCommand.Execute(null);
-            Assert.That(preferences.InlineUseAiIsOverridden, Is.False);
-            Assert.That(preferences.Snapshot().InlineUseAiValue, Is.Null, "Usar padrão must clear the override back to absent, not just toggle it off.");
             window.Close();
+            await Task.CompletedTask;
             return true;
         }, CancellationToken.None);
     }
