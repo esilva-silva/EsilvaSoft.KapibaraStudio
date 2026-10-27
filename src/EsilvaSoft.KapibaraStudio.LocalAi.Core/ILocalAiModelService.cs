@@ -78,7 +78,8 @@ public interface ILocalAiModelService : IAsyncDisposable
         yield return new GeneratedChunk(result.Text, result.GeneratedTokens, true)
         {
             Elapsed = result.Elapsed, TimeToFirstToken = result.TimeToFirstToken, Provider = result.Provider,
-            IsComplete = result.IsComplete, UsedCpuFallback = result.UsedCpuFallback
+            IsComplete = result.IsComplete, UsedCpuFallback = result.UsedCpuFallback,
+            PrefixCacheReusedTokens = result.PrefixCacheReusedTokens
         };
     }
 

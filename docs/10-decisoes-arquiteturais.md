@@ -734,3 +734,23 @@ Antes de exportar resultados, o host valida todo o manifesto e recria somente os
 **Compatibilidade:** `create_workspace_file` preserva ADR-067, criando somente na pasta temporária após confirmação; propostas não salvam alterações. O Community preserva a falha real de `$listSearchIndexes`, sem `$search` ou fallback. Cota excedida encerra o turno antes de entregar nova mensagem; o relatório registra `toolResponse=null` e o erro real do runtime. Toda mensagem efetivamente entregue usa `LocalAgentPromptBuilder.BuildToolResponse` do ADR-072. Nenhum registro sintético entra na instalação do usuário.
 
 **Consequências:** fixtures versionados, replay com tolerâncias restritas e comparador externo de 500 chamadas; nenhum `Succeeded` do simulador diante de falha/recusa real é tolerado. Não há inferência, dataset de treino, provider/autenticação de produção novo ou mudança visual. [Contrato operacional](../tools/KapiLab/Fixtures/kapi-sim/README.md), [evidências e limites](phases/phase-07b-kapilab/aceite-pr-3.md).
+
+
+## ADR-074 — EOS por crescimento de sequência e cache CPU com homologação por pacote (26/10/2026)
+
+**Contexto:** GenAI 0.15.2 pode concluir por EOS sem anexar token; os gates de CPU precisam avaliar reuso por sessão e sua equivalência numérica.
+
+**Decisão:** consumir apenas IDs novos; implementar cache transitório LRU por sessão em CPU greedy, com identidade capturada por aba/destino e descarte seguro. Exigir configuração opt-in e homologação do pacote. O laboratório pode avaliar candidatos sem conceder habilitação ao produto. Não criar eosfix nem alterar os contratos de prompt. Avaliar GenAI em separado, sem promover uma versão por release notes.
+
+**Consequências:** a divergência encontrada no teste nativo mantém os pacotes sem aprovação de cache. Testes de unidade não substituem os gates reais de qualidade, latência, memória e hardware. [Detalhes e limites](architecture/local-ai-eos-prefix-cache.md).
+
+
+## ADR-075 - Distinguir publicacao de modelo e pacote instalavel (26/10/2026)
+
+**Contexto:** os repositorios publicados KapiCoder-Mongo-Nano/Small contem pesos Safetensors, enquanto o runtime desktop usa pacotes ONNX GenAI. Trocar somente as URLs faria a lista parecer vazia ou prometer uma instalacao incompatível.
+
+**Decisao:** fontes padrao apontam aos repositorios publicados. RemoteModelVariant.IsInstallable distingue entrada informativa e exportacao executavel (padrao true preserva consumidores existentes). Safetensors fica visivel com card/licenca e requisito de exportacao; UI e backend bloqueiam a instalacao. Variantes ONNX futuras continuam descobertas por genai_config.json em subpastas, com commit e hashes fixados por listagem. Catalogos locais e fontes customizadas conservam seus contratos.
+
+**Consequencias:** nenhuma conversao ou backend paralelo e iniciado silenciosamente. Metadados publicos e renderizacoes comprovam o catalogo, sem declarar execucao direta de Safetensors ou homologacao nativa. [Contrato e evidencias](architecture/remote-kapicoder-catalog.md).
+
+**Revisão de preparação ONNX — 26/10/2026:** após a preparação dos exports v3, as fontes padrão passam a `esilva/KapiCoder-Mongo-Nano-ONNX` e `esilva/KapiCoder-Mongo-Small-ONNX`, mantendo os links dos cards base. Nano `cpu-int4` precede Nano `cpu-int8`, DirectML experimental e Small. A escolha já feita pelo usuário continua preservada. Os pacotes são pastas autocontidas com `genai_config.json`, pesos, tokenizer e manifestos; publicação é uma etapa posterior ao staging local. `IsInstallable` e as restrições de Safetensors continuam válidos para fontes personalizadas. Não há conversão no cliente, cache homologado ou troca automática do modelo instalado.

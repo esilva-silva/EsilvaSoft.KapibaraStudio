@@ -1,5 +1,9 @@
 # Design system e revisão de UI/UX
 
+**Catálogo KapiCoder — 26/10/2026:** Preferências usa os repositórios ONNX dedicados, ordena Nano CPU INT4 primeiro e mantém o card do modelo base. Safetensors de fontes personalizadas continua informativo e não instalável. Não há alteração de layout; nomes CPU INT4/INT8 reconhecem também as pastas cpu-int4/cpu-int8. [Contrato e evidências](architecture/remote-kapicoder-catalog.md).
+
+**IA local — 26/10/2026:** correção de EOS e experimento de cache CPU não acrescentam controles visuais. Sessões de cache são transitórias e isoladas por aba/destino; fechar a aba cancela sua sessão sem descartar um generator ainda em uso. O cache permanece desabilitado até homologação por pacote. [Comportamento e limites](architecture/local-ai-eos-prefix-cache.md).
+
 **Laboratório PR 3 — 11/10/2026:** o host sintético captura contexto/saídas por turno para testar as tools existentes. Não altera UI, seleção do explorer, consentimentos, sessão persistida ou confirmações do Desktop. [Escopo e limites](phases/phase-07b-kapilab/aceite-pr-3.md).
 
 **Contrato de conteúdo do agente local — 11/10/2026:** ADR-072 congela o sistema em pt-BR e mensagens role/content, com descrições curtas em inglês das tools internas. Raciocínio entre turnos continua removido pela sessão; a exportação KapiLab usa hashes por padrão. As superfícies visuais e políticas de contexto/retenção existentes permanecem conforme seus aceites. [Contrato técnico e limites](architecture/local-agent-qwen3-v1.md).

@@ -33,6 +33,8 @@ public sealed record AutocompleteSettings
     public AiAccelerationMode Acceleration { get; init; } = AiAccelerationMode.Auto;
     public AiExecutionProvider ExecutionProvider { get; init; } = AiExecutionProvider.Auto;
     public int ContextTokens { get; init; } = 2048;
+    public PrefixCacheMode PrefixCacheMode { get; init; }
+    public int PrefixCacheMaxSessions { get; init; } = 4;
     public int MaximumCompletionTokens { get; init; } = 32;
     public int DelayMilliseconds { get; init; } = 150;
     /// <summary>Stable JSON payload for manual estimation profiles; empty preserves legacy documents and equality.</summary>
@@ -128,7 +130,8 @@ public sealed record AutocompleteSettings
             || ModelPath is null || ModelPath.Length > 4096 || ModelDirectory is null || ModelDirectory.Length > 4096
             || !IsModelFolderName(SelectedModel) || !IsModelFolderName(ChatModel) || ContextTokens is < 64 or > AbsoluteContextMaximum
             || MaximumCompletionTokens is < 1 or > AbsoluteCompletionMaximum || DelayMilliseconds is < 50 or > 2000
-            || AiTimeoutMilliseconds is < 1000 or > 60_000)
+            || AiTimeoutMilliseconds is < 1000 or > 60_000 || !Enum.IsDefined(PrefixCacheMode)
+            || PrefixCacheMaxSessions is < 1 or > 4)
             throw new ArgumentException("Configuração de autocomplete inválida ou de versão não suportada.");
         return this;
     }

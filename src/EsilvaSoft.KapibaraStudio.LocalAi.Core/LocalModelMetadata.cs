@@ -35,4 +35,6 @@ public sealed record LocalModelMetadata
     public LocalModelReasoningMetadata? Reasoning { get; init; }
     public LocalModelAgentGeneration? AgentGeneration { get; init; }
     public Version? MinimumGenAi { get; init; }
+    /// <summary>Declaração de homologação CPU do pacote; ausente mantém reuso desligado no produto.</summary>
+    public bool CpuPrefixCacheValidated { get; init; }
 }

@@ -49,13 +49,19 @@ public sealed class AiAutocompleteProvider : IAsyncDisposable, IDisposable
                 AutocompleteContextBuilder.ModelPrefix(request, LocalAiModelService.IsDeepSeek(model)), request.Suffix,
                 AutocompleteTokenBudget.EffectiveContextTokens(settings.ContextTokens, settings.MaximumCompletionTokens,
                     model.EffectiveContextLength, model.EffectiveAutocompleteMaximumTokens),
-                Math.Min(settings.MaximumCompletionTokens, model.EffectiveAutocompleteMaximumTokens), request.RequireComplete) { Temperature = model.Metadata?.Autocomplete.Temperature ?? 0 },
+                Math.Min(settings.MaximumCompletionTokens, model.EffectiveAutocompleteMaximumTokens), request.RequireComplete)
+                {
+                    Temperature = model.Metadata?.Autocomplete.Temperature ?? 0,
+                    PrefixCache = new PrefixCacheState { SessionKey = request.PrefixCacheSessionKey,
+                        SessionLifetime = request.PrefixCacheSessionLifetime, Mode = settings.PrefixCacheMode }
+                },
                 AiRequestPriority.Background, load, cancellationToken).ConfigureAwait(false);
         }
         catch (LocalModelUnavailableException) { return null; }
         if (request.RequireComplete && !generation.Result.IsComplete && !allowIncompleteCapture) return null;
         return CleanGeneratedText(generation.Result.Text, request.Suffix) is { } text
             ? new(generation.Result.Text, new(text, true, "IA local · Tab aceita · Esc descarta"), generation.Result.IsComplete)
+                { PrefixCacheReusedTokens = generation.Result.PrefixCacheReusedTokens }
             : null;
     }
 
@@ -78,4 +84,7 @@ public sealed class AiAutocompleteProvider : IAsyncDisposable, IDisposable
     public void Dispose() => DisposeAsync().AsTask().GetAwaiter().GetResult();
 }
 
-internal sealed record AutocompleteCapture(string RawText, AutocompleteResult Completion, bool IsComplete);
+internal sealed record AutocompleteCapture(string RawText, AutocompleteResult Completion, bool IsComplete)
+{
+    public int PrefixCacheReusedTokens { get; init; }
+}

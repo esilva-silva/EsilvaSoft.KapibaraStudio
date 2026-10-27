@@ -11,6 +11,7 @@ public sealed record GeneratedChunk(string Text, int GeneratedTokens, bool IsFin
 {
     /// <summary>Generated token for this chunk when the runtime exposes it; null on aggregate/final chunks.</summary>
     public int? TokenId { get; init; }
+    public int PrefixCacheReusedTokens { get; init; }
     /// <summary>Tempo desde o início da geração; preenchido no pedaço final.</summary>
     public TimeSpan Elapsed { get; init; }
 

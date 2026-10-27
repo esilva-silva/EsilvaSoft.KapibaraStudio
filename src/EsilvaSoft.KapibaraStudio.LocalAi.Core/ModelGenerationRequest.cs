@@ -27,8 +27,7 @@ public sealed record ModelGenerationRequest(string Prefix, string Suffix, int Co
     public IReadOnlyList<string>? StopSequences { get; init; }
 
     /// <summary>
-    /// Estado de reuso de KV cache entre pedidos. Inerte em R42: o campo existe para que a assinatura não mude quando
-    /// R43 implementar o experimento de prefix cache por provider; o runtime ignora qualquer valor aqui.
+    /// Sessão de reuso experimental em CPU. Desligado por padrão; exige configuração e homologação do pacote.
     /// </summary>
     public PrefixCacheState? PrefixCache { get; init; }
 }

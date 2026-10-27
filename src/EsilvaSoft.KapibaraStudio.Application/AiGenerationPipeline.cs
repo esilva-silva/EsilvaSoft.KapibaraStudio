@@ -69,6 +69,7 @@ public sealed record AiCompletionCandidate(string Text)
 
     /// <summary>Tempo até o primeiro token, quando o runtime o reporta.</summary>
     public TimeSpan? TimeToFirstToken { get; init; }
+    public int PrefixCacheReusedTokens { get; init; }
 
     /// <summary>Provider efetivo da geração.</summary>
     public string Provider { get; init; } = "";
@@ -373,7 +374,13 @@ public sealed class AiGenerationPipeline
             reserved, request.RequireComplete)
         {
             Temperature = model.Metadata?.Autocomplete.Temperature ?? 0,
-            PromptTokens = TokenizePrompt(context, prompt, contextTokens)
+            PromptTokens = TokenizePrompt(context, prompt, contextTokens),
+            PrefixCache = request.Role == LocalModelRole.Autocomplete ? new PrefixCacheState
+            {
+                SessionKey = request.Snapshot.PrefixCacheSessionKey,
+                SessionLifetime = request.Snapshot.PrefixCacheSessionLifetime,
+                Mode = request.Settings.PrefixCacheMode
+            } : null
         };
         return (new PreparedRequest(generation, prompt), null);
     }
@@ -481,6 +488,7 @@ public sealed class AiGenerationPipeline
             GeneratedTokens = last?.GeneratedTokens ?? 0,
             Elapsed = last?.Elapsed ?? TimeSpan.Zero,
             TimeToFirstToken = last?.TimeToFirstToken,
+            PrefixCacheReusedTokens = last?.PrefixCacheReusedTokens ?? 0,
             Provider = last?.Provider ?? "",
             TruncatedByStructuralStop = truncated,
             TimedOut = timedOut

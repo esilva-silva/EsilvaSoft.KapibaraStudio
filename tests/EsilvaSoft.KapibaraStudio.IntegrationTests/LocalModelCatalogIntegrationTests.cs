@@ -10,6 +10,28 @@ namespace EsilvaSoft.KapibaraStudio.IntegrationTests;
 [TestFixture]
 public sealed class LocalModelCatalogIntegrationTests
 {
+    [TestCase("{}", false)]
+    [TestCase("{\"runtime\":{\"prefixCache\":\"disabled\"}}", false)]
+    [TestCase("{\"runtime\":{\"prefixCache\":\"reuse\"}}", true)]
+    [TestCase("{\"runtime\":{\"prefixCache\":true}}", false)]
+    public async Task PrefixCacheRequiresExplicitPackageValidation(string metadata, bool expected)
+    {
+        using var models = new SyntheticDirectory();
+        var path = CreateQwenModel(models.Path, "Cache-Gate", metadata);
+        var result = await new LocalModelCatalog(models.Path, fileAccess: new LocalModelFileAccess()).ValidateAsync(path);
+        Assert.That(result.Model, Is.Not.Null, result.Status.Message);
+        Assert.That(result.Model!.Metadata!.CpuPrefixCacheValidated, Is.EqualTo(expected));
+    }
+
+    [Test]
+    public async Task ScalarRuntimeRemainsInvalidMetadata()
+    {
+        using var models = new SyntheticDirectory();
+        var path = CreateQwenModel(models.Path, "Invalid-Runtime", "{\"runtime\":\"onnxruntime-genai\"}");
+        var result = await new LocalModelCatalog(models.Path, fileAccess: new LocalModelFileAccess()).ValidateAsync(path);
+        Assert.That(result.Model, Is.Null);
+    }
+
     private static readonly AiAccelerationMode[] CpuOnly = [AiAccelerationMode.Cpu];
     private static readonly string[] DiscoveredFolders = ["Broken-Metadata", "Empty", "Llama-Plain", "SlopCoder-Mongo-0.5B", "SlopCoder-Mongo-1.5B", "SlopCoder-Test"];
 

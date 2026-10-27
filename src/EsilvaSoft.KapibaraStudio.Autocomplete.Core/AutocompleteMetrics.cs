@@ -42,6 +42,9 @@ public static class AutocompleteMetrics
     public static Histogram<long> InferencePromptTokens { get; } = Meter.CreateHistogram<long>("inference.prompt_tokens");
     public static Histogram<long> InferenceGeneratedTokens { get; } = Meter.CreateHistogram<long>("inference.generated_tokens");
     public static Histogram<long> PrefixCacheReusedTokens { get; } = Meter.CreateHistogram<long>("prefix_cache.reused_tokens");
+    public static Counter<long> PrefixCacheLookup { get; } = Meter.CreateCounter<long>("prefix_cache.lookup");
+    public static Counter<long> PrefixCacheInvalidations { get; } = Meter.CreateCounter<long>("prefix_cache.invalidations");
+    public static Histogram<double> PrefixCacheTimeToFirstToken { get; } = Meter.CreateHistogram<double>("prefix_cache.ttft", "ms");
     /// <summary>Time spent by autocomplete handlers on the UI thread for one editor event.</summary>
     public static Histogram<double> UiDispatcherTime { get; } = Meter.CreateHistogram<double>("ui.autocomplete.dispatcher_time", "ms");
 }

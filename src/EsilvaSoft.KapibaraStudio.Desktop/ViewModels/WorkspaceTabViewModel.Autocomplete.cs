@@ -127,6 +127,7 @@ public sealed partial class WorkspaceTabViewModel
             InputJson, fields, names, history, FilePath), settings);
         EsilvaSoft.KapibaraStudio.Autocomplete.Core.AutocompleteMetrics.ContextBuildDuration.Record(
             System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds, new KeyValuePair<string, object?>("pipeline", "legacy"));
-        return request;
+        var session = CapturePrefixCacheSession(language);
+        return request with { PrefixCacheSessionKey = session.Key, PrefixCacheSessionLifetime = session.Lifetime };
     }
 }

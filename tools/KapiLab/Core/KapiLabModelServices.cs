@@ -9,12 +9,13 @@ namespace EsilvaSoft.KapibaraStudio.KapiLab.Core;
 internal static class KapiLabModelServices
 {
     public static LocalAiModelService Create(LocalModelCatalog catalog, KapiLabModelFileAccess fileAccess, string command,
-        string workspace, GpuExecutionMode gpuMode, IAutocompleteDiagnostics? diagnostics = null)
+        string workspace, GpuExecutionMode gpuMode, IAutocompleteDiagnostics? diagnostics = null, bool allowUnvalidatedPrefixCache = false)
     {
         var hardware = new OnnxHardwareProbe();
         var runId = Guid.NewGuid().ToString("N");
         return new LocalAiModelService(catalog, () => new GpuLeaseModelRuntime(
-            new OnnxLocalModelRuntime(diagnostics: diagnostics, fileAccess: fileAccess, hardware: hardware), hardware,
+            new OnnxLocalModelRuntime(diagnostics: diagnostics, fileAccess: fileAccess, hardware: hardware,
+                allowUnvalidatedPrefixCache: allowUnvalidatedPrefixCache), hardware,
             GpuModelLoadLock.DefaultLockDirectory, command, runId, workspace, gpuMode), hardware, diagnostics);
     }
 

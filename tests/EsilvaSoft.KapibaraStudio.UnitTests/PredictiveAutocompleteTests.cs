@@ -10,6 +10,31 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests;
 public sealed class PredictiveAutocompleteTests
 {
     [Test]
+    public void PrefixSessionsFollowTheirCapturedTabAndDestinationAndCloseIdempotently()
+    {
+        using var context = new WorkspaceTestContext();
+        var first = new WorkspaceTabViewModel(context.Workspace) { Database = "one" };
+        var second = new WorkspaceTabViewModel(context.Workspace) { Database = "one" };
+        try
+        {
+            var captured = first.CaptureAiContextSnapshot("db.", 3);
+            var same = first.CaptureAutocompleteRequest("db.", 3);
+            var other = second.CaptureAiContextSnapshot("db.", 3);
+            Assert.That(captured.PrefixCacheSessionKey, Is.EqualTo(same.PrefixCacheSessionKey));
+            Assert.That(other.PrefixCacheSessionKey, Is.Not.EqualTo(captured.PrefixCacheSessionKey));
+            first.Database = "two";
+            var changed = first.CaptureAiContextSnapshot("db.", 3);
+            Assert.That(captured.PrefixCacheSessionLifetime.IsCancellationRequested, Is.True);
+            Assert.That(changed.PrefixCacheSessionKey, Is.Not.EqualTo(captured.PrefixCacheSessionKey));
+            Assert.That(other.PrefixCacheSessionLifetime.IsCancellationRequested, Is.False);
+            first.Dispose(); first.Dispose();
+            Assert.That(changed.PrefixCacheSessionLifetime.IsCancellationRequested, Is.True);
+            Assert.That(other.PrefixCacheSessionLifetime.IsCancellationRequested, Is.False);
+        }
+        finally { first.Dispose(); second.Dispose(); }
+    }
+
+    [Test]
     public async Task ResultFieldsAndInputStayInsideTheirOriginatingTab()
     {
         using var context = new WorkspaceTestContext();

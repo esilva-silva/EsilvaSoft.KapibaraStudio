@@ -503,6 +503,7 @@ internal static class KapiLabCommandLine
         var limit = new Option<int?>("--limit") { Description = "Quantidade máxima de registros de entrada." };
         var warmup = new Option<int>("--warmup") { Description = "Gerações de aquecimento no primeiro registro, fora das amostras; padrão 1.", DefaultValueFactory = _ => 1 };
         var iterations = new Option<int>("--iterations") { Description = "Repetições medidas de cada registro; padrão 1.", DefaultValueFactory = _ => 1 };
+        var sessionMode = new Option<bool>("--session-mode") { Description = "Cache experimental CPU; JSONL ordenado representa pedidos sucessivos da mesma aba. Reporta hits/misses, sem pressupor taxa de 95%." };
         autocomplete.Options.Add(package);
         autocomplete.Options.Add(input);
         autocomplete.Options.Add(benchMatrix);
@@ -515,12 +516,13 @@ internal static class KapiLabCommandLine
         autocomplete.Options.Add(limit);
         autocomplete.Options.Add(warmup);
         autocomplete.Options.Add(iterations);
+        autocomplete.Options.Add(sessionMode);
         autocomplete.SetAction(parseResult => ExecuteAsync("bench.autocomplete", () =>
         {
             var matrixPath = parseResult.GetValue(benchMatrix);
             if (matrixPath is not null)
             {
-                if (parseResult.GetValue(package) is not null) return Task.FromResult((int)ExitCode.Usage);
+                if (parseResult.GetValue(package) is not null || parseResult.GetValue(sessionMode)) return Task.FromResult((int)ExitCode.Usage);
                 return BenchMatrixCommand.RunAsync(matrixPath, parseResult.GetValue(input) ?? "", parseResult.GetValue(output),
                     parseResult.GetValue(workspace), "autocomplete", parseResult.GetValue(contextTokens), parseResult.GetValue(maximumTokens),
                     parseResult.GetValue(limit), parseResult.GetValue(warmup), parseResult.GetValue(iterations),
@@ -530,7 +532,7 @@ internal static class KapiLabCommandLine
             return AutocompleteBenchCommand.RunAsync(selectedPackage, parseResult.GetValue(input) ?? "", parseResult.GetValue(output),
                 parseResult.GetValue(workspace), parseResult.GetValue(device) ?? "auto", parseResult.GetValue(contextTokens),
                 parseResult.GetValue(maximumTokens), parseResult.GetValue(limit), parseResult.GetValue(warmup),
-                parseResult.GetValue(iterations), parseResult.GetValue(viaQueue), parseResult.GetValue(standaloneGpu));
+                parseResult.GetValue(iterations), parseResult.GetValue(viaQueue), parseResult.GetValue(standaloneGpu), parseResult.GetValue(sessionMode));
         }));
         bench.Subcommands.Add(autocomplete);
 

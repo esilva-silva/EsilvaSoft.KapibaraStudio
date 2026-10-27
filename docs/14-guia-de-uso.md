@@ -1,5 +1,9 @@
 # Guia rápido de uso
 
+**Pacotes ONNX publicados — 26/10/2026:** as fontes padrão são KapiCoder-Mongo-Nano-ONNX e Small-ONNX, com Nano CPU INT4 selecionado primeiro. Os exports completos e manifestos estão publicados com a tag v0.1.0-preview, com integridade verificada no Hub. Safetensors permanece informativo quando listado por fonte personalizada. [Contrato e evidências](architecture/remote-kapicoder-catalog.md).
+
+**IA local — 26/10/2026:** [EOS e cache CPU experimental](architecture/local-ai-eos-prefix-cache.md). EOS corrigido; cache por sessão disponível somente como experimento, sem pacote homologado. Paridade/qualidade/latência reais e seleção de nova versão GenAI permanecem pendentes.
+
 **Laboratório de desenvolvimento — 11/10/2026:** exportação por modo, seed/execução de fixtures e replay são comandos do console KapiLab. [Guia do fixture](../tools/KapiLab/Fixtures/kapi-sim/README.md). Usam LiteDB/workspace temporários e bancos sintéticos; não concedem permissões na instalação do Desktop.
 
 **Contrato Qwen3 para treino — 11/10/2026:** desenvolvedores podem usar `contract render/tokenize --contract local-agent-qwen3-v1` e `contract diff` no KapiLab. Render emite hashes por padrão; texto exige fixture sintética verificada e saída explícita. Tokenize também aceita entradas diretas inéditas e emite hashes/IDs sem texto. [Schema, exemplo e comandos](../tools/KapiLab/README.md#contrato-de-agente-local-qwen3); [aceite e limites](phases/phase-07b-kapilab/aceite-pr-2.md).

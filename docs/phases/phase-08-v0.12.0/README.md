@@ -1,5 +1,7 @@
 # Fase 8 — v0.12.0: IA local e produtividade contextual
 
+**Correções de modelos — 26/10/2026:** EOS passa a exigir crescimento real da sequência. Cache CPU por sessão implementado como experimento opt-in, bloqueado no produto sem homologação declarada no pacote; a prova manual encontrou divergência e não autoriza habilitá-lo. Avaliação de atualização GenAI ainda não selecionou versão para adoção. [Contratos, evidências e limites](../../architecture/local-ai-eos-prefix-cache.md).
+
 **Laboratório KapiLab — 09/10/2026:** a [Fase 7B / F7B-KAPILAB](../phase-07b-kapilab/meta-de-implementacao.md) planeja console e relatórios de avaliação que consomem os contratos da 7A. Mantém a prioridade de IA local e não substitui os testes da IDE nem a homologação real da Fase 10.
 
 **Preparação KapiCoder-Mongo — 09/10/2026:** a [Fase 7A / F7A-KAPI](../phase-07a-kapicoder-mongo/meta-de-implementacao.md) detalha a próxima preparação de IA local, sem nova versão ou mudança da prioridade desta fase. ADR-070 aprova agente local em Release, texto de raciocínio com retenção/orçamento configuráveis e tools vigentes com permissões; implementação e homologação permanecem planejadas.

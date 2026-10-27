@@ -331,7 +331,8 @@ public sealed class LocalAiModelService(ILocalModelCatalog catalog, Func<ILocalM
     private static ModelGenerationResult Measured(GeneratedChunk? last) =>
         last is null
             ? new("", 0, TimeSpan.Zero, "")
-            : new("", last.GeneratedTokens, last.Elapsed, last.Provider, last.IsComplete, last.UsedCpuFallback) { TimeToFirstToken = last.TimeToFirstToken };
+            : new("", last.GeneratedTokens, last.Elapsed, last.Provider, last.IsComplete, last.UsedCpuFallback)
+                { TimeToFirstToken = last.TimeToFirstToken, PrefixCacheReusedTokens = last.PrefixCacheReusedTokens };
 
     /// <summary>Contabilidade comum de uma geração bem-sucedida: estado exibido, diagnóstico e métricas.</summary>
     private void Succeeded(ActiveModel loaded, ModelKey key, KeyValuePair<string, object?> roleTag, LocalModelRole role, ModelGenerationResult generated)
@@ -498,7 +499,8 @@ public sealed class LocalAiModelService(ILocalModelCatalog catalog, Func<ILocalM
     }
 
     private ModelKey KeyFor(LocalModelRole role, AutocompleteSettings settings) =>
-        new(settings.ResolveModelPath(role, DefaultDirectory), settings.Acceleration, settings.ExecutionProvider);
+        new(settings.ResolveModelPath(role, DefaultDirectory), settings.Acceleration, settings.ExecutionProvider,
+            settings.PrefixCacheMode, settings.PrefixCacheMaxSessions);
 
     private static string ModelName(string path) => path.Length == 0 ? "" : Path.GetFileName(Path.TrimEndingDirectorySeparator(path)) is { Length: > 0 } name ? name : path;
 
@@ -593,7 +595,8 @@ public sealed class LocalAiModelService(ILocalModelCatalog catalog, Func<ILocalM
         string.Equals(left.ModelPath, right.ModelPath, StringComparison.Ordinal)
         && string.Equals(left.ModelDirectory, right.ModelDirectory, StringComparison.Ordinal)
         && string.Equals(left.SelectedModel, right.SelectedModel, StringComparison.Ordinal)
-        && left.Acceleration == right.Acceleration && left.ExecutionProvider == right.ExecutionProvider;
+        && left.Acceleration == right.Acceleration && left.ExecutionProvider == right.ExecutionProvider
+        && left.PrefixCacheMode == right.PrefixCacheMode && left.PrefixCacheMaxSessions == right.PrefixCacheMaxSessions;
 
     /// <summary>
     /// Fim da recusa temporária desta chave, ou nulo quando não há cooldown ativo. O cooldown é por chave de modelo
@@ -847,7 +850,8 @@ public sealed class LocalAiModelService(ILocalModelCatalog catalog, Func<ILocalM
         };
     }
 
-    private sealed record ModelKey(string Path, AiAccelerationMode Hardware, AiExecutionProvider Provider);
+    private sealed record ModelKey(string Path, AiAccelerationMode Hardware, AiExecutionProvider Provider,
+        PrefixCacheMode PrefixCacheMode, int PrefixCacheMaxSessions);
     private sealed record ActiveModel(LocalModelDefinition Model, ILocalModelRuntime Runtime, LocalModelRuntimeInfo? Info);
 
     private sealed class InlineProgress(Action<string> report) : IProgress<string>

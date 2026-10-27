@@ -7,6 +7,8 @@ public sealed class ModelDisplayNamesTests
 {
     [TestCase("int4", AiAccelerationMode.Cpu, null, "INT4")]
     [TestCase("int8", AiAccelerationMode.Cpu, null, "INT8")]
+    [TestCase("cpu-int4", AiAccelerationMode.Cpu, null, "INT4")]
+    [TestCase("CPU-INT8", AiAccelerationMode.Cpu, null, "INT8")]
     [TestCase("dml-fp16", AiAccelerationMode.Gpu, "DirectML", "FP16")]
     [TestCase("DML-INT4", AiAccelerationMode.Gpu, "DirectML", "INT4")]
     [TestCase("qnn-w4a16", AiAccelerationMode.Npu, "QNN", "W4A16")]
@@ -25,6 +27,8 @@ public sealed class ModelDisplayNamesTests
     public void InstalledModelsUseFolderConventionThenMetadataAndOtherwiseKeepTheirName()
     {
         Assert.That(ModelDisplayNames.ForInstalled("SlopCoder-Mongo-1.5B-full-ONNX-dml-fp16", null), Is.EqualTo("SlopCoder-Mongo-1.5B-full — GPU DirectML FP16"));
+        Assert.That(ModelDisplayNames.ForInstalled("KapiCoder-Mongo-Nano-ONNX-cpu-int4", null), Is.EqualTo("KapiCoder-Mongo-Nano — CPU INT4"));
+        Assert.That(ModelDisplayNames.ForInstalled("KapiCoder-Mongo-Small-ONNX-cpu-int8", null), Is.EqualTo("KapiCoder-Mongo-Small — CPU INT8"));
         Assert.That(ModelDisplayNames.ForInstalled("SlopCoder-Mongo-1.5B-full-ONNX-qnn-w4a16", null), Is.EqualTo("SlopCoder-Mongo-1.5B-full — NPU QNN W4A16"));
         Assert.That(ModelDisplayNames.ForInstalled("SlopCoder-Mongo-1.5B-full-ONNX-INT8", null), Is.EqualTo("SlopCoder-Mongo-1.5B-full — CPU INT8"),
             "Folders copied by hand before the download feature follow the same convention.");

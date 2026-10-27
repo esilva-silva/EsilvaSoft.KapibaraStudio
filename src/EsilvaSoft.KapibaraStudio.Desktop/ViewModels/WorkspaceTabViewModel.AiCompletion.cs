@@ -4,6 +4,24 @@ namespace EsilvaSoft.KapibaraStudio.Desktop.ViewModels;
 
 public sealed partial class WorkspaceTabViewModel
 {
+    private CancellationTokenSource _prefixCacheLifetime = new();
+    private (Guid? Profile, string Database, string Collection, string Language, string? File)? _prefixCacheContext;
+    private string _prefixCacheKey = Guid.NewGuid().ToString("N");
+    private bool _prefixCacheDisposed;
+
+    private (string Key, CancellationToken Lifetime) CapturePrefixCacheSession(string language)
+    {
+        var context = (Profile?.Id, Database, Collection, language, FilePath);
+        if (_prefixCacheContext is not null && _prefixCacheContext != context)
+        {
+            _prefixCacheLifetime.Cancel();
+            _prefixCacheLifetime.Dispose();
+            _prefixCacheLifetime = new();
+            _prefixCacheKey = Guid.NewGuid().ToString("N");
+        }
+        _prefixCacheContext = context;
+        return (_prefixCacheKey, _prefixCacheLifetime.Token);
+    }
     /// <summary>
     /// Provider da IA explícita (<c>Ctrl+;</c>), atribuído pela composição do workspace. Nulo em abas isoladas
     /// (design-time ou teste), caso em que o atalho cai direto no fallback da lista tradicional.
@@ -52,6 +70,8 @@ public sealed partial class WorkspaceTabViewModel
         var history = ConsoleHistory.Where(entry => entry.ProfileId == Profile?.Id && entry.Database == Database)
             .OrderByDescending(entry => entry.ExecutedAt).Take(3).Select(entry => entry.Script).ToArray();
         var language = Mode switch { "Agregação" => "json", "Script" => "JavaScript (mongosh)", _ => "Mongo Console JavaScript" };
-        return new AutocompleteContextSnapshot(text, clamped, language, InputJson, fields, names, history, FilePath);
+        var session = CapturePrefixCacheSession(language);
+        return new AutocompleteContextSnapshot(text, clamped, language, InputJson, fields, names, history, FilePath)
+        { PrefixCacheSessionKey = session.Key, PrefixCacheSessionLifetime = session.Lifetime };
     }
 }

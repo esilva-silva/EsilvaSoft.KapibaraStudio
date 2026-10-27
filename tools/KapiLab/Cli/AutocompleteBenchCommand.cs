@@ -23,13 +23,13 @@ internal static class AutocompleteBenchCommand
 
     public static async Task<int> RunAsync(string package, string input, string? output, string? workspaceOption,
         string device, int contextTokens, int maximumTokens, int? limit, int warmup, int iterations,
-        bool viaQueue = false, bool standaloneGpu = false)
+        bool viaQueue = false, bool standaloneGpu = false, bool sessionMode = false)
     {
         using var cancellation = new ConsoleCommandCancellation();
         try
         {
             return await RunCoreAsync(package, input, output, workspaceOption, device, contextTokens, maximumTokens,
-                limit, warmup, iterations, viaQueue, standaloneGpu, cancellation.Token).ConfigureAwait(false);
+                limit, warmup, iterations, viaQueue, standaloneGpu, sessionMode, cancellation.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {
@@ -40,7 +40,7 @@ internal static class AutocompleteBenchCommand
 
     private static async Task<int> RunCoreAsync(string package, string input, string? output, string? workspaceOption,
         string device, int contextTokens, int maximumTokens, int? limit, int warmup, int iterations, bool viaQueue, bool standaloneGpu,
-        CancellationToken cancellationToken)
+        bool sessionMode, CancellationToken cancellationToken)
     {
         if (!ModelRunCommand.TryParseDeviceOption(device, out var acceleration))
         {
@@ -84,6 +84,9 @@ internal static class AutocompleteBenchCommand
             UseInputPanelContext = true,
             UseResultPanelContext = true,
         }.Validate();
+        if (sessionMode && acceleration != AiAccelerationMode.Cpu)
+            throw new InvalidDataException("--session-mode exige --device cpu; cache ainda não homologado em GPU/NPU.");
+        settings = settings with { PrefixCacheMode = sessionMode ? PrefixCacheMode.Reuse : PrefixCacheMode.Disabled };
         var inputs = await ReadInputsAsync(inputPath, settings, limit, cancellationToken).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
         if (inputs.Count == 0) throw new InvalidDataException("Entrada JSONL não contém registros para benchmark.");
@@ -101,7 +104,8 @@ internal static class AutocompleteBenchCommand
             return (int)ExitCode.PackageInvalid;
         }
 
-        await using var models = KapiLabModelServices.Create(catalog, fileAccess, "bench-autocomplete", workspace, gpuMode);
+        await using var models = KapiLabModelServices.Create(catalog, fileAccess, "bench-autocomplete", workspace, gpuMode,
+            allowUnvalidatedPrefixCache: sessionMode);
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -131,9 +135,11 @@ internal static class AutocompleteBenchCommand
         var statusAfterLoad = models.Status;
 
         using var provider = new AiAutocompleteProvider(models);
+        var sessionKey = Guid.NewGuid().ToString("N");
         async Task<AutocompleteBenchmarkOutcome> InferAsync(AutocompleteBenchmarkInput item, CancellationToken cancellationToken)
         {
-            var capture = await provider.GetCompletionCaptureAsync(item.Request, settings, AiModelLoadPolicy.LoadedOnly,
+            var request = sessionMode ? item.Request with { PrefixCacheSessionKey = sessionKey } : item.Request;
+            var capture = await provider.GetCompletionCaptureAsync(request, settings, AiModelLoadPolicy.LoadedOnly,
                     allowIncompleteCapture: true, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
             var status = models.Status;
@@ -143,6 +149,7 @@ internal static class AutocompleteBenchCommand
                 status.Backend?.ToString(), status.UsedFallback, reason)
             {
                 RuntimeTokensPerSecond = status.TokensPerSecond,
+                PrefixCacheReusedTokens = capture?.PrefixCacheReusedTokens ?? 0,
             };
         }
 
@@ -171,6 +178,8 @@ internal static class AutocompleteBenchCommand
             usedFallback = finalStatus.UsedFallback,
             ideCommit = environment.IdeCommit,
             genAiVersion = environment.GenAiVersion,
+            sessionMode,
+            prefixCache = SessionStatistics(report.Records),
         }, JsonOptions));
 
         if (outputPath is null)
@@ -203,6 +212,20 @@ internal static class AutocompleteBenchCommand
     internal static int ExitCodeFor(AutocompleteBenchmarkReport report) => report.Cancelled
         ? (int)ExitCode.Cancelled
         : report.Statistics.FailedSamples > 0 ? (int)ExitCode.ProviderUnavailable : (int)ExitCode.Success;
+
+    internal static object SessionStatistics(IReadOnlyList<AutocompleteBenchmarkRecord> records)
+    {
+        static object Distribution(IEnumerable<AutocompleteBenchmarkRecord> source)
+        {
+            var times = source.Where(row => row.RuntimeTtftMilliseconds.HasValue).Select(row => row.RuntimeTtftMilliseconds!.Value).Order().ToArray();
+            return new { n = times.Length, mean = times.Length == 0 ? (double?)null : times.Average(),
+                p95 = times.Length == 0 ? (double?)null : times[(int)Math.Ceiling(times.Length * .95) - 1] };
+        }
+        var hits = records.Count(row => row.PrefixCacheReusedTokens > 0);
+        return new { requests = records.Count, hits, hitRate = records.Count == 0 ? (double?)null : (double)hits / records.Count,
+            hit = Distribution(records.Where(row => row.PrefixCacheReusedTokens > 0)),
+            miss = Distribution(records.Where(row => row.PrefixCacheReusedTokens == 0)), mixture = Distribution(records) };
+    }
 
     private static async Task<List<AutocompleteBenchmarkInput>> ReadInputsAsync(string inputPath,
         AutocompleteSettings settings, int? limit, CancellationToken cancellationToken)

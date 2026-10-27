@@ -4,6 +4,10 @@ namespace EsilvaSoft.KapibaraStudio.Autocomplete.Core;
 public sealed record AutocompleteRequest(string Prefix, string Suffix, string? Language = null, string? FileName = null)
 {
     public bool RequireComplete { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string PrefixCacheSessionKey { get; init; } = "";
+    [System.Text.Json.Serialization.JsonIgnore]
+    public CancellationToken PrefixCacheSessionLifetime { get; init; }
     public string Context { get; init; } = "";
     public IReadOnlyList<string> Dictionary { get; init; } = [];
     public const int MaximumContextCharacters = 32768;

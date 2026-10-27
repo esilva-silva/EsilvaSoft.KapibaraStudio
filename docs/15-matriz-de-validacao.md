@@ -1,5 +1,9 @@
 # Matriz de validação
 
+**Pacotes ONNX publicados — 26/10/2026:** as fontes padrão são KapiCoder-Mongo-Nano-ONNX e Small-ONNX, com Nano CPU INT4 selecionado primeiro. Os exports completos e manifestos estão publicados com a tag v0.1.0-preview, com integridade verificada no Hub. Safetensors permanece informativo quando listado por fonte personalizada. [Contrato e evidências](architecture/remote-kapicoder-catalog.md).
+
+**IA local — 26/10/2026:** [EOS e cache CPU experimental](architecture/local-ai-eos-prefix-cache.md). EOS corrigido; cache por sessão disponível somente como experimento, sem pacote homologado. Paridade/qualidade/latência reais e seleção de nova versão GenAI permanecem pendentes.
+
 **PR 3 / catálogo e tools — 11/10/2026:** conferir catálogo completo nos quatro modos, ausência de nomes removidos, schemas contra ≥20 saídas reais por tool aplicável, negativa de destino fora do fixture, auditoria, fim do grant transitório, cota sem mensagem fabricada e replay. [Evidências e limitações de Atlas/kapisim](phases/phase-07b-kapilab/aceite-pr-3.md).
 
 **PR 2 — 11/10/2026:** 200 goldens do contrato local-agent-qwen3-v1 comprovam nativo Cpu = fallback = Python em bytes/IDs. Captura do provider cobre tool, force-close, N+1 sem raciocínio anterior, falha, concorrência/cancelamento e recuperação; RewindTo valida sequência, sem provar logits/KV. Suites padrão KapiLab Cpu/WinML e testes nativos Cpu aprovados; WinML nativo bloqueado por DLL 0x8007045A. [Resultados e limites](phases/phase-07b-kapilab/aceite-pr-2.md).

@@ -15,7 +15,7 @@ namespace EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi;
 /// <summary>Native calls run on a worker. The model service serializes initialization, generation and disposal.</summary>
 public sealed class OnnxLocalModelRuntime(IAutocompleteDiagnostics? diagnostics = null, IAiHardwareProbe? hardware = null,
     ILocalModelFileAccess? fileAccess = null, IReadOnlyList<IModelAdapter>? adapters = null,
-    IProcessMemorySnapshot? processMemory = null) : ILocalModelRuntime
+    IProcessMemorySnapshot? processMemory = null, bool allowUnvalidatedPrefixCache = false) : ILocalModelRuntime
 {
     private readonly ILocalModelFileAccess _fileAccess = fileAccess ?? throw new ArgumentNullException(nameof(fileAccess));
     private readonly IReadOnlyList<IModelAdapter> _adapters = adapters ?? ModelAdapters.CreateDefault(fileAccess ?? throw new ArgumentNullException(nameof(fileAccess)));
@@ -35,6 +35,9 @@ public sealed class OnnxLocalModelRuntime(IAutocompleteDiagnostics? diagnostics 
     private bool _fellBack;
     private LocalModelRuntimeInfo? _info;
     private Func<string, string> _localize = static key => key;
+    private readonly PrefixSessionCache<Generator> _prefixSessions = new(reason =>
+        EsilvaSoft.KapibaraStudio.Autocomplete.Core.AutocompleteMetrics.PrefixCacheInvalidations.Add(1,
+            new KeyValuePair<string, object?>("reason", reason)));
 
     public LocalModelRuntimeInfo? RuntimeInfo => _info;
 
@@ -167,7 +170,7 @@ public sealed class OnnxLocalModelRuntime(IAutocompleteDiagnostics? diagnostics 
         }
         var final = last ?? throw new InvalidOperationException(L("aiGenerationWithoutFinalChunk", "Geração encerrada sem pedaço final."));
         return new ModelGenerationResult(text.ToString(), final.GeneratedTokens, final.Elapsed, final.Provider, final.IsComplete, final.UsedCpuFallback)
-            { TimeToFirstToken = final.TimeToFirstToken };
+            { TimeToFirstToken = final.TimeToFirstToken, PrefixCacheReusedTokens = final.PrefixCacheReusedTokens };
     }
 
     /// <summary>Recarrega na CPU depois de uma falha do provider acelerado, ou converte a falha quando não há fallback.</summary>
@@ -235,26 +238,39 @@ public sealed class OnnxLocalModelRuntime(IAutocompleteDiagnostics? diagnostics 
         var tokenizer = _tokenizer ?? throw new InvalidOperationException(L("aiTokenizerNotInitialized", "Tokenizer não inicializado."));
         var input = BuildPrompt(request, tokenizer);
         var channel = Channel.CreateUnbounded<GeneratedChunk>(new UnboundedChannelOptions { SingleReader = true, SingleWriter = true });
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, request.PrefixCache?.SessionLifetime ?? default);
         var token = linked.Token;
         var worker = Task.Run(() =>
         {
             try { Generate(model, tokenizer, request, input, channel.Writer, token); }
             finally { channel.Writer.TryComplete(); }
         }, CancellationToken.None);
+        var finalDelivered = false;
         try
         {
-            await foreach (var chunk in channel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false)) yield return chunk;
+            await foreach (var chunk in channel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+            {
+                // ReadAllAsync pode drenar itens já enfileirados sem verificar novamente o cancelamento.
+                // Não entregar tokens/final depois de Esc, mesmo quando o trabalhador já terminou.
+                token.ThrowIfCancellationRequested();
+                finalDelivered |= chunk.IsFinal;
+                yield return chunk;
+            }
             await worker.ConfigureAwait(false);
         }
         finally
         {
             // Abandono da enumeração ou cancelamento: encerra a sessão nativa e espera o gerador ser liberado.
-            await linked.CancelAsync().ConfigureAwait(false);
+            // O consumidor pode encerrar ao receber o final. Nesse caso só aguardamos a limpeza,
+            // preservando a sessão válida; abandono/cancelamento antes do final sempre invalida.
+            if (!finalDelivered) await linked.CancelAsync().ConfigureAwait(false);
             try { await worker.ConfigureAwait(false); }
             catch (OperationCanceledException) { diagnostics?.Record("generation.stopped", cancellationToken.IsCancellationRequested ? "cancelado" : "abandonado"); }
             // Qualquer outra falha do trabalhador já subiu pelo laço acima; aqui ela seria a mesma exceção duas vezes.
             catch (Exception) { }
+            var cancelled = cancellationToken.IsCancellationRequested || request.PrefixCache?.SessionLifetime.IsCancellationRequested == true;
+            if ((!finalDelivered || cancelled || worker.IsFaulted) && request.PrefixCache is { } cache)
+                _prefixSessions.InvalidateSession(cache.SessionKey, worker.IsFaulted ? "failure" : cancelled ? "cancelled" : "abandoned");
         }
     }
 
@@ -297,14 +313,28 @@ public sealed class OnnxLocalModelRuntime(IAutocompleteDiagnostics? diagnostics 
         var stops = _stops;
         var stopTexts = StopTexts(request);
         var window = stopTexts.Length == 0 ? 0 : stopTexts.Max(stop => stop.Length) - 1;
+        var cache = request.PrefixCache;
+        var reuse = _provider.Kind == AiAccelerationMode.Cpu && request.ChatPrompt is null
+            && request.Temperature == 0 && request.TopP is null && request.TopK is null
+            && cache is { Mode: PrefixCacheMode.Reuse, SessionKey.Length: > 0 }
+            && _settings?.PrefixCacheMode == PrefixCacheMode.Reuse;
+        reuse &= allowUnvalidatedPrefixCache || _definition?.Metadata?.CpuPrefixCacheValidated == true;
+        var cacheContextLength = Math.Min(_contextLength, Math.Max(request.ContextTokens, input.Length + request.MaximumTokens));
         using var parameters = new GeneratorParams(model);
-        parameters.SetSearchOption("max_length", input.Length + request.MaximumTokens);
+        parameters.SetSearchOption("max_length", reuse ? cacheContextLength : input.Length + request.MaximumTokens);
         parameters.SetSearchOption("do_sample", request.Temperature > 0);
         if (request.Temperature > 0) parameters.SetSearchOption("temperature", request.Temperature);
         if (request.TopP is { } topP && double.IsFinite(topP) && topP is > 0 and <= 1) parameters.SetSearchOption("top_p", topP);
         if (request.TopK is { } topK && topK > 0) parameters.SetSearchOption("top_k", topK);
         if (request.Seed is { } seed) parameters.SetSearchOption("random_seed", seed);
-        using var generator = new Generator(model, parameters);
+        using var session = reuse ? _prefixSessions.Acquire(cache!.SessionKey, _settings!.PrefixCacheMaxSessions,
+            cacheContextLength, () => new Generator(model, parameters), cache.SessionLifetime) : null;
+        using var transient = session is null ? new Generator(model, parameters) : null;
+        var generator = session?.Generator ?? transient!;
+        // Um prefill de apenas um token mudou a saída INT4 na prova nativa. Reprocessar um bloco mínimo
+        // mantém prompts curtos no caminho completo; a equivalência numérica ainda exige homologação por pacote.
+        var reuseCap = Math.Min(cache?.CapTokens ?? int.MaxValue, Math.Max(0, input.Length - 32));
+        var reused = session is null ? 0 : PrefixSessionCache<Generator>.ReusableTokens(session.Tokens, input, reuseCap);
         using var decoder = tokenizer.CreateIncrementalDecoder();
         var watch = Stopwatch.StartNew();
         TimeSpan? firstToken = null;
@@ -317,15 +347,19 @@ public sealed class OnnxLocalModelRuntime(IAutocompleteDiagnostics? diagnostics 
         });
         try
         {
-            generator.AppendTokens(input);
+            if (session is not null && session.Tokens.Length > 0) generator.RewindTo((ulong)reused);
+            generator.AppendTokens(input.AsSpan(reused).ToArray());
+            var previousCount = input.Length;
             var tail = "";
             for (var i = 0; i < request.MaximumTokens && !generator.IsDone(); i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 generator.GenerateNextToken();
+                if (!GeneratedTokenReader.TryRead(generator.GetSequence(0), previousCount, out var id))
+                { stopped = true; break; }
+                previousCount++;
                 if (generated == 0) diagnostics?.Record("provider.generation.first-token");
                 firstToken ??= watch.Elapsed;
-                var id = generator.GetSequence(0)[^1];
                 if (stops.Contains(id)) { stopped = true; break; }
                 generated++;
                 var piece = decoder.Append(id);
@@ -334,25 +368,44 @@ public sealed class OnnxLocalModelRuntime(IAutocompleteDiagnostics? diagnostics 
                 if (stopTexts.Length == 0) continue;
                 // Só a cauda importa: uma ocorrência nova termina dentro do pedaço recém-decodificado.
                 tail += piece;
-                if (Array.Exists(stopTexts, stop => tail.Contains(stop, StringComparison.Ordinal))) break;
+                if (Array.Exists(stopTexts, stop => tail.Contains(stop, StringComparison.Ordinal))) { stopped = true; break; }
                 if (tail.Length > window) tail = tail[^window..];
             }
             cancellationToken.ThrowIfCancellationRequested();
+            if (session is not null) session.Tokens = input;
+            EsilvaSoft.KapibaraStudio.Autocomplete.Core.AutocompleteMetrics.PrefixCacheReusedTokens.Record(reused);
+            if (session is not null)
+            {
+                var outcome = new KeyValuePair<string, object?>("outcome", reused > 0 ? "hit" : "miss");
+                EsilvaSoft.KapibaraStudio.Autocomplete.Core.AutocompleteMetrics.PrefixCacheLookup.Add(1, outcome);
+                if (firstToken is { } ttft)
+                    EsilvaSoft.KapibaraStudio.Autocomplete.Core.AutocompleteMetrics.PrefixCacheTimeToFirstToken.Record(ttft.TotalMilliseconds, outcome);
+            }
             writer.TryWrite(new GeneratedChunk(decoder.Flush(), generated, true)
             {
                 Elapsed = watch.Elapsed, TimeToFirstToken = firstToken, Provider = _provider.GenAiName,
-                IsComplete = generated < request.MaximumTokens || stopped, UsedCpuFallback = _fellBack
+                IsComplete = generated < request.MaximumTokens || stopped, UsedCpuFallback = _fellBack,
+                PrefixCacheReusedTokens = reused
             });
         }
-        catch (Exception) when (cancellationToken.IsCancellationRequested)
+        catch
         {
-            throw new OperationCanceledException(cancellationToken);
+            if (session is not null)
+            {
+                _prefixSessions.Invalidate(session, cancellationToken.IsCancellationRequested ? "cancelled" : "failure");
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            throw;
         }
         finally
         {
             // Dispose the callback before touching or disposing its generator; recover the reusable session.
             registration.Dispose();
-            if (cancellationToken.IsCancellationRequested) generator.SetRuntimeOption("terminate_session", "0");
+            if (cancellationToken.IsCancellationRequested)
+            {
+                if (session is not null) _prefixSessions.Invalidate(session, "cancelled");
+                generator.SetRuntimeOption("terminate_session", "0");
+            }
         }
     }
 
@@ -366,6 +419,6 @@ public sealed class OnnxLocalModelRuntime(IAutocompleteDiagnostics? diagnostics 
         return L("aiProviderFailure", "Falha do provider {0}: {1}", candidate.Provider, line);
     }
 
-    private void Release() { _chatPromptFormatter = null; (_tokenizer as IDisposable)?.Dispose(); _tokenizer = null; _model?.Dispose(); _model = null; }
+    private void Release() { _prefixSessions.Dispose(); _chatPromptFormatter = null; (_tokenizer as IDisposable)?.Dispose(); _tokenizer = null; _model?.Dispose(); _model = null; }
     public ValueTask DisposeAsync() { Release(); return ValueTask.CompletedTask; }
 }

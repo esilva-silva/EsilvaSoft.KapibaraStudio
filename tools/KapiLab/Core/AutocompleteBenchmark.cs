@@ -16,6 +16,7 @@ internal sealed record AutocompleteBenchmarkOutcome(
     string? Reason = null)
 {
     public double? RuntimeTokensPerSecond { get; init; }
+    public int PrefixCacheReusedTokens { get; init; }
 
     internal static (LatencySampleDisposition Disposition, string? Reason) ClassifyResult(
         bool hasCompletion, bool isComplete, LocalModelState state)
@@ -43,7 +44,10 @@ internal sealed record AutocompleteBenchmarkRecord(
     string? Provider,
     string? Device,
     bool UsedFallback,
-    string? Reason);
+    string? Reason)
+{
+    public int PrefixCacheReusedTokens { get; init; }
+}
 
 internal sealed record AutocompleteBenchmarkReport(
     string Schema,
@@ -137,7 +141,8 @@ internal static class AutocompleteBenchmark
                 records.Add(new("kapilab-autocomplete-benchmark-sample-v3", input.Id, input.Type, iteration,
                     outcome.Disposition.ToString().ToLowerInvariant(), elapsed.TotalMilliseconds,
                     outcome.RuntimeTtft?.TotalMilliseconds, outcome.RuntimeTokensPerSecond,
-                    outcome.Provider, outcome.Device, outcome.UsedFallback, outcome.Reason));
+                    outcome.Provider, outcome.Device, outcome.UsedFallback, outcome.Reason)
+                    { PrefixCacheReusedTokens = outcome.PrefixCacheReusedTokens });
             }
         }
 

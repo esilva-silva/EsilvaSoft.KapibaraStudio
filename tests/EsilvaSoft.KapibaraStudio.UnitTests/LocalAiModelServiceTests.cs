@@ -9,6 +9,22 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests;
 [TestFixture]
 public sealed class LocalAiModelServiceTests
 {
+    [TestCase(PrefixCacheMode.Reuse, 4)]
+    [TestCase(PrefixCacheMode.Disabled, 2)]
+    public async Task ChangingCacheConfigurationReleasesTheOldRuntimeBeforeTheNextRequest(PrefixCacheMode mode, int sessions)
+    {
+        var log = new List<string>();
+        await using var service = new LocalAiModelService(new FolderCatalogFake(), () => new RecordingRuntime(log));
+        var original = new AutocompleteSettings { SelectedModel = "Coder-0.5B" };
+        await service.GenerateAsync(LocalModelRole.Autocomplete, original, Request, AiRequestPriority.Background);
+        var changed = original with { PrefixCacheMode = mode, PrefixCacheMaxSessions = sessions };
+        await service.SwitchModelAsync(changed);
+        Assert.That(service.LoadedModel, Is.Null, "A configuração capturada pelo runtime precisa ser substituída junto com suas sessões.");
+        await service.GenerateAsync(LocalModelRole.Autocomplete, changed, Request, AiRequestPriority.Background);
+        Assert.That(log.Count(entry => entry == "load Coder-0.5B"), Is.EqualTo(2));
+        Assert.That(log.Count(entry => entry == "unload Coder-0.5B"), Is.EqualTo(1));
+    }
+
     private static readonly string[] SwitchLog = ["load Coder-0.5B", "generate Coder-0.5B", "generate Coder-0.5B", "unload Coder-0.5B", "load Coder-1.5B", "generate Coder-1.5B",
         "unload Coder-1.5B", "load Coder-Chat", "generate Coder-Chat"];
     private static readonly string[] TestSteps = ["Pasta e arquivos", "Tokenizer", "Sessão ONNX e provider", "Geração"];

@@ -24,6 +24,7 @@ public sealed partial class AutocompleteSettingsViewModel
         : F("remoteSourceNotice", string.Join(", ", _remote.RepositoryUrls.Select(url => url.AbsolutePath.Trim('/'))));
 
     public string RemoteModelDetails => SelectedRemoteModel is not { } option ? ""
+        : !option.Variant.IsInstallable ? F("remoteModelLicense", option.Variant.License ?? T("licenseNotProvided"))
         : F("remoteModelDetails", option.Variant.License ?? T("licenseNotProvided"), option.IsInstalled ? T("alreadyInstalledAt") : T("installsAt"))
           + Path.Combine(EffectiveModelDirectory, option.Variant.FolderName);
 
@@ -101,12 +102,12 @@ public sealed partial class AutocompleteSettingsViewModel
         catch (Exception) { RemoteModelsPlaceholder = T("remoteModelsUnavailable"); }
     }
 
-    private bool CanDownloadModel() => _remote is not null && SelectedRemoteModel is { IsInstalled: false } && !IsDownloadingModel;
+    private bool CanDownloadModel() => _remote is not null && SelectedRemoteModel is { IsInstalled: false, Variant.IsInstallable: true } && !IsDownloadingModel;
 
     [RelayCommand(CanExecute = nameof(CanDownloadModel), IncludeCancelCommand = true)]
     private async Task DownloadModelAsync(CancellationToken cancellationToken)
     {
-        if (_remote is not { } remote || SelectedRemoteModel is not { IsInstalled: false } option) return;
+        if (_remote is not { } remote || SelectedRemoteModel is not { IsInstalled: false, Variant.IsInstallable: true } option || IsDownloadingModel) return;
         var variant = option.Variant;
         var directory = EffectiveModelDirectory;
         IsDownloadingModel = true;
@@ -168,12 +169,13 @@ public sealed partial class AutocompleteSettingsViewModel
         RemoteModels.Clear();
         foreach (var option in options) RemoteModels.Add(option);
         SelectedRemoteModel = options.FirstOrDefault(option => selected is not null && option.Variant.FolderName == selected.FolderName)
-            ?? options.FirstOrDefault(option => !option.IsInstalled && !option.HardwareMissing) ?? options.FirstOrDefault();
+            ?? options.FirstOrDefault(option => option.Variant.IsInstallable && !option.IsInstalled && !option.HardwareMissing)
+            ?? options.FirstOrDefault(option => option.Variant.IsInstallable) ?? options.FirstOrDefault();
     }
 
     private bool IsInstalled(string directory, RemoteModelVariant variant)
     {
-        if (directory.Length == 0) return false;
+        if (directory.Length == 0 || !variant.IsInstallable) return false;
         try { return directories?.Exists(Path.Combine(directory, variant.FolderName)) == true; }
         catch (ArgumentException) { return false; }
     }

@@ -177,5 +177,12 @@ public sealed partial class WorkspaceTabViewModel
     }
 
     /// <summary>Releases this tab's own cancellation scope; never touches another tab's requests.</summary>
-    public void Dispose() => _traditionalRequestScope.Dispose();
+    public void Dispose()
+    {
+        if (_prefixCacheDisposed) return;
+        _prefixCacheDisposed = true;
+        _traditionalRequestScope.Dispose();
+        _prefixCacheLifetime.Cancel();
+        _prefixCacheLifetime.Dispose();
+    }
 }

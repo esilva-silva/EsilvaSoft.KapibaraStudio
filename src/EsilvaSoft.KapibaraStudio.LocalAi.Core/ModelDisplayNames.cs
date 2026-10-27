@@ -25,7 +25,7 @@ public static class ModelDisplayNames
         if (parts.Length is 0 or > 2) return null;
         var precision = parts[^1].ToUpperInvariant();
         if (!Precisions.Contains(precision)) return null;
-        if (parts.Length == 1) return new(AiAccelerationMode.Cpu, null, precision);
+        if (parts.Length == 1 || string.Equals(parts[0], "CPU", StringComparison.OrdinalIgnoreCase)) return new(AiAccelerationMode.Cpu, null, precision);
         var provider = Providers.FirstOrDefault(entry => string.Equals(entry.Prefix, parts[0], StringComparison.OrdinalIgnoreCase));
         return provider.Provider is null ? null : new(provider.Hardware, provider.Provider, precision);
     }

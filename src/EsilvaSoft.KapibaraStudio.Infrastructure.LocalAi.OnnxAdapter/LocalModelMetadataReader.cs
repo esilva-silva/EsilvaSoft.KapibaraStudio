@@ -54,6 +54,7 @@ internal static class LocalModelMetadataReader
         if (reasoning is { Supported: true } && (agent is null || agentGeneration is null || reasoning.BudgetTokens is null))
             throw new InvalidDataException();
         if (reasoning is { Supported: true }) VerifyTemplate(root, fileAccess, agent!, reasoning);
+        var runtime = Object(json, "runtime");
         return new()
         {
             Name = Text(json, "name", 128),
@@ -71,7 +72,9 @@ internal static class LocalModelMetadataReader
             Autocomplete = Generation(generation, "autocomplete", AutocompleteSettings.AbsoluteCompletionMaximum),
             Chat = Generation(generation, "chat", 1024),
             Agent = agent, Reasoning = reasoning, AgentGeneration = agentGeneration,
-            MinimumGenAi = minimumGenAi
+            MinimumGenAi = minimumGenAi,
+            CpuPrefixCacheValidated = runtime.ValueKind == JsonValueKind.Object && runtime.TryGetProperty("prefixCache", out var prefixMode)
+                && prefixMode.ValueKind == JsonValueKind.String && prefixMode.ValueEquals("reuse")
         };
     }
 

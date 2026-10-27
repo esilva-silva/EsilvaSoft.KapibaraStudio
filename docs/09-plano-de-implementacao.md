@@ -1,5 +1,9 @@
 # Roadmap de evolução do Kapibara Studio
 
+**Pacotes ONNX publicados — 26/10/2026:** as fontes padrão são KapiCoder-Mongo-Nano-ONNX e Small-ONNX, com Nano CPU INT4 selecionado primeiro. Os exports completos e manifestos estão publicados com a tag v0.1.0-preview, com integridade verificada no Hub. Safetensors permanece informativo quando listado por fonte personalizada. [Contrato e evidências](architecture/remote-kapicoder-catalog.md).
+
+**IA local — 26/10/2026:** [EOS e cache CPU experimental](architecture/local-ai-eos-prefix-cache.md). EOS corrigido; cache por sessão disponível somente como experimento, sem pacote homologado. Paridade/qualidade/latência reais e seleção de nova versão GenAI permanecem pendentes.
+
 **Preparação T4 / PR 3 — 11/10/2026:** catálogo, host de fixture, replay e comparador de 500 chamadas disponíveis no KapiLab. [Aceite](phases/phase-07b-kapilab/aceite-pr-3.md). Paridade com simulador externo e output de sucesso Atlas permanecem pendentes; Fase 8 conserva prioridade.
 
 **Fase 7A/7B — PR 2 em 11/10/2026:** a preparação da Fase 04 externa entrega contrato público do prompt Qwen3, 200 goldens, paridade nativa Cpu/Python e ferramentas KapiLab render/tokenize/diff. A prioridade da Fase 8 permanece; treino, inferência T4, loop experimental e homologação de hardware conservam seus gates. [Aceite e rastreabilidade](phases/phase-07b-kapilab/aceite-pr-2.md).

@@ -1,10 +1,13 @@
 namespace EsilvaSoft.KapibaraStudio.LocalAi.Core;
 
-/// <summary>A self-contained ONNX GenAI export published as a top-level folder of a model repository, pinned to one commit.</summary>
+/// <summary>A model publication pinned to one commit; installable variants are self-contained ONNX GenAI exports.</summary>
 public sealed record RemoteModelVariant(string Repository, string Revision, string Variant, string FolderName, long SizeBytes, string? License,
     Uri PageUrl, IReadOnlyList<RemoteModelFile> Files)
 {
-    /// <summary>Model family shown to the user, such as SlopCoder-Mongo-1.5B-full; empty when unknown.</summary>
+    /// <summary>Whether the current runtime can install this publication. Informational entries have no download files.</summary>
+    public bool IsInstallable { get; init; } = true;
+
+    /// <summary>Model family shown to the user, such as KapiCoder-Mongo-Small; empty when unknown.</summary>
     public string Family { get; init; } = "";
 
     /// <summary>When to choose this variant, as stated by the publisher.</summary>

@@ -1,5 +1,9 @@
 # Catálogo funcional
 
+**Pacotes ONNX publicados — 26/10/2026:** as fontes padrão são KapiCoder-Mongo-Nano-ONNX e Small-ONNX, com Nano CPU INT4 selecionado primeiro. Os exports completos e manifestos estão publicados com a tag v0.1.0-preview, com integridade verificada no Hub. Safetensors permanece informativo quando listado por fonte personalizada. [Contrato e evidências](architecture/remote-kapicoder-catalog.md).
+
+**IA local — 26/10/2026:** [EOS e cache CPU experimental](architecture/local-ai-eos-prefix-cache.md). EOS corrigido; cache por sessão disponível somente como experimento, sem pacote homologado. Paridade/qualidade/latência reais e seleção de nova versão GenAI permanecem pendentes.
+
 **ADV-09 / EDT-02 — PR 3 em 11/10/2026:** KapiLab exporta catálogo local completo por modo e executa tools pelo runtime/registry real em fixture MongoDB isolado. [Aceite e limites](phases/phase-07b-kapilab/aceite-pr-3.md). Sem alteração de comportamento/UI ou novas permissões do Desktop.
 
 **ADV-09 / EDT-02 — contrato de agente local em 11/10/2026:** builder público `local-agent-qwen3-v1`, descrições compartilhadas, 200 goldens e paridade de texto/IDs nativos Cpu/Python aprovados. O KapiLab renderiza/tokeniza/diff sem mudar permissões ou disponibilidade de providers. [Aceite PR 2 e limites](phases/phase-07b-kapilab/aceite-pr-2.md); inferência T4 e WinML nativo continuam sem homologação.

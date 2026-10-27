@@ -892,3 +892,8 @@ falha por sessão, não por runtime inteiro). `LocalAiOfflinePreemptionTests` re
 de AC-16 (chat local completa um turno inteiro com dois providers externos falsos registrados no mesmo catálogo e
 runtime, ambos totalmente indisponíveis) para que uma futura integração real do adapter OpenAI/Claude (lotes 7/8) não
 regrida esse isolamento silenciosamente.
+
+
+### AC-15 — Atualização de 26/10/2026
+
+Reuso CPU por sessão implementado, desligado por padrão e condicionado à homologação do pacote. LRU de quatro generators; identidades e KV não persistidos. A prova estrita encontrou divergência em um prompt sintético, portanto nenhum pacote recebeu aprovação. TTFT de hit/miss/mistura e hit real ≥95% são exigidos, além de equivalência e qualidade. [Contrato e evidências](../architecture/local-ai-eos-prefix-cache.md).

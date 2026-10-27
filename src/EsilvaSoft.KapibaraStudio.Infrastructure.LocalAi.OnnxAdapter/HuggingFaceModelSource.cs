@@ -11,30 +11,26 @@ using EsilvaSoft.KapibaraStudio.Core;
 namespace EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi;
 
 /// <summary>
-/// Lists the ONNX GenAI variants of Hugging Face repositories (top-level folders containing genai_config.json) and installs one
-/// into the models directory. Each listing is pinned to one commit and every file is verified against the hash published by the hub.
+/// Lists ONNX GenAI variants and informational Safetensors publications from Hugging Face repositories. Installs only ONNX variants
+/// into the models directory. Each listing is pinned to one commit and every downloaded file is verified against the hub hash.
 /// </summary>
 public sealed class HuggingFaceModelSource : IRemoteModelSource, IDisposable
 {
     /// <summary>
-    /// SlopCoder-Mongo exports runnable by this build. The transformers repositories (SlopCoder-Mongo-0.5B and -1.5B-full) publish only
-    /// safetensors, which ONNX Runtime GenAI cannot load: they name the family and link to the model card.
+    /// KapiCoder-Mongo ONNX GenAI exports, with Nano CPU INT4 first. Source model cards remain linked to the original families.
     /// </summary>
     public static IReadOnlyList<RemoteModelRepository> DefaultRepositories { get; } =
     [
-        new("esilva/SlopCoder-Mongo-0.5B-ONNX", "esilva/SlopCoder-Mongo-0.5B",
+        new("esilva/KapiCoder-Mongo-Nano-ONNX", "esilva/KapiCoder-Mongo-Nano",
         [
-            new("int4", "padrão em CPU: menor e mais rápido", "remoteHintCpuCompact"),
-            new("int8", "CPU: autocomplete um pouco melhor, mais memória", "remoteHintCpuQuality"),
-            new("dml-fp16", "padrão com GPU: melhor qualidade e menor latência", "remoteHintGpuQuality"),
-            new("dml-int4", "GPU com pouca memória livre", "remoteHintGpuLimited")
+            new("cpu-int4", "Padrão em CPU: INT4.", "remoteHintCpuInt4Default"),
+            new("cpu-int8", "Alternativa em CPU: INT8.", "remoteHintCpuInt8Alternative"),
+            new("dml-fp16", "GPU DirectML experimental: FP16.", "remoteHintDirectMlFp16")
         ]),
-        new("esilva/SlopCoder-Mongo-1.5B-full-ONNX", "esilva/SlopCoder-Mongo-1.5B-full",
+        new("esilva/KapiCoder-Mongo-Small-ONNX", "esilva/KapiCoder-Mongo-Small",
         [
-            new("int8", "recomendado em CPU: melhor no Assistente IA, cerca de 3,8 GB de RAM", "remoteHintRecommendedCpuRam"),
-            new("int4", "CPU com pouca memória: perde precisão em pedidos livres", "remoteHintCpuMemory"),
-            new("dml-fp16", "recomendado com GPU: precisão do modelo original e baixa latência", "remoteHintRecommendedGpu"),
-            new("dml-int4", "GPU com menos memória livre: mais tokens por segundo", "remoteHintGpuMemory")
+            new("cpu-int8", "Alternativa em CPU: INT8.", "remoteHintCpuInt8Alternative"),
+            new("dml-fp16", "GPU DirectML experimental: FP16.", "remoteHintDirectMlFp16")
         ])
     ];
 
@@ -93,8 +89,11 @@ public sealed class HuggingFaceModelSource : IRemoteModelSource, IDisposable
     {
         ArgumentNullException.ThrowIfNull(variant);
         ArgumentException.ThrowIfNullOrWhiteSpace(modelsDirectory);
+        if (!variant.IsInstallable)
+            throw new InvalidDataException(L("remoteHintRequiresOnnx", "Formato Safetensors: requer uma exportação ONNX GenAI compatível para instalar."));
         if (_repositories.All(repository => repository.Repository != variant.Repository) || !IsHex(variant.Revision, 40)
             || !IsSafeRelativePath(variant.Variant) || !IsSafeRelativePath(variant.FolderName) || variant.FolderName.Contains('/')
+            || !variant.Files.Any(file => file.Path == variant.Variant + "/genai_config.json")
             || variant.Files.Any(file => !file.Path.StartsWith(variant.Variant + "/", StringComparison.Ordinal) || !IsSafeRelativePath(file.Path)))
             throw new InvalidDataException(L("remoteInvalidModelDescription", "Descrição de modelo inválida."));
         var root = _storage.GetFullPath(modelsDirectory);
@@ -147,7 +146,7 @@ public sealed class HuggingFaceModelSource : IRemoteModelSource, IDisposable
         {
             throw new TimeoutException(L("remoteListTimedOut", "O Hugging Face não respondeu a tempo para {0}.", repository.Repository));
         }
-        catch (Exception ex) when (ex is JsonException or KeyNotFoundException or InvalidOperationException or FormatException)
+        catch (Exception ex) when (ex is JsonException or KeyNotFoundException or InvalidOperationException or FormatException or OverflowException)
         {
             throw new InvalidDataException(L("remoteUnexpectedResponse", "Resposta inesperada do Hugging Face para {0}.", repository.Repository), ex);
         }
@@ -156,12 +155,23 @@ public sealed class HuggingFaceModelSource : IRemoteModelSource, IDisposable
     private RemoteModelVariant[] BuildVariants(RemoteModelRepository repository, JsonElement tree, string revision, string? license)
     {
         var files = new List<(string Variant, RemoteModelFile File)>();
+        long? safetensorsSize = null;
         foreach (var entry in tree.EnumerateArray())
         {
             if (TryString(entry, "type") != "file" || TryString(entry, "path") is not { } path) continue;
+            if (!IsSafeRelativePath(path)) continue;
             var separator = path.IndexOf('/');
-            // Root files (README, licenses) are not models; unsafe paths could never be written inside the models directory.
-            if (separator <= 0 || !IsSafeRelativePath(path)) continue;
+            // Root weights identify a transformers publication; they never become download files for this runtime.
+            if (separator < 0)
+            {
+                if (path.EndsWith(".safetensors", StringComparison.OrdinalIgnoreCase))
+                {
+                    var weightSize = entry.GetProperty("size").GetInt64();
+                    if (weightSize < 0) throw new InvalidDataException(L("remoteInvalidFileSize", "Tamanho inválido para {0}.", path));
+                    safetensorsSize = checked((safetensorsSize ?? 0) + weightSize);
+                }
+                continue;
+            }
             var oid = TryString(entry, "oid");
             var sha256 = entry.TryGetProperty("lfs", out var lfs) && lfs.ValueKind == JsonValueKind.Object ? TryString(lfs, "oid") : null;
             if (!IsHex(oid, 40) || sha256 is not null && !IsHex(sha256, 64)) throw new InvalidDataException(L("remoteInvalidHash", "Hash inválido para {0}.", path));
@@ -180,7 +190,7 @@ public sealed class HuggingFaceModelSource : IRemoteModelSource, IDisposable
                 if (repository.Variants[index].Folder == folder) return index;
             return int.MaxValue;
         }
-        return files.GroupBy(item => item.Variant, StringComparer.Ordinal)
+        var variants = files.GroupBy(item => item.Variant, StringComparer.Ordinal)
             .Where(group => group.Any(item => item.File.Path == group.Key + "/genai_config.json"))
             .OrderBy(group => Order(group.Key)).ThenBy(group => group.Key, StringComparer.Ordinal)
             .Select(group => new RemoteModelVariant(repository.Repository, revision, group.Key, $"{repositoryName}-{group.Key}", group.Sum(item => item.File.Size),
@@ -191,7 +201,18 @@ public sealed class HuggingFaceModelSource : IRemoteModelSource, IDisposable
                 HintKey = repository.Variants.FirstOrDefault(hint => hint.Folder == group.Key)?.LocalizationKey,
                 BaseModelUrl = baseModelUrl
             })
-            .ToArray();
+            .ToList();
+        if (safetensorsSize is { } sizeBytes)
+            variants.Add(new RemoteModelVariant(repository.Repository, revision, "safetensors", $"{repositoryName}-safetensors", sizeBytes,
+                license, new Uri($"{repositoryUrl}/tree/{revision}"), [])
+            {
+                IsInstallable = false,
+                Family = family,
+                Hint = "Formato Safetensors: requer uma exportação ONNX GenAI compatível para instalar.",
+                HintKey = "remoteHintRequiresOnnx",
+                BaseModelUrl = baseModelUrl ?? new Uri(repositoryUrl)
+            });
+        return variants.ToArray();
     }
 
     private async Task<JsonDocument> GetJsonAsync(string relative, CancellationToken token)

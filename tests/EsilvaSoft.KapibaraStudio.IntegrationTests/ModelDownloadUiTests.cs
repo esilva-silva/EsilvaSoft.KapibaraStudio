@@ -21,6 +21,105 @@ namespace EsilvaSoft.KapibaraStudio.IntegrationTests;
 public sealed class ModelDownloadUiTests
 {
     [Test]
+    public async Task DefaultOnnxCatalogSelectsNanoCpuInt4AndExplainsExperimentalGpu()
+    {
+        var session = HeadlessUnitTestSession.GetOrStartForAssembly(typeof(IntegrationUiTestApp).Assembly);
+        await session.Dispatch<bool>(async () =>
+        {
+            using var synthetic = new SyntheticDirectory();
+            using var handler = new KapiCoderOnnxCatalogHandler { UseRepresentativePackageSizes = true };
+            using var remote = new HuggingFaceModelSource(new RemoteModelStorage(), handler: handler);
+            var models = Path.Combine(synthetic.Path, "Models");
+            Directory.CreateDirectory(models);
+            var preferences = new AutocompleteSettingsViewModel(new AutocompleteService(), new LocalModelCatalog(models, fileAccess: new LocalModelFileAccess()), _ => Task.CompletedTask,
+                remote: remote, directories: new LocalModelDirectoryService());
+            preferences.Load(new AutocompleteSettings { ModelDirectory = models });
+            var previousLanguage = LocalizationViewModel.Current.Language;
+            var window = new AutocompleteSettingsWindow { DataContext = preferences };
+            try
+            {
+                LocalizationViewModel.Current.Language = "pt-BR";
+                window.Show();
+                await WaitUntil(() => preferences.RemoteModels.Count == 5);
+                var selected = preferences.SelectedRemoteModel!;
+                Assert.That(selected.Title, Is.EqualTo("KapiCoder-Mongo-Nano — CPU INT4"));
+                Assert.That(selected.Variant.Variant, Is.EqualTo("cpu-int4"));
+                Assert.That(selected.Variant.SizeBytes, Is.EqualTo(410_666_723));
+                Assert.That(selected.Subtitle, Does.StartWith("411 MB").And.Contain("Padrão em CPU: INT4."));
+                Assert.That(preferences.SelectedRemoteModelCardUrl, Is.EqualTo(new Uri("https://huggingface.co/esilva/KapiCoder-Mongo-Nano")));
+                Assert.That(preferences.RemoteModels[2].Subtitle, Does.Contain("experimental"));
+                Assert.That(preferences.RemoteModelDetails, Does.Contain(Path.Combine(models, "KapiCoder-Mongo-Nano-ONNX-cpu-int4")));
+                Assert.That(preferences.DownloadModelCommand.CanExecute(null), Is.True);
+                var download = window.GetVisualDescendants().OfType<Button>().Single(button => AutomationProperties.GetName(button) == "Baixar modelo");
+                RenderCatalog(window, download, "kapicoder-onnx-ready", expectedEnabled: true);
+                Assert.That(handler.Requests, Has.Count.EqualTo(4), "Opening preferences does not download weights.");
+            }
+            finally
+            {
+                window.Close();
+                LocalizationViewModel.Current.Language = previousLanguage;
+            }
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Test]
+    public async Task PublishedSafetensorsAreVisibleButCannotBeDownloaded()
+    {
+        var session = HeadlessUnitTestSession.GetOrStartForAssembly(typeof(IntegrationUiTestApp).Assembly);
+        await session.Dispatch<bool>(async () =>
+        {
+            using var synthetic = new SyntheticDirectory();
+            var models = Path.Combine(synthetic.Path, "Models");
+            Directory.CreateDirectory(models);
+            var remote = new PublishedKapiCoderModels();
+            var preferences = new AutocompleteSettingsViewModel(new AutocompleteService(), new LocalModelCatalog(models, fileAccess: new LocalModelFileAccess()), _ => Task.CompletedTask,
+                remote: remote, directories: new LocalModelDirectoryService());
+            preferences.Load(new AutocompleteSettings { ModelDirectory = models });
+            var window = new AutocompleteSettingsWindow { DataContext = preferences };
+            window.Show();
+            await WaitUntil(() => preferences.RemoteModels.Count == 3);
+            Assert.That(preferences.SelectedRemoteModel!.Variant.IsInstallable, Is.True, "An installable variant is preferred even if listed after informational models.");
+            preferences.SelectedRemoteModel = preferences.RemoteModels[0];
+            Assert.That(preferences.SelectedRemoteModelCardUrl, Is.EqualTo(new Uri("https://huggingface.co/esilva/KapiCoder-Mongo-Nano")));
+            Assert.That(preferences.SelectedRemoteModel!.Subtitle, Does.Contain("ONNX GenAI"));
+            Assert.That(preferences.RemoteModelDetails, Does.Not.Contain(models));
+            Assert.That(preferences.DownloadModelCommand.CanExecute(null), Is.False);
+            await preferences.DownloadModelCommand.ExecuteAsync(null);
+            Assert.That(remote.DownloadCalls, Is.Zero, "Calling the handler directly must not bypass the disabled command.");
+            Assert.That(preferences.RemoteModels[1].Title, Does.Contain("KapiCoder-Mongo-Small"));
+            var download = window.GetVisualDescendants().OfType<Button>().Single(button => AutomationProperties.GetName(button) == "Baixar modelo");
+            RenderPublished(window, download);
+            window.Close();
+            return true;
+        }, CancellationToken.None);
+    }
+
+    private static void RenderPublished(AutocompleteSettingsWindow window, Button download) =>
+        RenderCatalog(window, download, "kapicoder-catalog", expectedEnabled: false);
+
+    private static void RenderCatalog(AutocompleteSettingsWindow window, Button download, string prefix, bool expectedEnabled)
+    {
+        var directory = UiEvidenceDirectory.Current();
+        Directory.CreateDirectory(directory);
+        foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+            foreach (var size in new[] { new Size(520, 420), new Size(660, 680), new Size(900, 760) })
+                foreach (var scale in new[] { 1d, 1.5, 2 })
+                {
+                    Avalonia.Application.Current!.RequestedThemeVariant = theme;
+                    window.Width = size.Width; window.Height = size.Height; window.SetRenderScaling(scale);
+                    window.UpdateLayout(); Dispatcher.UIThread.RunJobs();
+                    download.BringIntoView();
+                    window.UpdateLayout(); Dispatcher.UIThread.RunJobs();
+                    // Avalonia combina CanExecute com IsEnabledCore; o valor efetivo governa a interação.
+                    Assert.That(download.IsEffectivelyEnabled, Is.EqualTo(expectedEnabled));
+                    using var frame = window.CaptureRenderedFrame();
+                    frame!.Save(Path.Combine(directory, $"{prefix}-{theme}-{size.Width}-{scale.ToString(System.Globalization.CultureInfo.InvariantCulture)}.png"),
+                        new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+                }
+    }
+
+    [Test]
     public async Task PreferencesNameModelsClearlyDownloadWithProgressSelectAndCancelFromStatusBar()
     {
         var session = HeadlessUnitTestSession.GetOrStartForAssembly(typeof(IntegrationUiTestApp).Assembly);
@@ -124,6 +223,35 @@ public sealed class ModelDownloadUiTests
             Dispatcher.UIThread.RunJobs();
         }
         Assert.That(condition(), Is.True, "Timed out waiting for the download state.");
+    }
+}
+
+internal sealed class PublishedKapiCoderModels : IRemoteModelSource
+{
+    public IReadOnlyList<Uri> RepositoryUrls { get; } = [new("https://huggingface.co/esilva/KapiCoder-Mongo-Nano"), new("https://huggingface.co/esilva/KapiCoder-Mongo-Small")];
+    public int DownloadCalls { get; private set; }
+
+    public Task<IReadOnlyList<RemoteModelVariant>> ListAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<RemoteModelVariant>>(
+    [
+        Published("Nano"), Published("Small"),
+        new("custom/export", new string('a', 40), "int4", "custom-int4", 100, null, new Uri("https://huggingface.co/custom/export"), [])
+    ]);
+
+    public Task<string> DownloadAsync(RemoteModelVariant variant, string modelsDirectory, IProgress<RemoteModelProgress>? progress, CancellationToken cancellationToken)
+    {
+        DownloadCalls++;
+        throw new InvalidOperationException("Unexpected download");
+    }
+
+    private static RemoteModelVariant Published(string size)
+    {
+        var name = $"KapiCoder-Mongo-{size}";
+        var url = new Uri($"https://huggingface.co/esilva/{name}");
+        // Metadados públicos observados em 26/10/2026; nenhum peso é usado no teste de UI.
+        var revision = size == "Nano" ? "c03bfe15ba1ff4e5b58a4b0953349eca82bb43f1" : "4ba57bc1f56a5b3cbe486dd314321ce4cdb2cae6";
+        var bytes = size == "Nano" ? 988_097_824L : 3_087_467_144L;
+        return new RemoteModelVariant($"esilva/{name}", revision, "safetensors", name + "-safetensors", bytes, "apache-2.0", url, [])
+        { Family = name, BaseModelUrl = url, HintKey = "remoteHintRequiresOnnx", IsInstallable = false };
     }
 }
 

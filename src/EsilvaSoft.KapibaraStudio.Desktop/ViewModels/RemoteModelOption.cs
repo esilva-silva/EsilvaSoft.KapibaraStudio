@@ -17,11 +17,11 @@ public sealed class RemoteModelOption(RemoteModelVariant variant, bool isInstall
 
     public string Subtitle => string.Join(" · ", new[]
     {
-        AutocompleteSettingsViewModel.FormatSize(Variant.SizeBytes), Variant.HintKey is { Length: > 0 } key ? LocalizationViewModel.Current.Resolve(key) : Variant.Hint,
+        Variant.SizeBytes > 0 ? AutocompleteSettingsViewModel.FormatSize(Variant.SizeBytes) : null, Variant.HintKey is { Length: > 0 } key ? LocalizationViewModel.Current.Resolve(key) : Variant.Hint,
         HardwareMissing ? LocalizationViewModel.Current.Resolve("gpuNotDetected") : null, IsInstalled ? LocalizationViewModel.Current.Resolve("installed") : null
     }.Where(part => !string.IsNullOrEmpty(part)));
 
-    public string Display => $"{Title} · {AutocompleteSettingsViewModel.FormatSize(Variant.SizeBytes)}" + (IsInstalled ? " — " + LocalizationViewModel.Current.Resolve("installed") : "");
+    public string Display => Title + (Variant.SizeBytes > 0 ? $" · {AutocompleteSettingsViewModel.FormatSize(Variant.SizeBytes)}" : "") + (IsInstalled ? " — " + LocalizationViewModel.Current.Resolve("installed") : "");
     public override string ToString() => Display;
 
     public void RefreshLanguage()
