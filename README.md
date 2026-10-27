@@ -220,7 +220,7 @@ Everything runs on GitHub-hosted runners; no self-hosted hardware is required.
 
   The GitHub release (packages plus `SHA256SUMS.txt`) is published only after all tests and packages succeed. Every version below `1.0.0` is marked as a pre-release, as are versions with a suffix such as `v1.0.0-rc.1`; stable installs therefore do not receive the current `0.x` release line. **Run workflow** with a version builds the same packages as downloadable artifacts, without creating a release.
 
-The same workflow also builds the `.deb`, `.rpm` and AUR packages from the Linux tarballs and, before publishing, installs, upgrades, downgrades and removes them in Ubuntu and Fedora containers (x64 and arm64) and an Arch container (x64) (see [Linux packages](docs/architecture/linux-packages.md)); these jobs have not run on GitHub Actions yet.
+The same workflow also builds the `.deb`, `.rpm` and AUR packages from the Linux tarballs and, before publishing, installs, upgrades, downgrades and removes them in Ubuntu and Fedora containers (x64 and arm64) and an Arch container (x64) (see [Linux packages](docs/architecture/linux-packages.md)); on 27/10/2026 a manual `workflow_dispatch` run on a branch passed all of them, including native arm64 (`ubuntu-24.04-arm` runner) for deb and rpm; the release itself was not published and the AUR package is not yet in the AUR ([run](https://github.com/esilva-silva/EsilvaSoft.KapibaraStudio/actions/runs/40591333319)).
 
 ARM64 packages are cross-compiled. 32-bit x86 is not built, because ONNX Runtime GenAI ships no 32-bit native libraries.
 

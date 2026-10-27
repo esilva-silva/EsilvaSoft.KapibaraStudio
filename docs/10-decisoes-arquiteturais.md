@@ -777,7 +777,7 @@ Antes de exportar resultados, o host valida todo o manifesto e recria somente os
 
 ## ADR-078 — Pacotes Linux por distribuição e atualização gerenciada (27/10/2026)
 
-**Estado: implementada; validada em WSL2 e contêineres (Ubuntu, Fedora e Arch x64; Ubuntu e Fedora ARM64 emulado, não hardware real); jobs novos do GitHub Actions não executados; nada publicado.** Complementa a ADR-038, que continua valendo para o tarball portátil e o Windows.
+**Estado: implementada; validada em WSL2 e contêineres locais e no GitHub Actions (run de `workflow_dispatch` em branch, 27/10/2026: 16 jobs verdes, deb/rpm em ARM64 nativo no runner `ubuntu-24.04-arm`, Arch só x64); nada publicado: tag, AUR, repositórios APT/DNF assinados e a renomeação de `~` pelo GitHub em assets seguem pendentes.** [Run](https://github.com/esilva-silva/EsilvaSoft.KapibaraStudio/actions/runs/40591333319). Complementa a ADR-038, que continua valendo para o tarball portátil e o Windows.
 
 **Contexto:** o tarball Linux se autoatualiza trocando arquivos, o que não convém a quem instala por apt, dnf ou pacman: o gerenciador é dono dos arquivos, e um processo root sobrescreveria o que ele controla. Faltavam também menu, ícones e dependências declaradas.
 

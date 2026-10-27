@@ -1,6 +1,6 @@
 # Pacotes Linux por distribuição (.deb, .rpm e AUR) — 27/10/2026
 
-**Estado: implementado e validado em WSL2 e em contêineres (x64 real, ARM64 emulado); jobs novos do GitHub Actions não executados; nada publicado.** Decisão: [ADR-078](../10-decisoes-arquiteturais.md#adr-078--pacotes-linux-por-distribuição-e-atualização-gerenciada-27102026). Este documento é o registro vigente de formato, comandos, evidências e limites; os resultados abaixo não substituem homologação em máquinas e distribuições reais.
+**Estado: implementado e validado em WSL2, em contêineres locais (ARM64 emulado) e no GitHub Actions (run de `workflow_dispatch` em branch, com ARM64 nativo para deb/rpm); nada publicado (tag, AUR e repositórios pendentes).** Decisão: [ADR-078](../10-decisoes-arquiteturais.md#adr-078--pacotes-linux-por-distribuição-e-atualização-gerenciada-27102026). Este documento é o registro vigente de formato, comandos, evidências e limites; os resultados abaixo não substituem homologação em máquinas e distribuições reais.
 
 ## Objetivo
 
@@ -73,7 +73,7 @@ O comando do diálogo só aponta para um arquivo existente a partir do primeiro 
 
 ## O que o CI faz
 
-Nada abaixo rodou ainda no GitHub Actions (exige push de branch e `workflow_dispatch`, ainda não autorizados). Fluxo escrito:
+Fluxo executado com sucesso em 27/10/2026 no [run 40591333319](https://github.com/esilva-silva/EsilvaSoft.KapibaraStudio/actions/runs/40591333319) (`workflow_dispatch` na branch `feature/linux-distro-packages`, commit 25e9a9b, versão de teste `0.9.6-ci.1`; o job `release` é pulado nesse evento, então nada foi publicado):
 
 - `ci.yml` (Linux): além do boundary de sistema, passa a rodar `AppUpdateServiceTests`.
 - `linux-packages` (`release.yml`): matriz `linux-x64`/`linux-arm64` em `ubuntu-24.04`; baixa o tarball do job `package` (artefatos `linux-packages-linux-*`); instala `rpm` e `cpio` e, com `CI=true`, ferramenta de conferência ausente é erro; nfpm fixado por SHA-256; gera .deb e .rpm e, à parte, pacotes de upgrade de teste `X.Y.(Z+1)-ci.upgrade` que nunca são publicados.
@@ -98,16 +98,17 @@ Versões locais 0.9.4 e 0.9.6 nunca foram publicadas. "Ciclo completo" = instala
 | ARM64 emulado (qemu-user, podman, imagens oficiais arm64; **não é hardware real**) | PASS | `ubuntu:24.04` (.deb) e `fedora:44` (.rpm): ciclo completo, app vivo 120 s sob Xvfb nas 3 execuções (~7 min por ciclo emulado); ELF AArch64 conferido; dependências resolvem nos repositórios arm64. `ubuntu:26.04` arm64: instalação e remoção OK (libicu78, libssl3t64) |
 | Reteste final com os pacotes finais, contêineres mínimos sem nenhuma fonte (`fc-list` = 0) | PASS | script completo (0.9.4 → 0.9.6, rollback, remoção, arquivos gerenciados) em x64 `ubuntu:24.04`, `ubuntu:26.04`, `fedora:44` (sem resíduo em `/usr/share/licenses`) e `archlinux:base-devel` (`.SRCINFO` idêntico ao do makepkg; `makepkg` + `pacman -U` resolvendo `ttf-font`); ARM64 emulado `ubuntu:24.04` e `fedora:44` |
 | Arch aarch64 | Só estático | conferência de source/sha256 do PKGBUILD; sem ambiente Arch ARM |
-| Jobs novos no GitHub Actions | Não executado | exige push de branch e `workflow_dispatch`; disponibilidade de `ubuntu-24.04-arm`, actions JavaScript em containers fedora/arch/ubuntu no runner ARM e a renomeação de `~` pelo GitHub não confirmadas |
+| GitHub Actions ([run 40591333319](https://github.com/esilva-silva/EsilvaSoft.KapibaraStudio/actions/runs/40591333319)), `workflow_dispatch` em `feature/linux-distro-packages`, 0.9.6-ci.1 | PASS (conclusão `success`) | 16 jobs verdes: `version`, `test` (windows e ubuntu), `package` (win-x64, win-arm64, linux-x64, linux-arm64), `linux-packages` (x64, arm64), `linux-packages-test` deb x64, deb arm64, rpm x64, rpm arm64, `aur-package` e `aur-test`; `release` pulado, como esperado em `workflow_dispatch`. Logs: `RESULT: PASS` nos 5 testes de pacote (deb x64/arm64, rpm x64/arm64, pacman x64), cada um com 3 execuções do app vivo até o timeout de 30 s e "arquivos gerenciados intactos após executar o app" 3 vezes. Rollback: deb `apt-get install --allow-downgrades`; rpm `dnf downgrade` (o `undo` falhou, como no local); pacman `pacman -U`. `aur-test`: `.SRCINFO` idêntico a `makepkg --printsrcinfo` e `makepkg` com tarball local. **ARM64 nativo:** os jobs arm64 rodaram no runner `ubuntu-24.04-arm` (imagem ubuntu24-arm64 20261012.149), deb em container `ubuntu:24.04` e rpm em container `fedora:44` aarch64, sob Xvfb e sem interação de UI. Actions JavaScript (checkout, download/upload-artifact) funcionaram nos containers ubuntu, fedora (x64 e arm64) e archlinux. Pacotes de upgrade de teste `0.9.7-ci.upgrade` gerados do mesmo tarball (artefatos `linux-upgrade-test-*`, nunca publicados). Artefatos (bytes): `linux-packages-linux-x64` 163780531, `linux-packages-linux-arm64` 156723724, `linux-aur` 246864, tarballs linux-x64 78238488 e linux-arm64 74779728, win-x64 84022930, win-arm64 182486793 |
+| Renomeação de `~` pelo GitHub em assets | Não confirmada | o job `release` não rodou; os nomes de arquivo já evitam o til |
 
-Ocorrências não diagnosticadas: uma execução isolada em Xvfb sem gerenciador de janelas morreu após ~75 s com "X connection to :99 broken" e não se repetiu; uma execução ARM64 emulada recebeu SIGTERM (143) externo, também não reproduzido. Captura de tela no WSLg só funciona por janela (`import -window <id>`); `-window root` falha com `BadMatch`.
+Ocorrências não diagnosticadas (locais): uma execução isolada em Xvfb sem gerenciador de janelas morreu após ~75 s com "X connection to :99 broken" e não se repetiu; uma execução ARM64 emulada recebeu SIGTERM (143) externo, também não reproduzido. No Actions não houve ocorrência. Captura de tela no WSLg só funciona por janela (`import -window <id>`); `-window root` falha com `BadMatch`.
 
 Verificadores estáticos: lintian (.deb) mantém E `embedded-library` (single-file, esperado) e `no-changelog` (esperado), mais W `absolute-symlink-in-top-level-folder` e `no-manual-page`; `extended-description-is-empty` foi corrigido. rpmlint 2.8 reporta `zero-perms` (ver limitações), `no-manual-page-for-binary`, `no-documentation`, `no-changelogname-tag` e `explicit-lib-dependency`, aceitos.
 
 ## Limitações
 
 - WSL2 e contêineres não são uma distribuição gráfica real: o resultado prova instalação, execução sob Xvfb, dependências e fluxo do gerenciador, não a experiência em desktop (menu, ícone na barra de tarefas, agrupamento de janelas). O clique no botão sob WSLg não foi exercitado (limitação do `xdotool` no ambiente).
-- ARM64 só em emulação (qemu-user) e cross-compilação, nunca em hardware real; Arch ARM não testado.
+- ARM64: deb e rpm foram exercitados em hardware ARM64 real dos runners do GitHub (sem desktop, sob Xvfb) e, localmente, em emulação qemu-user; o Arch ARM (aarch64) continua apenas com conferência estática.
 - Wayland nativo não testado: o Avalonia usa X11/XWayland.
 - Clipboard, diálogos nativos de arquivo e leitor de tela não validados nesses pacotes. Execução sem `libGL` (recomendada, não obrigatória) não testada.
 - O nfpm 2.48 grava o symlink `/usr/bin/kapibarastudio` do rpm com modo `l---------` (rpmlint `zero-perms`). O Linux ignora o modo de symlink e o comando funciona.
@@ -118,7 +119,7 @@ Verificadores estáticos: lintian (.deb) mantém E `embedded-library` (single-fi
 
 ## O que falta para publicar
 
-1. Rodar `release.yml` por `workflow_dispatch` numa branch e confirmar a disponibilidade do runner `ubuntu-24.04-arm`, o funcionamento de actions JavaScript nos containers (inclusive no runner ARM), a renomeação de `~` pelo GitHub e o verde dos jobs novos.
+1. (Concluído em 27/10/2026) Rodar `release.yml` por `workflow_dispatch` numa branch: jobs novos verdes, `ubuntu-24.04-arm` disponível e actions JavaScript funcionando nos containers. Falta confirmar a renomeação de `~` pelo GitHub em assets, que só um `release` real exercita.
 2. Criar a tag `v*`; o `release` anexa os pacotes e os hashes.
 3. Publicar `kapibarastudio-bin` no AUR com a chave SSH do mantenedor (ação manual fora do pipeline).
 4. Opcional: repositório APT/DNF assinado, para atualização sem baixar arquivo e com autenticidade verificável.
