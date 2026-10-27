@@ -19,7 +19,7 @@ O autocomplete normal e o autocomplete com IA passam a ser recursos separados ([
 | P51–P53 | Ghost determinístico + fallback do dicionário, sem IA. Concluídos |
 | P54–P56 | **Cancelados por decisão de produto:** a IA não participa da digitação. `LoadedOnly` e a prioridade `Background` continuam como contrato do serviço, sem chamador no editor |
 | P57 | A matriz passa a cobrir normal × IA (dois recursos), não quatro providers automáticos |
-| Pendências | Homologação de `Ctrl+;` em teclado real (no ABNT2, Ctrl+Shift+,), IME, leitor de tela e modelo ONNX real |
+| Pendências | Homologação de `Ctrl+;` no app com teclado físico (ABNT2 corrigido em DEC-ABNT-LAYOUT; Linux pendente), IME, leitor de tela e modelo ONNX real |
 
 ## Convenções e ordem
 

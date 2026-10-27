@@ -306,7 +306,7 @@ Build Windows x64: **0 avisos, 0 erros**. Suíte completa: **1170 aprovados, 0 f
 | `Ctrl+;` no editor: prévia, fallback com motivo, IA desligada não consulta o modelo, `;` nunca inserido; `Ctrl+.` sem efeito | `AiCompletionUiTests`, `TraditionalCompletionUiTests` |
 | Tela em seções, Básico legado não religa IA/agente | `AutocompleteSettingsViewModelTests`, `AutocompleteUiTests.SettingsSeparateNormalAndAiAutocompleteInBothThemes` (PNGs claro/escuro) |
 
-Não homologado: `Ctrl+;` em teclado físico ABNT2 (Ctrl+Shift+,) e US, IMEs asiáticos, leitor de tela e modelo ONNX real. [ADR-076](10-decisoes-arquiteturais.md) e [DEC-AI-SPLIT](auto-complite/decisions.md#dec-ai-split).
+`Ctrl+;` no ABNT2 tem teste Headless com o layout simulado e consulta real ao layout do Windows (manual, `KeyboardLayoutSymbolManualTests`). Não homologado: uso no app com teclado físico ABNT2/US, layouts Linux (X11/Wayland), IMEs asiáticos, leitor de tela e modelo ONNX real. [ADR-076](10-decisoes-arquiteturais.md) e [DEC-AI-SPLIT](auto-complite/decisions.md#dec-ai-split).
 
 ## Autocomplete — Fase 1: catálogo de conhecimento — 14/09/2026
 

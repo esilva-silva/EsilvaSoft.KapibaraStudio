@@ -278,7 +278,7 @@ Veja o [guia completo do Database Explorer](19-database-explorer.md), incluindo 
 Abra **… → Preferências → Autocomplete…**. A janela tem duas seções independentes:
 
 - **Autocomplete** (normal): enquanto você digita, a sugestão de catálogo, schema e dicionário aparece em texto fantasma no cursor. **Tab** aceita, **Esc** descarta e **Ctrl+Espaço** abre a lista com mais opções. Não usa IA.
-- **Autocomplete com IA (Ctrl+;)**: com **Habilitar autocomplete com IA** ligado, aperte **Ctrl+;** para pedir uma sugestão ao modelo local. Só nesse momento o texto é enviado ao modelo; digitar nunca envia nada. A prévia aparece no cursor: **Tab** insere, **Esc** cancela. Desligado, **Ctrl+;** abre a lista normal com o motivo. No teclado ABNT2, `;` fica em Shift+vírgula: o gesto é **Ctrl+Shift+,**.
+- **Autocomplete com IA (Ctrl+;)**: com **Habilitar autocomplete com IA** ligado, aperte **Ctrl+;** para pedir uma sugestão ao modelo local. Só nesse momento o texto é enviado ao modelo; digitar nunca envia nada. A prévia aparece no cursor: **Tab** insere, **Esc** cancela. Desligado, **Ctrl+;** abre a lista normal com o motivo. No teclado ABNT2, use a tecla `;` ao lado do ponto (à esquerda do Shift direito).
 
 Desligue o autocomplete com IA (e o Agente IA local) para não consumir memória de modelo. **Testar modelo** salva as opções e verifica geração de exemplo local. Nenhuma sugestão executa código. [Instalação manual, privacidade, hardware e troubleshooting](21-autocomplete-local.md).
 

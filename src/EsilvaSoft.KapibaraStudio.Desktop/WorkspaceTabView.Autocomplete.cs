@@ -513,6 +513,11 @@ public partial class WorkspaceTabView
         // norte-americana embaixo: no ABNT2 a tecla de cedilha fica onde o US tem ";", então descartar o caractere que
         // ela produz faria Ctrl+Ç invocar o comando de Ctrl+;.
         char? symbol = e.KeySymbol is { Length: 1 } text && !char.IsControl(text[0]) ? text[0] : null;
+        // Quando Ctrl/Alt apagam o símbolo, o layout ativo ainda sabe o que a tecla física produz sem eles: no ABNT2 a
+        // tecla na posição do "/" americano produz ";" e a cedilha produz "ç". Só sem essa resposta o símbolo QWERTY
+        // da posição física entra como fallback.
+        if (symbol is null && (modifiers & (EditorKeyModifiers.Control | EditorKeyModifiers.Alt)) != 0)
+            symbol = KeyboardLayoutSymbol.Unmodified(e.PhysicalKey, e.KeyModifiers.HasFlag(KeyModifiers.Shift));
         var qwertyKey = e.PhysicalKey.ToQwertyKey();
         // O enum Key do Avalonia declara "Return" e "Enter" como apelidos do mesmo valor; ToString() sempre devolve
         // "Return", que o EditorKey (chamado "Enter") nunca interpreta por nome. Sem esta alternativa, nenhum gesto

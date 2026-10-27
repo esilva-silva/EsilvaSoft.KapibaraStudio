@@ -142,6 +142,12 @@ public sealed class AiCompletionUiTests
         }
 
         public void PressAi() => Window.KeyPress(Key.OemSemicolon, RawInputModifiers.Control, PhysicalKey.Semicolon, ";");
+
+        /// <summary>
+        /// O que o Windows entrega no ABNT2: a tecla ";" fica na posição física do "/" americano e, com Ctrl, o
+        /// <c>KeySymbol</c> vem nulo (ToUnicodeEx com Ctrl não traduz pontuação; Avalonia KeyInterop.GetKeySymbol).
+        /// </summary>
+        public void PressAbntCtrl(PhysicalKey physical) => Window.KeyPress(Key.OemQuestion, RawInputModifiers.Control, physical, null);
         public void Press(Key key, PhysicalKey physical) => Window.KeyPress(key, RawInputModifiers.None, physical, null);
     }
 
@@ -576,6 +582,67 @@ public sealed class AiCompletionUiTests
             });
         });
     }
+
+    /// <summary>
+    /// Regressão relatada em 27/10/2026: no ABNT2, Ctrl+; não chegava à IA porque o fallback físico QWERTY lia a
+    /// tecla como "/". Com o layout informando ";" para a posição física, o gesto casa e o pedido chega ao modelo.
+    /// </summary>
+    [Test]
+    public async Task OnAbnt2TheSemicolonKeyWithCtrlRequestsTheAiThroughTheActiveLayout()
+    {
+        var models = new AiUiModelServiceFake();
+        var original = KeyboardLayoutSymbol.Resolver;
+        KeyboardLayoutSymbol.Resolver = Abnt2;
+        try
+        {
+            await RunAsync(models, async harness =>
+            {
+                harness.PressAbntCtrl(PhysicalKey.Slash);
+                await PumpAsync(() => models.StreamStarted);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(models.StreamStarted, Is.True, "Ctrl+; no ABNT2 envia o pedido ao modelo.");
+                    Assert.That(harness.ListPanel.IsVisible, Is.False, "Não é a lista: é a IA.");
+                    Assert.That(harness.Tab.Text, Is.EqualTo(Document), "Nem ';' nem '/' são inseridos.");
+                });
+            });
+        }
+        finally { KeyboardLayoutSymbol.Resolver = original; }
+    }
+
+    /// <summary>A cedilha do ABNT2 fica onde o US tem ";": Ctrl+Ç nunca pode virar o comando da IA.</summary>
+    [Test]
+    public async Task OnAbnt2CtrlCedillaNeverRequestsTheAi()
+    {
+        var models = new AiUiModelServiceFake();
+        var original = KeyboardLayoutSymbol.Resolver;
+        KeyboardLayoutSymbol.Resolver = Abnt2;
+        try
+        {
+            await RunAsync(models, async harness =>
+            {
+                harness.PressAbntCtrl(PhysicalKey.Semicolon);
+                await PumpAsync(() => models.StreamStarted, attempts: 20);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(models.StreamStarted, Is.False, "Ctrl+Ç não pede IA.");
+                    Assert.That(harness.ListPanel.IsVisible, Is.False);
+                    Assert.That(harness.Tab.Text, Is.EqualTo(Document));
+                });
+            });
+        }
+        finally { KeyboardLayoutSymbol.Resolver = original; }
+    }
+
+    /// <summary>Recorte do ABNT2 usado nos testes: posição física → caractere produzido sem Ctrl/Alt.</summary>
+    private static char? Abnt2(PhysicalKey key, bool shift) => key switch
+    {
+        PhysicalKey.Slash => shift ? ':' : ';',
+        PhysicalKey.Semicolon => shift ? 'Ç' : 'ç',
+        PhysicalKey.Period => shift ? '>' : '.',
+        PhysicalKey.IntlRo => shift ? '?' : '/',
+        _ => null
+    };
 
     /// <summary>Evidência visual real do indicador e da prévia nos dois temas.</summary>
     [Test, Category("Ui")]
