@@ -3,6 +3,8 @@ name: ci
 on:
   push:
     branches: ['**']
+  # Reused by release.yml (job test); not triggered by other users.
+  workflow_call:
 
 permissions:
   contents: read
