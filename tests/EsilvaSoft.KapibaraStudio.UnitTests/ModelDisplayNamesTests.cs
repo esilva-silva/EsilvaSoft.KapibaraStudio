@@ -26,6 +26,7 @@ public sealed class ModelDisplayNamesTests
     [Test]
     public void InstalledModelsUseFolderConventionThenMetadataAndOtherwiseKeepTheirName()
     {
+        Assert.That(ModelDisplayNames.ForInstalled("KapiCoder-Mongo-Nano-ONNX-htp-fim-exact-v1", null), Is.EqualTo("KapiCoder-Mongo-Nano — NPU Snapdragon HTP W4A16"));
         Assert.That(ModelDisplayNames.ForInstalled("SlopCoder-Mongo-1.5B-full-ONNX-dml-fp16", null), Is.EqualTo("SlopCoder-Mongo-1.5B-full — GPU DirectML FP16"));
         Assert.That(ModelDisplayNames.ForInstalled("KapiCoder-Mongo-Nano-ONNX-cpu-int4", null), Is.EqualTo("KapiCoder-Mongo-Nano — CPU INT4"));
         Assert.That(ModelDisplayNames.ForInstalled("KapiCoder-Mongo-Small-ONNX-cpu-int8", null), Is.EqualTo("KapiCoder-Mongo-Small — CPU INT8"));

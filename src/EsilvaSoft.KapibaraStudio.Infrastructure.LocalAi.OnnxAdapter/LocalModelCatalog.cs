@@ -58,7 +58,18 @@ public sealed class LocalModelCatalog(string? defaultDirectory = null, IReadOnly
             int? contextLength = model.TryGetProperty("context_length", out var contextValue)
                 && contextValue.ValueKind == JsonValueKind.Number && contextValue.TryGetInt32(out var parsedContext)
                 && parsedContext is >= 64 and <= 1_048_576 ? parsedContext : null;
-            var decoder = model.GetProperty("decoder").GetProperty("filename").GetString();
+            var decoderObject = model.GetProperty("decoder");
+            if (type == "decoder-pipeline")
+            {
+                var pipelineFiles = PipelineFiles(decoderObject, root);
+                var required = pipelineFiles.Concat([Path.Combine(root, "tokenizer.json"), Path.Combine(root, "tokenizer_config.json")]);
+                var missingPipeline = required.Where(file => !_fileAccess.FileExists(file) || _fileAccess.GetFileLength(file) == 0)
+                    .Select(Path.GetFileName).ToArray();
+                if (missingPipeline.Length > 0)
+                    return Rejected(LocalModelState.MissingFiles, F("aiCatalogMissingFiles", "Arquivos ausentes ou vazios: {0}.", string.Join(", ", missingPipeline)));
+                return Rejected(LocalModelState.Unsupported, L("aiCatalogPipelineUnvalidated", "Pacote de pipeline encontrado, mas sua execução ainda não foi validada neste runtime."));
+            }
+            var decoder = decoderObject.GetProperty("filename").GetString();
             if (string.IsNullOrWhiteSpace(decoder) || Path.IsPathRooted(decoder)) throw new InvalidDataException();
             var decoderPath = Path.GetFullPath(Path.Combine(root, decoder));
             var containedRoot = Path.EndsInDirectorySeparator(root) ? root : root + Path.DirectorySeparatorChar;
@@ -107,6 +118,30 @@ public sealed class LocalModelCatalog(string? defaultDirectory = null, IReadOnly
         {
             return Rejected(LocalModelState.Invalid, L("aiCatalogInvalid", "Modelo inválido: confira genai_config.json, decoder ONNX, tokenizer.json e tokenizer_config.json."));
         }
+    }
+
+    private static List<string> PipelineFiles(JsonElement decoder, string root)
+    {
+        var pipeline = decoder.GetProperty("pipeline");
+        if (pipeline.ValueKind != JsonValueKind.Array || pipeline.GetArrayLength() != 1 || pipeline[0].ValueKind != JsonValueKind.Object)
+            throw new InvalidDataException();
+        var group = pipeline[0];
+        var files = new List<string>();
+        var rootPrefix = Path.EndsInDirectorySeparator(root) ? root : root + Path.DirectorySeparatorChar;
+        foreach (var role in new[] { "embeddings", "context", "iterator", "lm_head" })
+        {
+            var relative = group.GetProperty(role).GetProperty("filename").GetString();
+            if (string.IsNullOrWhiteSpace(relative) || relative.Contains('\\') || relative.Contains(':') || Path.IsPathRooted(relative)
+                || relative.Split('/').Any(segment => segment.Length == 0 || segment is "." or ".."))
+                throw new InvalidDataException();
+            var path = Path.GetFullPath(Path.Combine(root, relative));
+            if (!path.StartsWith(rootPrefix, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)
+                || files.Contains(path, OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal))
+                throw new InvalidDataException();
+            files.Add(path);
+        }
+        if (group.EnumerateObject().Count() != 4) throw new InvalidDataException();
+        return files;
     }
 
     internal static JsonDocument ReadJson(string path, ILocalModelFileAccess fileAccess, long maximumBytes = 32 * 1024 * 1024)

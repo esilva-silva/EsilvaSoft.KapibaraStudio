@@ -4,8 +4,11 @@ namespace EsilvaSoft.KapibaraStudio.LocalAi.Core;
 public sealed record RemoteModelVariant(string Repository, string Revision, string Variant, string FolderName, long SizeBytes, string? License,
     Uri PageUrl, IReadOnlyList<RemoteModelFile> Files)
 {
-    /// <summary>Whether the current runtime can install this publication. Informational entries have no download files.</summary>
+    /// <summary>Whether this publication can be downloaded into the models directory; does not imply runtime compatibility.</summary>
     public bool IsInstallable { get; init; } = true;
+
+    /// <summary>Download is allowed, but execution requires a runtime not supported by this IDE version.</summary>
+    public bool RequiresUnsupportedRuntime { get; init; }
 
     /// <summary>Model family shown to the user, such as KapiCoder-Mongo-Small; empty when unknown.</summary>
     public string Family { get; init; } = "";

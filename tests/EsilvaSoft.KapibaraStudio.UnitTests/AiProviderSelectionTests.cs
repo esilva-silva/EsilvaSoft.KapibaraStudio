@@ -59,6 +59,24 @@ public sealed class AiProviderSelectionTests
     }
 
     [Test]
+    public void NpuProviderNameAloneDoesNotPromoteAnUnverifiedDevice()
+    {
+        var withoutDevice = OnnxHardwareProbe.Describe(["CPUExecutionProvider", "QNNExecutionProvider"], []);
+        Assert.That(withoutDevice.Single(device => device.Kind == AiAccelerationMode.Npu).IsAvailable, Is.False);
+        Assert.That(AiProviderSelector.Plan(new(), withoutDevice).Candidates.Select(candidate => candidate.Kind), Is.EqualTo(CpuOnly));
+        var withDevice = OnnxHardwareProbe.Describe(["CPUExecutionProvider", "QNNExecutionProvider"],
+            [new("QNNExecutionProvider", AiAccelerationMode.Npu, "Qualcomm NPU")]);
+        Assert.That(withDevice.Single(device => device.Kind == AiAccelerationMode.Npu).IsAvailable, Is.True);
+        var pluginDevice = OnnxHardwareProbe.Describe(["CPUExecutionProvider"],
+            [new("QNNExecutionProvider", AiAccelerationMode.Npu, "Qualcomm NPU")]);
+        Assert.That(pluginDevice.Single(device => device.Kind == AiAccelerationMode.Npu).Provider, Is.EqualTo("QNN"));
+        Assert.That(pluginDevice.Single(device => device.Kind == AiAccelerationMode.Npu).IsAvailable, Is.True);
+        var unrelatedDevice = OnnxHardwareProbe.Describe(["CPUExecutionProvider", "QNNExecutionProvider"],
+            [new("QNNExecutionProvider", AiAccelerationMode.Cpu, "QNN CPU backend")]);
+        Assert.That(unrelatedDevice.Single(device => device.Kind == AiAccelerationMode.Npu).IsAvailable, Is.False);
+    }
+
+    [Test]
     public void StatusBeforeLoadingNamesSelectionStateHardwareAndDetectedProvider()
     {
         var text = LocalAiStatusFormatter.Format(new(LocalModelState.NotLoaded, "Modelo ainda não carregado; será validado sob demanda."),

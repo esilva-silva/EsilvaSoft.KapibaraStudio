@@ -10,6 +10,51 @@ namespace EsilvaSoft.KapibaraStudio.IntegrationTests;
 [TestFixture]
 public sealed class LocalModelCatalogIntegrationTests
 {
+    [Test]
+    public async Task PipelineRequiresEveryComponentAndRemainsUnavailableUntilRuntimeValidated()
+    {
+        using var models = new SyntheticDirectory();
+        var path = CreatePipeline(models.Path);
+        var catalog = new LocalModelCatalog(models.Path, fileAccess: new LocalModelFileAccess());
+        var complete = await catalog.ValidateAsync(path);
+        Assert.That(complete.Validity, Is.EqualTo(LocalModelValidity.Unsupported));
+        Assert.That(complete.Model, Is.Null);
+        Assert.That(complete.Status.Message, Does.Contain("ainda não foi validada"));
+        File.Delete(Path.Combine(path, "iterator.onnx"));
+        var missing = await catalog.ValidateAsync(path);
+        Assert.That(missing.Validity, Is.EqualTo(LocalModelValidity.MissingFiles));
+        Assert.That(missing.Status.Message, Does.Contain("iterator.onnx"));
+    }
+
+    [TestCase("../outside.onnx")]
+    [TestCase("C:/outside.onnx")]
+    [TestCase("folder\\outside.onnx")]
+    [TestCase("/outside.onnx")]
+    public async Task PipelineRejectsUnsafeComponentPaths(string unsafePath)
+    {
+        using var models = new SyntheticDirectory();
+        var path = CreatePipeline(models.Path, unsafePath);
+        var validation = await new LocalModelCatalog(models.Path, fileAccess: new LocalModelFileAccess()).ValidateAsync(path);
+        Assert.That(validation.Validity, Is.EqualTo(LocalModelValidity.Invalid));
+        Assert.That(validation.Model, Is.Null);
+    }
+
+    private static string CreatePipeline(string directory, string context = "context.onnx")
+    {
+        var root = CreateQwenModel(directory, "Pipeline");
+        foreach (var name in new[] { "embeddings.onnx", "context.onnx", "iterator.onnx", "head.onnx" })
+            File.WriteAllText(Path.Combine(root, name), "fixture");
+        File.WriteAllText(Path.Combine(root, "genai_config.json"), System.Text.Json.JsonSerializer.Serialize(new
+        {
+            model = new { type = "decoder-pipeline", context_length = 2048, decoder = new { pipeline = new[]
+            {
+                new { embeddings = new { filename = "embeddings.onnx" }, context = new { filename = context },
+                    iterator = new { filename = "iterator.onnx" }, lm_head = new { filename = "head.onnx" } }
+            } } }
+        }));
+        return root;
+    }
+
     [TestCase("{}", false)]
     [TestCase("{\"runtime\":{\"prefixCache\":\"disabled\"}}", false)]
     [TestCase("{\"runtime\":{\"prefixCache\":\"reuse\"}}", true)]

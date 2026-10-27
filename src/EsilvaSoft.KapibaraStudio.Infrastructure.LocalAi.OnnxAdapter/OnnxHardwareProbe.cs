@@ -33,7 +33,7 @@ public sealed class OnnxHardwareProbe : IAiHardwareProbe
         }
     }
 
-    /// <summary>Available entries only for providers both this build can configure and the runtime reports. GPU/NPU absence never affects CPU.</summary>
+    /// <summary>Describes configured providers reported by the runtime; NPU requires an enumerated NPU device.</summary>
     public static IReadOnlyList<AiHardwareDevice> Describe(IReadOnlyCollection<string> providers, IReadOnlyList<OnnxEpDevice> devices)
     {
         ArgumentNullException.ThrowIfNull(providers);
@@ -42,12 +42,13 @@ public sealed class OnnxHardwareProbe : IAiHardwareProbe
         foreach (var kind in new[] { AiAccelerationMode.Cpu, AiAccelerationMode.Gpu, AiAccelerationMode.Npu })
         {
             var added = false;
-            foreach (var descriptor in OnnxExecutionProviders.Known.Where(descriptor => descriptor.Kind == kind && providers.Contains(descriptor.OrtName)))
+            foreach (var descriptor in OnnxExecutionProviders.Known.Where(descriptor => descriptor.Kind == kind
+                && (providers.Contains(descriptor.OrtName) || devices.Any(device => device.ExecutionProvider == descriptor.OrtName))))
             {
                 var reported = devices.Where(device => device.ExecutionProvider == descriptor.OrtName).ToArray();
                 // OpenVINO, for example, also exposes CPU and GPU devices: only a device of this kind counts.
                 var device = reported.Where(device => device.Kind == kind).OrderBy(device => device.AdapterIndex ?? int.MaxValue).FirstOrDefault();
-                if (device is null && (reported.Length > 0 || descriptor.OrtName == "OpenVINOExecutionProvider")) continue;
+                if (device is null && (kind == AiAccelerationMode.Npu || reported.Length > 0)) continue;
                 result.Add(new(kind, descriptor.DisplayName, device?.Description ?? LocalAiStatusFormatter.HardwareLabel(kind), true) { MemoryBytes = device?.MemoryBytes });
                 added = true;
             }

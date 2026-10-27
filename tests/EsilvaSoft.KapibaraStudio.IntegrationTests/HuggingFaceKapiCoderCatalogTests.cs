@@ -68,7 +68,7 @@ public sealed class HuggingFaceKapiCoderCatalogTests
             Assert.That(variants[1].HintKey, Is.EqualTo("remoteHintCpuInt8Alternative"));
             Assert.That(variants[2].HintKey, Is.EqualTo("remoteHintDirectMlFp16"));
             Assert.That(variants[2].Hint, Does.Contain("experimental"));
-            Assert.That(handler.Requests, Has.Count.EqualTo(4), "Only metadata is requested while listing exports.");
+            Assert.That(handler.Requests, Has.Count.EqualTo(6), "Only metadata is requested; unavailable pinned publications must not hide the default exports.");
         });
         foreach (var variant in variants)
         {

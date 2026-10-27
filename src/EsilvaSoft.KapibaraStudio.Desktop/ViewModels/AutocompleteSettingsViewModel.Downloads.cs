@@ -130,7 +130,11 @@ public sealed partial class AutocompleteSettingsViewModel
             IsDownloadingModel = false;
             DownloadProgress = 100;
             await RefreshModelsCommand.ExecuteAsync(null);
-            if (Models.FirstOrDefault(model => !model.IsExternal && string.Equals(model.Reference, variant.FolderName, PathComparison)) is { } installed)
+            if (variant.RequiresUnsupportedRuntime)
+            {
+                DownloadStatus = F("modelDownloadedRuntimePending", variant.Title, path);
+            }
+            else if (Models.FirstOrDefault(model => !model.IsExternal && string.Equals(model.Reference, variant.FolderName, PathComparison)) is { } installed)
             {
                 SelectedModelOption = installed;
                 DownloadStatus = F("modelInstalledSave", variant.Title, path);

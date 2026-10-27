@@ -1,5 +1,15 @@
 # Catálogo e pacotes ONNX KapiCoder-Mongo
 
+## Pacotes Snapdragon HTP — integração em andamento
+
+As publicações experimentais fixadas são Nano `a85d11c9f8db2f4388836c991b292b1cdb160d39` e Small `c03ba2339ba263a3881134d0acd3ee24e1a80717`, na pasta `htp-fim-exact-v1` de cada repositório ONNX. A revisão é distinta de `main`. O catálogo continua oferecendo Nano `cpu-int4` primeiro, sem substituir uma seleção já realizada.
+
+Os pacotes foram validados em um notebook Snapdragon fora da IDE, usando GenAI 0.18 e plugin Qualcomm QNN 2.7. Esta IDE permanece em GenAI 0.15.2 e ainda não implementa o registro do plugin, a configuração híbrida do decoder-pipeline nem o orçamento de janela de 32 e contexto fixo de 2.048 usado nos testes. A presença de um provider ou a publicação dos arquivos não comprova que esta versão da IDE consegue executar os pacotes. O download manual dos pacotes é permitido, verifica os hashes e não muda o modelo selecionado; o download automático e a execução na NPU permanecem pendentes de implementação e validação. Pacotes locais de pipeline estruturalmente válidos são identificados como não suportados nesta versão.
+
+A detecção de NPU requer um dispositivo NPU efetivamente reportado pelo ONNX Runtime; o nome do provider sozinho não basta. Plugins podem aparecer na lista de dispositivos mesmo quando não constam da lista de providers compilados. O registro do plugin e a comprovação de execução na NPU continuam pendentes.
+
+Em 27/10/2026, `SnapdragonPublicDownloadManualTests` baixou os dois commits públicos pelo comando de Preferências, em diretórios de teste separados. Os 33 arquivos de cada pacote e os hashes do `export_manifest.json` foram verificados; o modelo CPU selecionado foi preservado e o catálogo sinalizou os pipelines como não suportados. Os 18 PNGs Headless dos temas claro/escuro, tamanhos 520/660/900 e escalas 1/1,5/2 foram inspecionados; nas larguras menores os detalhes ficam na região rolável. A evidência não demonstra execução na NPU nem download automático. O restore bloqueado e o build passaram, assim como 403 testes de agentes, 1.091 testes de integração e 3.782 testes unitários (20 ignorados em cada uma das duas últimas suítes).
+
 O catálogo padrão usa `esilva/KapiCoder-Mongo-Nano-ONNX` e `esilva/KapiCoder-Mongo-Small-ONNX`, nessa ordem. Nano `cpu-int4` é a primeira opção. Os links de detalhes apontam aos cards base [Nano](https://huggingface.co/esilva/KapiCoder-Mongo-Nano) e [Small](https://huggingface.co/esilva/KapiCoder-Mongo-Small). A seleção existente do usuário é preservada; não há troca automática do modelo instalado.
 
 ## Pacotes preparados em 26/10/2026

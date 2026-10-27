@@ -21,6 +21,9 @@ public static class ModelDisplayNames
     public static ModelFlavor? ParseVariant(string variant)
     {
         ArgumentNullException.ThrowIfNull(variant);
+        // This exact publisher variant is a Snapdragon QNN weight-4/activation-16 pipeline.
+        if (string.Equals(variant, "htp-fim-exact-v1", StringComparison.OrdinalIgnoreCase))
+            return new(AiAccelerationMode.Npu, "Snapdragon HTP", "W4A16");
         var parts = variant.Split('-', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length is 0 or > 2) return null;
         var precision = parts[^1].ToUpperInvariant();

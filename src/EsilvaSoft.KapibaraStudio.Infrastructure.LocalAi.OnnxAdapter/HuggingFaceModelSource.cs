@@ -31,8 +31,15 @@ public sealed class HuggingFaceModelSource : IRemoteModelSource, IDisposable
         [
             new("cpu-int8", "Alternativa em CPU: INT8.", "remoteHintCpuInt8Alternative"),
             new("dml-fp16", "GPU DirectML experimental: FP16.", "remoteHintDirectMlFp16")
-        ])
+        ]),
+        SnapdragonRepository("Nano", "a85d11c9f8db2f4388836c991b292b1cdb160d39"),
+        SnapdragonRepository("Small", "c03ba2339ba263a3881134d0acd3ee24e1a80717")
     ];
+
+    private static RemoteModelRepository SnapdragonRepository(string family, string revision) =>
+        new($"esilva/KapiCoder-Mongo-{family}-ONNX", $"esilva/KapiCoder-Mongo-{family}",
+            [new("htp-fim-exact-v1", "NPU Snapdragon HTP experimental: download disponível. A execução requer runtime GenAI/QNN compatível, ainda não homologado nesta IDE.", "remoteHintSnapdragonUnavailable")])
+        { Revision = revision, VariantFolder = "htp-fim-exact-v1", RequiresUnsupportedRuntime = true };
 
     private static readonly Uri DefaultBaseAddress = new("https://huggingface.co/");
     private static readonly TimeSpan ListTimeout = TimeSpan.FromSeconds(20);
@@ -48,10 +55,12 @@ public sealed class HuggingFaceModelSource : IRemoteModelSource, IDisposable
     {
         _storage = storage ?? throw new ArgumentNullException(nameof(storage));
         _repositories = repositories ?? DefaultRepositories;
-        if (_repositories.Count == 0 || _repositories.Any(repository => !IsSafeRelativePath(repository.Repository) || !repository.Repository.Contains('/')))
+        if (_repositories.Count == 0 || _repositories.Any(repository => !IsSafeRelativePath(repository.Repository) || !repository.Repository.Contains('/')
+            || repository.Revision is { } revision && !IsHex(revision, 40)
+            || repository.VariantFolder is { } folder && (!IsSafeRelativePath(folder) || folder.Contains('/'))))
             throw new ArgumentException("Informe repositórios no formato dono/nome.", nameof(repositories));
         _baseAddress = baseAddress ?? DefaultBaseAddress;
-        RepositoryUrls = _repositories.Select(repository => new Uri(_baseAddress, repository.Repository)).ToArray();
+        RepositoryUrls = _repositories.Select(repository => new Uri(_baseAddress, repository.Repository)).Distinct().ToArray();
         _http = handler is null ? new HttpClient() : new HttpClient(handler, disposeHandler: false);
         // Per-request limits: a timeout for the listing, a stall timeout for large files.
         _http.Timeout = Timeout.InfiniteTimeSpan;
@@ -89,8 +98,19 @@ public sealed class HuggingFaceModelSource : IRemoteModelSource, IDisposable
     {
         ArgumentNullException.ThrowIfNull(variant);
         ArgumentException.ThrowIfNullOrWhiteSpace(modelsDirectory);
-        if (!variant.IsInstallable)
-            throw new InvalidDataException(L("remoteHintRequiresOnnx", "Formato Safetensors: requer uma exportação ONNX GenAI compatível para instalar."));
+        var pinned = _repositories.Where(repository => repository.Revision is not null && repository.Repository == variant.Repository
+            && (repository.VariantFolder is null || repository.VariantFolder == variant.Variant)).ToArray();
+        if (pinned.Length > 0 && !pinned.Any(repository => string.Equals(repository.Revision, variant.Revision, StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidDataException(L("remoteInvalidModelDescription", "Descrição de modelo inválida."));
+        var restricted = _repositories.FirstOrDefault(repository => !repository.IsInstallable
+            && repository.Repository == variant.Repository && (repository.VariantFolder is null || repository.VariantFolder == variant.Variant));
+        if (!variant.IsInstallable || restricted is not null)
+        {
+            var restriction = restricted?.Variants.FirstOrDefault(hint => hint.Folder == variant.Variant);
+            var hint = restriction?.Hint ?? variant.Hint ?? "Publicação incompatível com o runtime desta IDE.";
+            var key = restriction?.LocalizationKey ?? variant.HintKey;
+            throw new InvalidDataException(key is null ? hint : L(key, hint));
+        }
         if (_repositories.All(repository => repository.Repository != variant.Repository) || !IsHex(variant.Revision, 40)
             || !IsSafeRelativePath(variant.Variant) || !IsSafeRelativePath(variant.FolderName) || variant.FolderName.Contains('/')
             || !variant.Files.Any(file => file.Path == variant.Variant + "/genai_config.json")
@@ -134,12 +154,16 @@ public sealed class HuggingFaceModelSource : IRemoteModelSource, IDisposable
         timeout.CancelAfter(ListTimeout);
         try
         {
-            using var info = await GetJsonAsync($"api/models/{repository.Repository}", timeout.Token);
+            var reference = repository.Revision is null ? "" : $"/revision/{repository.Revision}";
+            using var info = await GetJsonAsync($"api/models/{repository.Repository}{reference}", timeout.Token);
             var revision = TryString(info.RootElement, "sha");
             if (!IsHex(revision, 40)) throw new InvalidDataException(L("remoteInvalidRevision", "O repositório não informou uma revisão válida."));
+            if (repository.Revision is not null && !string.Equals(repository.Revision, revision, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException(L("remoteInvalidRevision", "O repositório não informou uma revisão válida."));
             var license = info.RootElement.TryGetProperty("cardData", out var card) && card.ValueKind == JsonValueKind.Object
                 ? TryString(card, "license_name") ?? TryString(card, "license") : null;
-            using var tree = await GetJsonAsync($"api/models/{repository.Repository}/tree/{revision}?recursive=true", timeout.Token);
+            var folder = repository.VariantFolder is null ? "" : "/" + Uri.EscapeDataString(repository.VariantFolder);
+            using var tree = await GetJsonAsync($"api/models/{repository.Repository}/tree/{revision}{folder}?recursive=true", timeout.Token);
             return BuildVariants(repository, tree.RootElement, revision!, license);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
@@ -160,6 +184,7 @@ public sealed class HuggingFaceModelSource : IRemoteModelSource, IDisposable
         {
             if (TryString(entry, "type") != "file" || TryString(entry, "path") is not { } path) continue;
             if (!IsSafeRelativePath(path)) continue;
+            if (repository.VariantFolder is { } selectedFolder && !path.StartsWith(selectedFolder + "/", StringComparison.Ordinal)) continue;
             var separator = path.IndexOf('/');
             // Root weights identify a transformers publication; they never become download files for this runtime.
             if (separator < 0)
@@ -191,11 +216,15 @@ public sealed class HuggingFaceModelSource : IRemoteModelSource, IDisposable
             return int.MaxValue;
         }
         var variants = files.GroupBy(item => item.Variant, StringComparer.Ordinal)
+            .Where(group => repository.VariantFolder is { } folder ? group.Key == folder
+                : !_repositories.Any(source => source.Repository == repository.Repository && source.Revision is not null && source.VariantFolder == group.Key))
             .Where(group => group.Any(item => item.File.Path == group.Key + "/genai_config.json"))
             .OrderBy(group => Order(group.Key)).ThenBy(group => group.Key, StringComparer.Ordinal)
             .Select(group => new RemoteModelVariant(repository.Repository, revision, group.Key, $"{repositoryName}-{group.Key}", group.Sum(item => item.File.Size),
                 license, new Uri($"{repositoryUrl}/tree/{revision}/{Uri.EscapeDataString(group.Key)}"), group.Select(item => item.File).ToArray())
             {
+                IsInstallable = repository.IsInstallable,
+                RequiresUnsupportedRuntime = repository.RequiresUnsupportedRuntime,
                 Family = family,
                 Hint = repository.Variants.FirstOrDefault(hint => hint.Folder == group.Key)?.Hint,
                 HintKey = repository.Variants.FirstOrDefault(hint => hint.Folder == group.Key)?.LocalizationKey,

@@ -52,7 +52,7 @@ public sealed class ModelDownloadUiTests
                 Assert.That(preferences.DownloadModelCommand.CanExecute(null), Is.True);
                 var download = window.GetVisualDescendants().OfType<Button>().Single(button => AutomationProperties.GetName(button) == "Baixar modelo");
                 RenderCatalog(window, download, "kapicoder-onnx-ready", expectedEnabled: true);
-                Assert.That(handler.Requests, Has.Count.EqualTo(4), "Opening preferences does not download weights.");
+                Assert.That(handler.Requests, Has.Count.EqualTo(6), "Opening preferences only requests metadata, including unavailable pinned publications.");
             }
             finally
             {
