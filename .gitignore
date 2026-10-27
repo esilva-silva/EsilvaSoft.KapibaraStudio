@@ -16,6 +16,8 @@ workspace.db-*
 *.safetensors
 *.gguf
 artifacts/
+# Local dataset release staging (archives are published externally, never committed).
+/dataset-release-preparation/
 /reports/
 /logs/
 /tests/EsilvaSoft.KapibaraStudio.Benchmarks/BenchmarkDotNet.Artifacts
