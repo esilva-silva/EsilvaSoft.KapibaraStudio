@@ -17,11 +17,11 @@ Comandos, em ordem, parando no primeiro erro:
 ```
 dotnet restore EsilvaSoft.KapibaraStudio.slnx --locked-mode
 dotnet build EsilvaSoft.KapibaraStudio.slnx --no-restore -c Release
-dotnet test tests/EsilvaSoft.KapibaraStudio.UnitTests/EsilvaSoft.KapibaraStudio.UnitTests.csproj --no-build --no-restore -c Release
+dotnet test tests/EsilvaSoft.KapibaraStudio.UnitTests/EsilvaSoft.KapibaraStudio.UnitTests.csproj --no-build --no-restore -c Release --filter "TestCategory!=LocalModelIntegration"
 dotnet test tests/EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Tests/EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Tests.csproj --no-build --no-restore -c Release
-dotnet test tests/EsilvaSoft.KapibaraStudio.IntegrationTests/EsilvaSoft.KapibaraStudio.IntegrationTests.csproj --no-build --no-restore -c Release --filter "FullyQualifiedName~UnitSystemBoundaryIntegrationTests&TestCategory!=OfficialCli"
+dotnet test tests/EsilvaSoft.KapibaraStudio.IntegrationTests/EsilvaSoft.KapibaraStudio.IntegrationTests.csproj --no-build --no-restore -c Release --filter "FullyQualifiedName~UnitSystemBoundaryIntegrationTests&TestCategory!=OfficialCli&TestCategory!=LocalModelIntegration"
 ```
-Se a telemetria de build do Avalonia for bloqueada, acrescente `-p:UsedAvaloniaProducts=` ao build. Nunca rode benchmarks. Para cada teste com falha, agrupe por causa raiz e mostre a mensagem de erro resumida.
+Se a telemetria de build do Avalonia for bloqueada, acrescente `-p:UsedAvaloniaProducts=` ao build. Nunca rode benchmarks nem baixe ou carregue modelos reais. Para cada teste com falha, agrupe por causa raiz e mostre a mensagem de erro resumida.
 
 ## 2. Varredura estática (escopo: diff atual, `git diff HEAD` + arquivos não rastreados; se vazio, o último commit)
 

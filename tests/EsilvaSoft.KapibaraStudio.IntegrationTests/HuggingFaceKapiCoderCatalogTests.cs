@@ -10,7 +10,7 @@ namespace EsilvaSoft.KapibaraStudio.IntegrationTests;
 [TestFixture, Category("Integration")]
 public sealed class HuggingFaceKapiCoderCatalogTests
 {
-    [Test, Explicit("Consulta somente metadados públicos do Hugging Face; sem download de pesos.")]
+    [Test, Explicit("Consulta somente metadados públicos do Hugging Face; sem download de pesos."), Category("LocalModelIntegration")]
     public async Task PublishedCatalogListsTheCurrentFamiliesWithoutInstallingWeights()
     {
         // The source publications are public; ONNX export repositories are prepared separately and may not exist yet.

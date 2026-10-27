@@ -12,11 +12,11 @@ Só execute em host Windows; caso contrário, diga que a execução não foi fei
 ```
 dotnet restore EsilvaSoft.KapibaraStudio.slnx --locked-mode
 dotnet build EsilvaSoft.KapibaraStudio.slnx --no-restore -c Release
-dotnet test tests/EsilvaSoft.KapibaraStudio.UnitTests/EsilvaSoft.KapibaraStudio.UnitTests.csproj --no-build --no-restore -c Release
+dotnet test tests/EsilvaSoft.KapibaraStudio.UnitTests/EsilvaSoft.KapibaraStudio.UnitTests.csproj --no-build --no-restore -c Release --filter "TestCategory!=LocalModelIntegration"
 dotnet test tests/EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Tests/EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Tests.csproj --no-build --no-restore -c Release
-dotnet test tests/EsilvaSoft.KapibaraStudio.IntegrationTests/EsilvaSoft.KapibaraStudio.IntegrationTests.csproj --no-build --no-restore -c Release --filter "TestCategory!=OfficialCli"
+dotnet test tests/EsilvaSoft.KapibaraStudio.IntegrationTests/EsilvaSoft.KapibaraStudio.IntegrationTests.csproj --no-build --no-restore -c Release --filter "TestCategory!=OfficialCli&TestCategory!=LocalModelIntegration"
 ```
-Se a telemetria de build do Avalonia for bloqueada, acrescente `-p:UsedAvaloniaProducts=` ao build. Nunca rode benchmarks. Se testes de integração falharem por falta de MongoDB ou de ferramenta externa, classifique como ambiente, não como regressão. Para cada falha, agrupe por causa raiz.
+Se a telemetria de build do Avalonia for bloqueada, acrescente `-p:UsedAvaloniaProducts=` ao build. Nunca rode benchmarks nem baixe ou carregue modelos reais. Se testes de integração falharem por falta de MongoDB ou de ferramenta externa, classifique como ambiente, não como regressão. Para cada falha, agrupe por causa raiz.
 
 **Fins de linha:** o runner do CI faz checkout com `core.autocrlf=true`, então arquivos `text=auto` chegam em CRLF; a cópia local pode estar em LF e esconder falhas. Verifique `git config core.autocrlf` e `git ls-files --eol` dos testes alterados. Quando um teste alterado usar raw string literal multilinha (`"""`) cujo conteúdo é comparado com `\n`, reproduza em uma cópia temporária: converta o arquivo para CRLF, rode só aquele teste e restaure o arquivo original byte a byte.
 

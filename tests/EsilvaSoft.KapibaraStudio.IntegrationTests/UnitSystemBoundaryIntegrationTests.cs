@@ -60,6 +60,76 @@ public sealed class UnitSystemBoundaryIntegrationTests
             + string.Join(Environment.NewLine, offenders));
     }
 
+    /// <summary>
+    /// CI never downloads models. A Hub source without a fake HttpMessageHandler reaches huggingface.co, so it may only
+    /// exist in [Explicit] tests of the LocalModelIntegration category, which CI excludes besides never selecting them.
+    /// </summary>
+    [Test]
+    public void RealModelHubAccessIsConfinedToExplicitLocalModelTests()
+    {
+        var repositoryRoot = FindRepositoryRoot();
+        var testFiles = TestProjects
+            .SelectMany(project => Directory.EnumerateFiles(Path.Combine(repositoryRoot, "tests", project), "*.cs", SearchOption.AllDirectories))
+            .Where(path => !path.Contains(Path.DirectorySeparatorChar + "obj" + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+                && !path.Contains(Path.DirectorySeparatorChar + "bin" + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+                // This guard quotes the constructor in its own samples.
+                && Path.GetFileName(path) != nameof(UnitSystemBoundaryIntegrationTests) + ".cs");
+        var offenders = new List<string>();
+
+        foreach (var file in testFiles)
+        {
+            var lines = File.ReadAllLines(file);
+            var fixtureIsLocalModel = lines.Any(line => line.StartsWith('[') && line.Contains(LocalModelCategory, StringComparison.Ordinal));
+            for (var index = 0; index < lines.Length; index++)
+            {
+                if (!lines[index].Contains("new HuggingFaceModelSource(", StringComparison.Ordinal)
+                    || UsesFakeHandler(StatementFrom(lines, index)))
+                    continue;
+                var attributes = MemberAttributes(lines, index);
+                if (!attributes.Contains("Explicit(", StringComparison.Ordinal)
+                    || !(fixtureIsLocalModel || attributes.Contains(LocalModelCategory, StringComparison.Ordinal)))
+                    offenders.Add($"{Path.GetRelativePath(repositoryRoot, file)}:{index + 1}");
+            }
+        }
+
+        Assert.That(offenders, Is.Empty,
+            "Acesso real ao Hugging Face exige [Explicit] e Category(\"LocalModelIntegration\"); o CI nunca baixa modelos:\n"
+            + string.Join(Environment.NewLine, offenders));
+    }
+
+    [TestCase("new HuggingFaceModelSource(storage, handler: handler);", true)]
+    [TestCase("new HuggingFaceModelSource(storage, repositories, handler, new Uri(\"https://stage.test/\"));", true)]
+    [TestCase("new HuggingFaceModelSource(storage);", false)]
+    [TestCase("new HuggingFaceModelSource(storage, [repository]);", false)]
+    public void RealModelHubGuardRecognizesFakeHandlers(string statement, bool fake)
+    {
+        Assert.That(UsesFakeHandler(statement), Is.EqualTo(fake));
+    }
+
+    private static readonly string[] TestProjects =
+        ["EsilvaSoft.KapibaraStudio.UnitTests", "EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Tests", "EsilvaSoft.KapibaraStudio.IntegrationTests"];
+    private const string LocalModelCategory = "Category(\"LocalModelIntegration\")";
+    private static readonly Regex HandlerArgument = new(@"\bhandler\b", RegexOptions.CultureInvariant);
+
+    private static bool UsesFakeHandler(string statement) => HandlerArgument.IsMatch(statement);
+
+    private static string StatementFrom(string[] lines, int index)
+    {
+        var end = index;
+        while (end < lines.Length - 1 && !lines[end].Contains(';', StringComparison.Ordinal)) end++;
+        return string.Join(' ', lines[index..(end + 1)]);
+    }
+
+    /// <summary>Attribute lines directly above the enclosing member (members are indented by four spaces).</summary>
+    private static string MemberAttributes(string[] lines, int index)
+    {
+        var member = index;
+        while (member >= 0 && !Regex.IsMatch(lines[member], @"^ {4}(?:public|private|internal|protected)\b", RegexOptions.CultureInvariant)) member--;
+        var first = member;
+        while (first > 0 && lines[first - 1].TrimStart().StartsWith('[')) first--;
+        return member < 0 ? "" : string.Join(' ', lines[first..member]);
+    }
+
     [TestCase("Environment.GetEnvironmentVariable")]
     [TestCase("Environment.GetEnvironmentVariable(\"HOME\")")]
     [TestCase("AppContext.BaseDirectory")]

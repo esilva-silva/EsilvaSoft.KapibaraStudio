@@ -19,7 +19,7 @@ public sealed class HuggingFaceSnapdragonCatalogTests
     private static readonly string[] ExpectedOrder = ["cpu-int4", "cpu-int8", "dml-fp16", "cpu-int8", "dml-fp16", Folder, Folder];
     private static readonly string[] Families = ["Nano", "Small"];
 
-    [Test, Explicit("Consulta somente metadados públicos dos dois commits HTP, sem baixar pesos.")]
+    [Test, Explicit("Consulta somente metadados públicos dos dois commits HTP, sem baixar pesos."), Category("LocalModelIntegration")]
     public async Task PublicPinnedSnapdragonMetadataIsDownloadableButRequiresUnsupportedRuntime()
     {
         var repositories = HuggingFaceModelSource.DefaultRepositories.Where(repository => repository.Revision is not null).ToArray();
@@ -160,10 +160,12 @@ public sealed class HuggingFaceSnapdragonCatalogTests
     public void UnsafePinnedSourceIsRejectedBeforeAnyRequest(string revision, string folder)
     {
         var repository = new RemoteModelRepository("org/model", null, []) { Revision = revision, VariantFolder = folder };
+        using var handler = new HubHandler();
         Assert.Throws<ArgumentException>(() =>
         {
-            using var source = new HuggingFaceModelSource(new RemoteModelStorage(), [repository]);
+            using var source = new HuggingFaceModelSource(new RemoteModelStorage(), [repository], handler);
         });
+        Assert.That(handler.Requests, Is.Empty);
     }
 
     private sealed class HubHandler : HttpMessageHandler
