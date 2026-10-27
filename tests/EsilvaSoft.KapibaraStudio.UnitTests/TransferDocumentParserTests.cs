@@ -87,7 +87,8 @@ public sealed class TransferDocumentParserTests
             66e3bd5b3bc3f54c840d73ac,"one,
             two",00112233-4455-6677-8899-aabbccddeeff,12.50,"{""$date"":{""$numberLong"":""1728388800000""}}"
             """;
-        var rows = await ReadAllAsync(source, CsvSchema);
+        // The quoted field keeps its line break verbatim; pin it so a CRLF checkout of this file cannot change the input.
+        var rows = await ReadAllAsync(source.ReplaceLineEndings("\n"), CsvSchema);
 
         Assert.Multiple(() =>
         {

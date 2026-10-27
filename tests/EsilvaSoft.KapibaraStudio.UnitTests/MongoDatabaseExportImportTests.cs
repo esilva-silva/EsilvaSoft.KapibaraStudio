@@ -1289,6 +1289,8 @@ public sealed class MongoDatabaseExportImportTests
 
     private sealed class MemoryExportFiles : IMongoDatabaseExportFileAccess, IStreamingMongoDatabaseExportFileAccess, IExportDirectoryCleanupAccess
     {
+        // In-memory paths, but fully qualified on the host OS: the service rejects non-absolute adapter paths.
+        private static readonly string Root = OperatingSystem.IsWindows() ? @"C:\kapibara-export" : "/kapibara-export";
         private readonly HashSet<string> _directories = new(StringComparer.Ordinal);
         public Dictionary<string, string> Text { get; } = new(StringComparer.Ordinal);
         public int CollectionStreamOpenCount { get; private set; }
@@ -1300,13 +1302,13 @@ public sealed class MongoDatabaseExportImportTests
         public string NormalizePath(string path) => path;
         public string CreateExportDirectory(string directoryName)
         {
-            var directory = $@"C:\kapibara-export\{directoryName}";
+            var directory = Path.Combine(Root, directoryName);
             _directories.Add(directory);
             return directory;
         }
         public string CreateLegacyDirectory(string name)
         {
-            var directory = $@"C:\kapibara-export\{name}";
+            var directory = Path.Combine(Root, name);
             _directories.Add(directory);
             return directory;
         }
