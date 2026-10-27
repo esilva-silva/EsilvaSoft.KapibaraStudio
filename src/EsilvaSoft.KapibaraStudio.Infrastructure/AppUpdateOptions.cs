@@ -6,8 +6,8 @@ namespace EsilvaSoft.KapibaraStudio.Infrastructure;
 
 /// <summary>Where the running installation lives and whether it may replace itself.</summary>
 public sealed record AppUpdateOptions(AppUpdateAvailability Availability, AppVersion CurrentVersion, string Rid, string TargetDirectory,
-    string ExecutableName, string UpdatesDirectory, Uri ReleasesApi)
-    : AppUpdateInstallation(Availability, CurrentVersion, Rid, TargetDirectory, ExecutableName, UpdatesDirectory)
+    string ExecutableName, string UpdatesDirectory, Uri ReleasesApi, LinuxPackageManager? PackageManager = null)
+    : AppUpdateInstallation(Availability, CurrentVersion, Rid, TargetDirectory, ExecutableName, UpdatesDirectory, PackageManager)
 {
     public static Uri GitHubReleasesApi { get; } = new("https://api.github.com/repos/esilva-silva/EsilvaSoft.KapibaraStudio/releases?per_page=20");
 
@@ -16,6 +16,6 @@ public sealed record AppUpdateOptions(AppUpdateAvailability Availability, AppVer
         ArgumentNullException.ThrowIfNull(workspacePaths);
         var installation = LocalAppUpdateStorage.DetectInstallation(workspacePaths.GetUpdatesDirectory());
         return new(installation.Availability, installation.CurrentVersion, installation.Rid, installation.TargetDirectory,
-            installation.ExecutableName, installation.UpdatesDirectory, GitHubReleasesApi);
+            installation.ExecutableName, installation.UpdatesDirectory, GitHubReleasesApi, installation.PackageManager);
     }
 }

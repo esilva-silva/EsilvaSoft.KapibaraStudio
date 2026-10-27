@@ -12,6 +12,12 @@
 tools/KapiLab.Tests/Fixtures/local-agent-qwen3-v1/** -text
 reports/lab/parity-local-agent-qwen3/** -text
 
+# Linux packaging inputs are consumed by bash, makepkg and desktop-file-validate; CRLF would break them.
+*.sh text eol=lf
+packaging/linux/**/*.yaml text eol=lf
+packaging/linux/**/*.desktop text eol=lf
+packaging/linux/**/*.in text eol=lf
+
 ###############################################################################
 # Set default behavior for command prompt diff.
 #

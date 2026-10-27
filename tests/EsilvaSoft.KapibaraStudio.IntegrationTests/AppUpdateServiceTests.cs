@@ -271,6 +271,98 @@ public sealed class AppUpdateServiceTests
         Assert.That(AppUpdateInstaller.DetectAvailability(host, version, rid), Is.EqualTo(AppUpdateAvailability.Disabled));
     }
 
+    [TestCase("apt\n", LinuxPackageManager.Apt, "linux-x64")]
+    [TestCase("dnf", LinuxPackageManager.Dnf, "linux-arm64")]
+    [TestCase("pacman  \r\n", LinuxPackageManager.Pacman, "linux-x64")]
+    public void PackageMarkerMakesLinuxInstallationPackageManagedEvenWhenTheFolderIsWritable(string marker, LinuxPackageManager expected, string rid)
+    {
+        using var fixture = new UpdateFixture();
+        var host = Path.Combine(fixture.Target, "EsilvaSoft.KapibaraStudio.Desktop");
+        var version = AppVersion.Parse("0.5.0");
+        Assert.That(AppUpdateInstaller.DetectMode(host, version, rid), Is.EqualTo((AppUpdateAvailability.Supported, (LinuxPackageManager?)null)),
+            "Without a marker the writable tarball keeps replacing itself.");
+        File.WriteAllText(Path.Combine(fixture.Target, LinuxPackageUpdateGuidance.MarkerFileName), marker);
+        Assert.That(AppUpdateInstaller.DetectMode(host, version, rid), Is.EqualTo((AppUpdateAvailability.PackageManaged, (LinuxPackageManager?)expected)),
+            "A writable folder (root) must not let the application overwrite files owned by the package manager.");
+        File.WriteAllText(Path.Combine(fixture.Target, "EsilvaSoft.KapibaraStudio.Desktop.dll"), "");
+        Assert.That(AppUpdateInstaller.DetectAvailability(host, version, rid), Is.EqualTo(AppUpdateAvailability.Disabled), "Build output stays disabled.");
+    }
+
+    [TestCase("APT")]
+    [TestCase("yum\n")]
+    [TestCase("")]
+    [TestCase("apt\ndnf\n")]
+    public void InvalidPackageMarkerNeverAllowsSelfReplacement(string marker)
+    {
+        using var fixture = new UpdateFixture();
+        var host = Path.Combine(fixture.Target, "EsilvaSoft.KapibaraStudio.Desktop");
+        File.WriteAllText(Path.Combine(fixture.Target, LinuxPackageUpdateGuidance.MarkerFileName), marker);
+        Assert.That(AppUpdateInstaller.DetectMode(host, AppVersion.Parse("0.5.0"), "linux-x64"),
+            Is.EqualTo((AppUpdateAvailability.ManualOnly, (LinuxPackageManager?)null)));
+    }
+
+    [Test]
+    public void OversizedOrDirectoryMarkerIsTreatedAsInvalid()
+    {
+        using var fixture = new UpdateFixture();
+        var host = Path.Combine(fixture.Target, "EsilvaSoft.KapibaraStudio.Desktop");
+        var marker = Path.Combine(fixture.Target, LinuxPackageUpdateGuidance.MarkerFileName);
+        File.WriteAllText(marker, "apt" + new string(' ', 4096));
+        Assert.That(AppUpdateInstaller.DetectAvailability(host, AppVersion.Parse("0.5.0"), "linux-x64"), Is.EqualTo(AppUpdateAvailability.ManualOnly));
+        File.Delete(marker);
+        Directory.CreateDirectory(marker);
+        Assert.That(AppUpdateInstaller.DetectAvailability(host, AppVersion.Parse("0.5.0"), "linux-x64"), Is.EqualTo(AppUpdateAvailability.ManualOnly));
+    }
+
+    [TestCase("win-x64")]
+    [TestCase("win-arm64")]
+    public void WindowsIgnoresThePackageMarker(string rid)
+    {
+        using var fixture = new UpdateFixture();
+        var host = Path.Combine(fixture.Target, "EsilvaSoft.KapibaraStudio.Desktop.exe");
+        File.WriteAllText(Path.Combine(fixture.Target, LinuxPackageUpdateGuidance.MarkerFileName), "apt\n");
+        Assert.That(AppUpdateInstaller.DetectMode(host, AppVersion.Parse("0.5.0"), rid), Is.EqualTo((AppUpdateAvailability.Supported, (LinuxPackageManager?)null)));
+    }
+
+    [Test]
+    public async Task PackageManagedInstallationFindsNewReleasesButNeverDownloads()
+    {
+        using var fixture = new UpdateFixture();
+        fixture.PublishRelease("v0.6.0", "linux-x64", TarGz("EsilvaSoft.KapibaraStudio.Desktop", "new"), kapibara: true);
+        var options = fixture.Options("linux-x64") with { Availability = AppUpdateAvailability.PackageManaged, PackageManager = LinuxPackageManager.Apt };
+        using var service = fixture.Service(options);
+        var release = await service.CheckAsync(CancellationToken.None);
+        Assert.That(release?.Version, Is.EqualTo(AppVersion.Parse("0.6.0")), "The tarball of the release still signals the new version.");
+        Assert.That(service.PackageManager, Is.EqualTo(LinuxPackageManager.Apt));
+        using (var operation = new ApplicationOperationService().Begin("Baixando"))
+            Assert.ThrowsAsync<InvalidOperationException>(() => service.DownloadAsync(release!, operation));
+        Assert.That(fixture.Requests, Has.None.StartsWith("https://downloads.test/"), "The package is never requested.");
+        Assert.That(Directory.Exists(fixture.Updates), Is.False);
+    }
+
+    [Test]
+    public void PendingUpdateIsNeverAppliedNorCleanedOnAPackageManagedInstallation()
+    {
+        using var fixture = new UpdateFixture();
+        var executable = Path.Combine(fixture.Target, LinuxExecutable);
+        File.WriteAllText(executable, "packaged");
+        File.WriteAllText(executable + ".old", "leftover");
+        var payload = Path.Combine(fixture.Updates, "0.6.0", "payload");
+        Directory.CreateDirectory(payload);
+        File.WriteAllText(Path.Combine(payload, LinuxExecutable), "portable");
+        AppUpdateInstaller.WritePending(fixture.Updates, new PendingAppUpdate("0.6.0", payload, fixture.Target, LinuxExecutable));
+        var options = fixture.Options("linux-x64") with { Availability = AppUpdateAvailability.PackageManaged, PackageManager = LinuxPackageManager.Pacman };
+        Assert.That(AppUpdateInstaller.ReadValidPending(options), Is.Not.Null, "Precondition: the pending update would be valid for a self-updating install.");
+
+        LocalAppUpdateStorage.ApplyPendingOnExit(options, restart: false);
+        LocalAppUpdateStorage.CleanupAfterStart(options);
+        Assert.That(File.ReadAllText(executable), Is.EqualTo("packaged"));
+        Assert.That(File.ReadAllText(executable + ".old"), Is.EqualTo("leftover"), "Files next to the packaged executable are never touched.");
+        Assert.That(File.Exists(Path.Combine(fixture.Updates, AppUpdateInstaller.PendingFileName)), Is.True);
+        using var service = fixture.Service(options);
+        Assert.That(service.GetStagedUpdate(), Is.Null);
+    }
+
     [Test]
     public async Task BothPackagedExecutablesUseKapibaraContentAndRefreshExistingLegacyAlias()
     {

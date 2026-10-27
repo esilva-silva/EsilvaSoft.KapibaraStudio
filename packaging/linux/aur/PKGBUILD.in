@@ -1,0 +1,65 @@
+# Maintainer: EsilvaSoft <esilva-silva@users.noreply.github.com>
+# Modelo preenchido por New-KapibaraAurPackage (eng/LinuxDistroPackaging.ps1); os marcadores em
+# maiúsculas entre arrobas são substituídos na geração. Não edite o PKGBUILD gerado à mão.
+pkgname=kapibarastudio-bin
+_semver=@SEMVER@
+pkgver=@PKGVER@
+pkgrel=1
+pkgdesc=@PKGDESC@
+arch=('x86_64' 'aarch64')
+url=@URL@
+license=('MIT')
+depends=(@DEPENDS@)
+optdepends=(@OPTDEPENDS@)
+provides=('kapibarastudio')
+conflicts=('kapibarastudio')
+# strip corrompe o bundle single-file do .NET (o payload fica anexado ao ELF).
+options=('!strip' '!debug')
+# O tarball não tem diretório de topo: a extração automática do makepkg misturaria tudo em $srcdir.
+noextract=("EsilvaSoft.KapibaraStudio-${_semver}-linux-x64.tar.gz"
+           "EsilvaSoft.KapibaraStudio-${_semver}-linux-arm64.tar.gz")
+source=(@SOURCE_LOCAL@)
+sha256sums=(@SHA256_LOCAL@)
+source_x86_64=("EsilvaSoft.KapibaraStudio-${_semver}-linux-x64.tar.gz::https://github.com/esilva-silva/EsilvaSoft.KapibaraStudio/releases/download/v${_semver}/EsilvaSoft.KapibaraStudio-${_semver}-linux-x64.tar.gz")
+sha256sums_x86_64=('@SHA256_X64@')
+source_aarch64=("EsilvaSoft.KapibaraStudio-${_semver}-linux-arm64.tar.gz::https://github.com/esilva-silva/EsilvaSoft.KapibaraStudio/releases/download/v${_semver}/EsilvaSoft.KapibaraStudio-${_semver}-linux-arm64.tar.gz")
+sha256sums_aarch64=('@SHA256_ARM64@')
+
+_rid() {
+  case "$CARCH" in
+    x86_64) echo linux-x64 ;;
+    aarch64) echo linux-arm64 ;;
+    *) echo "Arquitetura sem suporte: $CARCH" >&2; return 1 ;;
+  esac
+}
+
+prepare() {
+  local rid
+  rid="$(_rid)"
+  mkdir -p "$srcdir/payload-$CARCH"
+  bsdtar -xpf "$srcdir/EsilvaSoft.KapibaraStudio-${_semver}-${rid}.tar.gz" \
+    -C "$srcdir/payload-$CARCH" --no-same-owner
+}
+
+package() {
+  local payload="$srcdir/payload-$CARCH" size
+
+  # Conteúdo do tarball intacto, preservando os modos (executável 0755).
+  install -dm755 "$pkgdir/usr/lib/kapibarastudio"
+  cp -a --no-preserve=ownership "$payload/." "$pkgdir/usr/lib/kapibarastudio/"
+
+  # O app detecta instalação gerenciada por este arquivo e então não se autoatualiza.
+  printf 'pacman\n' > "$pkgdir/usr/lib/kapibarastudio/package-manager"
+  chmod 644 "$pkgdir/usr/lib/kapibarastudio/package-manager"
+
+  install -dm755 "$pkgdir/usr/bin"
+  ln -s /usr/lib/kapibarastudio/EsilvaSoft.KapibaraStudio.Desktop "$pkgdir/usr/bin/kapibarastudio"
+
+  install -Dm644 "$srcdir/kapibarastudio.desktop" "$pkgdir/usr/share/applications/kapibarastudio.desktop"
+  for size in 16 24 32 48 64 128 256 512; do
+    install -Dm644 "$srcdir/kapibarastudio-$size.png" \
+      "$pkgdir/usr/share/icons/hicolor/${size}x${size}/apps/kapibarastudio.png"
+  done
+
+  install -Dm644 "$payload/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

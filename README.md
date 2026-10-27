@@ -194,11 +194,21 @@ SLOP_QWEN_MODEL=/path/to/model dotnet test tests/EsilvaSoft.KapibaraStudio.UnitT
 
 On Windows, `build-release.bat` wraps the same script. It produces self-contained single-file packages (`.zip` for Windows, `.tar.gz` for Linux) and `SHA256SUMS.txt` in `artifacts/release/<version>`.
 
-Published packages update themselves: the app checks GitHub Releases, shows an **Atualizar** button in the top bar when a newer version exists, downloads and verifies it (SHA-256) on click, and swaps the executable when it closes. Stable installs only receive stable releases. `dotnet run` never updates; set `SLOPSTUDIO_DISABLE_UPDATES=1` to opt out. Details: [ADR-038](docs/10-decisoes-arquiteturais.md) (Portuguese).
+On Linux the release also ships distribution packages built from the same tarball (file names use the release SemVer, e.g. `0.9.7-rc.1`; releases up to v0.9.5 do not have them): `kapibarastudio_<version>_<amd64|arm64>.deb`, `kapibarastudio-<version>-1.<x86_64|aarch64>.rpm` and `kapibarastudio-bin-<version>-aur.tar.gz` (AUR source package, not yet published in the AUR).
+
+```bash
+sudo apt install ./kapibarastudio_<version>_amd64.deb            # Debian/Ubuntu
+sudo dnf install ./kapibarastudio-<version>-1.x86_64.rpm         # Fedora
+tar -xzf kapibarastudio-bin-<version>-aur.tar.gz && cd kapibarastudio-bin && makepkg -si   # Arch
+```
+
+They install under `/usr/lib/kapibarastudio` with a `kapibarastudio` command, menu entry and icons, and need at least one system font. Formats, rollback, validation status and limits: [Linux packages](docs/architecture/linux-packages.md) (Portuguese).
+
+The portable tarball and the Windows zip update themselves: the app checks GitHub Releases, shows an **Atualizar** button in the top bar when a newer version exists, downloads and verifies it (SHA-256) on click, and swaps the executable when it closes. Stable installs only receive stable releases. `dotnet run` never updates; set `SLOPSTUDIO_DISABLE_UPDATES=1` to opt out. Details: [ADR-038](docs/10-decisoes-arquiteturais.md) (Portuguese). Installs from a Linux distribution package are managed by the package manager: the **Atualizar** button still appears, but it opens a dialog with the upgrade command (`apt`, `dnf` or `makepkg`) instead of downloading ([ADR-078](docs/10-decisoes-arquiteturais.md)).
 
 ### CI/CD
 
-Everything runs on GitHub-hosted runners; no self-hosted or ARM hardware is required.
+Everything runs on GitHub-hosted runners; no self-hosted hardware is required.
 
 - [ci.yml](.github/workflows/ci.yml): on every branch push and pull request, builds and tests on Ubuntu and Windows as two parallel jobs.
 - [release.yml](.github/workflows/release.yml): on a `v*` tag, packages four executables in parallel jobs while the CI runs:
@@ -209,6 +219,8 @@ Everything runs on GitHub-hosted runners; no self-hosted or ARM hardware is requ
   | `linux-x64`, `linux-arm64` | `ubuntu-latest` | CPU |
 
   The GitHub release (packages plus `SHA256SUMS.txt`) is published only after all tests and packages succeed. Every version below `1.0.0` is marked as a pre-release, as are versions with a suffix such as `v1.0.0-rc.1`; stable installs therefore do not receive the current `0.x` release line. **Run workflow** with a version builds the same packages as downloadable artifacts, without creating a release.
+
+The same workflow also builds the `.deb`, `.rpm` and AUR packages from the Linux tarballs and, before publishing, installs, upgrades, downgrades and removes them in Ubuntu and Fedora containers (x64 and arm64) and an Arch container (x64) (see [Linux packages](docs/architecture/linux-packages.md)); these jobs have not run on GitHub Actions yet.
 
 ARM64 packages are cross-compiled. 32-bit x86 is not built, because ONNX Runtime GenAI ships no 32-bit native libraries.
 
