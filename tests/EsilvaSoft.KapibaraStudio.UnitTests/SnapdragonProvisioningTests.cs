@@ -7,6 +7,8 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests;
 [TestFixture]
 public sealed class SnapdragonProvisioningTests
 {
+    // Fully qualified per OS without reading host state; the fake source never touches the disk.
+    private static readonly string ModelsDirectory = OperatingSystem.IsWindows() ? @"C:\kapibara-models" : "/kapibara-models";
     private static readonly AiHardwareDevice Qualcomm = new(AiAccelerationMode.Npu, "QNN", "Physical NPU", true) { Vendor = "Qualcomm Technologies, Inc." };
     private static readonly IReadOnlyList<RemoteModelVariant> Publications = SnapdragonModelPublications.Pinned.Select(item =>
         new RemoteModelVariant(item.Repository, item.Revision, SnapdragonModelPublications.Folder, item.Repository.Split('/')[1] + "-htp-fim-exact-v1", 10,
@@ -36,7 +38,7 @@ public sealed class SnapdragonProvisioningTests
         var probe = new Probe([new(kind, provider, "Qualcomm Snapdragon CPU branding is not evidence", available) { Vendor = vendor }]);
         var source = new Source();
         using var service = new SnapdragonModelProvisioner(new SnapdragonRuntimeAvailability(probe, () => true), source, new ApplicationOperationService());
-        var result = await service.ProvisionAsync(Path.GetTempPath());
+        var result = await service.ProvisionAsync(ModelsDirectory);
         Assert.That(result.Eligible, Is.EqualTo(eligible));
         Assert.That(source.ListCalls, Is.EqualTo(eligible ? 1 : 0));
         Assert.That(source.Transfers, Has.Count.EqualTo(eligible ? 2 : 0));
@@ -47,7 +49,7 @@ public sealed class SnapdragonProvisioningTests
     {
         var source = new Source();
         using var service = new SnapdragonModelProvisioner(new SnapdragonRuntimeAvailability(new Probe([]), () => true), source, new ApplicationOperationService());
-        Assert.That((await service.ProvisionAsync(Path.GetTempPath())).Eligible, Is.False);
+        Assert.That((await service.ProvisionAsync(ModelsDirectory)).Eligible, Is.False);
         Assert.That(source.ListCalls, Is.Zero);
     }
 
@@ -57,9 +59,9 @@ public sealed class SnapdragonProvisioningTests
         var entered = Signal(); var release = Signal();
         var source = new Source { Transfer = async (_, token) => { entered.TrySetResult(); await release.Task.WaitAsync(token); return "verified"; } };
         using var service = Create(source);
-        var first = service.ProvisionAsync(Path.GetTempPath());
+        var first = service.ProvisionAsync(ModelsDirectory);
         await entered.Task;
-        var second = service.ProvisionAsync(Path.GetTempPath());
+        var second = service.ProvisionAsync(ModelsDirectory);
         Assert.That(second.IsCompleted, Is.False);
         release.TrySetResult();
         var results = await Task.WhenAll(first, second);
@@ -75,9 +77,9 @@ public sealed class SnapdragonProvisioningTests
         var entered = Signal(); var release = Signal();
         var source = new Source { Transfer = async (_, token) => { entered.TrySetResult(); await release.Task.WaitAsync(token); return "verified"; } };
         using var service = Create(source);
-        var first = service.ProvisionAsync(Path.GetTempPath()); await entered.Task;
+        var first = service.ProvisionAsync(ModelsDirectory); await entered.Task;
         using var cancellation = new CancellationTokenSource();
-        var second = service.ProvisionAsync(Path.GetTempPath(), cancellationToken: cancellation.Token);
+        var second = service.ProvisionAsync(ModelsDirectory, cancellationToken: cancellation.Token);
         cancellation.Cancel();
         Assert.ThrowsAsync<OperationCanceledException>(async () => await second);
         release.TrySetResult();
@@ -92,13 +94,13 @@ public sealed class SnapdragonProvisioningTests
             ? Task.FromException<string>(new IOException("network failed")) : Task.FromResult("verified") };
         var operations = new ApplicationOperationService();
         using var service = Create(source, operations);
-        var failed = await service.ProvisionAsync(Path.GetTempPath());
+        var failed = await service.ProvisionAsync(ModelsDirectory);
         Assert.That(failed.Packages.Count(item => item.Completed), Is.EqualTo(1));
         Assert.That(operations.LastCompleted!.Status, Is.EqualTo(ApplicationOperationStatus.Warning));
         Assert.That(operations.LastCompleted.Description, Does.Contain("network failed"));
-        Assert.That(await service.ProvisionAsync(Path.GetTempPath()), Is.SameAs(failed));
+        Assert.That(await service.ProvisionAsync(ModelsDirectory), Is.SameAs(failed));
         fail = false;
-        Assert.That((await service.ProvisionAsync(Path.GetTempPath(), retry: true)).Packages.All(item => item.Completed), Is.True);
+        Assert.That((await service.ProvisionAsync(ModelsDirectory, retry: true)).Packages.All(item => item.Completed), Is.True);
         Assert.That(source.ListCalls, Is.EqualTo(2));
     }
 
@@ -119,7 +121,7 @@ public sealed class SnapdragonProvisioningTests
             return "verified";
         } };
         using var service = Create(source, operations);
-        var result = await service.ProvisionAsync(Path.GetTempPath());
+        var result = await service.ProvisionAsync(ModelsDirectory);
         Assert.That(progressSeen, Is.True);
         Assert.That(result.Packages[0].Cancelled, Is.True);
         Assert.That(result.Packages[1].Completed, Is.True);
@@ -131,12 +133,12 @@ public sealed class SnapdragonProvisioningTests
         var entered = Signal();
         var source = new Source { Transfer = async (_, token) => { entered.TrySetResult(); await Task.Delay(Timeout.InfiniteTimeSpan, token); return "unreachable"; } };
         using var service = Create(source);
-        var active = service.ProvisionAsync(Path.GetTempPath()); await entered.Task;
-        var waiting = service.ProvisionAsync(Path.GetTempPath());
+        var active = service.ProvisionAsync(ModelsDirectory); await entered.Task;
+        var waiting = service.ProvisionAsync(ModelsDirectory);
         service.Dispose();
         foreach (var task in new[] { active, waiting })
             Assert.CatchAsync<OperationCanceledException>(async () => await task.WaitAsync(TimeSpan.FromSeconds(5)));
-        Assert.ThrowsAsync<ObjectDisposedException>(() => service.ProvisionAsync(Path.GetTempPath()));
+        Assert.ThrowsAsync<ObjectDisposedException>(() => service.ProvisionAsync(ModelsDirectory));
     }
 
     private static TaskCompletionSource Signal() => new(TaskCreationOptions.RunContinuationsAsynchronously);
