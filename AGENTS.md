@@ -36,6 +36,7 @@
 - Alterações de sessão/contexto exigem testes de falha, concorrência e recuperação. Alterações visuais exigem inspeção dos PNGs reais gerados pelos testes de renderização.
 - Não alterar golden files ou asserções apenas para esconder regressões. Não criar testes que apenas repitam a implementação.
 - Benchmarks e medições de latência/alocação são ferramentas manuais de desenvolvimento; nunca executá-los no CI ou na release. Testes de ferramentas Benchmarks exigem opt-in local `EnableBenchmarkTests=true`.
-- O CI nunca baixa nem carrega modelos. Testes que acessam o Hugging Face real ou pesos reais são `[Explicit]` com `Category("LocalModelIntegration")`, categoria excluída no CI; os demais usam `HttpMessageHandler` falso. A guarda `RealModelHubAccessIsConfinedToExplicitLocalModelTests` impõe a regra.
+- O CI nunca baixa nem carrega modelos. Testes que acessam o Hugging Face real ou pesos reais são `[Explicit]` com `Category("LocalModelIntegration")`, categoria excluída no CI; os demais usam `HttpMessageHandler` falso. A guarda `RealModelHubAccessIsConfinedToExplicitLocalModelTests` (projeto `IntegrationTests`) impõe a regra e deve ser executada localmente.
+- O CI (Windows e Linux, também quando reutilizado pela release) roda apenas `UnitTests` e `Infrastructure.Agents.Tests`. `IntegrationTests`, inclusive as guardas estáticas de `UnitSystemBoundaryIntegrationTests`, é validação manual antes de push/release.
 - Atualize design system, ADRs, plano, guia e acompanhamento quando decisões ou comportamento mudarem.
 - Declare conclusão somente com evidência proporcional. Teste Headless não substitui MongoDB real, leitor de tela ou diálogos nativos. Registre pendências com precisão.
