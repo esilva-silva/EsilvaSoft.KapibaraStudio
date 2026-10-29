@@ -161,6 +161,25 @@ public sealed class AiCompletionUiTests
     private static AiCompletionProvider Provider(ILocalAiModelService models) =>
         new(new AiGenerationPipeline(models, _ => new CompletionTokenizerFake(), new QwenFimPromptBuilder()));
 
+    [Test]
+    public async Task PendingAutomaticTriggerDoesNotReplaceExplicitAiPreview()
+    {
+        var models = new AiUiModelServiceFake { Chunks = ["Customers.find({})"] };
+        await RunAsync(models, async harness =>
+        {
+            await harness.Tab.Autocomplete.ConfigureAsync(new AutocompleteSettings { CompletionAutoOpenOnTrigger = true });
+            Dispatcher.UIThread.RunJobs();
+            harness.Editor.Text = "db.";
+            harness.Editor.CaretIndex = harness.Editor.SelectionStart = harness.Editor.SelectionEnd = 3;
+            harness.PressAi();
+            await PumpAsync(() => harness.AiPreview.Text?.Contains("Customers.find") == true);
+            Assert.That(harness.ListPanel.IsVisible, Is.False, "A abertura automática anterior não deve substituir a IA.");
+            Assert.That(harness.AiPreview.Text, Does.Contain("Customers.find"));
+            harness.Press(Key.Tab, PhysicalKey.Tab);
+            Assert.That(harness.Editor.Text, Is.EqualTo("db.Customers.find({})"));
+        }, "db", 2);
+    }
+
     /// <summary>Abre uma janela real com uma aba ligada ao provider explícito falso e ao catálogo tradicional.</summary>
     private static async Task RunAsync(ILocalAiModelService? models, Func<Harness, Task> body,
         string document = Document, int caret = Caret)

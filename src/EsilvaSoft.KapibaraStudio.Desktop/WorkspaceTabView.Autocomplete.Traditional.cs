@@ -136,12 +136,20 @@ public partial class WorkspaceTabView
 
     /// <summary>Re-evaluated one dispatcher tick later, once this keystroke's own property cascade has settled;
     /// see the call site in <c>WorkspaceTabView.Autocomplete.cs</c> for why it cannot run inline.</summary>
-    private void ScheduleTraditionalTriggerCheck(WorkspaceTabViewModel tab) => Dispatcher.UIThread.Post(() =>
+    private long _traditionalTriggerGeneration;
+
+    private void ScheduleTraditionalTriggerCheck(WorkspaceTabViewModel tab)
     {
-        if (DataContext == tab && !_traditionalPresenter.IsOpen && CodeEditor.SelectionStart == CodeEditor.SelectionEnd
-            && CodeEditor.IsKeyboardFocusWithin && IsTraditionalTriggerCharacterAtCaret())
-            ShowTraditionalCompletionList(this, new RoutedEventArgs(), CompletionTrigger.TriggerCharacter);
-    });
+        var generation = ++_traditionalTriggerGeneration;
+        var document = CodeEditor.Text;
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (generation == _traditionalTriggerGeneration && CodeEditor.Text == document && !_aiPresenter.IsActive
+                && DataContext == tab && !_traditionalPresenter.IsOpen && CodeEditor.SelectionStart == CodeEditor.SelectionEnd
+                && CodeEditor.IsKeyboardFocusWithin && IsTraditionalTriggerCharacterAtCaret())
+                ShowTraditionalCompletionList(this, new RoutedEventArgs(), CompletionTrigger.TriggerCharacter);
+        });
+    }
 
     private void CloseTraditionalCompletion()
     {

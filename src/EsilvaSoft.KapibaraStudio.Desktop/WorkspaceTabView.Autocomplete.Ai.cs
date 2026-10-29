@@ -103,6 +103,8 @@ public partial class WorkspaceTabView
     /// </summary>
     private async void StartAiCompletion(WorkspaceTabViewModel tab)
     {
+        // A verificação de ponto/dólar já enfileirada pertence à digitação anterior, não a este pedido explícito.
+        _traditionalTriggerGeneration++;
         // Ctrl+; fecha a lista e substitui o ghost: é a arbitragem já registrada em architecture.md. Também cancela
         // um pedido explícito anterior desta mesma view — um Ctrl+; substitui o outro, nunca convive com ele.
         InvalidateCompletion();
