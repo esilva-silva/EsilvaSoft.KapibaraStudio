@@ -183,3 +183,9 @@ Execução real `Explicit` nesta máquina (Windows, build WinML, AMD Ryzen 9 790
 | `RealQwenGeneratesWithCpuAndReusesNativeSession` | Aprovado: `a + b` duas vezes na mesma sessão, cancelamento e recuperação |
 
 Conclusão: a exportação INT8 do SlopCoder-Mongo-1.5B **não gera em DirectML** nesta GPU; CPU é o hardware homologado para ela. GPU funcional depende de uma exportação compatível com DirectML. Não homologados: NPU, CUDA, Linux, uso interativo com MongoDB real e a janela com diálogos nativos; a UI foi verificada por testes Headless e PNGs.
+
+## Descarga por inatividade da IA local — 30/10/2026
+
+O proprietário único `LocalAiModelService` libera o runtime e seus caches após **10 minutos sem uso**, configuráveis em Preferências → Autocomplete → **Descarregar modelo após inatividade (minutos)** (1 a 1440 minutos inteiros). O prazo começa ao terminar a carga explícita, geração comum, streaming ou teste; uma geração ativa nunca é interrompida por inatividade. O próximo uso autorizado carrega o modelo sob demanda; `LoadedOnly` continua recusando carga implícita. Alterar apenas o intervalo preserva a sessão nativa e recalcula o vencimento a partir do último uso. A opção `ModelIdleTimeoutMinutes` é aditiva à versão 1 e documentos antigos recebem 10. Descarga explícita e encerramento desarmam o temporizador. Não há retenção de resultados nem mudança de consentimento.
+
+Validação e limites: testes com relógio manual cobrem vencimento, renovação, geração concorrente e recarga; teste Headless gera PNGs nos dois temas, três tamanhos e três escalas. Evidências finais em `docs/15-matriz-de-validacao.md`. Liberação nativa de RAM/VRAM com pesos reais continua sendo validação manual; doubles e PNGs não comprovam esse comportamento do driver.

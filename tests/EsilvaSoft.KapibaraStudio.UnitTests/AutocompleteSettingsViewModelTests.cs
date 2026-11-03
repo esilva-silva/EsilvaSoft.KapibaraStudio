@@ -12,6 +12,23 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests;
 public sealed class AutocompleteSettingsViewModelTests
 {
     [Test]
+    public void IdleTimeoutDefaultsMigratesAndRoundTripsThroughPreferences()
+    {
+        var legacy = JsonSerializer.Deserialize<AutocompleteSettings>("{}")!;
+        Assert.That(legacy.ModelIdleTimeoutMinutes, Is.EqualTo(10));
+        var preferences = new AutocompleteSettingsViewModel(new CompletionServiceFake(), null, _ => Task.CompletedTask);
+        preferences.Load(legacy);
+        preferences.ModelIdleTimeoutMinutes = 25;
+        var restored = JsonSerializer.Deserialize<AutocompleteSettings>(JsonSerializer.Serialize(preferences.Snapshot()))!;
+        Assert.That(restored.ModelIdleTimeoutMinutes, Is.EqualTo(25));
+        foreach (var invalid in new[] { 0m, 1441m, 1.5m })
+        {
+            preferences.ModelIdleTimeoutMinutes = invalid;
+            Assert.Throws<ArgumentException>(() => preferences.Snapshot());
+        }
+    }
+
+    [Test]
     public void LocalAiContextConsentIsOptInAndInputJsonRequiresSeparateOptIn()
     {
         var preferences = new AutocompleteSettingsViewModel(new CompletionServiceFake(), catalog: null, save: _ => Task.CompletedTask);

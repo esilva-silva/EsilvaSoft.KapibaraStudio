@@ -1186,3 +1186,11 @@ A inspeção do SDK 1.0.14 confirma persistência local do conteúdo de sessões
 **Aceite do Marco A Fase 6 — 09/10/2026:** restore locked, build integral e gate serial passaram; 5.176 aprovados, 40 ignorados, zero falhas (`NUnit.NumberOfTestWorkers=0`). Os crashes F6-24 (após arquivo sintético de export, antes do manifesto) e F6-28 (após BulkWrite, antes do journal) foram homologados em processos reais; o fluxo do ViewModel também percorreu recuperação/importação com owners LiteDB reabertos, readback e cleanup de fixtures GUID. Marco A concluído. Marco B — autorização RBAC ativa, replica set/mongos, UI nativa/acessibilidade e multiplataforma — segue manual na Fase 10. [Registro final](phase-06-v0.10.0/meta-homologacao-finalizacao.md).
 
 **Meta deste chat — Fase 7A parcial (09/10/2026):** build integral Windows passou com 0 avisos/0 erros usando `UsedAvaloniaProducts=`; build UnitTests com os novos casos do parser passou igualmente. As execuções VSTest falharam ao conectar o testhost após 90s e novamente após 240s, sem resultado de testes e não são contabilizadas. Implementação/documentação detalhada e pendências (Linux manual excluído pelo usuário, execução de testes, PNGs, pesos reais e NPU) estão na [meta F7A](phases/phase-07a-kapicoder-mongo/meta-de-implementacao.md#registro-desta-meta-de-chat--09102026).
+
+## Descarga por inatividade da IA local — 30/10/2026
+
+Implementado intervalo persistido de 1–1440 minutos, padrão 10, em Preferências → Autocomplete. O proprietário único espera gerações terminarem antes de liberar o runtime; o próximo uso segue a política de carga existente. Campo numérico com nome acessível e ajuda localizada, na rolagem central. PNGs Light/Dark, três tamanhos × três escalas, inspecionados. [Contrato e limites](26-ia-local-multimodelo.md#descarga-por-inatividade-da-ia-local--30102026); [validação](15-matriz-de-validacao.md#descarga-da-ia-local-por-inatividade--30102026); ADR-079.
+
+## Explorer e updater — 03/11/2026
+
+Duplo clique esquerdo em coleção abre uma nova aba com `find({}).limit(100)`, preservando as abas existentes e sem executar a consulta. Enter e Abrir documentos têm o mesmo comportamento. Updater revisado para os assets publicados no v0.9.8; corrigidas esperas sem prazo nos checksums e na conexão/cabeçalhos do pacote. [Contrato, evidências e limites](architecture/explorer-updater-review.md).

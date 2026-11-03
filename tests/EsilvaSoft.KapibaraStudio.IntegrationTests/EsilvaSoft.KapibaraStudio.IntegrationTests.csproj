@@ -3,6 +3,7 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Fixtures/app-update-v0.9.8.json" />
     <Compile Include="../EsilvaSoft.KapibaraStudio.TestSupport/Desktop/AgentCliAccountTestDoubles.cs" Link="TestDoubles/AgentCliAccountTestDoubles.cs" />
     <ProjectReference Include="../EsilvaSoft.KapibaraStudio.TestSupport/EsilvaSoft.KapibaraStudio.TestSupport.csproj" />
     <ProjectReference Include="../../src/EsilvaSoft.KapibaraStudio.Desktop/EsilvaSoft.KapibaraStudio.Desktop.csproj" />

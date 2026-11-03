@@ -83,7 +83,7 @@
           </Grid>
           <TextBox Grid.Row="1" Text="{Binding Search}" PlaceholderText="{Binding Localization.SearchLoadedItems}" AutomationProperties.Name="{Binding Localization.SearchLoadedItems}" />
           <Grid Grid.Row="2">
-            <TreeView x:Name="Explorer" ItemsSource="{Binding Roots}" SelectedItem="{Binding SelectedNode}" DoubleTapped="OpenExplorerCollection" KeyDown="ExplorerKeyDown">
+            <TreeView x:Name="Explorer" ItemsSource="{Binding Roots}" SelectedItem="{Binding SelectedNode}">
               <TreeView.Styles>
                 <Style Selector="TreeViewItem" x:DataType="vm:ExplorerNodeViewModel">
                   <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />

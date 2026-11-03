@@ -94,8 +94,6 @@ public sealed partial class WorkspaceViewModel
     public void OpenCollection(ExplorerNodeViewModel node)
     {
         if (!node.IsCollection) return;
-        var existing = Tabs.FirstOrDefault(t => t.Profile?.Id == node.Profile.Id && t.Profile.TargetHost == node.Profile.TargetHost && t.Database == node.Database && t.Collection == node.Collection && t.IsConsole);
-        if (existing is not null) { ActiveTab = existing; return; }
         var tab = CreateTab();
         tab.Restore(new WorkspaceDraft { ProfileId = node.Profile.Id, Database = node.Database, Collection = node.Collection!, Mode = "Console", HistoryEnabled = true, Text = ConsoleScripts.Find(node.Collection!) }, node.Profile);
         tab.IsConnected = IsProfileConnected(node.Profile);

@@ -778,3 +778,22 @@ Os gates reais necessários para aceitar v0.11.0 (providers, MCP, segredos, Wind
 **Crash de export F6-24 — 09/10/2026:** `LocalMongoDatabaseExportCrashIntegrationTests` passou 1/1: depois de exportar uma única fixture sintética em database GUID, o processo foi morto entre a escrita do arquivo de coleção e o manifesto final. Nova instância do adapter removeu somente o pacote com marker incompleto e preservou pacote committed e diretório sem marker. Base Mongo e arquivos temporários foram removidos após verificar propriedade. Isso complementa a recuperação após recriar adapter; não simula falha física de energia.
 
 **Aceite Marco A — 09/10/2026:** restore locked e build integral passaram (0 avisos/erros); gate serial com `NUnit.NumberOfTestWorkers=0` passou sem falhas: Agents 403/403, IntegrationTests 1.041 aprovados/20 ignorados, UnitTests 3.732/20 ignorados (5.176 aprovados/40 ignorados/0 falhas). Uma reexecução diagnóstica de IntegrationTests com workers padrão também passou 1.041/19; duas tentativas padrão anteriores haviam falhado intermitentemente em teardowns LiteDB, sem processo proprietário identificado. Smokes Mongo sintéticos F6-09/13/18/27/28 e crash export F6-24 passaram; RBAC negado foi ignorado sem escrita porque localhost tem authorization desabilitada. Marco A fechado, incluindo composição Desktop headless com owner LiteDB e Mongo real; topologias/RBAC com conta restrita, acessibilidade e validação multiplataforma/nativa permanecem no Marco B manual da Fase 10. [Detalhes e limites](phases/phase-06-v0.10.0/meta-homologacao-finalizacao.md).
+
+## Descarga da IA local por inatividade — 30/10/2026
+
+- Restore locked (`-m:1`): aprovado; consulta NuGet exigiu execução fora do isolamento de rede.
+- Build da solução (`--no-restore -m:1 -p:UsedAvaloniaProducts=`): 0 avisos/0 erros.
+- UnitTests: 3848 aprovados, 20 ignorados, 0 falhas. Inclui relógio manual para vencimento/renovação/recarga e geração ativa; migração aditiva e persistência do intervalo, rejeição de valores inválidos.
+- Infrastructure.Agents.Tests: 403 aprovados, 0 falhas.
+- IntegrationTests filtrados por `IdleTimeoutCanBeEditedAndRendersAcrossThemesSizesAndScales|UnitSystemBoundaryIntegrationTests`: 12 aprovados. Inclui a guarda `RealModelHubAccessIsConfinedToExplicitLocalModelTests`; nenhum download/modelo real.
+- TRX: `tests/{EsilvaSoft.KapibaraStudio.UnitTests,EsilvaSoft.KapibaraStudio.Infrastructure.Agents.Tests,EsilvaSoft.KapibaraStudio.IntegrationTests}/TestResults/idle-timeout.trx`.
+- Inspeção dos 18 PNGs reais `local-ai-idle-{Light,Dark}-{960,1366,1920}-{1,1.5,2}.png`, em `tests/EsilvaSoft.KapibaraStudio.IntegrationTests/bin/Debug/net10.0/ui-evidence/render-1154a927e2eb43ddb068819913f4b489/` (o nome da escala usa a cultura local). Campo/ajuda e rodapé preservados, rolagem funcional. A edição 10 → 25 também é exercitada pelo controle real e snapshot.
+- Limites: testes usam runtime fake e renderização Headless; liberação efetiva de RAM/VRAM com pesos/driver reais, UI nativa Linux/Windows e leitor de tela não foram homologados nesta alteração. A suíte completa IntegrationTests não foi executada.
+
+## Explorer e updater — 03/11/2026
+
+Restore locked e build da solução sem avisos/erros. UnitTests: **3853 aprovados / 20 ignorados**; Infrastructure.Agents.Tests: **403 aprovados**. Integração filtrada `AppUpdate|DatabaseExplorerUiTests|UnitSystemBoundaryIntegrationTests`, excluindo `AppUpdateLive`: **64 aprovados / 1 ignorado (permissões Linux)**. As guardas de isolamento e de acesso real ao Hub passaram; nenhum modelo foi baixado/carregado.
+
+Os eventos Headless verificam clique simples, pares esquerdos repetidos, clique direito e Enter sem execução; 18 PNGs reais foram inspecionados. Download real v0.9.8 win-x64: **1/1** aprovado com o serviço de produção, hash SHA-256 conferido e staging/extração em pasta temporária, sem alterar a instalação real. Snapshot público do release cobre a seleção offline dos quatro RIDs, sem confundir pacotes de distribuição. Os testes regulares não acessam a rede; `AppUpdateLive` exige execução explícita.
+
+[Comandos, arquivos TRX, capturas, SHA e limites](architecture/explorer-updater-review.md#evidências-e-limites). Não houve homologação nativa do mouse/leitor de tela, atualização real da instalação ou download Linux/ARM64. A suíte completa IntegrationTests não foi executada.

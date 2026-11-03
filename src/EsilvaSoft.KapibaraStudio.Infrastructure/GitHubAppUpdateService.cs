@@ -93,23 +93,37 @@ public sealed class GitHubAppUpdateService : IAppUpdateService, IDisposable
 
     /// <summary>Removes leftovers of a previous swap and staging folders no longer referenced.</summary>
     public static void CleanupAfterStart() => LocalAppUpdateStorage.CleanupAfterStart(AppUpdateOptions.FromProcess(new LocalWorkspacePathResolver()));
-    private async Task<string?> DownloadChecksumAsync(AppUpdateRelease release, CancellationToken token) =>
-        release.ChecksumsUrl is null ? null : AppUpdateSelector.FindChecksum(await _http.GetStringAsync(release.ChecksumsUrl, token), release.AssetName);
+    private async Task<string?> DownloadChecksumAsync(AppUpdateRelease release, CancellationToken token)
+    {
+        if (release.ChecksumsUrl is null) return null;
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+        timeout.CancelAfter(CheckTimeout);
+        try
+        {
+            return AppUpdateSelector.FindChecksum(await _http.GetStringAsync(release.ChecksumsUrl, timeout.Token), release.AssetName);
+        }
+        catch (OperationCanceledException) when (!token.IsCancellationRequested)
+        {
+            throw new TimeoutException("O download dos checksums da atualização parou de responder.");
+        }
+    }
 
     private async Task<string> DownloadPackageAsync(AppUpdateRelease release, IAppUpdateStaging staging, ApplicationOperationScope operation)
     {
         var token = operation.Token;
-        using var response = await _http.GetAsync(release.DownloadUrl, HttpCompletionOption.ResponseHeadersRead, token);
-        response.EnsureSuccessStatusCode();
-        var total = response.Content.Headers.ContentLength ?? release.Size;
-        await using var source = await response.Content.ReadAsStreamAsync(token);
-        await using var target = staging.CreatePackageStream();
-        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         using var stall = CancellationTokenSource.CreateLinkedTokenSource(token);
-        var buffer = new byte[81920];
-        long completed = 0;
         try
         {
+            // Bound the connection/redirect/headers phase as well as reads of the package body.
+            stall.CancelAfter(StallTimeout);
+            using var response = await _http.GetAsync(release.DownloadUrl, HttpCompletionOption.ResponseHeadersRead, stall.Token);
+            response.EnsureSuccessStatusCode();
+            var total = response.Content.Headers.ContentLength ?? release.Size;
+            await using var source = await response.Content.ReadAsStreamAsync(stall.Token);
+            await using var target = staging.CreatePackageStream();
+            using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+            var buffer = new byte[81920];
+            long completed = 0;
             while (true)
             {
                 stall.CancelAfter(StallTimeout);
@@ -120,12 +134,12 @@ public sealed class GitHubAppUpdateService : IAppUpdateService, IDisposable
                 completed += read;
                 operation.Report(completed, total);
             }
+            return Convert.ToHexStringLower(hash.GetHashAndReset());
         }
         catch (OperationCanceledException) when (!token.IsCancellationRequested)
         {
             throw new TimeoutException("O download da atualização parou de responder.");
         }
-        return Convert.ToHexStringLower(hash.GetHashAndReset());
     }
 
     private static AppReleaseCandidate? ToCandidate(GitHubRelease release)

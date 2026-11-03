@@ -56,6 +56,49 @@ public sealed class LocalAiModelService(ILocalModelCatalog catalog, Func<ILocalM
     private Func<string, string>? _localize;
     private LocalModelStatus _status = new(LocalModelState.NotLoaded, "Nenhum modelo carregado; autocomplete básico disponível.");
     private bool _disposed;
+    // Protected by the model gate, including the timer callback.
+    private ITimer? _idleTimer;
+    private long _idleSince;
+    private int _idleTimeoutMinutes = 10;
+
+    private void ReleaseModelTurn()
+    {
+        _idleSince = _clock.GetTimestamp();
+        ArmIdleTimer();
+        _gate.Release();
+    }
+
+    private void ArmIdleTimer()
+    {
+        if (_disposed || _loaded is null && _loading is null) return;
+        _idleTimer ??= _clock.CreateTimer(state => { _ = UnloadIfIdleAsync(); }, null,
+            Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        var remaining = TimeSpan.FromMinutes(_idleTimeoutMinutes) - _clock.GetElapsedTime(_idleSince);
+        _idleTimer.Change(remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero, Timeout.InfiniteTimeSpan);
+    }
+
+    private async Task UnloadIfIdleAsync()
+    {
+        try
+        {
+            await _gate.WaitAsync(int.MinValue, _shutdown.Token).ConfigureAwait(false);
+            try
+            {
+                if (_disposed || _loaded is null && _loading is null) return;
+                if (_clock.GetElapsedTime(_idleSince) < TimeSpan.FromMinutes(_idleTimeoutMinutes))
+                {
+                    ArmIdleTimer();
+                    return;
+                }
+                await UnloadCoreAsync().ConfigureAwait(false);
+                SetStatus(new(LocalModelState.NotLoaded, L("aiModelUnloadedIdle", "Modelo descarregado por inatividade; será carregado no próximo uso."))
+                    { ModelName = Status.ModelName, RequestedHardware = Status.RequestedHardware });
+            }
+            finally { _gate.Release(); }
+        }
+        catch (OperationCanceledException) when (_shutdown.IsCancellationRequested) { }
+        catch (Exception ex) { diagnostics?.Record("model.idle-unload.failed", ex.GetType().Name); }
+    }
 
     public string DefaultDirectory => catalog.DefaultDirectory;
     public LocalModelStatus Status => Volatile.Read(ref _status);
@@ -93,7 +136,7 @@ public sealed class LocalAiModelService(ILocalModelCatalog catalog, Func<ILocalM
             ObjectDisposedException.ThrowIf(_disposed, this);
             return (await EnsureLoadedAsync(KeyFor(role, settings), role, settings, linked.Token).ConfigureAwait(false)).Model;
         }
-        finally { _gate.Release(); }
+        finally { ReleaseModelTurn(); }
     }
 
     public async Task UnloadModelAsync(CancellationToken cancellationToken = default)
@@ -138,6 +181,8 @@ public sealed class LocalAiModelService(ILocalModelCatalog catalog, Func<ILocalM
         await _gate.WaitAsync((int)AiRequestPriority.Interactive, cancellationToken).ConfigureAwait(false);
         try
         {
+            _idleTimeoutMinutes = settings.Validate().ModelIdleTimeoutMinutes;
+            ArmIdleTimer();
             var inUse = settings.UsesLocalModel;
             // Only the model identity (folder and hardware) forces a reload; token budgets and editor options do not.
             if (!inUse || _key is not null && _key != KeyFor(LocalModelRole.Autocomplete, settings) && _key != KeyFor(LocalModelRole.Chat, settings))
@@ -215,7 +260,7 @@ public sealed class LocalAiModelService(ILocalModelCatalog catalog, Func<ILocalM
             {
                 lock (_stateGate)
                     if (ReferenceEquals(_active, linked)) { _active = null; _activePreemption = null; }
-                _gate.Release();
+                ReleaseModelTurn();
             }
         }
         finally
@@ -318,7 +363,7 @@ public sealed class LocalAiModelService(ILocalModelCatalog catalog, Func<ILocalM
             {
                 lock (_stateGate)
                     if (ReferenceEquals(_active, linked)) { _active = null; _activePreemption = null; }
-                _gate.Release();
+                ReleaseModelTurn();
             }
         }
         finally { UnregisterGenerationRequest(linked); }
@@ -459,7 +504,7 @@ public sealed class LocalAiModelService(ILocalModelCatalog catalog, Func<ILocalM
                 GeneratedTokens = generated.GeneratedTokens, UsedFallback = generated.UsedCpuFallback || info?.UsedFallback == true
             };
         }
-        finally { _gate.Release(); }
+        finally { ReleaseModelTurn(); }
     }
 
     public async ValueTask DisposeAsync()
@@ -471,6 +516,8 @@ public sealed class LocalAiModelService(ILocalModelCatalog catalog, Func<ILocalM
         {
             if (_disposed) return;
             _disposed = true;
+            _idleTimer?.Dispose();
+            _idleTimer = null;
             await UnloadCoreAsync().ConfigureAwait(false);
         }
         finally { _gate.Release(); }
@@ -553,6 +600,7 @@ public sealed class LocalAiModelService(ILocalModelCatalog catalog, Func<ILocalM
     private ActiveModel RequireLoaded(ModelKey key, LocalModelRole role, AutocompleteSettings settings)
     {
         EnsureConfiguredKey(key, role, settings);
+        _idleTimeoutMinutes = (_configuredSettings ?? settings).Validate().ModelIdleTimeoutMinutes;
         if (_loaded is { } loaded && _key == key) return loaded;
         if (key.Path.Length == 0) throw NoModelConfigured();
         // Uma falha recente desta chave é informação mais útil do que "não está carregado": sob gate o modelo não
@@ -636,6 +684,7 @@ public sealed class LocalAiModelService(ILocalModelCatalog catalog, Func<ILocalM
     private async Task<ActiveModel> EnsureLoadedAsync(ModelKey key, LocalModelRole role, AutocompleteSettings settings, CancellationToken token)
     {
         EnsureConfiguredKey(key, role, settings);
+        _idleTimeoutMinutes = (_configuredSettings ?? settings).Validate().ModelIdleTimeoutMinutes;
         if (_key is not null && _key != key)
         {
             diagnostics?.Record("model.switch", ModelName(key.Path));
@@ -774,6 +823,7 @@ public sealed class LocalAiModelService(ILocalModelCatalog catalog, Func<ILocalM
     /// <summary>Releases the active or loading model before any other is loaded. Caller holds the gate.</summary>
     private async Task UnloadCoreAsync()
     {
+        _idleTimer?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         var loaded = _loaded;
         var loading = _loading;
         var cancellation = _loadCancellation;

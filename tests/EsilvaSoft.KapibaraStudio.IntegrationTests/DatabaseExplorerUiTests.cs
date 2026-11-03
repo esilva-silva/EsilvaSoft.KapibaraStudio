@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
 using Avalonia.Styling;
@@ -15,6 +16,77 @@ namespace EsilvaSoft.KapibaraStudio.IntegrationTests;
 [TestFixture, NonParallelizable, Category("Integration")]
 public sealed class DatabaseExplorerUiTests
 {
+    [Test]
+    public async Task LeftDoubleClickOpensNewCollectionQueryWithoutExecuting()
+    {
+        var session = HeadlessUnitTestSession.GetOrStartForAssembly(typeof(IntegrationUiTestApp).Assembly);
+        await session.Dispatch<bool>(async () =>
+        {
+            using var context = new WorkspaceTestContext();
+            using var workspace = new WorkspaceViewModel(context.Workspace, context.Repository);
+            var window = new MainWindow { DataContext = workspace };
+            window.Show(); await window.InitializationTask;
+            try
+            {
+                await workspace.OpenConnectionAsync(ConnectionProfile.Create("Local", "mongodb://localhost"));
+                var root = workspace.Roots[0]; root.IsExpanded = true;
+                var database = root.Children[0]; await database.LoadAsync(); database.IsExpanded = true;
+                var collection = database.Children[0];
+                window.UpdateLayout(); Dispatcher.UIThread.RunJobs();
+                var tree = window.FindControl<TreeView>("Explorer")!;
+                var label = tree.GetVisualDescendants().OfType<TextBlock>().First(block => ReferenceEquals(block.DataContext, collection));
+                var point = label.TranslatePoint(new Point(4, label.Bounds.Height / 2), window)!.Value;
+                var before = workspace.Tabs.Count;
+                window.MouseDown(point, MouseButton.Left); window.MouseUp(point, MouseButton.Left);
+                Assert.That(workspace.Tabs.Count, Is.EqualTo(before), "Single click only navigates.");
+                window.MouseDown(point, MouseButton.Left); window.MouseUp(point, MouseButton.Left);
+                Assert.That(workspace.Tabs.Count, Is.EqualTo(before + 1));
+                var first = workspace.ActiveTab!;
+                Assert.That(first.Text, Is.EqualTo("db.getCollection(\"clientes\").find({}).limit(100)"));
+                Assert.That((first.Profile, first.Database, first.Collection), Is.EqualTo((collection.Profile, collection.Database, collection.Collection)));
+                first.Text = "// preservar edição";
+                // Enter is the keyboard equivalent and also creates a fresh draft.
+                var item = label.GetVisualAncestors().OfType<TreeViewItem>().First();
+                Assert.That(item.Focus(), Is.True);
+                window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+                Assert.That(workspace.Tabs.Count, Is.EqualTo(before + 2));
+                Assert.That(first.Text, Is.EqualTo("// preservar edição"));
+                Assert.That(context.Scripts.Calls, Is.Empty);
+                var count = workspace.Tabs.Count;
+                window.MouseDown(point, MouseButton.Right); window.MouseUp(point, MouseButton.Right);
+                window.MouseDown(point, MouseButton.Right); window.MouseUp(point, MouseButton.Right);
+                Assert.That(workspace.Tabs.Count, Is.EqualTo(count), "Right clicks never open query tabs.");
+                window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+                window.UpdateLayout(); Dispatcher.UIThread.RunJobs();
+                workspace.SelectedNode = database;
+                window.MouseDown(point, MouseButton.Left); window.MouseUp(point, MouseButton.Left);
+                Assert.That(workspace.Tabs.Count, Is.EqualTo(count), "A left click after right clicks is still a single click.");
+                window.MouseDown(point, MouseButton.Left); window.MouseUp(point, MouseButton.Left);
+                Assert.That(workspace.Tabs.Count, Is.EqualTo(count + 1), "Another left double click creates another draft of the same collection.");
+                Assert.That(workspace.ActiveTab!.Collection, Is.EqualTo(collection.Collection));
+                Assert.That(first.Text, Is.EqualTo("// preservar edição"));
+                Assert.That(context.Scripts.Calls, Is.Empty);
+                var directory = UiEvidenceDirectory.Current(); Directory.CreateDirectory(directory);
+                foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+                foreach (var size in new[] { new Size(960, 620), new Size(1366, 768), new Size(1920, 1080) })
+                foreach (var scale in new[] { 1d, 1.5, 2 })
+                {
+                    Avalonia.Application.Current!.RequestedThemeVariant = theme;
+                    window.Width = size.Width; window.Height = size.Height; window.SetRenderScaling(scale);
+                    window.UpdateLayout(); Dispatcher.UIThread.RunJobs();
+                    using var frame = window.CaptureRenderedFrame();
+                    frame!.Save(Path.Combine(directory, $"collection-doubleclick-{theme}-{size.Width}-{scale}.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+                }
+            }
+            finally
+            {
+                typeof(MainWindow).GetField("_allowClose", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.SetValue(window, true);
+                window.Close();
+            }
+            return true;
+        }, CancellationToken.None);
+    }
+
     private static readonly string[] RemovedToolEntries =
         ["Criar coleção…", "Documentos: inserir / atualizar / excluir…", "Criar / remover índices…", "Administração do banco / coleção…"];
 

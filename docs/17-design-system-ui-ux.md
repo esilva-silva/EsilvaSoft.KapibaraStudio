@@ -520,3 +520,11 @@ A futura UI deve mostrar provider/modelo e **Local** ou **Externo**, autenticaç
 Preservar tokens, tipografia, atalhos e foco existentes; reservar ações de chat ao seu escopo de foco, com anúncio acessível de progresso sem narrar cada token. Estados obrigatórios: vazio, indisponível, desconectado, autenticando, cancelado, credencial expirada, aguardando aprovação, erro recuperável, cofre indisponível e dados não autorizados. Nenhum estado depende apenas de cor. Não instalar novo atalho global sem revisão de conflitos.
 
 Evidência futura: PNGs reais nos dois temas, tamanhos 960×620, 1366×768 e 1920×1080, escalas 100/150/200%, textos longos/localização e uso completo por teclado. O plano não produz evidência de UI implementada; leitor de tela, login e diálogos/cofres nativos pertencem à homologação real. O workflow fechado continua na [Fase 7/v0.11.0](phases/phase-07-v0.11.0/README.md).
+
+## Descarga por inatividade da IA local — 30/10/2026
+
+Implementado intervalo persistido de 1–1440 minutos, padrão 10, em Preferências → Autocomplete. O proprietário único espera gerações terminarem antes de liberar o runtime; o próximo uso segue a política de carga existente. Campo numérico com nome acessível e ajuda localizada, na rolagem central. PNGs Light/Dark, três tamanhos × três escalas, inspecionados. [Contrato e limites](26-ia-local-multimodelo.md#descarga-por-inatividade-da-ia-local--30102026); [validação](15-matriz-de-validacao.md#descarga-da-ia-local-por-inatividade--30102026); ADR-079.
+
+## Explorer e updater — 03/11/2026
+
+Duplo clique esquerdo em coleção abre uma nova aba com `find({}).limit(100)`, preservando as abas existentes e sem executar a consulta. Enter e Abrir documentos têm o mesmo comportamento. Updater revisado para os assets publicados no v0.9.8; corrigidas esperas sem prazo nos checksums e na conexão/cabeçalhos do pacote. [Contrato, evidências e limites](architecture/explorer-updater-review.md).

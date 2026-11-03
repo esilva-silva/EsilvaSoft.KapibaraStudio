@@ -9,6 +9,65 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests;
 [TestFixture]
 public sealed class LocalAiModelServiceTests
 {
+    [Test]
+    public async Task IdleTimeoutUnloadsAndNextUseReloadsWithFreshDeadline()
+    {
+        var clock = new ManualTimeProvider();
+        var first = new CompletionRuntimeFake();
+        var second = new CompletionRuntimeFake();
+        var runtimes = new Queue<CompletionRuntimeFake>([first, second]);
+        await using var service = new LocalAiModelService(new CompletionCatalogFake(), () => runtimes.Dequeue(), timeProvider: clock);
+        var settings = new AutocompleteSettings { ModelPath = "model" };
+        await service.LoadModelAsync(LocalModelRole.Autocomplete, settings);
+        clock.Advance(TimeSpan.FromMinutes(9));
+        Assert.That(first.Disposed, Is.False);
+        await service.GenerateAsync(LocalModelRole.Autocomplete, settings, Request, AiRequestPriority.Interactive);
+        clock.Advance(TimeSpan.FromMinutes(9));
+        Assert.That(first.Disposed, Is.False);
+        clock.Advance(TimeSpan.FromMinutes(1));
+        await WaitForIdleUnload(service);
+        Assert.That(first.Disposed, Is.True);
+        Assert.That(service.Status.State, Is.EqualTo(LocalModelState.NotLoaded));
+        await service.LoadModelAsync(LocalModelRole.Autocomplete, settings);
+        Assert.That(second.Initializations, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task IdleTimeoutWaitsForActiveGenerationAndConfigurationAppliesWithoutReload()
+    {
+        var clock = new ManualTimeProvider();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finish = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var runtime = new CompletionRuntimeFake { Handler = async (_, token) =>
+        {
+            entered.TrySetResult();
+            await finish.Task.WaitAsync(token);
+            return new("ok", 1, TimeSpan.Zero, "cpu");
+        } };
+        await using var service = new LocalAiModelService(new CompletionCatalogFake(), () => runtime, timeProvider: clock);
+        var settings = new AutocompleteSettings { ModelPath = "model" };
+        await service.LoadModelAsync(LocalModelRole.Autocomplete, settings);
+        var generation = service.GenerateAsync(LocalModelRole.Autocomplete, settings, Request, AiRequestPriority.Interactive);
+        await entered.Task;
+        clock.Advance(TimeSpan.FromMinutes(20));
+        Assert.That(runtime.Disposed, Is.False);
+        finish.TrySetResult();
+        await generation;
+        await service.SwitchModelAsync(settings with { ModelIdleTimeoutMinutes = 2 });
+        Assert.That(runtime.Initializations, Is.EqualTo(1));
+        clock.Advance(TimeSpan.FromMinutes(1));
+        Assert.That(runtime.Disposed, Is.False);
+        clock.Advance(TimeSpan.FromMinutes(1));
+        await WaitForIdleUnload(service);
+        Assert.That(runtime.Disposed, Is.True);
+    }
+
+    private static async Task WaitForIdleUnload(LocalAiModelService service)
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        while (service.Status.State != LocalModelState.NotLoaded) await Task.Delay(1, timeout.Token);
+    }
+
     [TestCase(PrefixCacheMode.Reuse, 4)]
     [TestCase(PrefixCacheMode.Disabled, 2)]
     public async Task ChangingCacheConfigurationReleasesTheOldRuntimeBeforeTheNextRequest(PrefixCacheMode mode, int sessions)

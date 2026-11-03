@@ -13,6 +13,45 @@ namespace EsilvaSoft.KapibaraStudio.IntegrationTests;
 [TestFixture, NonParallelizable, Category("Integration")]
 public sealed class AiPrivacySettingsUiTests
 {
+    [Test]
+    public async Task IdleTimeoutCanBeEditedAndRendersAcrossThemesSizesAndScales()
+    {
+        var session = HeadlessUnitTestSession.GetOrStartForAssembly(typeof(IntegrationUiTestApp).Assembly);
+        await session.Dispatch<bool>(async () =>
+        {
+            using var context = new WorkspaceTestContext();
+            using var workspace = new WorkspaceViewModel(context.Workspace, context.Repository, new CompletionServiceFake());
+            var preferences = workspace.AutocompletePreferences;
+            preferences.Load(new AutocompleteSettings());
+            var window = new AutocompleteSettingsWindow { DataContext = preferences };
+            window.Show();
+            try
+            {
+                var field = window.FindControl<NumericUpDown>("ModelIdleTimeoutBox")!;
+                Assert.That(field.Value, Is.EqualTo(10));
+                field.Value = 25;
+                Assert.That(preferences.Snapshot().ModelIdleTimeoutMinutes, Is.EqualTo(25));
+                foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+                foreach (var size in new[] { new Size(960, 620), new Size(1366, 768), new Size(1920, 1080) })
+                foreach (var scale in new[] { 1d, 1.5, 2 })
+                {
+                    Avalonia.Application.Current!.RequestedThemeVariant = theme;
+                    window.Width = size.Width; window.Height = size.Height; window.SetRenderScaling(scale);
+                    window.UpdateLayout(); Dispatcher.UIThread.RunJobs();
+                    var scroll = window.GetVisualDescendants().OfType<ScrollViewer>()
+                        .First(candidate => candidate.Content is StackPanel);
+                    scroll.Offset = new Vector(0, Math.Max(0, scroll.Extent.Height - scroll.Viewport.Height));
+                    window.UpdateLayout(); Dispatcher.UIThread.RunJobs();
+                    Assert.That(field.IsEffectivelyVisible, Is.True);
+                    Save(window, $"local-ai-idle-{theme}-{size.Width}-{scale}.png");
+                }
+            }
+            finally { window.Close(); }
+            await Task.CompletedTask;
+            return true;
+        }, CancellationToken.None);
+    }
+
     // ADR-055: the per-tab assistant that consumed these opt-ins was removed. The controls are hidden, while the
     // persisted values are carried through untouched until the product decision (no migration) is recorded.
     [Test]

@@ -17,6 +17,56 @@ public sealed class AppUpdateServiceTests
     private const string WindowsExecutable = "EsilvaSoft.SlopStudio.Desktop.exe";
     private const string LinuxExecutable = "EsilvaSoft.SlopStudio.Desktop";
 
+    [TestCase("win-x64")]
+    [TestCase("win-arm64")]
+    [TestCase("linux-x64")]
+    [TestCase("linux-arm64")]
+    public async Task Release098SelectsPortableRuntimeAssetAndPreservesPublishedUrlAndDigest(string rid)
+    {
+        using var fixture = new UpdateFixture();
+        using var resource = typeof(AppUpdateServiceTests).Assembly.GetManifestResourceStream(
+            "EsilvaSoft.KapibaraStudio.IntegrationTests.Fixtures.app-update-v0.9.8.json")!;
+        using var reader = new StreamReader(resource);
+        var json = await reader.ReadToEndAsync();
+        fixture.Routes[UpdateFixture.PrimaryApi.AbsoluteUri] = () => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(json) };
+        using var service = fixture.Service(fixture.Options(rid) with { ReleasesApi = UpdateFixture.PrimaryApi, CurrentVersion = AppVersion.Parse("0.9.7") });
+        var release = (await service.CheckAsync(CancellationToken.None))!;
+        var name = $"EsilvaSoft.KapibaraStudio-0.9.8-{rid}" + (rid.StartsWith("win-", StringComparison.Ordinal) ? ".zip" : ".tar.gz");
+        Assert.That(release.AssetName, Is.EqualTo(name));
+        Assert.That(release.DownloadUrl.AbsoluteUri, Is.EqualTo($"https://github.com/esilva-silva/EsilvaSoft.KapibaraStudio/releases/download/v0.9.8/{name}"));
+        Assert.That(release.Sha256, Has.Length.EqualTo(64));
+        Assert.That(release.Size, Is.GreaterThan(70_000_000));
+        Assert.That(release.ChecksumsUrl!.AbsoluteUri, Does.EndWith("/v0.9.8/SHA256SUMS.txt"));
+    }
+
+    [Test, Explicit("Baixa o ZIP público win-x64 (~81 MiB) e prepara a atualização somente em diretório temporário."), Category("AppUpdateLive")]
+    public async Task Published098WindowsPackageDownloadsVerifiesAndStagesWithoutReplacingInstallation()
+    {
+        using var fixture = new UpdateFixture();
+        using var http = new HttpClient();
+        http.DefaultRequestHeaders.UserAgent.ParseAdd("KapibaraStudio-update-validation");
+        var json = await http.GetStringAsync("https://api.github.com/repos/esilva-silva/EsilvaSoft.KapibaraStudio/releases/tags/v0.9.8");
+        using var document = JsonDocument.Parse(json);
+        var releaseJson = document.RootElement;
+        var candidate = new AppReleaseCandidate(releaseJson.GetProperty("tag_name").GetString()!, false, false,
+            new Uri(releaseJson.GetProperty("html_url").GetString()!),
+            releaseJson.GetProperty("assets").EnumerateArray().Select(asset => new AppReleaseAsset(
+                asset.GetProperty("name").GetString()!, new Uri(asset.GetProperty("browser_download_url").GetString()!),
+                asset.GetProperty("size").GetInt64(), asset.GetProperty("digest").GetString())).ToArray());
+        var release = AppUpdateSelector.SelectNewest(AppVersion.Parse("0.9.7"), [candidate], "win-x64")!;
+        var options = fixture.Options() with { ExecutableName = "EsilvaSoft.KapibaraStudio.Desktop.exe" };
+        var installed = Path.Combine(fixture.Target, options.ExecutableName);
+        await File.WriteAllTextAsync(installed, "installation sentinel");
+        using var service = new GitHubAppUpdateService(options, new LocalAppUpdateStorage());
+        using var operation = new ApplicationOperationService().Begin("Validação do download v0.9.8");
+        await service.DownloadAsync(release, operation);
+        var pending = AppUpdateInstaller.ReadValidPending(options)!;
+        Assert.That(pending.Version, Is.EqualTo("0.9.8"));
+        Assert.That(File.Exists(Path.Combine(pending.PayloadDirectory, options.ExecutableName)), Is.True);
+        Assert.That(await File.ReadAllTextAsync(installed), Is.EqualTo("installation sentinel"));
+        TestContext.Out.WriteLine($"Download/extração v0.9.8: {release.Size} bytes; SHA-256 {release.Sha256}. Nenhuma instalação real foi alterada.");
+    }
+
     [Test]
     public void ProcessDefaultsUseOnlyKapibaraRepository()
     {

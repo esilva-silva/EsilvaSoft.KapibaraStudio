@@ -14,6 +14,55 @@ public sealed class AppUpdateStorageContractTests
         "win-x64", "application", "EsilvaSoft.KapibaraStudio.Desktop.exe", "updates", new Uri("https://api.test/releases"));
 
     [Test]
+    public async Task ChecksumListingSupportsReleaseWithoutGitHubDigest()
+    {
+        var storage = new RecordingStorage();
+        using var service = new GitHubAppUpdateService(Options, storage, new DownloadRouteHandler((request, _) =>
+            new HttpResponseMessage(HttpStatusCode.OK) { Content = request.RequestUri!.AbsolutePath.EndsWith("SHA256SUMS.txt", StringComparison.Ordinal)
+                ? new StringContent($"{Convert.ToHexStringLower(SHA256.HashData(Package))}  package.zip\n")
+                : new ByteArrayContent(Package) }));
+        using var operation = new ApplicationOperationService().Begin("Baixando");
+        await service.DownloadAsync(Release() with { Sha256 = null, ChecksumsUrl = new Uri("https://download.test/SHA256SUMS.txt") }, operation);
+        Assert.That(storage.Session.Committed, Is.True);
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void TimeoutBeforePackageBodyOrDuringChecksumIsVisibleAndDiscardsStaging(bool checksum)
+    {
+        var storage = new RecordingStorage();
+        using var operation = new ApplicationOperationService().Begin("Baixando");
+        using var service = new GitHubAppUpdateService(Options, storage, new DownloadRouteHandler((_, token) =>
+        {
+            Assert.That(token.CanBeCanceled, Is.True);
+            Assert.That(token, Is.Not.EqualTo(operation.Token), "The HTTP phase has a deadline separate from caller cancellation.");
+            throw new TaskCanceledException("Simulated HTTP timeout");
+        }));
+        var release = checksum ? Release() with { Sha256 = null, ChecksumsUrl = new Uri("https://download.test/SHA256SUMS.txt") } : Release();
+        Assert.ThrowsAsync<TimeoutException>(() => service.DownloadAsync(release, operation));
+        Assert.That(storage.Session.Disposed, Is.True);
+        Assert.That(storage.Session.Committed, Is.False);
+    }
+
+    [Test]
+    public void CancellationDuringChecksumRemainsCancellationAndDiscardsStaging()
+    {
+        var storage = new RecordingStorage();
+        using var cancellation = new CancellationTokenSource();
+        using var operation = new ApplicationOperationService().Begin("Baixando", cancellationToken: cancellation.Token);
+        using var service = new GitHubAppUpdateService(Options, storage, new DownloadRouteHandler((_, token) =>
+        {
+            cancellation.Cancel();
+            token.ThrowIfCancellationRequested();
+            throw new InvalidOperationException("unreachable");
+        }));
+        Assert.CatchAsync<OperationCanceledException>(() => service.DownloadAsync(
+            Release() with { Sha256 = null, ChecksumsUrl = new Uri("https://download.test/SHA256SUMS.txt") }, operation));
+        Assert.That(storage.Session.Disposed, Is.True);
+        Assert.That(storage.Session.Committed, Is.False);
+    }
+
+    [Test]
     public async Task VerifiedDownloadClosesPackageBeforeCommitAndUsesCapturedInstallation()
     {
         var storage = new RecordingStorage();
@@ -173,6 +222,12 @@ public sealed class AppUpdateStorageContractTests
                 base.Dispose(disposing);
             }
         }
+    }
+
+    private sealed class DownloadRouteHandler(Func<HttpRequestMessage, CancellationToken, HttpResponseMessage> respond) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(respond(request, cancellationToken));
     }
 
     private sealed class PackageHandler(Action? beforeResponse = null) : HttpMessageHandler

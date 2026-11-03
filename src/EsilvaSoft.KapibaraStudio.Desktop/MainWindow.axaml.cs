@@ -20,11 +20,15 @@ public partial class MainWindow : Window
     private bool _allowClose;
     private bool _closing;
     private bool _restartAfterClose;
+    private ExplorerNodeViewModel? _explorerClickNode;
+    private int _explorerClickCount;
     public Task InitializationTask { get; private set; } = Task.CompletedTask;
     public Task ConnectionDialogTask { get; private set; } = Task.CompletedTask;
     public MainWindow()
     {
         InitializeComponent();
+        Explorer.AddHandler(PointerPressedEvent, ExplorerPointerPressed, RoutingStrategies.Tunnel, handledEventsToo: true);
+        Explorer.AddHandler(KeyDownEvent, ExplorerKeyDown, RoutingStrategies.Tunnel);
         Opened += InitializeWorkspace;
         AddHandler(KeyDownEvent, OnWorkspaceKeyDown, RoutingStrategies.Tunnel);
     }
@@ -55,6 +59,28 @@ public partial class MainWindow : Window
     private void OpenExplorerCollection(object? sender, RoutedEventArgs e)
     {
         if (WorkspaceModel?.SelectedNode is { } node) WorkspaceModel.OpenCollection(node);
+    }
+    private void ExplorerPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        var previousNode = _explorerClickNode;
+        var previousCount = _explorerClickCount;
+        _explorerClickNode = null;
+        _explorerClickCount = 0;
+        if (!e.GetCurrentPoint(Explorer).Properties.IsLeftButtonPressed || e.Source is not Visual source) return;
+        // Resolve the actual row before TreeView handles expansion/selection. Never open a previously selected row.
+        var ancestors = source.GetSelfAndVisualAncestors().ToArray();
+        if (ancestors.OfType<ToggleButton>().Any()) return;
+        if (ancestors.OfType<TreeViewItem>().FirstOrDefault()?.DataContext is not ExplorerNodeViewModel { IsCollection: true } node) return;
+        // Avalonia's count can continue past two and across mouse buttons. Require a fresh pair of left presses
+        // on this row, using the platform's click interval/position tracking rather than a separate timer.
+        if (!ReferenceEquals(previousNode, node) || e.ClickCount != previousCount + 1)
+        {
+            _explorerClickNode = node;
+            _explorerClickCount = e.ClickCount;
+            return;
+        }
+        WorkspaceModel?.OpenCollection(node);
+        e.Handled = true;
     }
     private void ExplorerKeyDown(object? sender, KeyEventArgs e)
     {

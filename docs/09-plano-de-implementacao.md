@@ -124,3 +124,11 @@ Referências antigas F0–F7 em registros datados são históricas: F0 era funda
 ## Revisão do plano de autocomplete — 15/09/2026
 
 As fases 1 a 5 citadas nesta seção são sub-fases do subsistema de autocomplete, com numeração própria, e não as onze fases do produto. Plano revisado: dados existentes com aceite parcial; a sub-fase 1 amplia para aprendizado persistente de find; a sub-fase 2 fornece contexto/lista/presenter; 5.1 tradicional pode seguir a 2 sem IA; 3/4 preparam IA; 5.2 IA e 5.3 híbrido sequencial. Dez perfis e tarefas com dependências estão no plano executável. Não há implementação nova nesta revisão. [Plano revisado](auto-complite/README.md), [tarefas por agente](auto-complite/execution-plan.md) e [schema learning](auto-complite/schema-learning.md).
+
+## Descarga por inatividade da IA local — 30/10/2026
+
+Implementado intervalo persistido de 1–1440 minutos, padrão 10, em Preferências → Autocomplete. O proprietário único espera gerações terminarem antes de liberar o runtime; o próximo uso segue a política de carga existente. Campo numérico com nome acessível e ajuda localizada, na rolagem central. PNGs Light/Dark, três tamanhos × três escalas, inspecionados. [Contrato e limites](26-ia-local-multimodelo.md#descarga-por-inatividade-da-ia-local--30102026); [validação](15-matriz-de-validacao.md#descarga-da-ia-local-por-inatividade--30102026); ADR-079.
+
+## Explorer e updater — 03/11/2026
+
+Duplo clique esquerdo em coleção abre uma nova aba com `find({}).limit(100)`, preservando as abas existentes e sem executar a consulta. Enter e Abrir documentos têm o mesmo comportamento. Updater revisado para os assets publicados no v0.9.8; corrigidas esperas sem prazo nos checksums e na conexão/cabeçalhos do pacote. [Contrato, evidências e limites](architecture/explorer-updater-review.md).

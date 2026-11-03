@@ -81,6 +81,7 @@ public sealed partial class AutocompleteSettingsViewModel(IAutocompleteService s
     [ObservableProperty] private bool _includeInputJsonInLocalAiContext;
     [ObservableProperty] private int _contextTokens = 2048;
     [ObservableProperty] private int _maximumTokens = 32;
+    [ObservableProperty] private decimal _modelIdleTimeoutMinutes = 10;
     [ObservableProperty] private int _delayMilliseconds = 150;
     [ObservableProperty] private bool _useDictionary = true;
     [ObservableProperty] private bool _useInputPanelContext = true;
@@ -142,6 +143,7 @@ public sealed partial class AutocompleteSettingsViewModel(IAutocompleteService s
         {
             Enabled = settings.Enabled; AiCompletionEnabled = settings.AiCompletionEnabled; HardwareIndex = (int)settings.Acceleration;
             ContextTokens = settings.ContextTokens; MaximumTokens = settings.MaximumCompletionTokens;
+            ModelIdleTimeoutMinutes = settings.ModelIdleTimeoutMinutes;
             DelayMilliseconds = settings.DelayMilliseconds; _executionProvider = settings.ExecutionProvider;
             UseDictionary = settings.UseDictionary; UseInputPanelContext = settings.UseInputPanelContext;
             UseResultPanelContext = settings.UseResultPanelContext; UseEditorContext = settings.UseEditorContext;
@@ -178,6 +180,8 @@ public sealed partial class AutocompleteSettingsViewModel(IAutocompleteService s
         CommitTokenEditors();
         RefreshTokenBudget();
         if (HasTokenBudgetError) throw new ArgumentException(TokenBudgetWarning);
+        if (ModelIdleTimeoutMinutes < 1 || ModelIdleTimeoutMinutes > 1440 || decimal.Truncate(ModelIdleTimeoutMinutes) != ModelIdleTimeoutMinutes)
+            throw new ArgumentException(T("modelIdleTimeoutHint"));
         var option = SelectedModelOption;
         // Start from the loaded settings so fields without a control here (list flag, legacy inline flags) keep their
         // saved values. The legacy mode is written as Automatic: the AI and the agent now have their own explicit flags.
@@ -189,6 +193,7 @@ public sealed partial class AutocompleteSettingsViewModel(IAutocompleteService s
             LocalAiContextEnabled = LocalAiContextEnabled,
             IncludeInputJsonInLocalAiContext = IncludeInputJsonInLocalAiContext,
             ContextTokens = ContextTokens, MaximumCompletionTokens = MaximumTokens,
+            ModelIdleTimeoutMinutes = (int)ModelIdleTimeoutMinutes,
             HardwareProfilesJson = SnapshotHardwareProfiles(),
             SelectedHardwareProfile = _hardwareProfileLocked ? SelectedHardwareProfile?.Name ?? "" : "",
             DelayMilliseconds = DelayMilliseconds, ExecutionProvider = _executionProvider,

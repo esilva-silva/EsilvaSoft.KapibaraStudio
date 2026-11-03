@@ -786,3 +786,15 @@ Antes de exportar resultados, o host valida todo o manifesto e recria somente os
 **Consequências:** exige ao menos uma fonte instalada (sem ela o Avalonia aborta ao iniciar), declarada como dependência. O pacote carrega o mesmo single-file do tarball, com `strip` desativado no AUR. A atualização passa a depender do usuário executar o comando mostrado, e este só aponta para arquivo existente a partir do primeiro release que publicar os pacotes (até v0.9.5 não há .deb/.rpm). Sem assinatura GPG nem repositório APT/DNF, a integridade depende do mesmo release (limite da ADR-038). Evidências, tabela por ambiente e limites: [Pacotes Linux](architecture/linux-packages.md).
 
 **Descartados:** autoatualização por troca de arquivos em instalação gerenciada; o app executar o gerenciador de pacotes ou pedir privilégio; scripts postinst/postrm; republicar ou recompilar o .NET por formato; repositório APT/DNF assinado nesta etapa (opcional, adiado).
+
+## ADR-079 — Descarga do modelo local por inatividade (30/10/2026)
+
+**Decisão:** o proprietário único agenda temporizador via `TimeProvider`, com padrão de 10 minutos e configuração persistida aditiva `ModelIdleTimeoutMinutes` (1–1440). A descarga toma a mesma fila do runtime com prioridade inferior às solicitações e revalida o prazo monotônico após obter exclusividade. Nenhuma geração é cancelada por esse temporizador. Cada uso concluído renova o prazo; a carga posterior continua seguindo a política do solicitante. O temporizador é desarmado na descarga e descartado no encerramento.
+
+**Consequências:** libera recursos nativos sem introduzir outro runtime/owner; o próximo uso pode ter latência de carga. Caches do runtime são liberados junto com ele. A configuração não integra a chave de identidade do modelo. Detalhes e limites de evidência: [IA local multimodelo](26-ia-local-multimodelo.md#descarga-por-inatividade-da-ia-local--30102026).
+
+## ADR-080 — Abertura de coleção sempre cria novo rascunho (03/11/2026)
+
+**Decisão:** duplo clique esquerdo no explorer e seus equivalentes Enter/Abrir documentos criam uma aba Console independente com perfil, banco, coleção e script `find`/`limit(100)` capturados. Abas existentes não são reutilizadas. A view resolve a linha clicada e trata ponteiro/Enter em Tunnel para evitar absorção dos eventos pela árvore; botão direito e expansores conservam suas funções.
+
+**Consequências:** várias consultas da mesma coleção podem coexistir sem sobrescrever rascunhos. Abrir/selecionar coleção nunca executa consulta e seleção posterior não redireciona abas. [Contrato, revisão do updater e evidências](architecture/explorer-updater-review.md). A revisão de download complementa ADR-038/ADR-078 sem mudar feed, canal de versão ou modelo de instalação.

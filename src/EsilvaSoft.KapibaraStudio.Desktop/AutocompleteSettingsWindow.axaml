@@ -144,6 +144,9 @@
         </Grid>
         <TextBlock Text="{Binding TokenBudgetWarning}" Classes="warning" TextWrapping="Wrap" IsVisible="{Binding HasTokenBudgetWarning}" AutomationProperties.Name="{local:Loc Key=tokenBudgetValidation}"/>
         <TextBlock Text="{local:Loc Key=inlineHint}" Classes="metadata" TextWrapping="Wrap"/>
+        <TextBlock Text="{local:Loc Key=modelIdleTimeout}"/>
+        <NumericUpDown x:Name="ModelIdleTimeoutBox" Value="{Binding ModelIdleTimeoutMinutes}" Minimum="1" Maximum="1440" Increment="1" FormatString="0" AutomationProperties.Name="{local:Loc Key=modelIdleTimeout}"/>
+        <TextBlock Text="{local:Loc Key=modelIdleTimeoutHint}" Classes="metadata" TextWrapping="Wrap"/>
         <TextBlock Text="{local:Loc Key=modelState}" Classes="section-title"/>
         <TextBlock Text="{Binding Status}" TextWrapping="Wrap" AutomationProperties.Name="{local:Loc Key=modelState}"/>
         <TextBlock Text="{local:Loc Key=testResult}" Classes="section-title" IsVisible="{Binding HasTestReport}"/>

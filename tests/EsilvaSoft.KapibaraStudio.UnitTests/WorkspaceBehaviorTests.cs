@@ -212,6 +212,33 @@ public sealed class WorkspaceBehaviorTests
     }
 
     [Test]
+    public async Task OpeningSameCollectionCreatesIndependentDraftsAndSelectionDoesNotRetargetThem()
+    {
+        using var context = new WorkspaceTestContext();
+        using var vm = new WorkspaceViewModel(context.Workspace, context.Repository);
+        await vm.InitializeAsync();
+        await vm.OpenConnectionAsync(ConnectionProfile.Create("Local", "mongodb://localhost"));
+        var database = vm.Roots[0].Children[0]; await database.LoadAsync();
+        var collection = database.Children[0];
+        vm.OpenCollection(collection);
+        var first = vm.ActiveTab!;
+        first.Text = "// rascunho preservado";
+        vm.OpenCollection(collection);
+        var second = vm.ActiveTab!;
+        Assert.That(second, Is.Not.SameAs(first));
+        Assert.That(second.Text, Is.EqualTo("db.getCollection(\"clientes\").find({}).limit(100)"));
+        vm.SelectedNode = vm.Roots[0].Children[1];
+        Assert.That((second.Profile, second.Database, second.Collection), Is.EqualTo((collection.Profile, collection.Database, collection.Collection)));
+        Assert.That(first.Text, Is.EqualTo("// rascunho preservado"));
+        Assert.That(context.Scripts.Calls, Is.Empty);
+        await vm.SaveSessionAsync();
+        using var restored = new WorkspaceViewModel(context.Workspace, context.Repository);
+        await restored.InitializeAsync();
+        Assert.That(restored.Tabs.Any(tab => tab.Text == first.Text), Is.True);
+        Assert.That(restored.Tabs.Any(tab => tab.Text == second.Text && tab.Collection == collection.Collection), Is.True);
+    }
+
+    [Test]
     public async Task ExplorerLoadsOnlyExpandedBankAndNeverExecutesQuery()
     {
         using var context = new WorkspaceTestContext();

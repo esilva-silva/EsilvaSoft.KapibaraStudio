@@ -46,6 +46,9 @@ public sealed record AutocompleteSettings
     public string HardwareProfilesJson { get; init; } = "";
     public string SelectedHardwareProfile { get; init; } = "";
 
+    /// <summary>Minutes without local inference before releasing the runtime; additive to version 1.</summary>
+    public int ModelIdleTimeoutMinutes { get; init; } = 10;
+
     /// <summary>
     /// Additive to version 1: hard timeout of an explicit AI completion (<c>Ctrl+;</c>), measured end to end — queue,
     /// model load and generation included. Expiring never fails the request outright: a partial preview that is
@@ -162,7 +165,7 @@ public sealed record AutocompleteSettings
             || !IsModelFolderName(SelectedModel) || !IsModelFolderName(ChatModel) || ContextTokens is < 64 or > AbsoluteContextMaximum
             || MaximumCompletionTokens is < 1 or > AbsoluteCompletionMaximum || DelayMilliseconds is < 50 or > 2000
             || AiTimeoutMilliseconds is < 1000 or > 60_000 || !Enum.IsDefined(PrefixCacheMode)
-            || PrefixCacheMaxSessions is < 1 or > 4)
+            || PrefixCacheMaxSessions is < 1 or > 4 || ModelIdleTimeoutMinutes is < 1 or > 1440)
             throw new ArgumentException("Configuração de autocomplete inválida ou de versão não suportada.");
         return this;
     }

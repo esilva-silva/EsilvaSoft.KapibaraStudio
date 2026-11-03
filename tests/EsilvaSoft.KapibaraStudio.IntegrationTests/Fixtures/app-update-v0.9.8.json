@@ -1,0 +1,70 @@
+[
+  {
+    "tag_name": "v0.9.8",
+    "draft": false,
+    "prerelease": false,
+    "html_url": "https://github.com/esilva-silva/EsilvaSoft.KapibaraStudio/releases/tag/v0.9.8",
+    "assets": [
+      {
+        "name": "EsilvaSoft.KapibaraStudio-0.9.8-linux-arm64.tar.gz",
+        "size": 75275560,
+        "browser_download_url": "https://github.com/esilva-silva/EsilvaSoft.KapibaraStudio/releases/download/v0.9.8/EsilvaSoft.KapibaraStudio-0.9.8-linux-arm64.tar.gz",
+        "digest": "sha256:f58001410ccf0fd7fbfe81080afb34923771fa401a46756f81d516ecddd0a441"
+      },
+      {
+        "name": "EsilvaSoft.KapibaraStudio-0.9.8-linux-x64.tar.gz",
+        "size": 78682652,
+        "browser_download_url": "https://github.com/esilva-silva/EsilvaSoft.KapibaraStudio/releases/download/v0.9.8/EsilvaSoft.KapibaraStudio-0.9.8-linux-x64.tar.gz",
+        "digest": "sha256:25cf93406e1a3da33e91e4ffc0e81e33e91125da9623a1cda69804f557f5958a"
+      },
+      {
+        "name": "EsilvaSoft.KapibaraStudio-0.9.8-win-arm64.zip",
+        "size": 183507442,
+        "browser_download_url": "https://github.com/esilva-silva/EsilvaSoft.KapibaraStudio/releases/download/v0.9.8/EsilvaSoft.KapibaraStudio-0.9.8-win-arm64.zip",
+        "digest": "sha256:0ff29b62f86787583f18c6dc52e45780ad753678853b9de55b0161d726b6897b"
+      },
+      {
+        "name": "EsilvaSoft.KapibaraStudio-0.9.8-win-x64.zip",
+        "size": 84466821,
+        "browser_download_url": "https://github.com/esilva-silva/EsilvaSoft.KapibaraStudio/releases/download/v0.9.8/EsilvaSoft.KapibaraStudio-0.9.8-win-x64.zip",
+        "digest": "sha256:2dc0d3a6aafde3479a67f20a56e91458b4c3cd726eeba1a05f5b8d74e1b0753b"
+      },
+      {
+        "name": "kapibarastudio-0.9.8-1.aarch64.rpm",
+        "size": 79884832,
+        "browser_download_url": "https://github.com/esilva-silva/EsilvaSoft.KapibaraStudio/releases/download/v0.9.8/kapibarastudio-0.9.8-1.aarch64.rpm",
+        "digest": "sha256:df84af5e4c69840e8fe26164f8fd3f51f7942e55ddae8216c6d4d1cc1450a4f4"
+      },
+      {
+        "name": "kapibarastudio-0.9.8-1.x86_64.rpm",
+        "size": 83453963,
+        "browser_download_url": "https://github.com/esilva-silva/EsilvaSoft.KapibaraStudio/releases/download/v0.9.8/kapibarastudio-0.9.8-1.x86_64.rpm",
+        "digest": "sha256:06a502afdead817968fe20f7e39c67ce54597a9d58d51b8dcb92d54088cd00f6"
+      },
+      {
+        "name": "kapibarastudio-bin-0.9.8-aur.tar.gz",
+        "size": 246572,
+        "browser_download_url": "https://github.com/esilva-silva/EsilvaSoft.KapibaraStudio/releases/download/v0.9.8/kapibarastudio-bin-0.9.8-aur.tar.gz",
+        "digest": "sha256:2d65c7ac80707343d23d77e1eff1701ba709d5c916ca988709699203c6f18557"
+      },
+      {
+        "name": "kapibarastudio_0.9.8_amd64.deb",
+        "size": 81320002,
+        "browser_download_url": "https://github.com/esilva-silva/EsilvaSoft.KapibaraStudio/releases/download/v0.9.8/kapibarastudio_0.9.8_amd64.deb",
+        "digest": "sha256:33024318ec5bd4be72ed45b8bf908c57a20c7c852f842733b5a7f67698d610f9"
+      },
+      {
+        "name": "kapibarastudio_0.9.8_arm64.deb",
+        "size": 78012472,
+        "browser_download_url": "https://github.com/esilva-silva/EsilvaSoft.KapibaraStudio/releases/download/v0.9.8/kapibarastudio_0.9.8_arm64.deb",
+        "digest": "sha256:42c15bef28c8d3e4d898c56c33ad8ab0256a3c6d80fe793c04990c9b0c39bc07"
+      },
+      {
+        "name": "SHA256SUMS.txt",
+        "size": 951,
+        "browser_download_url": "https://github.com/esilva-silva/EsilvaSoft.KapibaraStudio/releases/download/v0.9.8/SHA256SUMS.txt",
+        "digest": "sha256:c0b05ec1da93fa2519820b7ef9766a815879cb2fb35ab500e3b98ba5a359cd79"
+      }
+    ]
+  }
+]
