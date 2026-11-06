@@ -1,5 +1,7 @@
 # Roadmap de evolução do Kapibara Studio
 
+> **Roadmap histórico.** Em 06/11/2026, o usuário adotou [docs-new](../docs-new/README.md) como referência oficial, com [seis novas fases](../docs-new/MVP/fases/README.md), cortes aprovados e melhorias adiadas. Este arquivo preserva decisões e evidências anteriores; sua numeração e prioridades não governam o novo plano.
+
 > A integração Snapdragon incorpora QNN e a preparação automática dos pacotes; resta validar detecção, download e geração no notebook ARM64, além de reavaliar os modelos anteriores com GenAI 0.18. [Estado](architecture/remote-kapicoder-catalog.md).
 
 **Pacotes ONNX publicados — 26/10/2026:** as fontes padrão são KapiCoder-Mongo-Nano-ONNX e Small-ONNX, com Nano CPU INT4 selecionado primeiro. Os exports completos e manifestos estão publicados com a tag v0.1.0-preview, com integridade verificada no Hub. Safetensors permanece informativo quando listado por fonte personalizada. [Contrato e evidências](architecture/remote-kapicoder-catalog.md).
@@ -26,7 +28,7 @@
 
 **F5-COP-PERM — configuração solicitada em 06/10/2026:** implementado no checkout o campo Copilot de chamadas por mensagem, padrão 100 e vazio ilimitado, com persistência v2 compatível com leitura v1 e captura por turno no runtime/registry. O incremento atende ao pedido do usuário e substitui os tetos fixos 20/32 para esses turnos. [Aceite e evidências](phases/phase-05-v0.9.0/meta-permissoes-tools-copilot.md#limite-configurável-solicitado-pelo-usuário--06102026); validação na aplicação permanece com o usuário.
 
-**F5-COP-PERM — novo retorno do client em 06/10/2026 (histórico, supersedido):** identificada recusa por cota, visível no cartão de `get_document` e relatada para `mongo_explain`; proposta não testada sem conteúdo autorizado. O usuário confirmou posteriormente a aprovação manual de ferramentas e conexões, encerrando essa pendência funcional. [Evidência e limites](phases/phase-05-v0.9.0/meta-permissoes-tools-copilot.md#novo-retorno-do-client--06102026); os demais gates da Fase 5 seguem abertos.
+**F5-COP-PERM — novo retorno do client em 06/10/2026 (histórico, supersedido):** identificada recusa por cota, visível no cartão de `get_document` e relatada para `mongo_explain`; proposta não testada sem conteúdo autorizado. O usuário confirmou posteriormente a aprovação manual de ferramentas e conexões, encerrando essa pendência funcional. [Evidência e limites](phases/phase-05-v0.9.0/meta-permissoes-tools-copilot.md#novo-retorno-do-client--06102026-histórico-supersedido-pelo-aceite-manual-posterior); os demais gates da Fase 5 seguem abertos.
 
 **F5-COP-PERM reaberta — 06/10/2026 (histórico, supersedido):** retorno manual de 11/14 tools funcionando; `get_document`, `mongo_explain` e proposta ainda sem causa correlacionada na instalação. O checkout corrigiu o gate de proposta workspace-only e publicou cota como `ToolCallLimitExceeded`. A cota fixa de 20 por turno era o comportamento daquela retomada e foi removida intencionalmente no incremento configurável acima: Copilot padrão 100, campo vazio ilimitado. Aceite manual posterior de ferramentas e conexões registrado; [histórico e evidências](phases/phase-05-v0.9.0/meta-permissoes-tools-copilot.md#retomada--06102026).
 

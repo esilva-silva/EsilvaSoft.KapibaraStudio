@@ -1,6 +1,6 @@
 # Regras do Desktop
 
-Aplicam-se também as regras do AGENTS.md da raiz e o design system em `docs/17-design-system-ui-ux.md`.
+Aplicam-se também as regras do AGENTS.md da raiz e o design system oficial em `docs-new/MVP/04-design-system.md`. `docs/17-design-system-ui-ux.md` permanece como histórico e evidência de origem.
 
 - Preserve a composição: explorer de bancos à esquerda; editor acima; resultados/mensagens/erros abaixo; conexões em modal proprietária.
 - Não recolocar formulários de conexão ou administração permanentemente acima do editor.

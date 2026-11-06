@@ -1,5 +1,7 @@
 # Fases do EsilvaSoft.KapibaraStudio
 
+> **Fases históricas.** Desde 06/11/2026, o planejamento oficial usa as [seis fases de docs-new](../../docs-new/MVP/fases/README.md). A numeração e as versões abaixo conservam o significado de seus registros originais, sem renumerar evidências, tags ou binários.
+
 Referência: **03/10/2026**. Esta pasta contém o trabalho **planejado ou em execução** por fase. Requisitos concluídos e aceitos são arquivados em [`../done`](../done/README.md); requisitos sem fase definida, adiados ou retirados do escopo ficam em [`../backlog`](../backlog/README.md). A Fase 5 concentra Copilot e infraestrutura necessária; o estado de Claude e das demais integrações externas está no [bkl-06](../backlog/bkl-06-integracoes-agentes.md).
 
 O [roadmap](../09-plano-de-implementacao.md) permanece na raiz da documentação como índice e regra geral; cada fase detalha o próprio escopo aqui.

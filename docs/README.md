@@ -1,5 +1,7 @@
 # Documentação do EsilvaSoft.KapibaraStudio
 
+> **Acervo histórico desde 06/11/2026.** A referência oficial está em [docs-new](../docs-new/README.md), com [MVP](../docs-new/MVP/README.md), [Remover](../docs-new/Remover/README.md) e [Melhorias](../docs-new/Melhorias/README.md). Fases, prioridades e estados abaixo preservam seus registros de origem; não substituem o novo plano nem comprovam remoções executadas. Os links para `docs-new` devem ser abertos pelo repositório/editor; o leitor HTML local continua limitado a este acervo.
+
 **Recorte da Fase 5 — 03/10/2026:** GitHub Copilot e infraestrutura compartilhada necessária à sua conclusão permanecem na Fase 5 / v0.9.0. Claude, Codex, APIs externas e integração de clientes MCP externos passam ao [bkl-06](backlog/bkl-06-integracoes-agentes.md), sem fase/versão comprometida. Código, disponibilidade, permissões e gates existentes são preservados; IA local e workflow mantêm suas fases. Esta alteração é documental e não comprova conclusão funcional ou nova homologação.
 
 Referência: **03/10/2026**. Produto desktop .NET 10/Avalonia, Windows/Linux, LiteDB e MIT. A integração Claude já está no código e segue em validação; a [documentação do Claude no backlog](backlog/integracoes-agentes/historico-integracoes.md#plano-e-andamento) registra modalidades, segurança, limites e homologação pendente. A homologação real com Claude Pro não foi executada nesta revisão.
@@ -7,6 +9,8 @@ Referência: **03/10/2026**. Produto desktop .NET 10/Avalonia, Windows/Linux, Li
 ## Comece por aqui
 
 Abra [o índice HTML](index.html) para navegar pelo índice lateral e ler documentos, tabelas e exemplos no painel principal. O leitor acompanha o tema do sistema e funciona sem internet. Links entre Markdown permanecem no próprio painel.
+
+O recorte de origem está em [MVP, cortes e próximas metas](mvp-status.md); decisões, tarefas e estado oficial passam a ser mantidos em [docs-new](../docs-new/README.md).
 
 Ao editar, adicionar ou mover arquivos `.md`, execute `node scripts/build-docs-index.cjs` na raiz do repositório para atualizar a cópia de leitura local. Quando servido por HTTP, o leitor busca o conteúdo atual dos arquivos; a lista de documentos continua sendo gerada por esse comando. O renderizador Marked e sua licença MIT estão em `docs/assets/`.
 
