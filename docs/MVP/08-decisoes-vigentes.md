@@ -6,7 +6,7 @@ Estas decisões definem o plano e os contratos vigentes. Detalhes normativos est
 | --- | --- | --- |
 | MVP-D01 | Studio desktop para gestão cotidiana e desenvolvimento MongoDB. | Manter EsilvaSoft.KapibaraStudio, .NET 10/Avalonia, Windows/Linux, MIT e pt-BR. |
 | MVP-D02 | `docs` é a única árvore oficial, autossuficiente. | Consolidar contratos e evidências necessários; não depender de links ao acervo removido ou a revisões antigas. |
-| MVP-D03 | Seis fases, v0.10.0 até v1.0.0, são alvos documentais. | Nenhuma mudança automática em binário, tags, pacotes ou identidade de releases antigas. |
+| MVP-D03 | Seis fases, v0.10.0 até v0.15.0, são alvos documentais, conforme plano aprovado em 06/11/2026. | v1.0.0 fica fora deste plano. Nenhuma mudança automática em binário, tags, pacotes ou identidade de releases antigas. |
 | MVP-D04 | IA local CPU precede conclusão Copilot. | Fase 1 delimita limpeza/base; Fase 2 fecha IA CPU; Fase 3 fecha Copilot residual. |
 | MVP-D05 | O catálogo vigente define MVP-001..015. | Requisitos implementados são reaproveitados, sem reimplementação por mudança de plano. |
 | MVP-D06 | Cortes do tópico 2 executados pela Task-R 1, com validação por lote. | Inventariar dependências e compatibilidade antes de remover; Console/aggregate e proteções permanecem. |

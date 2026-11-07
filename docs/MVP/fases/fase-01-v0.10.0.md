@@ -2,6 +2,10 @@
 
 **Situação:** em execução pela Task-R 1; nenhuma release ou homologação completa declarada. **Requisitos:** MVP-001..011.
 
+## Execução por tarefas
+
+[Índice e tarefas da fase](../../../tasks/fase-01-v0.10.0/README.md). Os checklists das tarefas acompanham execução; os requisitos e seu estado continuam no catálogo oficial. Evidências históricas não constituem nova execução.
+
 ## Objetivo e dependências
 
 Inventariar caminhos a remover e dependências compartilhadas; implementar cortes aprovados com compatibilidade e correções da base, sem adiar IA CPU por revisão ilimitada.

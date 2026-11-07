@@ -2,6 +2,10 @@
 
 **Situação:** planejada no novo plano; nenhuma execução ou release declarada por este documento. **Requisitos:** MVP-008, MVP-011..013.
 
+## Execução por tarefas
+
+[Índice e tarefas da fase](../../../tasks/fase-02-v0.11.0/README.md). Os checklists das tarefas acompanham execução; os requisitos e seu estado continuam no catálogo oficial. Evidências históricas não constituem nova execução.
+
 ## Objetivo e dependências
 
 Concluir autocomplete explícito e ciclo do agente local no runtime vigente com pacote CPU real.

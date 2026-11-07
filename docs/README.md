@@ -38,6 +38,8 @@ A [Task-R 1](../tasks/Task-R%201%20-%20Limpeza%20e%20remoção%20de%20código.md
 | 03 | v0.12.0 | GitHub Copilot e critérios residuais |
 | 04 | v0.13.0 | Instalação, atualização e recuperação |
 | 05 | v0.14.0 | Polimento e homologação |
-| 06 | v1.0.0 | Aceite estável do MVP |
+| 06 | v0.15.0 | Aceite final do MVP |
 
-As versões são alvos documentais; não renumeram tags, binários, pacotes ou evidências. A existência destes documentos não conclui uma fase. Claude, Codex, APIs externas e MCP externo permanecem em Melhorias, com implementações/composição/disponibilidade preservadas, sem criar autenticação paralela.
+As versões são alvos documentais; não renumeram tags, binários, pacotes ou evidências. O plano aprovado em 06/11/2026 fecha o MVP em v0.15.0; v1.0.0 fica fora deste plano. A existência destes documentos não conclui uma fase. Claude, Codex, APIs externas e MCP externo permanecem em Melhorias, com implementações/composição/disponibilidade preservadas, sem criar autenticação paralela.
+
+O [índice de tarefas](../tasks/README.md) organiza uma pasta por fase e múltiplas tarefas executáveis, com dependências, critérios e registro de evidências. Contratos e estado dos requisitos continuam oficiais nesta árvore; tarefas acompanham execução.

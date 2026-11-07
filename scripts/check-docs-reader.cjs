@@ -11,7 +11,7 @@ function collect(directory) {
     return entry.isDirectory() ? collect(full) : entry.name.endsWith('.md') ? [full] : [];
   });
 }
-const files = new Set([...tracked.filter(file => file.endsWith('.md')).map(file => path.join(root, file)).filter(file => fs.existsSync(file)), ...collect(path.join(root, 'docs'))]);
+const files = new Set([...tracked.filter(file => file.endsWith('.md')).map(file => path.join(root, file)).filter(file => fs.existsSync(file)), ...collect(path.join(root, 'docs')), ...collect(path.join(root, 'tasks'))]);
 const failures = [];
 let links = 0;
 function exactPath(target) {

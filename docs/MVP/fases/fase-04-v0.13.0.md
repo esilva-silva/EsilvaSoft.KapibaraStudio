@@ -2,6 +2,10 @@
 
 **Situação:** planejada no novo plano; nenhuma execução ou release declarada por este documento. **Requisitos:** MVP-011, MVP-015.
 
+## Execução por tarefas
+
+[Índice e tarefas da fase](../../../tasks/fase-04-v0.13.0/README.md). Os checklists das tarefas acompanham execução; os requisitos e seu estado continuam no catálogo oficial. Evidências históricas não constituem nova execução.
+
 ## Objetivo e dependências
 
 Fechar instalar → atualizar → reabrir e recuperação por modo de instalação.

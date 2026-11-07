@@ -2,6 +2,10 @@
 
 **Situação:** planejada no novo plano; nenhuma execução ou release declarada por este documento. **Requisitos:** MVP-011, MVP-014.
 
+## Execução por tarefas
+
+[Índice e tarefas da fase](../../../tasks/fase-03-v0.12.0/README.md). Os checklists das tarefas acompanham execução; os requisitos e seu estado continuam no catálogo oficial. Evidências históricas não constituem nova execução.
+
 ## Objetivo e dependências
 
 Concluir lacunas de conta, conversa, contexto, sessões, tools e experiência com runtime oficial, preservando aceite funcional histórico.

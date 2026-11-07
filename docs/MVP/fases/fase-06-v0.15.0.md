@@ -1,10 +1,14 @@
-# Fase 6 — v1.0.0: Aceite estável
+# Fase 6 — v0.15.0: Aceite final do MVP
 
 **Situação:** planejada no novo plano; nenhuma execução ou release declarada por este documento. **Requisitos:** MVP-001..015.
 
+## Execução por tarefas
+
+[Índice e tarefas da fase](../../../tasks/fase-06-v0.15.0/README.md). Os checklists das tarefas acompanham execução; os requisitos e seu estado continuam no catálogo oficial. Evidências históricas não constituem nova execução.
+
 ## Objetivo e dependências
 
-Preparar liberação estável para uso diário sem adicionar funcionalidades de backlog.
+Preparar aceite final e liberação do MVP para uso diário sem adicionar funcionalidades de backlog. O alvo documental é v0.15.0; v1.0.0 fica fora deste plano, sem alteração automática de tags ou binários existentes.
 
 Dependências: Fases 1–5 com critérios aplicáveis aceitos e evidências vinculadas ao estado final.
 

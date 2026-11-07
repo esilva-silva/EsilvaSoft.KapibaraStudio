@@ -2,6 +2,10 @@
 
 **Situação:** planejada no novo plano; nenhuma execução ou release declarada por este documento. **Requisitos:** MVP-001..015.
 
+## Execução por tarefas
+
+[Índice e tarefas da fase](../../../tasks/fase-05-v0.14.0/README.md). Os checklists das tarefas acompanham execução; os requisitos e seu estado continuam no catálogo oficial. Evidências históricas não constituem nova execução.
+
 ## Objetivo e dependências
 
 Consolidar evidência real Windows/Linux e corrigir defeitos do recorte escolhido.
