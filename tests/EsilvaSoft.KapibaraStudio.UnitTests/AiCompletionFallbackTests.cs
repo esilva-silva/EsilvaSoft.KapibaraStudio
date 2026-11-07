@@ -5,7 +5,7 @@ using EsilvaSoft.KapibaraStudio.LocalAi.Core;
 namespace EsilvaSoft.KapibaraStudio.UnitTests;
 
 /// <summary>
-/// Lote A43: as linhas da <see href="../../docs/auto-complite/ai-autocomplete.md">matriz de fallback</see> que não são
+/// Lote A43: as linhas da <see href="docs/MVP/contratos/ia-local.md">matriz de fallback</see> que não são
 /// recusa direta do serviço de modelo — prazo rígido, contexto que excede a janela, preempção e carga em andamento —,
 /// mais a regra de que todas elas são decididas por motivo tipado e nunca por texto de mensagem.
 /// </summary>

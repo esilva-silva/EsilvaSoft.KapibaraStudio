@@ -1,6 +1,6 @@
 # Corpus de fixtures da Fase 2 — contexto, faixas e ranking
 
-Estado: **executado desde 21/09/2026**. O runner cobre parsing, papéis de contexto, shapes, kinds, aspas, `ReplaceSpan`, tipos BSON e ranking determinístico. As expectativas continuam derivadas da especificação (`docs/auto-complite/*`, `docs/06-editor-bson-e-uuid.md`, `mongodb-language.v1.json`) e do comportamento do MongoDB — nunca de código novo.
+Estado: **executado desde 21/09/2026**. O runner cobre parsing, papéis de contexto, shapes, kinds, aspas, `ReplaceSpan`, tipos BSON e ranking determinístico. As expectativas continuam derivadas da especificação (`docs/MVP/contratos/ia-local.md`, `docs/MVP/05-guia-de-uso.md`, `mongodb-language.v1.json`) e do comportamento do MongoDB — nunca de código novo.
 
 Regras (AGENTS.md):
 

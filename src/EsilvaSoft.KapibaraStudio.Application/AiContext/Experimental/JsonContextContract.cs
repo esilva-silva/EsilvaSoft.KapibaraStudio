@@ -9,7 +9,7 @@ namespace EsilvaSoft.KapibaraStudio.Application.AiContext.Experimental;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>Hipótese.</b> É o formato E de <c>docs/auto-complite/ai-context.md</c>: modelos base recentes viram muito JSON
+/// <b>Hipótese.</b> É o formato E de <c>docs/MVP/contratos/ia-local.md</c>: modelos base recentes viram muito JSON
 /// estruturado (chamadas de ferramenta, schemas, respostas de API) e tendem a tratar um objeto bem formado como dado,
 /// não como prosa a continuar — o que reduz a chance de o modelo "completar o cabeçalho" em vez do código.
 /// </para>

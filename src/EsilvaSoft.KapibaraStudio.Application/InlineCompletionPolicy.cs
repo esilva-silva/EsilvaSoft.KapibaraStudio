@@ -3,7 +3,7 @@ using EsilvaSoft.KapibaraStudio.Core;
 namespace EsilvaSoft.KapibaraStudio.Application;
 
 /// <summary>
-/// Separação entre o autocomplete normal e o autocomplete com IA, conforme <c>docs/auto-complite/configuration.md</c>.
+/// Separação entre o autocomplete normal e o autocomplete com IA, conforme <c>docs/MVP/contratos/ia-local.md</c>.
 /// É a única fonte dessa decisão: nenhum consumidor recombina as flags. O normal (determinístico) mostra o ghost
 /// enquanto o usuário digita e abre a lista com <c>Ctrl+Espaço</c>; a IA nunca participa da digitação e só roda pelo
 /// atalho explícito (<c>Ctrl+;</c>).

@@ -5,13 +5,13 @@ namespace EsilvaSoft.KapibaraStudio.Infrastructure;
 /// <summary>
 /// Composition options of the local agent broker. Everything is off by default: <see cref="Enabled"/> is the explicit
 /// user opt-in and <see cref="Stage"/> the explicitly released catalog stage. Stages beyond
-/// <see cref="AgentToolExposureStage.LiteralQueries"/> are refused until their gates are approved.
+/// <see cref="AgentToolExposureStage.LiteralQueries"/> are refused; legacy stages never restore removed tools.
 /// </summary>
 /// <remarks>
-/// Gate (fase 7, lotes 2/3): <see cref="AgentToolExposureStage.LiteralQueries"/> (<c>mongo_find</c>/<c>mongo_count</c>)
-/// stays a configurable ceiling, not a release. The default remains <see cref="AgentToolExposureStage.None"/>; raising
-/// it is an explicit composition decision that requires the lote 2 gate approved in
-/// <c>docs/phases/phase-07-v0.11.0/17-validacao-da-meta.md</c>. Until then no product composition may set it.
+/// Legacy stage values are retained only for configuration compatibility. They cannot authorize
+/// document queries or MongoDB writes; removed tool names remain UnknownTool at every stage.
+/// The default is <see cref="AgentToolExposureStage.None"/>. The current catalog and authorization
+/// boundaries are defined in <c>docs/MVP/contratos/tools-agentes.md</c>.
 /// </remarks>
 public sealed record AgentBrokerOptions
 {

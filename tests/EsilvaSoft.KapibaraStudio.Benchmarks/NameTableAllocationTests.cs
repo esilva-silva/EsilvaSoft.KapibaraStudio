@@ -1,4 +1,4 @@
-﻿using EsilvaSoft.KapibaraStudio.Autocomplete.Core;
+using EsilvaSoft.KapibaraStudio.Autocomplete.Core;
 using EsilvaSoft.KapibaraStudio.Application;
 using EsilvaSoft.KapibaraStudio.Core;
 using NUnit.Framework;
@@ -6,7 +6,7 @@ using NUnit.Framework;
 namespace EsilvaSoft.KapibaraStudio.Benchmarks;
 
 /// <summary>
-/// Guarda de alocação da busca de nomes. O orçamento de docs/auto-complite/performance.md é de 64 KB por tecla no
+/// Guarda de alocação da busca de nomes. O orçamento de docs/MVP/contratos/ia-local.md é de 64 KB por tecla no
 /// caminho sem IA, e a busca no catálogo é paga a cada tecla: uma regressão aqui não aparece como erro, só como
 /// digitação engasgada. Esta medição é uma ferramenta manual, fora dos gates de CI/release.
 /// </summary>
@@ -67,7 +67,7 @@ public sealed class NameTableAllocationTests
         TestContext.Out.WriteLine($"consulta de catalogo={perQuery} B");
         Assert.That(perQuery, Is.LessThan(64 * 1024));
     }
-    [Test, Explicit("Mede uma violação conhecida de orçamento; ver pendência em docs/auto-complite/performance.md.")]
+    [Test, Explicit("Mede uma violação conhecida de orçamento; ver pendência em docs/MVP/contratos/ia-local.md.")]
     public void FieldQueryOverALargeCollectionExceedsTheBudgetToday()
     {
         // Cenário que o catálogo de linguagem embarcado não cobre: campos vindos da fonte de metadados, onde

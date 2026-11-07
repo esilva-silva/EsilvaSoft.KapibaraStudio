@@ -9,7 +9,7 @@ namespace EsilvaSoft.KapibaraStudio.Application.AiContext.Experimental;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>Hipótese.</b> É o formato B de <c>docs/auto-complite/ai-context.md</c>: um modelo <em>base</em> (não ajustado
+/// <b>Hipótese.</b> É o formato B de <c>docs/MVP/contratos/ia-local.md</c>: um modelo <em>base</em> (não ajustado
 /// ao contrato v1) tende a seguir melhor uma estrutura explícita de seções do que o bloco solto de linhas
 /// <c>CHAVE: valor</c> do v1, porque cabeçalhos <c>#</c>/<c>##</c> e listas <c>-</c> são padrão abundante nos dados
 /// de pré-treino.

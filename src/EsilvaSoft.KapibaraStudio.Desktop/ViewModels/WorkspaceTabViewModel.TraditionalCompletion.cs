@@ -31,7 +31,7 @@ public sealed partial class WorkspaceTabViewModel
     public IReadOnlyDictionary<string, IReadOnlyList<EditorKeyGesture>> Shortcuts { get; set; } = EditorKeyBindings.Resolve(null);
     /// <summary>
     /// First effective gesture bound to <paramref name="commandId"/>, written the way the shortcut table of
-    /// <c>docs/17-design-system-ui-ux.md</c> writes it ("Ctrl+Espaço", "↑", "Esc"); empty when unbound. The canonical
+    /// <c>docs/MVP/04-design-system.md</c> writes it ("Ctrl+Espaço", "↑", "Esc"); empty when unbound. The canonical
     /// <see cref="EditorKeyGesture.ToString"/> is the persistence format and stays untouched: only this display
     /// projection is localized, so a rebind still shows the gesture that actually works.
     /// </summary>

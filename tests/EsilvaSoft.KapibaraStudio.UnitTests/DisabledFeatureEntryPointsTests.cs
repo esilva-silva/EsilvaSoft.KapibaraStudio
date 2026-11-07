@@ -10,7 +10,7 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests;
 
 /// <summary>
 /// Funcionalidades fora da fase atual continuam implementadas, mas sem entrada na interface.
-/// Ver docs/backlog/bkl-01 a bkl-04 e docs/phases/phase-02-v0.6.0.
+/// Ver docs/Remover/inventario-tecnico.mdbkl-01 a bkl-04 e docs/MVP/02-requisitos-e-estado.mdphase-02-v0.6.0.
 /// </summary>
 [TestFixture, NonParallelizable]
 public sealed class DisabledFeatureEntryPointsTests

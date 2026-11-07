@@ -11,10 +11,10 @@ Criar este arquivo não executa a limpeza. Ao executar a tarefa, entregar altera
 ## Referências obrigatórias
 
 - [Regras do repositório](../AGENTS.md).
-- [Escopo de remoção](../docs-new/Remover/README.md), [inventário técnico e fontes](../docs-new/Remover/inventario-tecnico.md) e [TODOs L1–L5](../docs-new/Remover/TODO.md).
-- [Fase 01 — v0.10.0](../docs-new/MVP/fases/fase-01-v0.10.0.md), entregas F01-E01 a F01-E04.
-- [Requisitos mantidos](../docs-new/MVP/02-requisitos-e-estado.md), [arquitetura e invariantes](../docs-new/MVP/03-arquitetura-e-invariantes.md), [design system](../docs-new/MVP/04-design-system.md) e [validação](../docs-new/MVP/06-validacao-e-evidencias.md).
-- [Melhorias adiadas](../docs-new/Melhorias/conceitos.md): adiamento não autoriza exclusão de capacidades existentes.
+- [Escopo de remoção](../docs/Remover/README.md), [inventário técnico e fontes](../docs/Remover/inventario-tecnico.md) e [TODOs L1–L5](../docs/Remover/TODO.md).
+- [Fase 01 — v0.10.0](../docs/MVP/fases/fase-01-v0.10.0.md), entregas F01-E01 a F01-E04.
+- [Requisitos mantidos](../docs/MVP/02-requisitos-e-estado.md), [arquitetura e invariantes](../docs/MVP/03-arquitetura-e-invariantes.md), [design system](../docs/MVP/04-design-system.md) e [validação](../docs/MVP/06-validacao-e-evidencias.md).
+- [Melhorias adiadas](../docs/Melhorias/conceitos.md): adiamento não autoriza exclusão de capacidades existentes.
 
 O inventário é a base de navegação no código. Revalidar seus caminhos e consumidores no checkout da execução; não excluir arquivos por nome, pasta ou referência histórica isolada.
 
@@ -77,7 +77,7 @@ Executar L1 → L2 → L3 → L4 → L5. Os IDs abaixo referenciam o TODO oficia
 
 - [x] Registrar os cortes documentais das metas sem implementação e eventuais componentes parciais encontrados, sem remover configurações/providers preservados.
 - [x] Buscar referências residuais em código, DI, UI, localização, projetos e pacotes; remover apenas as exclusivas comprovadas. Não remover pacotes compartilhados nem alterar lockfiles manualmente para ocultar problemas.
-- [x] Atualizar requisitos, decisões, guia, design system e fase em docs-new conforme o comportamento entregue. Preservar cronologia/evidências em docs; regenerar o índice histórico somente se seus documentos mudarem.
+- [x] Atualizar requisitos, decisões, guia, design system e fase em docs conforme o comportamento entregue. Preservar datas/limites das evidências e verificar os links Markdown. O leitor HTML anterior foi retirado na consolidação posterior.
 - [x] Concluir a validação aplicável e registrar explicitamente os ambientes/cenários ainda não homologados.
 
 ## Validação obrigatória da implementação
@@ -115,4 +115,4 @@ Registrar evidências por lote com commit/snapshot, ambiente, procedimento, espe
 
 ## Resultado da execução
 
-Lotes executados na ordem com Sol, Terra e Luna. Resultado, comandos, contagens e limitações em [TODO oficial](../docs-new/Remover/TODO.md). Suíte completa: 5.268 aprovados, zero falhas, 40 ignorados; builds solução/KapiLab aprovados. Sem release, alteração de versão/tag ou remoção de providers preservados. A conclusão de implementação desta tarefa não conclui a homologação da fase 01 (F01-E04).
+Lotes executados na ordem com Sol, Terra e Luna. Resultado, comandos, contagens e limitações em [TODO oficial](../docs/Remover/TODO.md). Suíte completa: 5.268 aprovados, zero falhas, 40 ignorados; builds solução/KapiLab aprovados. Sem release, alteração de versão/tag ou remoção de providers preservados. A conclusão de implementação desta tarefa não conclui a homologação da fase 01 (F01-E04).

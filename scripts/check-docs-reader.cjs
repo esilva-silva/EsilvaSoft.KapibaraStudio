@@ -1,44 +1,53 @@
-// Browser smoke checks: node scripts/check-docs-reader.cjs <playwright module path>
-const { chromium } = require(process.argv[2] || 'playwright');
-const { pathToFileURL } = require('node:url');
+// Legacy command name retained for Markdown documentation link validation.
+// The historical HTML reader was removed when documentation was consolidated.
+const fs = require('node:fs');
 const path = require('node:path');
-const assert = require('node:assert/strict');
-(async () => {
-  const browser = await chromium.launch({ headless: true, channel: 'msedge' });
-  const page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
-  await page.emulateMedia({ colorScheme: 'dark' });
-  const errors = [];
-  page.on('pageerror', error => errors.push(error.message));
-  await page.goto(pathToFileURL(path.resolve('docs/index.html')).href);
-  await page.waitForSelector('#viewer-body h1');
-  assert.equal(await page.locator('.card').count(), 84);
-  await page.locator('[data-file="03-catalogo-funcional.md"]').click();
-  await page.waitForSelector('#viewer-body table');
-  assert.ok(await page.locator('#viewer-body th').count() > 0);
-  await page.screenshot({ path: 'docs-reader-dark.png' });
-  await page.emulateMedia({ colorScheme: 'light' });
-  await page.screenshot({ path: 'docs-reader-light.png' });
-  await page.locator('[data-file="17-design-system-ui-ux.md"]').click();
-  await page.waitForSelector('#viewer-body pre');
-  assert.equal(await page.locator('pre p, pre h2').count(), 0);
-  assert.ok((await page.locator('pre').first().textContent()).includes('Conexões'));
-  await page.locator('#search').fill('design');
-  assert.equal(await page.locator('[aria-current="page"]').count(), 1);
-  await page.locator('#search').fill('');
-  // Documentos reorganizados em pastas: o caminho com barra precisa abrir e categorizar corretamente.
-  await page.locator('[data-file="phases/phase-02-v0.6.0/README.md"]').click();
-  await page.waitForFunction(() => document.querySelector('#viewer-body h1')?.textContent.includes('Fase 2'));
-  assert.equal(await page.locator('[data-file="phases/phase-02-v0.6.0/README.md"] .tag').textContent(), 'Fases');
-  assert.equal(await page.locator('[data-file="backlog/bkl-04-modo-aggregation.md"] .tag').textContent(), 'Backlog');
-  assert.equal(await page.locator('[data-file="done/release_v0.5.0/README.md"] .tag').textContent(), 'Releases concluídas');
-  await page.locator('[data-file="README.md"]').click();
-  await page.waitForFunction(() => document.querySelector('#viewer-body h1')?.textContent.includes('Documentação'));
-  await page.locator('#viewer-body a[href$="03-catalogo-funcional.md"]').first().click();
-  await page.waitForSelector('#viewer-body table');
-  assert.ok(page.url().includes('03-catalogo-funcional.md'));
-  await page.setViewportSize({ width: 390, height: 844 });
-  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
-  assert.deepEqual(errors, []);
-  await browser.close();
-  console.log('PASS: local reading, 84 entries, tables, code, selection, internal links, phase/backlog/done folders, narrow layout; no JS errors.');
-})().catch(error => { console.error(error); process.exitCode = 1; });
+const { execFileSync } = require('node:child_process');
+const root = path.resolve(__dirname, '..');
+const tracked = execFileSync('git', ['ls-files', '-z'], { cwd: root, encoding: 'utf8' }).split('\0').filter(Boolean);
+function collect(directory) {
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
+    const full = path.join(directory, entry.name);
+    return entry.isDirectory() ? collect(full) : entry.name.endsWith('.md') ? [full] : [];
+  });
+}
+const files = new Set([...tracked.filter(file => file.endsWith('.md')).map(file => path.join(root, file)).filter(file => fs.existsSync(file)), ...collect(path.join(root, 'docs'))]);
+const failures = [];
+let links = 0;
+function exactPath(target) {
+  const relative = path.relative(root, target);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) return false;
+  let directory = root;
+  for (const segment of relative.split(path.sep).filter(Boolean)) {
+    if (!fs.existsSync(directory) || !fs.statSync(directory).isDirectory() || !fs.readdirSync(directory).includes(segment)) return false;
+    directory = path.join(directory, segment);
+  }
+  return fs.existsSync(target);
+}
+function anchors(text) {
+  const counts = new Map();
+  return new Set([...text.matchAll(/^#{1,6}\s+(.+)$/gm)].map(match => {
+    const slug = match[1].trim().toLowerCase().replace(/<[^>]+>/g, '').replace(/[^\p{L}\p{N}\s_-]/gu, '').replace(/\s/g, '-');
+    const count = counts.get(slug) || 0;
+    counts.set(slug, count + 1);
+    return count ? `${slug}-${count}` : slug;
+  }));
+}
+for (const file of files) {
+  const source = fs.readFileSync(file, 'utf8').replace(/^(```|~~~)[\s\S]*?^\1[^\n]*$/gm, '');
+  for (const match of source.matchAll(/!?\[[^\]\n]*\]\(([^\n]+?)\)/g)) {
+    const reference = match[1].replace(/^<(.+)>$/, '$1');
+    if (/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(reference)) continue;
+    const [encoded, fragment] = reference.split('#');
+    const target = encoded ? path.resolve(path.dirname(file), decodeURIComponent(encoded)) : file;
+    links++;
+    let error;
+    if (!exactPath(target)) error = `destino ausente ou caixa incorreta: ${reference}`;
+    else if (fragment && target.endsWith('.md') && !anchors(fs.readFileSync(target, 'utf8')).has(decodeURIComponent(fragment))) error = `âncora ausente: ${reference}`;
+    if (error) failures.push(`${path.relative(root, file)}: ${error}`);
+  }
+}
+if (failures.length) {
+  console.error(failures.join('\n'));
+  process.exitCode = 1;
+} else console.log(`PASS: ${files.size} arquivos Markdown, ${links} links locais/âncoras e caixa dos caminhos verificados.`);

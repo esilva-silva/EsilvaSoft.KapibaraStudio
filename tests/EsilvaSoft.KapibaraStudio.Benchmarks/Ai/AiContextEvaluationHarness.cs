@@ -19,7 +19,7 @@ namespace EsilvaSoft.KapibaraStudio.Benchmarks.Ai;
 /// <remarks>
 /// <para>
 /// <b>O que este harness decide: nada.</b> Ele produz números comparáveis; a escolha do formato de contexto padrão é
-/// A34c, com modelos reais, e fica registrada em <c>docs/auto-complite/decisions.md</c>.
+/// A34c, com modelos reais, e fica registrada em <c>docs/MVP/09-baseline-de-validacao.md</c>.
 /// </para>
 /// <para>
 /// <b>Como o tempo é medido.</b> <see cref="Stopwatch.GetTimestamp"/> em volta de cada fase, isoladamente, com

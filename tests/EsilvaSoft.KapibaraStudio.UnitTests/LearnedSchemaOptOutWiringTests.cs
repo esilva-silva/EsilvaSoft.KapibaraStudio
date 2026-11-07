@@ -11,7 +11,7 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests;
 /// Closes the two real gaps found by the schema-learning integration batch: nobody called
 /// <see cref="ILearnedSchemaOptOut.ApplyPreferences"/>/<see cref="ILearnedSchemaOptOut.SetServingExcluded"/>, and
 /// <see cref="LearnedSchemaCatalogSource"/>'s in-memory LRU did not forget an excluded profile within the same
-/// instance. See DEC-L15-OPTOUT-WIRING in docs/auto-complite/decisions.md.
+/// instance. See DEC-L15-OPTOUT-WIRING in docs/MVP/09-baseline-de-validacao.md.
 /// </summary>
 [TestFixture]
 public sealed class LearnedSchemaOptOutWiringTests

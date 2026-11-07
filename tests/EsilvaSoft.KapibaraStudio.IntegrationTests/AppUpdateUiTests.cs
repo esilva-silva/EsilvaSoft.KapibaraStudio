@@ -166,7 +166,7 @@ public sealed class AppUpdateUiTests
         var buttons = window.GetVisualDescendants().OfType<Button>().ToArray();
         var save = buttons.Single(b => AutomationProperties.GetName(b) == "Salvar");
         var more = buttons.Single(b => AutomationProperties.GetName(b) == "Mais ações");
-        // Ferramentas e Ambientes saíram da barra: docs/backlog/bkl-01 e bkl-02.
+        // Ferramentas e Ambientes saíram da barra: docs/Remover/inventario-tecnico.mdbkl-01 e bkl-02.
         Assert.That(buttons.Any(b => AutomationProperties.GetName(b) == "Ferramentas"), Is.False);
         Assert.That(buttons.Any(b => Equals(b.Content, "Ambientes")), Is.False);
         foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })

@@ -24,7 +24,7 @@ for (const file of fs.readdirSync(path.join(root, 'agents')).filter(file => file
     `<!-- Gerado por scripts/sync-claude-agents.cjs; edite o contrato canônico. -->\n\n` +
     `Leia integralmente \`AGENTS.md\`, as instruções locais aplicáveis e \`agents/${file}\` antes de agir.\n` +
     `Na Fase 7, leia também \`agents/phase-7-protocol.md\` e a tarefa/lote em\n` +
-    `\`docs/phases/phase-07-v0.11.0/20-agentes-e-execucao.md\`.\n\n` +
+    `\`docs/Melhorias/conceitos.md\`.\n\n` +
     `Trabalhe somente no recorte e arquivos atribuídos. Não presuma contexto da conversa principal.\n` +
     `Se faltar contrato, dependência ou ferramenta, devolva a pendência ao coordenador.\n` +
     `Respeite as permissões da sessão; não amplie o escopo nem delegue recursivamente.\n` +

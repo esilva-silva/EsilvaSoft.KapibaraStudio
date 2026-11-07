@@ -6,7 +6,7 @@ namespace EsilvaSoft.KapibaraStudio.Benchmarks.SchemaLearning;
 /// <summary>
 /// Prova que o gerador sintético produz exatamente a forma que os benchmarks afirmam medir: se o documento "grande"
 /// não tivesse profundidade 12 nem chegasse perto dos 10 000 nós, ou se o "que estoura" não estourasse, os números
-/// publicados em <c>docs/auto-complite/performance.md</c> descreveriam outro cenário.
+/// publicados em <c>docs/MVP/contratos/ia-local.md</c> descreveriam outro cenário.
 /// </summary>
 [TestFixture]
 public sealed class SyntheticLearningWorkloadTests
