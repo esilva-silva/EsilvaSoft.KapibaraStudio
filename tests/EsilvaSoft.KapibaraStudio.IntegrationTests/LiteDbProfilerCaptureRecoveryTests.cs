@@ -61,6 +61,38 @@ public sealed class LiteDbProfilerCaptureRecoveryTests
             .FindById(ticket.Id.ToString("N"))["json"].AsString, Does.Contain("99"));
     }
 
+    [Test]
+    public async Task CorruptTicketRemainsIntactAndCanBeRecoveredAfterRepair()
+    {
+        using var fixture = new Workspace();
+        var ticket = Ticket();
+        using (var owner = new LiteDbConnectionProfileRepository(fixture.Path))
+            await ((IProfilerCaptureRepository)owner).CreateAsync(ticket);
+        string original;
+        const string corrupt = "{\"Version\":1,broken";
+        using (var raw = fixture.OpenOffline())
+        {
+            var collection = raw.GetCollection("profilerCaptureRecoveryV1");
+            var document = collection.FindById(ticket.Id.ToString("N"));
+            original = document["json"].AsString;
+            document["json"] = corrupt;
+            collection.Update(document);
+        }
+        using (var reopened = new LiteDbConnectionProfileRepository(fixture.Path))
+            Assert.That(async () => await ((IProfilerCaptureRepository)reopened).GetPendingAsync(), Throws.TypeOf<InvalidDataException>());
+        using (var raw = fixture.OpenOffline())
+        {
+            var collection = raw.GetCollection("profilerCaptureRecoveryV1");
+            var document = collection.FindById(ticket.Id.ToString("N"));
+            Assert.That(document["json"].AsString, Is.EqualTo(corrupt));
+            // Simulate explicit repair from a known-good backup, never a product fallback to empty.
+            document["json"] = original;
+            collection.Update(document);
+        }
+        using var recovered = new LiteDbConnectionProfileRepository(fixture.Path);
+        Assert.That(await ((IProfilerCaptureRepository)recovered).GetPendingAsync(), Is.EqualTo(new[] { ticket }));
+    }
+
     private static ProfilerCaptureTicket Ticket()
     {
         var now = DateTimeOffset.UtcNow;

@@ -38,38 +38,10 @@ public interface IMongoWorkspaceService
 
     Task<string> GetProfilerStatusAsync(ConnectionProfile profile, string database, CancellationToken cancellationToken = default);
 
-    Task<ProfilerConfigurationResult> ConfigureProfilerAsync(ConnectionProfile profile, ProfilerConfigurationRequest request, CancellationToken cancellationToken = default) =>
+    // Compatibility only: restore the previous settings recorded in a recovery ticket.
+    Task<ProfilerConfigurationResult> RestoreProfilerSettingsAsync(ConnectionProfile profile, ProfilerCaptureTicket ticket, string confirmationDatabase, string expectedStatusJson, string expectedTopologyJson, CancellationToken cancellationToken = default) =>
         throw new NotSupportedException("Configuração do profiler indisponível neste adaptador.");
 
-    Task<ProfilerCapturePage> ReadProfilerCaptureAsync(ConnectionProfile profile, string database,
-        DateTimeOffset fromUtc, DateTimeOffset throughUtc, CancellationToken cancellationToken = default) =>
-        throw new NotSupportedException("Coleta do profiler indisponível neste adaptador.");
-
-    Task KillOperationAsync(ConnectionProfile profile, OperationKillRequest request, CancellationToken cancellationToken = default);
-
-    Task<string> ValidateCollectionIntegrityAsync(ConnectionProfile profile, CollectionIntegrityCheckRequest request, CancellationToken cancellationToken = default);
-
-    Task<string> CompactCollectionAsync(ConnectionProfile profile, CollectionCompactRequest request, CancellationToken cancellationToken = default);
-
-    Task<string> GetUsersAsync(ConnectionProfile profile, CancellationToken cancellationToken = default);
-
-    Task<string?> GetUserRolesAsync(ConnectionProfile profile, string database, string username, CancellationToken cancellationToken = default);
-
-    Task CreateUserAsync(ConnectionProfile profile, DatabaseUserCreateRequest request, CancellationToken cancellationToken = default);
-
-    Task DropUserAsync(ConnectionProfile profile, DatabaseUserDropRequest request, CancellationToken cancellationToken = default);
-
-    Task UpdateUserRolesAsync(ConnectionProfile profile, DatabaseUserRoleRequest request, CancellationToken cancellationToken = default);
-
-    Task<string> GetRolesAsync(ConnectionProfile profile, CancellationToken cancellationToken = default);
-
-    Task<int> GetRuntimeServerParameterAsync(ConnectionProfile profile, string parameterName, CancellationToken cancellationToken = default);
-
-    Task<RuntimeServerParameterMutationResult> SetRuntimeServerParameterAsync(ConnectionProfile profile, RuntimeServerParameterRequest request, CancellationToken cancellationToken = default);
-
-    Task<string> GetCustomRoleDefinitionAsync(ConnectionProfile profile, string database, string roleName, CancellationToken cancellationToken = default);
-
-    Task<DatabaseRoleMutationResult> MutateCustomRoleAsync(ConnectionProfile profile, DatabaseRoleMutationRequest request, CancellationToken cancellationToken = default);
 
     Task<string> GetDatabaseStatsAsync(ConnectionProfile profile, string database, CancellationToken cancellationToken = default);
 

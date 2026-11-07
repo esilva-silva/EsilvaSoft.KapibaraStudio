@@ -11,26 +11,6 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests;
 [TestFixture]
 public sealed class AutocompleteReliabilityTests
 {
-    private sealed class Clock : TimeProvider
-    {
-        public DateTimeOffset Now { get; set; } = DateTimeOffset.UtcNow;
-        public override DateTimeOffset GetUtcNow() => Now;
-    }
-
-    [Test]
-    public async Task CacheExpiresAndChangingSuffixRegenerates()
-    {
-        var clock = new Clock(); var runtime = new CompletionRuntimeFake();
-        await using var ai = new AiAutocompleteProvider(new CompletionCatalogFake(), () => runtime, timeProvider: clock);
-        var service = new AutocompleteService(ai, timeProvider: clock);
-        var request = new AutocompleteRequest("db.", ";");
-        await service.GetCompletionAsync(request);
-        await service.GetCompletionAsync(request with { Suffix = ";\n}" });
-        clock.Now = clock.Now.AddSeconds(31);
-        await service.GetCompletionAsync(request);
-        Assert.That(runtime.Generations, Is.EqualTo(3));
-    }
-
     [Test]
     public async Task InferencesAreSerializedAndCanceledQueueDoesNotRun()
     {
@@ -44,12 +24,11 @@ public sealed class AutocompleteReliabilityTests
             return new("find({})", 4, TimeSpan.Zero, "cpu");
         }};
         await using var ai = new AiAutocompleteProvider(new CompletionCatalogFake(), () => runtime);
-        var service = new AutocompleteService(ai);
-        var first = service.GetCompletionAsync(new("db.", "1"));
+        var first = ai.GetCompletionAsync(new("db.", "1"), new());
         await entered.Task.WaitAsync(TimeSpan.FromSeconds(3));
         using var cancellation = new CancellationTokenSource();
-        var obsolete = service.GetCompletionAsync(new("db.", "2"), cancellation.Token);
-        var latest = service.GetCompletionAsync(new("db.", "3"));
+        var obsolete = ai.GetCompletionAsync(new("db.", "2"), new(), cancellationToken: cancellation.Token);
+        var latest = ai.GetCompletionAsync(new("db.", "3"), new());
         cancellation.Cancel(); release.SetResult();
         await first; await latest;
         Assert.That(async () => await obsolete, Throws.InstanceOf<OperationCanceledException>());
@@ -97,7 +76,7 @@ public sealed class AutocompleteReliabilityTests
         ModelGenerationRequest? received = null;
         var runtime = new CompletionRuntimeFake { Handler = (request, _) => { received = request; return Task.FromResult(new ModelGenerationResult("x", 1, TimeSpan.Zero, "cpu")); } };
         await using var ai = new AiAutocompleteProvider(new CompletionCatalogFake(), () => runtime);
-        await new AutocompleteService(ai).GetCompletionAsync(new(new string('a', 100000) + "cursor", "suffix" + new string('b', 100000)));
+        await ai.GetCompletionAsync(new AutocompleteRequest(new string('a', 100000) + "cursor", "suffix" + new string('b', 100000)).Bounded(), new());
         Assert.That(received!.Prefix, Has.Length.EqualTo(AutocompleteRequest.MaximumContextCharacters).And.EndsWith("cursor"));
         Assert.That(received.Suffix, Has.Length.EqualTo(AutocompleteRequest.MaximumContextCharacters).And.StartsWith("suffix"));
     }

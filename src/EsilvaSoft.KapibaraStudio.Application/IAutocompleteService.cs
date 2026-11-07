@@ -5,18 +5,15 @@ using EsilvaSoft.KapibaraStudio.Core;
 namespace EsilvaSoft.KapibaraStudio.Application;
 
 /// <summary>
-/// Origens que um pedido de completar pode usar, e se ele pode carregar modelo. A precedência das opções é decidida
-/// uma única vez por <see cref="InlineCompletionPolicy"/> e apenas transportada daqui para baixo: nenhum consumidor
-/// recombina as flags de configuração, e nenhuma origem desligada reaparece por um atalho interno.
+/// Política do autocomplete determinístico. Somente Dictionary é reconhecido pelo serviço do editor.
+/// Ai e MayLoadModel permanecem no contrato para compatibilidade de chamadores antigos, mas nunca autorizam inferência.
 /// </summary>
-/// <param name="Dictionary">Dicionário lexical local (<c>UseDictionary</c>) pode responder.</param>
-/// <param name="Ai">Inferência de IA local pode responder.</param>
-/// <param name="MayLoadModel">
-/// Falso é a política LoadedOnly: o pedido usa apenas um modelo já carregado e nunca inicia carga nem troca.
-/// </param>
+/// <param name="Dictionary">Dicionário lexical local pode responder.</param>
+/// <param name="Ai">Legado ignorado pelo serviço do editor.</param>
+/// <param name="MayLoadModel">Legado ignorado: completar no editor nunca carrega modelo.</param>
 public readonly record struct CompletionSourcePolicy(bool Dictionary, bool Ai, bool MayLoadModel)
 {
-    /// <summary>Pedido explícito, sem restrição: dicionário, IA e carga sob demanda.</summary>
+    /// <summary>Política legada irrestrita; o serviço atual usa somente o dicionário.</summary>
     public static CompletionSourcePolicy All { get; } = new(true, true, true);
 
     /// <summary>Nenhuma origem habilitada: não há o que pedir.</summary>

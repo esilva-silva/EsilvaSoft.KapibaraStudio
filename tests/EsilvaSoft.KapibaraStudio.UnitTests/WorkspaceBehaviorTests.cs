@@ -115,63 +115,6 @@ public sealed class WorkspaceBehaviorTests
     }
 
     [Test]
-    public async Task FailedSelectionNeverFallsBackToExecutingWholeScript()
-    {
-        using var context = new WorkspaceTestContext();
-        var tab = MakeTab(context, "A");
-        var run = tab.ExecuteCommand.ExecuteAsync("invalid partial }");
-        context.Scripts.Calls[0].Completion.SetException(new InvalidOperationException("syntax error"));
-        await run;
-        Assert.That(context.Scripts.Calls, Has.Count.EqualTo(1));
-        Assert.That(context.Scripts.Calls[0].Script, Is.EqualTo("invalid partial }"));
-        Assert.That(tab.Errors, Is.EqualTo("Operação não concluída: syntax error"));
-    }
-
-    [Test]
-    public async Task TabsKeepDestinationAndResultsWhenCompletionsArriveOutOfOrder()
-    {
-        using var context = new WorkspaceTestContext();
-        var a = MakeTab(context, "A"); var b = MakeTab(context, "B");
-        var first = a.ExecuteCommand.ExecuteAsync(null); var second = b.ExecuteCommand.ExecuteAsync("slop.results.emit({ b: 2 });");
-        a.Database = "edited-after-start";
-        context.Scripts.Calls[1].Completion.SetResult(new(0, ["{\"b\":2}"], "B", "", TimeSpan.FromMilliseconds(5)));
-        await second;
-        Assert.Multiple(() =>
-        {
-            Assert.That(a.IsRunning, Is.True);
-            Assert.That(b.Results, Does.Contain("\"b\": 2"));
-            Assert.That(context.Scripts.Calls[0].Database, Is.EqualTo("A"));
-            Assert.That(context.Scripts.Calls[1].Script, Is.EqualTo("slop.results.emit({ b: 2 });"));
-        });
-        context.Scripts.Calls[0].Completion.SetResult(new(0, ["{\"a\":1}"], "A", "", TimeSpan.FromMilliseconds(20)));
-        await first;
-        Assert.That(a.Results, Does.Contain("\"a\": 1"));
-        Assert.That(b.Results, Does.Not.Contain("\"a\": 1"));
-    }
-
-    [Test]
-    public async Task CancelOnlyAffectsItsOwnTabAndReportsUncertainEffects()
-    {
-        using var context = new WorkspaceTestContext();
-        var a = MakeTab(context, "A"); var b = MakeTab(context, "B");
-        var first = a.ExecuteCommand.ExecuteAsync(null); var second = b.ExecuteCommand.ExecuteAsync(null);
-        a.CancelCommand.Execute(null); await first;
-        Assert.That(a.Messages, Does.Contain("incerto"));
-        Assert.That(b.IsRunning, Is.True);
-        b.CancelCommand.Execute(null); await second;
-    }
-
-    [Test]
-    public void ReadOnlyAndDisconnectedScriptsCannotExecute()
-    {
-        using var context = new WorkspaceTestContext();
-        var tab = MakeTab(context, "A"); tab.Profile = tab.Profile! with { IsReadOnly = true };
-        Assert.That(tab.ExecuteCommand.CanExecute(null), Is.False);
-        tab.Profile = tab.Profile with { IsReadOnly = false }; tab.IsConnected = false;
-        Assert.That(tab.ExecuteCommand.CanExecute(null), Is.False);
-    }
-
-    [Test]
     public async Task SessionRestoresOrderTextAndDestinationWithoutConnectingOrResults()
     {
         using var context = new WorkspaceTestContext();
@@ -230,7 +173,6 @@ public sealed class WorkspaceBehaviorTests
         vm.SelectedNode = vm.Roots[0].Children[1];
         Assert.That((second.Profile, second.Database, second.Collection), Is.EqualTo((collection.Profile, collection.Database, collection.Collection)));
         Assert.That(first.Text, Is.EqualTo("// rascunho preservado"));
-        Assert.That(context.Scripts.Calls, Is.Empty);
         await vm.SaveSessionAsync();
         using var restored = new WorkspaceViewModel(context.Workspace, context.Repository);
         await restored.InitializeAsync();
@@ -249,21 +191,7 @@ public sealed class WorkspaceBehaviorTests
         Assert.That(vm.ActiveTab!.Mode, Is.EqualTo("Console"));
         Assert.That(vm.ActiveTab.Text, Does.Contain("db.getCollection("));
         Assert.That(vm.ActiveTab.Text, Is.EqualTo("db.getCollection(\"clientes\").find({}).limit(100)"));
-        Assert.That(context.Scripts.Calls, Is.Empty);
         Assert.That(vm.Roots[0].Children[1].Children[0].Name, Is.EqualTo("Expandir para carregar"));
     }
 
-    [Test]
-    public void MongoshSelectsDatabaseUsingJsonLiteralWithoutChangingAuthenticationUri()
-    {
-        const string database = "tenant\"; throw 123; //";
-        var script = MongoshScriptTemplate.BuildScript("{}", "print(db.getName());", database);
-        var selection = "db = db.getSiblingDB(" + System.Text.Json.JsonSerializer.Serialize(database) + ");";
-        Assert.That(script, Does.Contain(selection));
-        Assert.That(script.IndexOf("db = connect(__slopUri)", StringComparison.Ordinal), Is.LessThan(script.IndexOf(selection, StringComparison.Ordinal)));
-        Assert.That(script.IndexOf(selection, StringComparison.Ordinal), Is.LessThan(script.IndexOf("print(db.getName());", StringComparison.Ordinal)));
-        Assert.That(script, Does.Contain("print(db.getName());"));
-    }
-
-    private static WorkspaceTabViewModel MakeTab(WorkspaceTestContext context, string name) => new(context.Workspace) { Mode = "Script", Profile = ConnectionProfile.Create(name, "mongodb://localhost"), Database = name, Text = "slop.results.emit({ ok: 1 });", IsConnected = true };
 }

@@ -27,7 +27,7 @@ public sealed class MetadataInvalidationTests
             "DropCollectionAsync" => Task.FromException(new InvalidOperationException("falha no servidor")),
             _ => (object)Task.CompletedTask
         };
-        var workspace = new WorkspaceService(context.Repository, context.Repository, context.Repository, context.Repository, context.Repository, mongo, context.Scripts,
+        var workspace = new WorkspaceService(context.Repository, context.Repository, context.Repository, context.Repository, context.Repository, mongo,
             new MemoryTextFiles(), new SessionConnectionSecretStore(), metadataInvalidation: bus);
         var profile = ConnectionProfile.Create("A", "mongodb://host");
 

@@ -19,7 +19,7 @@ public sealed class LocalAgentProviderModelIntegrationTests
         if (string.IsNullOrEmpty(path)) Assert.Ignore("SLOP_QWEN_MODEL não definido: sem modelo real.");
         var models = new LocalAiModelService(new LocalModelCatalog(fileAccess: new LocalModelFileAccess(), workspacePaths: new LocalWorkspacePathResolver()), () => new OnnxLocalModelRuntime(fileAccess: new LocalModelFileAccess()));
         await using var _ = models;
-        var autocomplete = new AutocompleteService(new AiAutocompleteProvider(models));
+        var autocomplete = new AutocompleteService(models);
         await autocomplete.ConfigureAsync(new AutocompleteSettings { ModelPath = path! });
         await using var session = await new LocalAgentProvider(models, autocomplete)
             .CreateSessionAsync(new(LocalAgentProvider.Id), CancellationToken.None);

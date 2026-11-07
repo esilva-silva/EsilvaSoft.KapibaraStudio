@@ -124,9 +124,9 @@ public sealed class LocalAiModelServiceTests
                 new(LocalModelState.Available, "available"))
         };
         await using var provider = new AiAutocompleteProvider(catalog, () => runtime);
-        var autocomplete = new AutocompleteService(provider);
+        var autocomplete = new AutocompleteService(provider.Models);
         await autocomplete.ConfigureAsync(new() { ModelPath = "model" });
-        Assert.That((await autocomplete.GetCompletionAsync(new("db.", "")))?.IsAi, Is.True);
+        Assert.That((await provider.GetCompletionAsync(new("db.", ""), autocomplete.Settings))?.IsAi, Is.True);
         var error = Assert.ThrowsAsync<LocalModelUnavailableException>(() => provider.Models.GenerateAsync(LocalModelRole.Chat,
             autocomplete.Settings, ChatGeneration, AiRequestPriority.Interactive))!;
         Assert.That(error.Message, Does.Contain("FIM only").And.Contain("capacidade chat"));
@@ -147,9 +147,9 @@ public sealed class LocalAiModelServiceTests
             }
         };
         await using var provider = new AiAutocompleteProvider(new CompletionCatalogFake(), () => runtime);
-        var autocomplete = new AutocompleteService(provider);
+        var autocomplete = new AutocompleteService(provider.Models);
         await autocomplete.ConfigureAsync(new() { ModelPath = "model" });
-        var background = autocomplete.GetCompletionAsync(new("db.", ""));
+        var background = provider.GetCompletionAsync(new("db.", ""), autocomplete.Settings);
         await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
         var response = await provider.Models.GenerateAsync(LocalModelRole.Chat, autocomplete.Settings, ChatGeneration,
             AiRequestPriority.Interactive).WaitAsync(TimeSpan.FromSeconds(5));
@@ -294,7 +294,10 @@ public sealed class LocalAiModelServiceTests
         };
         await using var service = new LocalAiModelService(new CompletionCatalogFake(), () => runtime);
         await service.GenerateAsync(LocalModelRole.Autocomplete, new() { SelectedModel = "Qwen" }, Request, AiRequestPriority.Background);
-        var report = await service.TestModelAsync(new() { SelectedModel = "Qwen", Acceleration = AiAccelerationMode.Gpu });
+        var autocomplete = new AutocompleteService(service);
+        await autocomplete.ConfigureAsync(new() { SelectedModel = "Qwen", Acceleration = AiAccelerationMode.Gpu });
+        var report = await autocomplete.RunModelTestAsync();
+        Assert.That(autocomplete.Status, Is.EqualTo(service.Status));
         Assert.That(report.Succeeded, Is.True);
         Assert.That(prompt, Does.Contain("db.Users.find({"));
         Assert.That(runtime.Initializations, Is.EqualTo(2), "The test reloads instead of reusing the previous session.");

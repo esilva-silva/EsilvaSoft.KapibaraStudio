@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using EsilvaSoft.KapibaraStudio.Autocomplete.Core;
@@ -47,6 +47,16 @@ public sealed partial class WorkspaceViewModel
         tab.IsConnected = IsProfileConnected(node.Profile);
         Register(tab); ActiveTab = tab; ScheduleSave();
         return tab;
+    }
+
+    public async Task OpenScriptHistoryAsync(ScriptHistoryEntry entry)
+    {
+        NewTabCommand.Execute(null);
+        var tab = ActiveTab!;
+        await tab.OpenAsync(entry.Path);
+        if (entry.InputJson is not null)
+            tab.Restore(tab.Snapshot() with { Mode = "Script", InputJson = entry.InputJson }, tab.Profile);
+        ScheduleSave();
     }
 
     public void OpenConsoleHistory(ConsoleHistoryEntry entry)

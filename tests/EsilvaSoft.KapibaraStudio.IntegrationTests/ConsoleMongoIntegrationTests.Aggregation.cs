@@ -83,7 +83,7 @@ public sealed partial class ConsoleMongoIntegrationTests
             var secrets = new SessionConnectionSecretStore();
             var runtime = new ConsoleRuntime(repository, repository, secrets, new ConsoleDatabaseSessionFactory(pool), repository, repository);
             var workspace = new WorkspaceService(repository, repository, repository, repository, repository, mongo,
-                new ControlledScripts(), new MemoryTextFiles(), secrets, repository, console: runtime, consoleHistory: repository);
+                new MemoryTextFiles(), secrets, repository, console: runtime, consoleHistory: repository);
             var tab = new WorkspaceTabViewModel(workspace) { Profile = profile, IsConnected = true, Database = "advanced",
                 Text = "throw new Error('conteudo completo nao deve executar');" };
             var selectedPipeline = "db.orders.aggregate(" + pipeline + ")";

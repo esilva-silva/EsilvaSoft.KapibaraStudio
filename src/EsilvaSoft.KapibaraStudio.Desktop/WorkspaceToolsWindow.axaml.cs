@@ -42,45 +42,6 @@ public partial class WorkspaceToolsWindow : Window
         if (item.Parent is TabControl tabs) tabs.SelectedItem = item;
     }
 
-    private async void SelectScriptToOpen(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-        {
-            AllowMultiple = false,
-            Title = LocalizationViewModel.Current.Resolve("openScriptTitle"),
-            FileTypeFilter =
-            [
-                new FilePickerFileType(LocalizationViewModel.Current.Resolve("javascriptFileType")) { Patterns = ["*.js"] },
-                new FilePickerFileType(LocalizationViewModel.Current.Resolve("allFiles")) { Patterns = ["*"] }
-            ]
-        });
-
-        var path = files.Count == 0 ? null : files[0].Path.LocalPath;
-        if (!string.IsNullOrWhiteSpace(path) && DataContext is MainWindowViewModel viewModel)
-        {
-            viewModel.ScriptFilePath = path;
-        }
-    }
-
-    private async void SelectScriptToSave(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
-        {
-            SuggestedFileName = "consulta.js",
-            Title = LocalizationViewModel.Current.Resolve("saveScriptTitle"),
-            FileTypeChoices =
-            [
-                new FilePickerFileType(LocalizationViewModel.Current.Resolve("javascriptFileType")) { Patterns = ["*.js"] }
-            ]
-        });
-
-        var path = file?.Path.LocalPath;
-        if (!string.IsNullOrWhiteSpace(path) && DataContext is MainWindowViewModel viewModel)
-        {
-            viewModel.ScriptFilePath = path;
-        }
-    }
-
     private async void SelectImportDirectory(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions

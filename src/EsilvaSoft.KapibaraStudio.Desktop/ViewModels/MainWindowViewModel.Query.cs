@@ -66,15 +66,6 @@ public sealed partial class MainWindowViewModel
     [ObservableProperty]
     private string _explainResults = T("explainInitial");
 
-    [ObservableProperty]
-    private string _aggregationPipeline = "[\n  { \"$match\": {} },\n  { \"$limit\": 100 }\n]";
-
-    [ObservableProperty]
-    private decimal? _aggregationLimit = 100;
-
-    [ObservableProperty]
-    private string _aggregationResults = T("aggregationInitial");
-
     public bool CanExportQueryResults => _lastQueryDocuments.Count > 0 && !string.IsNullOrWhiteSpace(QueryExportPath);
 
     public bool CanGetDistinctValues => CanExecuteQuery && !string.IsNullOrWhiteSpace(DistinctField);
@@ -245,27 +236,4 @@ public sealed partial class MainWindowViewModel
         });
     }
 
-    [RelayCommand(CanExecute = nameof(CanExecuteQuery))]
-    private async Task ExecuteAggregationAsync()
-    {
-        if (!TryGetCollectionContext(out var profile, out var database, out var collection))
-        {
-            return;
-        }
-
-        await RunAsync(async cancellationToken =>
-        {
-            var query = new AggregationQuery(
-                database,
-                collection,
-                AggregationPipeline,
-                decimal.ToInt32(AggregationLimit ?? 100));
-            var result = await _workspace.AggregateAsync(profile, query, cancellationToken);
-            AggregationResults = result.Documents.Count == 0
-                ? T("pipelineNone")
-                : string.Join(Environment.NewLine + Environment.NewLine, result.Documents);
-            _knownFields.UnionWith(MqlAutocompleteService.InferFieldPaths(result.Documents));
-            StatusMessage = F("pipelineReturned", result.Documents.Count, result.Duration.TotalMilliseconds.ToString("F0", CultureInfo.InvariantCulture)) + (result.IsTruncated ? T("limitReached") : string.Empty);
-        });
-    }
 }

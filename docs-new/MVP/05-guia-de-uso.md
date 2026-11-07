@@ -29,6 +29,8 @@ Ctrl+T cria aba; Ctrl+O abre; Ctrl+S salva; Ctrl+Shift+S salva como; Ctrl+Shift+
 
 Configure retenção de rascunhos conforme privacidade geral e da conexão; Input JSON exige opt-in. Erros de gravação/recuperação devem permanecer visíveis. Não descarte arquivo/sessão ilegível como se estivesse vazio.
 
+Rascunhos antigos de Script/mongosh e Agregação abrem como Texto, com aviso de origem e execução desativada. O conteúdo permanece intacto. Em Opções, copie a entrada JSON recuperada ou controle sua persistência; use “Adaptar texto no Console (sem executar)” somente quando quiser preparar o conteúdo para o Console. Essa ação não converte o pipeline nem executa comandos. Arquivos JavaScript comuns continuam abrindo no Console; arquivos reabertos do histórico com entrada JSON antiga recebem recuperação explícita.
+
 ## Sugestões e agentes
 
 Ctrl+Espaço abre autocomplete determinístico. Tab aceita ghost e Escape descarta. Ctrl+; solicita IA local explicitamente, se habilitada e com pacote compatível; revise antes de aceitar. Sem modelo, edição e autocomplete normal continuam disponíveis.
@@ -76,4 +78,4 @@ Exemplo Extended JSON preserva inteiro longo:
 6. Upsert substitui integralmente o documento com mesmo _id, removendo campos ausentes. Pode deixar escrita parcial; não há rollback. Import em destino populado não oferece checkpoint/reinício nem restauração de definições.
 7. Se aparecer **Revisar importação interrompida**, carregue origem/opções novamente. Reinício elegível revalida fonte/plano e recomeça do documento zero somente com destino vazio; lote incerto não é pulado. Divergência ou destino não vazio exige revisão manual.
 
-Administração pesada pode ainda existir enquanto os cortes não forem implementados; não faz parte da jornada do MVP. Operações humanas suportadas de schema são distintas das tools de agentes, que não amostram documentos.
+Profiler com novas capturas, killOp, validate/compact, parâmetros runtime e gestão de usuários/papéis foram retirados. Diagnóstico necessário às operações cotidianas permanece. Tickets antigos do profiler continuam acessíveis nas ferramentas: selecione o registro e a conexão de origem, confirme o banco e solicite a restauração explicitamente. Abrir a tela não altera o servidor; falhas e conflitos conservam o ticket. Operações humanas suportadas de schema são distintas das tools de agentes, que não amostram documentos.

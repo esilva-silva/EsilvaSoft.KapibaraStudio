@@ -204,7 +204,6 @@ public sealed class AgentChatHostUiTests
             Assert.Multiple(() =>
             {
                 Assert.That(tab.IsRunning, Is.False, "F5/Ctrl+Enter typed in the panel do not run the query.");
-                Assert.That(host.Context.Scripts.Calls, Is.Empty);
                 Assert.That(mongoCalls, Is.Zero, "No MongoDB call was issued by chat keys.");
                 Assert.That(tab.Errors, Is.Empty);
             });

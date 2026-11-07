@@ -1,4 +1,4 @@
-﻿using EsilvaSoft.KapibaraStudio.Application;
+using EsilvaSoft.KapibaraStudio.Application;
 using EsilvaSoft.KapibaraStudio.Autocomplete.Core;
 using EsilvaSoft.KapibaraStudio.Autocomplete.Core.Completion;
 using EsilvaSoft.KapibaraStudio.Autocomplete.Core.Context;
@@ -115,7 +115,7 @@ public sealed partial class WorkspaceTabViewModel
         token.ThrowIfCancellationRequested();
         var profile = Profile;
         var scope = profile is null ? null : new CatalogScope(ConnectionIdentity.From(profile), Database, Collection);
-        var dialect = Mode switch { "Agregação" => EditorDialects.AggregationJson, "Script" => EditorDialects.MongoshScript, _ => EditorDialects.Console };
+        var dialect = EditorDialects.Console;
         var capturedCaret = Math.Clamp(caret, 0, snapshot.Length);
         var requestId = Interlocked.Increment(ref _traditionalCompletionRequestId);
         EditorRequestScope.RequestLease lease;

@@ -32,8 +32,7 @@ public partial class HistoryWindow : Window
     {
         if (DataContext is not WorkspaceTabViewModel { SelectedScriptHistory: not null } tab || Owner is not MainWindow { WorkspaceModel: { } vm }) return;
         var entry = tab.SelectedScriptHistory;
-        vm.NewTabCommand.Execute(null);
-        try { await vm.ActiveTab!.OpenAsync(entry.Path); if (entry.InputJson is not null) vm.ActiveTab.InputJson = entry.InputJson; Close(); }
+        try { await vm.OpenScriptHistoryAsync(entry); Close(); }
         catch (Exception ex) { await Dialogs.ChooseAsync(this, LocalizationViewModel.Current.Resolve("fileUnavailable"), DesktopOperationErrorMessages.Describe(ex), LocalizationViewModel.Current.Resolve("close")); }
     }
     private async void DeleteSaved(object? sender, RoutedEventArgs e)

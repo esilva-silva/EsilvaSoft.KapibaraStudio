@@ -4,9 +4,9 @@ using EsilvaSoft.KapibaraStudio.Core;
 namespace EsilvaSoft.KapibaraStudio.LocalAi.Core;
 
 /// <summary>
-/// Se um pedido de geração pode carregar (ou trocar) o modelo. <see cref="LoadedOnly"/> existe para o caminho
-/// automático: digitar nunca pode iniciar carga, descarregar o modelo de outra funcionalidade nem trocar de
-/// acelerador. O pedido explícito continua podendo carregar sob demanda.
+/// Se um pedido de geração pode carregar (ou trocar) o modelo. Avaliações do laboratório podem exigir
+/// <see cref="LoadedOnly"/> para não alterar o modelo carregado. Digitação não pede geração nem carga;
+/// IA explícita e agente podem carregar sob demanda.
 /// </summary>
 public enum AiModelLoadPolicy : byte
 {

@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using System.Reflection;
+using MongoDB.Bson;
 using EsilvaSoft.KapibaraStudio.Application;
 using EsilvaSoft.KapibaraStudio.Core;
 using EsilvaSoft.KapibaraStudio.Infrastructure;
@@ -185,17 +185,29 @@ public sealed class LocalMongoProfilerCaptureCrashIntegrationTests
         var profile = CreateProfile(profileId, connectionString, databaseName);
         var mongo = CreateWorkspace("worker", profileId.ToString("N"));
         var repository = CreateRepository(workspacePath);
-        var pausingMongo = DispatchProxy.Create<IMongoWorkspaceService, PauseAfterProfilerDispatchProxy>();
-        ((PauseAfterProfilerDispatchProxy)pausingMongo).Inner = mongo;
-        ((PauseAfterProfilerDispatchProxy)pausingMongo).ReadyPath = readyPath;
-        var coordinator = new ProfilerCaptureCoordinator(repository, pausingMongo);
         var beforeJson = await mongo.GetProfilerStatusAsync(profile, databaseName);
         var topologyJson = await mongo.GetTopologyAsync(profile);
         var before = ProfilerSettings.Parse(beforeJson);
-        var request = new ProfilerConfigurationRequest(databaseName, 1, 100, 1m,
-            ProfilerFilterMode.Unset, null, databaseName, beforeJson, topologyJson);
-
-        _ = await coordinator.StartAsync(profile, request, TimeSpan.FromMinutes(1));
+        Assert.That(databaseName, Does.StartWith("f6_profiler_crash_"));
+        Assert.That(Guid.TryParseExact(databaseName["f6_profiler_crash_".Length..], "N", out _), Is.True);
+        Assert.That(before.Level, Is.Zero);
+        Assert.That(before.FilterDigest, Is.Null);
+        Assert.That(ProfilerSettings.IsMongos(topologyJson), Is.False);
+        var now = DateTimeOffset.UtcNow;
+        var ticket = new ProfilerCaptureTicket(ProfilerCaptureTicket.CurrentVersion, Guid.NewGuid(), profile.Id,
+            databaseName, ProfilerCaptureTopology.GetNodeIdentity(topologyJson), now, now.AddMinutes(1), before,
+            new ProfilerSettings(1, 100, 1m, null), ProfilerCaptureState.Prepared).Validate();
+        await repository.CreateAsync(ticket);
+        // Arrange only the GUID-owned synthetic legacy state; the product no longer starts captures.
+        var client = new MongoClient(connectionString);
+        await client.GetDatabase(databaseName).RunCommandAsync<BsonDocument>(new BsonDocument
+        {
+            ["profile"] = 1, ["slowms"] = 100, ["sampleRate"] = 1.0
+        });
+        var applied = ProfilerSettings.Parse(await mongo.GetProfilerStatusAsync(profile, databaseName));
+        Assert.That(applied, Is.EqualTo(ticket.Applied));
+        await File.WriteAllTextAsync(readyPath, profile.Id.ToString("N"), CancellationToken.None);
+        await Task.Delay(Timeout.InfiniteTimeSpan, CancellationToken.None);
         Assert.Fail("O worker deveria permanecer bloqueado depois do dispatch até o processo pai terminá-lo.");
     }
 
@@ -277,26 +289,4 @@ public sealed class LocalMongoProfilerCaptureCrashIntegrationTests
         return true;
     }
 
-    public class PauseAfterProfilerDispatchProxy : DispatchProxy
-    {
-        public IMongoWorkspaceService Inner { get; set; } = null!;
-        public string ReadyPath { get; set; } = string.Empty;
-
-        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
-        {
-            if (targetMethod?.Name != nameof(IMongoWorkspaceService.ConfigureProfilerAsync))
-                return targetMethod!.Invoke(Inner, args);
-            return PauseAfterDispatchAsync((ConnectionProfile)args![0]!,
-                (ProfilerConfigurationRequest)args[1]!, (CancellationToken)args[2]!);
-        }
-
-        private async Task<ProfilerConfigurationResult> PauseAfterDispatchAsync(ConnectionProfile profile,
-            ProfilerConfigurationRequest request, CancellationToken cancellationToken)
-        {
-            var result = await Inner.ConfigureProfilerAsync(profile, request, cancellationToken);
-            await File.WriteAllTextAsync(ReadyPath, profile.Id.ToString("N"), CancellationToken.None);
-            await Task.Delay(Timeout.InfiniteTimeSpan, CancellationToken.None);
-            return result;
-        }
-    }
 }

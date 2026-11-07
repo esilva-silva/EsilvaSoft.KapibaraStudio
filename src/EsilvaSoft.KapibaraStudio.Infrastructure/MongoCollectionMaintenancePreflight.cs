@@ -39,23 +39,6 @@ internal static class MongoCollectionMaintenanceGuard
         return current;
     }
 
-    public static void EnsureCompactSupported(CollectionMaintenancePreflight current, bool force)
-    {
-        using var topology = System.Text.Json.JsonDocument.Parse(current.TopologyJson);
-        var root = topology.RootElement;
-        if (root.TryGetProperty("msg", out var message)
-            && message.ValueKind == System.Text.Json.JsonValueKind.String
-            && string.Equals(message.GetString(), "isdbgrid", StringComparison.Ordinal))
-            throw new NotSupportedException("Compactação não está liberada por mongos neste fluxo; conecte-se diretamente a um mongod compatível.");
-
-        var replicaSet = root.TryGetProperty("setName", out var setName)
-            && setName.ValueKind == System.Text.Json.JsonValueKind.String;
-        var primary = root.TryGetProperty("isWritablePrimary", out var writable)
-            && writable.ValueKind == System.Text.Json.JsonValueKind.True;
-        if (replicaSet && primary && !force)
-            throw new InvalidOperationException("Em primário de replica set, a compactação exige a opção force e confirmação revisada.");
-    }
-
     public static async Task<CollectionMaintenancePreflight> ReadPostflightAsync(
         MongoOperationContext context,
         string database,

@@ -208,7 +208,6 @@ public sealed class MongoTextEditor : TextEditor
         if (DataContext is WorkspaceTabViewModel tab)
         {
             context = tab.CaptureSyntaxContext();
-            if (language == SyntaxLanguage.MongoScript && tab.Mode == "Agregação") language = SyntaxLanguage.Aggregation;
         }
         if (Snapshot is { } last && last.Context.Connection == context.Connection && last.Context.Database == context.Database
             && last.Context.Collection == context.Collection && last.Context.Names.SequenceEqual(context.Names)) context = last.Context;

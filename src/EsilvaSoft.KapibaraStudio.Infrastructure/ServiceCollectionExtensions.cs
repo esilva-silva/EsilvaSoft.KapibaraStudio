@@ -40,11 +40,9 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IAgentBrokerLocalTransport, BrokerLocalTransport>();
         services.TryAddSingleton<ILocalModelFileAccess, LocalModelFileAccess>();
         services.TryAddSingleton<IRemoteModelStorage, RemoteModelStorage>();
-        services.TryAddSingleton<IMongoshScriptProcessRunner, LocalMongoshScriptProcessRunner>();
         services.AddSingleton<MongoClientPool>();
         services.TryAddSingleton<IMongoClientPool>(provider => provider.GetRequiredService<MongoClientPool>());
         services.AddSingleton<IAutocompleteDiagnostics, AutocompleteDiagnostics>();
-        services.AddSingleton<AiAutocompleteProvider>(provider => new(provider.GetRequiredService<ILocalAiModelService>()));
         services.AddSingleton<IAutocompleteService, AutocompleteService>();
         // Provider local: só cria sessão quando há modelo utilizável; sem rede, conta ou fallback externo.
         services.AddSingleton<LocalAgentProvider>();
@@ -120,7 +118,6 @@ public static class ServiceCollectionExtensions
             provider.GetRequiredService<LearnedSchemaCatalogSource>()));
         services.AddSingleton<SchemaLearningService>(provider => provider.GetRequiredService<SchemaLearningHost>().Service);
         services.AddSingleton<IExplorerMetadataService, ExplorerMetadataService>();
-        services.AddSingleton<IScriptExecutionService, MongoshScriptExecutionService>();
         services.AddSingleton<IScriptFileService, LocalScriptFileService>();
         services.AddSingleton<ITextFileService>(services => (ITextFileService)services.GetRequiredService<IScriptFileService>());
         services.AddSingleton<IWorkspaceFileService, LocalWorkspaceFileService>();

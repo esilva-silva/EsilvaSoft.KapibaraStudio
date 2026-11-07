@@ -69,7 +69,7 @@ public sealed partial class WorkspaceTabViewModel
         var names = KnownAutocompleteNames().Concat([Profile?.Name ?? "", Database, Collection]).ToArray();
         var history = ConsoleHistory.Where(entry => entry.ProfileId == Profile?.Id && entry.Database == Database)
             .OrderByDescending(entry => entry.ExecutedAt).Take(3).Select(entry => entry.Script).ToArray();
-        var language = Mode switch { "Agregação" => "json", "Script" => "JavaScript (mongosh)", _ => "Mongo Console JavaScript" };
+        var language = "Mongo Console JavaScript";
         var session = CapturePrefixCacheSession(language);
         return new AutocompleteContextSnapshot(text, clamped, language, InputJson, fields, names, history, FilePath)
         { PrefixCacheSessionKey = session.Key, PrefixCacheSessionLifetime = session.Lifetime };

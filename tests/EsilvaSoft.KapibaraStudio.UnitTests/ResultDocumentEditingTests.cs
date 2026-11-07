@@ -19,14 +19,14 @@ public sealed class ResultDocumentEditingTests
         context.Mongo.Handler = (method, _) => method is "QueryAsync" or "AggregateAsync" ? Page(false, "{\"_id\":1,\"nome\":\"Ana\"}", "{\"nome\":\"Sem identidade\"}") : throw new InvalidOperationException(method);
         var console = ConsoleTab(context, profile, "db.clientes.find({})");
         await console.ExecuteCommand.ExecuteAsync(null);
-        var aggregation = new WorkspaceTabViewModel(context.Workspace) { Mode = "Agregação", Profile = profile, Database = "loja", Collection = "clientes", Text = "[]", IsConnected = true };
+        var aggregation = new WorkspaceTabViewModel(context.Workspace) { Mode = "Console", Profile = profile, Database = "loja", Collection = "clientes", Text = "db.clientes.aggregate([])", IsConnected = true };
         await aggregation.ExecuteCommand.ExecuteAsync(null);
         Assert.Multiple(() =>
         {
             Assert.That(WorkspaceTabViewModel.GetEditAvailability(console.ResultDocuments[0]), Is.EqualTo(new ResultEditAvailability(true, "")));
             Assert.That(WorkspaceTabViewModel.GetEditAvailability(console.ResultDocuments[1]).Reason, Does.StartWith("Documento sem _id"));
             Assert.That(WorkspaceTabViewModel.GetEditAvailability(aggregation.ResultDocuments[0]).Reason, Does.StartWith("Resultado de agregação"));
-            Assert.That(aggregation.ResultTree.First().Name, Is.EqualTo("Agregação"));
+            Assert.That(aggregation.SelectedConsoleResult!.Method, Is.EqualTo("aggregate"));
             Assert.Throws<InvalidOperationException>(() => console.CreateResultDocumentEditor(console.ResultDocuments[1]));
         });
     }

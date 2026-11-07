@@ -51,7 +51,6 @@ public sealed class DatabaseExplorerUiTests
                 window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
                 Assert.That(workspace.Tabs.Count, Is.EqualTo(before + 2));
                 Assert.That(first.Text, Is.EqualTo("// preservar edição"));
-                Assert.That(context.Scripts.Calls, Is.Empty);
                 var count = workspace.Tabs.Count;
                 window.MouseDown(point, MouseButton.Right); window.MouseUp(point, MouseButton.Right);
                 window.MouseDown(point, MouseButton.Right); window.MouseUp(point, MouseButton.Right);
@@ -65,7 +64,6 @@ public sealed class DatabaseExplorerUiTests
                 Assert.That(workspace.Tabs.Count, Is.EqualTo(count + 1), "Another left double click creates another draft of the same collection.");
                 Assert.That(workspace.ActiveTab!.Collection, Is.EqualTo(collection.Collection));
                 Assert.That(first.Text, Is.EqualTo("// preservar edição"));
-                Assert.That(context.Scripts.Calls, Is.Empty);
                 var directory = UiEvidenceDirectory.Current(); Directory.CreateDirectory(directory);
                 foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
                 foreach (var size in new[] { new Size(960, 620), new Size(1366, 768), new Size(1920, 1080) })
@@ -134,7 +132,6 @@ public sealed class DatabaseExplorerUiTests
             Assert.That(find.DataContext, Is.SameAs(collection));
             find.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
             Assert.That(workspace.ActiveTab!.Text, Does.Contain("getCollection(\"clientes\")"));
-            Assert.That(context.Scripts.Calls, Is.Empty);
             // Ferramentas está no menu global Mais ações; atalhos administrativos continuam fora do Explorer.
             foreach (var removed in RemovedToolEntries)
                 Assert.That(cell.ContextMenu.Items.OfType<MenuItem>().Any(m => m.Header as string == removed), Is.False, removed);
@@ -150,6 +147,12 @@ public sealed class DatabaseExplorerUiTests
             Assert.That(toolsModel.SelectedDatabase, Is.EqualTo("loja"));
             Assert.That(toolsModel.SelectedCollection, Is.EqualTo("clientes"));
             var toolsEvidence = UiEvidenceDirectory.Current(); Directory.CreateDirectory(toolsEvidence);
+            var profilerStarted = DateTimeOffset.UtcNow;
+            var profilerTicket = new ProfilerCaptureTicket(ProfilerCaptureTicket.CurrentVersion, Guid.NewGuid(),
+                collection.Profile.Id, "loja", "synthetic-node", profilerStarted, profilerStarted.AddMinutes(10),
+                new ProfilerSettings(0, 100, 1m, null), new ProfilerSettings(1, 50, 0.5m, null), ProfilerCaptureState.Uncertain);
+            toolsModel.PendingProfilerCaptures.Add(profilerTicket);
+            toolsModel.SelectedProfilerCapture = profilerTicket;
             toolsModel.ImportSourceDirectory = Path.Combine(Path.GetTempPath(), "sample-mflix-validation-package");
             toolsModel.ImportUseUpsert = true;
             toolsModel.ImportRestoreDefinitions = true;
@@ -184,7 +187,7 @@ public sealed class DatabaseExplorerUiTests
                          ("Transferir", "tools-database-transfer"),
                          ("Índices", "tools-index-diagnostics"),
                          ("Coleções", "tools-view-materialization"),
-                         ("Administração", "tools-admin-runtime-parameter")
+                         ("Administração", "tools-admin-recovery")
                      })
             {
                 toolsWindow.SelectSection(section);
@@ -209,7 +212,7 @@ public sealed class DatabaseExplorerUiTests
                 if (section == "Administração")
                 {
                     var profiler = toolsWindow.GetLogicalDescendants().OfType<Expander>()
-                        .First(expander => expander.IsVisible && expander.Header as string == "Configurar profiler");
+                        .First(expander => expander.IsVisible && expander.Header as string == "Restaurar configuração anterior");
                     profiler.IsExpanded = true;
                 }
                 var outerScroll = toolsWindow.GetLogicalDescendants().OfType<ScrollViewer>()
@@ -217,24 +220,6 @@ public sealed class DatabaseExplorerUiTests
                 foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
                 {
                     Avalonia.Application.Current!.RequestedThemeVariant = theme;
-                    if (section == "Administração")
-                    {
-                        var runtimeParameterPicker = toolsWindow.GetVisualDescendants().OfType<ComboBox>()
-                            .Single(combo => combo.ItemsSource is IEnumerable<string> items
-                                && items.Contains(RuntimeServerParameters.MaxLogSizeKb, StringComparer.Ordinal));
-                        runtimeParameterPicker.BringIntoView();
-                        toolsWindow.UpdateLayout(); Dispatcher.UIThread.RunJobs();
-                        Assert.That(outerScroll.Extent.Height, Is.GreaterThan(outerScroll.Viewport.Height),
-                            "Administração precisa oferecer rolagem até os parâmetros runtime.");
-                        outerScroll.Offset = new Avalonia.Vector(0,
-                            Math.Min(180, outerScroll.Extent.Height - outerScroll.Viewport.Height));
-                        toolsWindow.UpdateLayout(); Dispatcher.UIThread.RunJobs();
-                        using var runtimeParameters = toolsWindow.CaptureRenderedFrame();
-                        Assert.That(runtimeParameters, Is.Not.Null, "Administração/runtime parameters focused frame");
-                        runtimeParameters!.Save(Path.Combine(toolsEvidence,
-                            $"tools-admin-runtime-parameter-focus-{theme}.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
-                        outerScroll.Offset = new Avalonia.Vector(0, 0);
-                    }
                     toolsWindow.UpdateLayout(); Dispatcher.UIThread.RunJobs();
                     outerScroll.Offset = new Avalonia.Vector(0, 0);
                     toolsWindow.UpdateLayout(); Dispatcher.UIThread.RunJobs();

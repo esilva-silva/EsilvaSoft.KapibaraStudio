@@ -97,7 +97,7 @@ public sealed class LocalMongoDesktopImportRecoveryIntegrationTests
                 var files = new LocalMongoDatabaseExportFileAccess(disposableRoot);
                 var mongo = new MongoWorkspaceService(files, importCheckpoints: restartedOwner);
                 var workspace = new WorkspaceService(restartedOwner, restartedOwner, restartedOwner,
-                    restartedOwner, restartedOwner, mongo, new RejectScriptExecution(), new LocalScriptFileService(),
+                    restartedOwner, restartedOwner, mongo, new LocalScriptFileService(),
                     new SessionConnectionSecretStore(), profilerCaptures: restartedOwner);
                 var viewModel = new MainWindowViewModel(workspace, autoLoadCollections: false);
                 if (viewModel.LoadProfilesCommand.ExecutionTask is { } loading) await loading;
@@ -162,12 +162,6 @@ public sealed class LocalMongoDesktopImportRecoveryIntegrationTests
         }
     }
 
-    private sealed class RejectScriptExecution : IScriptExecutionService
-    {
-        public Task<ScriptExecutionResult> ExecuteAsync(ConnectionProfile profile, string script,
-            string? inputJson = null, string? database = null, CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException("This recovery smoke never executes scripts.");
-    }
 
     private static string PlanHash(StandaloneImportRequest request) =>
         ImportCheckpointRecovery.Sha256OfText(JsonSerializer.Serialize(new

@@ -25,7 +25,7 @@ public sealed class DisabledFeatureEntryPointsTests
         var tab = new WorkspaceTabViewModel(context.Workspace);
         Assert.That(tab.SelectableModes, Is.EqualTo(SelectableModes));
         Assert.That(tab.Mode, Is.EqualTo("Console"));
-        Assert.That(tab.Modes, Does.Contain("Script").And.Contain("Agregação"));
+        Assert.That(tab.Modes, Is.EqualTo(SelectableModes));
     }
 
     [Test]
@@ -36,7 +36,9 @@ public sealed class DisabledFeatureEntryPointsTests
         {
             var tab = new WorkspaceTabViewModel(context.Workspace);
             tab.Restore(new WorkspaceDraft { Database = "shop", Collection = "orders", Mode = mode, Text = "[]" }, null);
-            Assert.That(tab.Mode, Is.EqualTo(mode), mode);
+            Assert.That(tab.Mode, Is.EqualTo("Texto"), mode);
+            Assert.That(tab.LegacyMode, Is.EqualTo(mode));
+            Assert.That(tab.ExecuteCommand.CanExecute(null), Is.False);
             Assert.That(tab.Text, Is.EqualTo("[]"), mode);
         }
     }

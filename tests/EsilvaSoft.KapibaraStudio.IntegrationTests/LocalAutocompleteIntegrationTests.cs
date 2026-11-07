@@ -24,7 +24,7 @@ public sealed class LocalAutocompleteIntegrationTests
         await File.WriteAllTextAsync(Path.Combine(root, "genai_config.json"), "{}");
         Assert.That((await catalog.ValidateAsync(root)).Status.State, Is.EqualTo(LocalModelState.Invalid));
         await using var ai = new AiAutocompleteProvider(catalog, () => throw new AssertionException("Should not load invalid model"));
-        var service = new AutocompleteService(ai);
+        var service = new AutocompleteService(ai.Models);
         await service.ConfigureAsync(new() { ModelPath = root });
         Assert.That((await service.GetCompletionAsync(new("cons", "")))?.IsAi, Is.False);
     }

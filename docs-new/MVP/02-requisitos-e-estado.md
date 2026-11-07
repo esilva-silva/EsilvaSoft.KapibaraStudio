@@ -1,6 +1,6 @@
 # Requisitos e estado
 
-Baseline documental em 06/11/2026, derivada do [MVP histórico](../../docs/mvp-status.md), dos aceites específicos e das decisões vigentes. Esta revisão não executou testes.
+Baseline documental em 06/11/2026, derivada do [MVP histórico](../../docs/mvp-status.md), dos aceites específicos e das decisões vigentes. A execução posterior da Task-R 1 registra testes de regressão em [Remover/TODO](../Remover/TODO.md); não substitui as pendências de homologação abaixo.
 
 **Implementação:** implementado = recorte integrado; parcial = fluxo integrado com lacunas; planejado = sem fluxo entregue. **Validação:** evidência existente é limitada ao snapshot e ambiente indicados; pendente nunca equivale a aprovado. A tabela registra síntese, sem transportar contagens antigas como baseline atual.
 

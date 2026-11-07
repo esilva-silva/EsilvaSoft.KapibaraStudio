@@ -31,7 +31,7 @@ public sealed partial class ConsoleMongoIntegrationTests
         var profile = ConnectionProfile.Create("MVP local", server.Uri, "mvp");
         var mongo = new MongoWorkspaceService(new LocalMongoDatabaseExportFileAccess(), environments: repository, clients: pool);
         var workspace = new EsilvaSoft.KapibaraStudio.Application.WorkspaceService(repository, repository, repository, repository, repository, mongo,
-            new ControlledScripts(), new MemoryTextFiles(), new SessionConnectionSecretStore());
+            new MemoryTextFiles(), new SessionConnectionSecretStore());
         using var client = new MongoClient(server.Uri);
         var collection = client.GetDatabase("mvp").GetCollection<BsonDocument>("Projects");
         await collection.InsertManyAsync(Enumerable.Range(0, 5000).Select(i => new BsonDocument { ["_id"] = i, ["name"] = "Projeto " + i, ["exact"] = new BsonInt64(long.MaxValue), ["date"] = new BsonDateTime(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)) }));

@@ -1,21 +1,23 @@
-# Remoções do recorte do Studio
+# Remoções e metas fora do MVP
 
-Este diretório transforma os nove itens do tópico 2 de [MVP, cortes e próximas metas](../../docs/mvp-status.md) em decisões de escopo para execução futura. Esta documentação não remove nem desativa código, dados ou interface. O estado histórico das fases e as evidências existentes não devem ser reescritos como se a remoção já tivesse ocorrido.
+Este diretório acompanha os nove itens do tópico 2 de [MVP, cortes e próximas metas](../../docs/mvp-status.md). A Task-R 1 executou cortes delimitados em REM-001, REM-006 e REM-007; REM-002–005 e REM-008–009 retiram metas do escopo do MVP, sem declarar exclusão de código. Registros históricos, backlogs e evidências em `docs/` permanecem como contexto e não são reescritos como estado atual.
 
-| ID | Decisão | Lote |
+| ID | Estado Task-R 1 | Decisão e evidência |
 |---|---|---|
-| REM-001 | Retirar administração avançada indicada no tópico 2 | L3 |
-| REM-002 | Retirar metas de administração do host, SSH administrativo, configuração e reinício de servidor e monitoramento externo | L5 |
-| REM-003 | Retirar metas de operação de replica sets/sharding, provisionamento Atlas, nuvem, snapshots e recuperação operacional | L5 |
-| REM-004 | Retirar meta de cofre criptográfico genérico e gestão de chaves/KMS | L5 |
-| REM-005 | Cancelar meta de chat separado por workflow | L5 |
-| REM-006 | Remover modos separados Script/mongosh e Agregação, com recuperação explícita dos rascunhos | L2 |
-| REM-007 | Limpar infraestrutura histórica de IA automática durante a digitação | L4 |
-| REM-008 | Retirar do MVP backup por Database Tools, sincronização automática e jobs agendados | L5 |
-| REM-009 | Retirar do MVP SQL para MQL, gerador de dados, migrações versionadas, Git integrado e Federation/Archive/Charts/conectores | L5 |
+| REM-001 | Executado em L3 | Cortados fluxos exclusivos de administração avançada. Preservados diagnóstico compartilhado, operações cotidianas e recuperação protegida de tickets do profiler. [Evidência L3](evidencias-task-r1-profiler.md). |
+| REM-002 | Meta retirada do MVP | Administração do host, SSH administrativo, configuração/reinício de servidor e monitoramento externo não são entregas do MVP. Isso não remove conexão por connection string nem proteção de áreas `.ssh`. [Auditoria L1](evidencias-task-r1-metas.md). |
+| REM-003 | Meta retirada do MVP | Operação/provisionamento de clusters, Atlas/nuvem, snapshots e recuperação operacional não são entregas do MVP. Conexões e leitura de metadados/topologia suportadas permanecem. [Auditoria L1](evidencias-task-r1-metas.md). |
+| REM-004 | Meta retirada do MVP | Cofre criptográfico genérico e KMS não são entregas do MVP. `EnvironmentVault`, configuração de ambientes, secret stores e credenciais existentes permanecem. [Auditoria L1](evidencias-task-r1-metas.md). |
+| REM-005 | Meta cancelada | Não será criado chat separado por workflow. O painel Agente IA, sessões e providers atuais permanecem. [Auditoria L1](evidencias-task-r1-metas.md). |
+| REM-006 | Executado em L2 | Retirados os modos separados Script/mongosh e Agregação; rascunhos legados são recuperados em Texto, com origem e sem execução automática. Console JavaScript, `aggregate`, arquivos e histórico permanecem. [Compatibilidade](compatibilidade-modos-legados.md) · [evidências e acompanhamento](TODO.md). |
+| REM-007 | Executado em L4 | Retirada a geração automática de IA durante a digitação. `Ctrl+;`, ghost determinístico, agente local, configuração/teste de modelo e uso de `AiAutocompleteProvider` no KapiLab permanecem. [Evidência L4](evidencias-task-r1-l4.md). |
+| REM-008 | Meta retirada do MVP | Backup operacional por Database Tools, sincronização automática e jobs agendados não são entregas do MVP. Importação/exportação lógica permanece e não equivale a backup operacional. [Auditoria L1](evidencias-task-r1-metas.md). |
+| REM-009 | Meta retirada do MVP | SQL para MQL, gerador de dados, migrações versionadas, Git integrado e Federation/Archive/Charts/conectores não são entregas do MVP. Console JavaScript, `aggregate`, schema/inferência mantidos e Git usado no desenvolvimento permanecem. [Auditoria L1](evidencias-task-r1-metas.md). |
 
-A execução começa por L1, que fecha o inventário de consumidores e a política de compatibilidade. Cada lote depende dos critérios em [inventário técnico](inventario-tecnico.md) e das tarefas em [TODO](TODO.md). As metas não implementadas exigem revisão documental; não se presume ausência de qualquer código apenas por sua classificação funcional.
+## Execução e limites
 
-O recorte mantido está em [requisitos e estado](../MVP/02-requisitos-e-estado.md), IDs MVP-001–015, e [fase 01](../MVP/fases/fase-01-v0.10.0.md); avaliar melhorias em [conceitos](../Melhorias/conceitos.md). Preservar Console JavaScript e `aggregate`, operação cotidiana, importação/exportação lógica, agente local e Copilot. Claude, Codex, APIs externas e MCP externo permanecem disponíveis como estão, conforme decisão do usuário; sua conclusão foi adiada para Melhorias. Os contratos e infraestrutura compartilhados também permanecem.
+L1 distinguiu fluxos implementados, componentes parciais e metas documentais. L2 e L3 têm evidências focadas registradas; L4 também tem build e testes focados registrados. Isso não declara homologação completa: permanecem as pendências e limites descritos em [TODO e evidências](TODO.md), com suíte completa automatizada aprovada no L5 e pendências de ambiente nativo Windows/Linux, acessibilidade, modelo CPU real e cenários MongoDB real opt-in.
 
-As invariantes de `AGENTS.md` continuam obrigatórias, em especial segurança das ferramentas de agentes, isolamento de abas, BSON, confirmação, auditoria, opt-outs e proteção de credenciais. Mudanças futuras exigem atualização coordenada do design system, ADRs, fases, catálogo, guia e acompanhamento, sem apagar registros históricos.
+As metas REM-002–005 e REM-008–009 foram retiradas documentalmente; a inspeção não encontrou jornadas integradas completas, mas não prova ausência universal de protótipos ou código parcial. Não apagar projetos, pacotes, dados, configurações, providers ou código adjacente por associação de nome. Verificar consumidores atuais e compatibilidade antes de qualquer mudança técnica.
+
+O escopo vigente do produto está em [requisitos MVP-001–015](../MVP/02-requisitos-e-estado.md), [fase 01](../MVP/fases/fase-01-v0.10.0.md) e [conceitos de melhorias](../Melhorias/conceitos.md). Preservar Console, operações cotidianas, importação/exportação lógica, configuração/credenciais, painel Agente IA e providers existentes. Claude Code conserva autenticação oficial; não ler credenciais, reutilizar tokens, acessar endpoints privados ou fazer fallback à Anthropic API. As ferramentas de agentes continuam sob as invariantes de segurança em `AGENTS.md`.

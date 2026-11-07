@@ -55,14 +55,12 @@ public sealed class CollectionMaintenancePreflightTests
     [Test]
     public void RequestRejectsMissingSnapshotAndMismatchedTarget()
     {
-        var withoutPreview = new CollectionIntegrityCheckRequest("catalogo", "clientes", "clientes");
-        var wrongTarget = new CollectionCompactRequest("catalogo", "clientes", "clientes", Preflight: CollectionMaintenanceTestData.Preflight("catalogo", "pedidos"));
+        var wrongTarget = new CollectionValidationRequest("catalogo", "clientes", "{}", CollectionValidationLevel.Strict, CollectionValidationAction.Error, "clientes", CollectionMaintenanceTestData.Preflight("catalogo", "pedidos"));
         var validationWithoutPreview = new CollectionValidationRequest("catalogo", "clientes", "{}",
             CollectionValidationLevel.Strict, CollectionValidationAction.Error, "clientes");
 
         Assert.Multiple(() =>
         {
-            Assert.That(() => withoutPreview.Validate(), Throws.ArgumentException.With.Message.Contain("prévia obrigatória"));
             Assert.That(() => validationWithoutPreview.Validate(), Throws.ArgumentException.With.Message.Contain("prévia obrigatória"));
             Assert.That(() => wrongTarget.Validate(), Throws.ArgumentException.With.Message.Contain("não corresponde ao alvo"));
         });

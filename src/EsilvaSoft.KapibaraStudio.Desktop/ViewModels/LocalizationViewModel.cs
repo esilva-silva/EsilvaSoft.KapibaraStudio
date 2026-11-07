@@ -509,7 +509,6 @@ public sealed partial class LocalizationViewModel : ObservableObject
         ("toolsAnalysis", "Analysis", "Análise", "Análisis", "分析"),
         ("toolsDistinctValues", "Distinct values", "Valores distintos", "Valores distintos", "不同值"),
         ("toolsExplain", "Explain", "Explain", "Explain", "Explain"),
-        ("toolsAggregations", "Aggregations", "Agregações", "Agregaciones", "聚合"),
         ("toolsOperationsData", "Operations and data", "Operações e dados", "Operaciones y datos", "操作和数据"),
         ("toolsTransfer", "Transfer", "Transferir", "Transferir", "传输"),
         ("toolsAdministration", "Administration", "Administração", "Administración", "管理"),
@@ -534,10 +533,6 @@ public sealed partial class LocalizationViewModel : ObservableObject
         ("explainPlanReadOnly", "Query plan and statistics (read-only command)", "Plano e estatísticas da consulta (comando somente leitura)", "Plan y estadísticas de la consulta (comando de solo lectura)", "查询计划和统计信息（只读命令）"),
         ("distinctFieldPlaceholder", "E.g.: status or address.city", "Ex.: status ou endereco.cidade", "P. ej.: status o direccion.ciudad", "例如：status 或 address.city"),
         ("limit", "Limit:", "Limite:", "Límite:", "限制："),
-        ("suggestStages", "Suggest stages", "Sugerir estágios", "Sugerir etapas", "建议阶段"),
-        ("executePipeline", "Execute pipeline", "Executar pipeline", "Ejecutar pipeline", "执行管道"),
-        ("pipelineJsonExample", "Pipeline JSON, for example: [{ \"$match\": { \"active\": true } }]", "Pipeline JSON, por exemplo: [{ \"$match\": { \"ativo\": true } }]", "Pipeline JSON, por ejemplo: [{ \"activo\": true }]", "管道 JSON，例如：[{ \"ativo\": true }]"),
-        ("pipelineResult", "Pipeline result", "Resultado do pipeline", "Resultado del pipeline", "管道结果"),
         ("exportNote", "Export creates a folder with a manifest and one Extended JSON file per collection in the local workspace.", "A exportação cria uma pasta com um manifesto e um arquivo Extended JSON por coleção no workspace local.", "La exportación crea una carpeta con un manifiesto y un archivo Extended JSON por colección en el workspace local.", "导出会在本地工作区创建一个文件夹，其中包含清单和每个集合一个 Extended JSON 文件。"),
         ("perCollectionLimit", "Limit per collection:", "Limite por coleção:", "Límite por colección:", "每个集合的限制："),
         ("exportSelectedDatabase", "Export selected database", "Exportar banco selecionado", "Exportar base de datos seleccionada", "导出选中的数据库"),
@@ -639,19 +634,6 @@ public sealed partial class LocalizationViewModel : ObservableObject
         ("serverStatus", "Server status", "Status do servidor", "Estado del servidor", "服务器状态"),
         ("topology", "Topology", "Topologia", "Topología", "拓扑"),
         ("currentOperations", "Current operations", "Operações correntes", "Operaciones actuales", "当前操作"),
-        ("currentProfiler", "Current profiler", "Profiler atual", "Profiler actual", "当前分析器"),
-        ("runtimeParameter", "Runtime server parameter", "Parâmetro runtime do servidor", "Parámetro runtime del servidor", "服务器运行时参数"),
-        ("confirmRuntimeParameterName", "Type the selected parameter name", "Digite o nome do parâmetro selecionado", "Escriba el nombre del parámetro seleccionado", "输入所选参数名称"),
-        ("previewRuntimeParameter", "Read and preview", "Ler e pré-visualizar", "Leer y previsualizar", "读取并预览"),
-        ("applyRuntimeParameter", "Apply runtime change", "Aplicar alteração runtime", "Aplicar cambio runtime", "应用运行时更改"),
-        ("runtimeParameterBefore", "Previous value: {0}", "Valor anterior: {0}", "Valor anterior: {0}", "先前值：{0}"),
-        ("runtimeParameterAfter", "Requested value: {0}", "Valor solicitado: {0}", "Valor solicitado: {0}", "请求值：{0}"),
-        ("runtimeParameterObservedAt", "Observed at: {0}", "Observado em: {0}", "Observado a las: {0}", "观察时间：{0}"),
-        ("runtimeParameterEphemeralNote", "Temporary server-wide setting; it is not persisted across restart. maxLogSizeKB is capped here at 1–10 KiB; disabling truncation or larger values are excluded.", "Configuração temporária de todo o servidor; não persiste após reinício. maxLogSizeKB fica limitado aqui a 1–10 KiB; desativar o truncamento ou usar valores maiores não é permitido.", "Configuración temporal de todo el servidor; no persiste tras reiniciar. maxLogSizeKB se limita aquí a 1–10 KiB; no se permite desactivar el truncamiento ni usar valores mayores.", "此设置临时作用于整个服务器，重启后不会保留。此处 maxLogSizeKB 限制为 1–10 KiB；不允许关闭截断或使用更大值。"),
-        ("runtimeParameterValueInvalid", "Enter an integer within the selected parameter's displayed range.", "Informe um inteiro dentro do intervalo exibido para o parâmetro selecionado.", "Introduzca un entero dentro del intervalo mostrado para el parámetro seleccionado.", "请输入所选参数显示范围内的整数。"),
-        ("runtimeParameterPreviewReady", "Runtime parameter read. Review the before/after values and confirm to apply.", "Parâmetro runtime lido. Revise os valores antes/depois e confirme para aplicar.", "Parámetro runtime leído. Revise los valores antes/después y confirme para aplicar.", "运行时参数已读取。请检查更改前后的值并确认应用。"),
-        ("runtimeParameterChanged", "Runtime parameter {0} changed to {1}.", "Parâmetro runtime {0} alterado para {1}.", "Parámetro runtime {0} cambiado a {1}.", "运行时参数 {0} 已更改为 {1}。"),
-        ("runtimeParameterAudit", "Runtime parameter {0}: {1} → {2}", "Parâmetro runtime {0}: {1} → {2}", "Parámetro runtime {0}: {1} → {2}", "运行时参数 {0}：{1} → {2}"),
         ("users", "Users", "Usuários", "Usuarios", "用户"),
         ("roles", "Roles", "Papéis", "Roles", "角色"),
         ("localAudit", "Local audit", "Auditoria local", "Auditoría local", "本地审计"),
@@ -660,10 +642,6 @@ public sealed partial class LocalizationViewModel : ObservableObject
         ("databaseStats", "Database statistics", "Estatísticas do banco", "Estadísticas de la base de datos", "数据库统计"),
         ("collectionStats", "Collection statistics", "Estatísticas da coleção", "Estadísticas de la colección", "集合统计"),
         ("privilegesNote", "Availability depends on MongoDB user privileges.", "A disponibilidade depende dos privilégios do usuário MongoDB.", "La disponibilidad depende de los privilegios del usuario de MongoDB.", "可用性取决于 MongoDB 用户权限。"),
-        ("numericOperationId", "Numeric operation ID", "ID numérico da operação", "ID numérico de la operación", "数字操作 ID"),
-        ("repeatId", "Repeat the ID to confirm", "Repita o ID para confirmar", "Repita el ID para confirmar", "重复 ID 以确认"),
-        ("interruptOperation", "Interrupt operation", "Interromper operação", "Interrumpir operación", "中断操作"),
-        ("interruptionIrreversible", "The interruption cannot be undone. The identity check before killOp is not atomic.", "A interrupção não pode ser desfeita. A conferência da identidade antes de killOp não é atômica.", "La interrupción no se puede deshacer. La comprobación de identidad antes de killOp no es atómica.", "中断无法撤销。killOp 前的身份检查并非原子操作。"),
         ("selectedDatabaseName", "Type the selected database name", "Digite o nome do banco selecionado", "Escriba el nombre de la base de datos seleccionada", "输入选中的数据库名称"),
         ("dropDatabase", "Drop database", "Remover banco", "Eliminar base de datos", "删除数据库"),
         ("protectedDatabases", "admin, config and local databases are protected.", "Bancos admin, config e local são protegidos.", "Las bases admin, config y local están protegidas.", "admin、config 和 local 数据库受保护。"),
@@ -671,20 +649,14 @@ public sealed partial class LocalizationViewModel : ObservableObject
         ("initialCollection", "Initial collection", "Coleção inicial", "Colección inicial", "初始集合"),
         ("repeatDatabase", "Repeat the database name", "Repita o banco", "Repita la base de datos", "重复数据库名称"),
         ("createDatabase", "Create database", "Criar banco", "Crear base de datos", "创建数据库"),
-        ("selectedCollectionValidation", "Type the selected collection to validate", "Digite a coleção selecionada para validar", "Escriba la colección seleccionada para validar", "输入要验证的选中集合"),
-        ("validateIntegrity", "Validate integrity", "Validar integridade", "Validar integridad", "验证完整性"),
         ("previewCollectionMaintenance", "Preview maintenance plan", "Prévia do plano", "Vista previa del plan", "预览维护计划"),
-        ("collectionMaintenanceValidateRisk", "Full validate takes an exclusive collection lock and may update collection count/size statistics. It can block reads and writes; it does not request repair.", "A validação completa obtém bloqueio exclusivo da coleção e pode recalcular estatísticas de contagem/tamanho. Pode bloquear leituras e gravações; não solicita reparo.", "La validación completa obtiene un bloqueo exclusivo de la colección y puede recalcular estadísticas de conteo/tamaño. Puede bloquear lecturas y escrituras; no solicita reparación.", "完整验证会独占锁定集合，并可能重新计算计数/大小统计。它可能阻塞读写；不请求修复。"),
-        ("collectionMaintenanceCompactRisk", "Compaction rewrites collection data and indexes, may need extra disk space, can affect latency/checkpoints, and may not free operating-system space. It is node-local.", "A compactação reescreve dados e índices, pode exigir espaço adicional, afetar latência/checkpoints e talvez não libere espaço ao sistema operacional. Ela atua no nó conectado.", "La compactación reescribe datos e índices, puede requerir espacio adicional, afectar la latencia y los checkpoints, y quizá no libere espacio al sistema operativo. Actúa en el nodo conectado.", "压缩会重写集合数据和索引，可能需要额外磁盘空间、影响延迟/检查点，也可能不释放操作系统空间。它仅作用于当前连接节点。"),
         ("collectionMaintenanceCollModRisk", "collMod changes validation metadata; existing documents are not scanned or rewritten. New validation behavior applies according to the selected level/action.", "collMod altera metadados de validação; documentos existentes não são varridos nem reescritos. O comportamento novo segue o nível/ação selecionados.", "collMod cambia metadatos de validación; los documentos existentes no se escanean ni reescriben. El comportamiento nuevo sigue el nivel/acción seleccionados.", "collMod 会更改验证元数据；不会扫描或重写现有文档。新的验证行为取决于所选级别/操作。"),
         ("collectionMaintenancePrerequisites", "Collection must exist and be a regular collection. Role permissions and tier/version support are checked by the server at execution; connection metadata cannot prove them.", "A coleção precisa existir e ser uma coleção comum. Permissões do papel e suporte por camada/versão são decididos pelo servidor na execução; metadados da conexão não os comprovam.", "La colección debe existir y ser una colección normal. El servidor comprueba permisos y soporte por nivel/versión al ejecutar; los metadatos de conexión no los demuestran.", "集合必须存在且为普通集合。角色权限和层级/版本支持由服务器在执行时检查；连接元数据无法证明这些条件。"),
         ("collectionMaintenanceResourceLimits", "The connection cannot report host free disk, backup windows, workload impact, or cluster-wide progress. Review these outside the application.", "A conexão não informa espaço livre do host, janela de backup, impacto da carga nem progresso do cluster. Revise esses itens fora do aplicativo.", "La conexión no informa el espacio libre del host, ventanas de copia, impacto de carga ni progreso del clúster. Revise esos aspectos fuera de la aplicación.", "连接无法报告主机剩余磁盘、备份窗口、工作负载影响或集群范围进度。请在应用外检查。"),
-        ("collectionMaintenanceCapabilityRouter", "hello reports mongos; compact is refused because it applies to mongod nodes, not mongos.", "hello identificou mongos; compact é recusado porque opera em nós mongod, não em mongos.", "hello identificó mongos; se rechaza compact porque opera en nodos mongod, no en mongos.", "hello 报告 mongos；拒绝 compact，因为它作用于 mongod 节点，而非 mongos。"),
-        ("collectionMaintenanceCapabilityPrimary", "hello reports a replica-set primary. Compact on this member requires force and may affect live workload; plan node-by-node maintenance.", "hello identificou o primário do replica set. Compactar este membro exige force e pode afetar a carga ativa; planeje a manutenção nó a nó.", "hello identificó el primario del conjunto de réplicas. Compactar este miembro requiere force y puede afectar la carga activa; planifique mantenimiento nodo por nodo.", "hello 报告副本集主节点。在此成员上 compact 需要 force，可能影响实时负载；请逐节点规划维护。"),
-        ("collectionMaintenanceCapabilityReplicaMember", "hello reports a replica-set member. The application cannot coordinate member order or monitor cluster health during this operation.", "hello identificou membro do replica set. O aplicativo não coordena a ordem dos membros nem monitora a saúde do cluster durante a operação.", "hello identificó un miembro del conjunto de réplicas. La aplicación no coordina el orden de miembros ni supervisa la salud del clúster durante la operación.", "hello 报告副本集成员。应用不会协调成员顺序，也不会在操作期间监控集群健康。"),
+        ("collectionMaintenanceCapabilityRouter", "hello reports mongos. Validator changes depend on server permissions and capabilities.", "hello identificou mongos. Alterações do validador dependem das permissões e capacidades do servidor.", "hello identificó mongos. Los cambios del validador dependen de los permisos y capacidades del servidor.", "hello 报告 mongos。验证器更改取决于服务器权限和能力。"),
+        ("collectionMaintenanceCapabilityPrimary", "hello reports a replica-set primary. Review the destination and permissions before changing the validator.", "hello identificou o primário do replica set. Revise o destino e as permissões antes de alterar o validador.", "hello identificó el primario del conjunto de réplicas. Revise el destino y los permisos antes de cambiar el validador.", "hello 报告副本集主节点。更改验证器前请检查目标和权限。"),
+        ("collectionMaintenanceCapabilityReplicaMember", "hello reports a replica-set member. Confirm that this connection permits the intended validator change.", "hello identificou membro do replica set. Confirme que esta conexão permite a alteração pretendida do validador.", "hello identificó un miembro del conjunto de réplicas. Confirme que esta conexión permite el cambio previsto del validador.", "hello 报告副本集成员。请确认此连接允许预期的验证器更改。"),
         ("collectionMaintenanceCapabilityUnknown", "Topology is standalone or unknown; server support and permission remain unverified until execution.", "A topologia é standalone ou desconhecida; suporte do servidor e permissão só serão verificados na execução.", "La topología es independiente o desconocida; el soporte del servidor y los permisos solo se verifican al ejecutar.", "拓扑为独立或未知；服务器支持和权限需在执行时确认。"),
-        ("collectionMaintenanceCompactMongos", "Compact cannot be issued through mongos. Connect directly to the intended mongod node.", "Compact não pode ser enviado via mongos. Conecte-se diretamente ao mongod desejado.", "Compact no puede enviarse mediante mongos. Conéctese directamente al mongod deseado.", "不能通过 mongos 发出 compact。请直接连接目标 mongod 节点。"),
-        ("collectionMaintenanceCompactPrimaryForce", "The connected member is primary. Review the risk and enable Force before preparing this plan.", "O membro conectado é primário. Revise o risco e habilite Forçar antes de preparar o plano.", "El miembro conectado es primario. Revise el riesgo y habilite Forzar antes de preparar el plan.", "当前连接成员是主节点。请评估风险并启用强制后再准备计划。"),
         ("collectionMaintenanceCollectionRequired", "Maintenance requires an existing regular collection; views are not accepted.", "A manutenção exige uma coleção comum existente; views não são aceitas.", "El mantenimiento requiere una colección normal existente; no se aceptan vistas.", "维护要求现有普通集合；不接受视图。"),
         ("collectionMaintenancePlanStale", "The target state changed since the preview. Refresh the plan before applying.", "O estado do alvo mudou desde a prévia. Atualize o plano antes de aplicar.", "El estado del destino cambió desde la vista previa. Actualice el plan antes de aplicarlo.", "目标状态自预览后已更改。请刷新计划后再应用。"),
         ("collectionMaintenanceReadbackDiffers", "The command returned, but the observed validation state differs from the requested state. Review the before/after report.", "O comando retornou, mas o estado de validação observado difere do solicitado. Revise o relatório antes/depois.", "El comando terminó, pero el estado de validación observado difiere del solicitado. Revise el informe antes/después.", "命令已返回，但观察到的验证状态与请求不一致。请检查前后报告。"),
@@ -692,40 +664,9 @@ public sealed partial class LocalizationViewModel : ObservableObject
         ("collectionMaintenanceVerified", "Maintenance completed and post-state was read.", "Operação concluída e estado posterior relido.", "Operación completada y estado posterior leído.", "维护已完成并读取了后置状态。"),
         ("collectionMaintenanceEffectUncertain", "The command may have reached MongoDB, but post-state was not verified. Do not assume rollback; refresh the target state before retrying.", "O comando pode ter chegado ao MongoDB, mas o estado posterior não foi verificado. Não presuma rollback; releia o alvo antes de tentar novamente.", "El comando puede haber llegado a MongoDB, pero el estado posterior no se verificó. No suponga una reversión; vuelva a leer el destino antes de reintentar.", "命令可能已到达 MongoDB，但未验证后置状态。不要假设已回滚；重试前请重新读取目标状态。"),
         ("collectionMaintenanceAudit", "Maintenance command completed with before/after state verification.", "Comando de manutenção concluído com verificação antes/depois.", "Comando de mantenimiento completado con verificación antes/después.", "维护命令已完成并验证前后状态。"),
-        ("validationMayTake", "Full validation may take time and requires confirmation.", "A validação completa pode ser demorada e exige confirmação.", "La validación completa puede tardar y requiere confirmación.", "完整验证可能需要较长时间并需要确认。"),
-        ("selectedCollectionCompact", "Type the selected collection to compact", "Digite a coleção selecionada para compactar", "Escriba la colección seleccionada para compactar", "输入要压缩的选中集合"),
         ("force", "Force", "Forçar", "Forzar", "强制"),
-        ("compactCollection", "Compact collection", "Compactar coleção", "Compactar colección", "压缩集合"),
-        ("topologyUnavailable", "May be unavailable due to topology or server version.", "Pode estar indisponível pela topologia ou versão do servidor.", "Puede no estar disponible por la topología o la versión del servidor.", "可能因拓扑或服务器版本而不可用。"),
-        ("newUser", "New user", "Novo usuário", "Nuevo usuario", "新用户"),
-        ("passwordNotPersisted", "Password (not persisted)", "Senha (não persistida)", "Contraseña (no se persiste)", "密码（不持久化）"),
-        ("rolesJson", "Roles JSON", "Papéis JSON", "Roles JSON", "角色 JSON"),
-        ("repeatUser", "Repeat the user", "Repita o usuário", "Repita el usuario", "重复用户"),
-        ("createUser", "Create user", "Criar usuário", "Crear usuario", "创建用户"),
-        ("userToRemove", "User to remove", "Usuário a remover", "Usuario que se eliminará", "要删除的用户"),
-        ("removeUser", "Remove user", "Remover usuário", "Eliminar usuario", "删除用户"),
-        ("removalIrreversible", "Removal is irreversible and requires confirmation.", "A remoção é irreversível e exige confirmação.", "La eliminación es irreversible y requiere confirmación.", "删除不可撤销且需要确认。"),
-        ("userForRoles", "User whose roles will change", "Usuário para alterar papéis", "Usuario cuyos roles se cambiarán", "要更改角色的用户"),
         ("revoke", "Revoke", "Revogar", "Revocar", "撤销"),
         ("updateRoles", "Update roles", "Atualizar papéis", "Actualizar roles", "更新角色")
-        , ("previewUserRoles", "Preview role change", "Pré-visualizar papéis", "Vista previa de roles", "预览角色更改")
-        , ("applyUserRoles", "Apply role change", "Aplicar alteração", "Aplicar cambio", "应用更改")
-        , ("userRolesPreviewNote", "Review before/after roles and repeat the exact username before applying. The server is re-read before and after the command.", "Revise os papéis antes/depois e repita o nome exato do usuário antes de aplicar. O servidor é relido antes e depois do comando.", "Revise los roles antes/después y repita el nombre exacto del usuario antes de aplicar. El servidor se vuelve a leer antes y después del comando.", "应用前请检查更改前后的角色并重复输入确切用户名。命令前后都会重新读取服务器状态。")
-        , ("userMissingForRoles", "The user no longer exists in the selected database. Refresh the preview.", "O usuário não existe no banco selecionado. Atualize a prévia.", "El usuario ya no existe en la base seleccionada. Actualice la vista previa.", "所选数据库中已不存在该用户。请刷新预览。")
-        , ("customRoleName", "Custom role name", "Nome do papel personalizado", "Nombre del rol personalizado", "自定义角色名称")
-        , ("customRolePrivileges", "Privileges JSON (selected database only)", "Privilégios JSON (somente banco selecionado)", "Privilegios JSON (solo base seleccionada)", "权限 JSON（仅所选数据库）")
-        , ("customRoleInheritedRoles", "Inherited roles JSON (same database)", "Papéis herdados JSON (mesmo banco)", "Roles heredados JSON (misma base)", "继承角色 JSON（同一数据库）")
-        , ("confirmCustomRole", "Repeat the exact role name", "Repita o nome exato do papel", "Repita el nombre exacto del rol", "重复输入确切角色名称")
-        , ("previewCreateRole", "Preview create", "Pré-visualizar criação", "Vista previa de creación", "预览创建")
-        , ("previewUpdateRole", "Preview update", "Pré-visualizar alteração", "Vista previa de actualización", "预览更新")
-        , ("previewDropRole", "Preview removal", "Pré-visualizar remoção", "Vista previa de eliminación", "预览删除")
-        , ("applyCustomRole", "Apply role change", "Aplicar alteração do papel", "Aplicar cambio del rol", "应用角色更改")
-        , ("customRoleScopeNote", "Review the before/after JSON and repeat the exact role name before applying. Resources and inherited roles are limited to the selected database. Custom role commands are unavailable on MongoDB Atlas.", "Revise o JSON antes/depois e repita o nome exato do papel antes de aplicar. Recursos e papéis herdados ficam limitados ao banco selecionado. Comandos de papéis personalizados não estão disponíveis no MongoDB Atlas.", "Revise el JSON antes/después y repita el nombre exacto del rol antes de aplicar. Los recursos y roles heredados se limitan a la base seleccionada. Los comandos de roles personalizados no están disponibles en MongoDB Atlas.", "应用前请检查更改前后的 JSON 并重复输入确切角色名称。资源和继承角色仅限所选数据库。MongoDB Atlas 不支持自定义角色命令。")
-        , ("customRoleBuiltinProtected", "Built-in MongoDB roles cannot be changed here.", "Papéis internos do MongoDB não podem ser alterados aqui.", "Los roles integrados de MongoDB no se pueden cambiar aquí.", "此处不能更改 MongoDB 内置角色。")
-        , ("customRoleAlreadyExists", "This role already exists in the selected database.", "Este papel já existe no banco selecionado.", "Este rol ya existe en la base seleccionada.", "所选数据库中已存在此角色。")
-        , ("customRoleMissing", "This role no longer exists in the selected database.", "Este papel não existe mais no banco selecionado.", "Este rol ya no existe en la base seleccionada.", "所选数据库中已不存在此角色。")
-        , ("customRoleMutationAudit", "Custom role changed: {0}", "Papel personalizado alterado: {0}", "Rol personalizado cambiado: {0}", "自定义角色已更改：{0}")
-        , ("customRoleMutationCompleted", "Custom role operation completed: {0}", "Operação do papel personalizado concluída: {0}", "Operación del rol personalizado completada: {0}", "自定义角色操作已完成：{0}")
         , ("errorRolePermission", "MongoDB denied custom role administration because the connection lacks a required privilege.", "O MongoDB recusou a administração de papel personalizado porque a conexão não tem uma permissão necessária.", "MongoDB rechazó la administración del rol personalizado porque la conexión carece de un privilegio necesario.", "MongoDB 拒绝了自定义角色管理，因为连接缺少所需权限。")
         , ("errorRoleUnsupported", "This MongoDB deployment does not support custom role administration commands.", "Este deployment do MongoDB não oferece suporte aos comandos de administração de papéis personalizados.", "Este deployment de MongoDB no admite comandos de administración de roles personalizados.", "此 MongoDB 部署不支持自定义角色管理命令。")
         , ("errorRoleReadback", "The command was sent, but the final role state could not be confirmed. Refresh the role before retrying.", "O comando foi enviado, mas não foi possível confirmar o estado final do papel. Atualize a leitura antes de tentar novamente.", "Se envió el comando, pero no se pudo confirmar el estado final del rol. Actualice la lectura antes de volver a intentarlo.", "命令已发送，但无法确认角色最终状态。重试前请刷新角色信息。")
@@ -737,19 +678,10 @@ public sealed partial class LocalizationViewModel : ObservableObject
         , ("errorUserInput", "Invalid user or role input. Review it before retrying.", "Dados de usuário ou papéis inválidos. Revise antes de tentar novamente.", "Datos de usuario o roles no válidos. Revíselos antes de reintentar.", "用户或角色输入无效。请检查后重试。")
         , ("errorUserConflict", "The user or roles changed. Refresh before retrying.", "O usuário ou seus papéis mudaram. Atualize a leitura antes de tentar novamente.", "El usuario o sus roles cambiaron. Actualice la lectura antes de reintentar.", "用户或角色已更改。请刷新后重试。")
         , ("errorUserCommand", "User operation incomplete. Refresh before retrying.", "Operação de usuário não concluída. Atualize a leitura antes de tentar novamente.", "Operación de usuario incompleta. Actualice la lectura antes de reintentar.", "用户操作未完成。请刷新后重试。")
-        , ("sensitiveAuditNotRecorded", "The operation completed, but its audit record was not saved. Check local storage.", "A operação terminou, mas o registro de auditoria não foi salvo. Verifique o armazenamento local.", "La operación terminó, pero no se guardó la auditoría. Compruebe el almacenamiento local.", "操作已完成，但审计记录未保存。请检查本地存储。")
-        , ("auditUserCreated", "Database user created.", "Usuário do banco criado.", "Usuario de base de datos creado.", "已创建数据库用户。")
-        , ("auditUserRemoved", "Database user removed.", "Usuário do banco removido.", "Usuario de base de datos eliminado.", "已删除数据库用户。")
-        , ("auditUserRolesChanged", "Database user roles changed.", "Papéis do usuário alterados.", "Roles del usuario modificados.", "已更改数据库用户角色。")
-        , ("auditCustomRoleChanged", "Custom role changed.", "Papel personalizado alterado.", "Rol personalizado modificado.", "已更改自定义角色。")
         , ("indexDetail", "Index: {0}", "Índice: {0}", "Índice: {0}", "索引：{0}")
         , ("filterDetail", "Filter: {0}", "Filtro: {0}", "Filtro: {0}", "过滤器：{0}")
         , ("allMatchesAffected", "All matching documents will be affected.", "Todos os documentos correspondentes serão afetados.", "Todos los documentos coincidentes se verán afectados.", "所有匹配的文档都会受到影响。")
         , ("confirmChange", "Confirm change", "Confirmar alteração", "Confirmar cambio", "确认更改")
-        , ("openScriptTitle", "Open JavaScript script", "Abrir script JavaScript", "Abrir script JavaScript", "打开 JavaScript 脚本")
-        , ("javascriptFileType", "JavaScript", "JavaScript", "JavaScript", "JavaScript")
-        , ("allFiles", "All files", "Todos os arquivos", "Todos los archivos", "所有文件")
-        , ("saveScriptTitle", "Save JavaScript script", "Salvar script JavaScript", "Guardar script JavaScript", "保存 JavaScript 脚本")
         , ("importMongoFolderTitle", "Select MongoDB import folder", "Selecionar pasta de importação MongoDB", "Seleccionar carpeta de importación de MongoDB", "选择 MongoDB 导入文件夹")
         , ("documentExtendedJsonInsertReplace", "Extended JSON document (insert/replace)", "Documento Extended JSON (inserir/substituir)", "Documento Extended JSON (insertar/reemplazar)", "Extended JSON 文档（插入/替换）")
         , ("insert", "Insert", "Inserir", "Insertar", "插入")
@@ -865,9 +797,9 @@ public sealed partial class LocalizationViewModel : ObservableObject
         ("formatCodeTip", "Formats the selection or the whole editor; Ctrl+Z undoes. Does not run code.", "Formata a seleção ou o editor inteiro; Ctrl+Z desfaz. Não executa o código.", "Formatea la selección o todo el editor; Ctrl+Z deshace. No ejecuta el código.", "格式化选区或整个编辑器；Ctrl+Z 可撤销。不运行代码。"),
         ("validateSyntax", "Validate syntax", "Validar sintaxe", "Validar sintaxis", "验证语法"),
         ("validateSyntaxTip", "Validates the selection or the whole editor without a connection; selects the error in the text. Does not run the query.", "Valida a seleção ou o editor inteiro sem conexão; seleciona o erro no texto. Não executa a consulta.", "Valida la selección o todo el editor sin conexión; selecciona el error en el texto. No ejecuta la consulta.", "无需连接即可验证选区或整个编辑器；会在文本中选中错误。不执行查询。"),
-        ("analyzePipeline", "Analyze pipeline (explain)", "Analisar pipeline (explain)", "Analizar pipeline (explain)", "分析管道（explain）"),
-        ("analyzePipelineTip", "Gets queryPlanner for the complete pipeline at this tab's target. Requires an open connection; does not measure execution. Write stages are blocked.", "Obtém queryPlanner do pipeline completo no destino desta aba. Exige conexão aberta; não mede a execução. Stages de escrita são bloqueados.", "Obtiene queryPlanner del pipeline completo en el destino de esta pestaña. Requiere una conexión abierta; no mide la ejecución. Las etapas de escritura están bloqueadas.", "获取此标签页目标上的完整管道 queryPlanner。需要已打开连接；不测量执行。写入阶段会被阻止。"),
-        ("inputExtendedJson", "Extended JSON input", "Entrada Extended JSON", "Entrada Extended JSON", "Extended JSON 输入"),
+        ("adaptLegacyInConsole", "Adapt text in Console (does not execute)", "Adaptar texto no Console (sem executar)", "Adaptar texto en Consola (sin ejecutar)", "在控制台中调整文本（不执行）"),
+        ("legacyInputJson", "Recovered JSON input (no execution)", "Entrada JSON recuperada (sem execução)", "Entrada JSON recuperada (sin ejecución)", "已恢复的 JSON 输入（不执行）"),
+        ("legacyDraftRecovered", "Recovered {0} draft as Text. Execution is disabled; select Console explicitly to adapt it.", "Rascunho {0} recuperado como Texto. Execução desativada; selecione Console explicitamente para adaptá-lo.", "Borrador {0} recuperado como Texto. Ejecución desactivada; seleccione Consola explícitamente para adaptarlo.", "{0} 草稿已恢复为文本。执行已禁用；请明确选择控制台以调整内容。"),
         ("persistInput", "Persist input", "Persistir entrada", "Persistir entrada", "持久化输入"),
         ("projection", "Projection", "Projeção", "Proyección", "投影"),
         ("sorting", "Sort", "Ordenação", "Ordenación", "排序"),
@@ -1026,7 +958,6 @@ public sealed partial class LocalizationViewModel : ObservableObject
         , ("statusWarning", "Warning", "Aviso", "Aviso", "警告")
         , ("additionalOperations", "+{0} operations", "+{0} operações", "+{0} operaciones", "+{0} 个操作")
         , ("notExecuted", "Press Run to view results in Extended JSON.", "Execute para visualizar os resultados em Extended JSON.", "Ejecute para ver los resultados en Extended JSON.", "运行后可查看 Extended JSON 结果。")
-        , ("untitledScript", "Untitled.js", "Sem título.js", "Sin título.js", "未命名.js")
         , ("noConnection", "No connection", "Sem conexão", "Sin conexión", "无连接")
         , ("chooseDatabase", "Choose a database", "Escolha um banco", "Elija una base de datos", "选择数据库")
         , ("chooseConnectionForTab", "Choose a connection for this tab.", "Escolha uma conexão para esta aba.", "Elija una conexión para esta pestaña.", "为此标签页选择连接。")
@@ -1036,27 +967,18 @@ public sealed partial class LocalizationViewModel : ObservableObject
         , ("executing", "Running…", "Executando…", "Ejecutando…", "正在运行…")
         , ("executingQuery", "Running query in {0} › {1}", "Executando consulta em {0} › {1}", "Ejecutando consulta en {0} › {1}", "正在 {0} › {1} 中运行查询")
         , ("consoleNoResult", "No expression returned a result. See Messages.", "Nenhuma expressão retornou resultado. Consulte Mensagens.", "Ninguna expresión devolvió resultados. Consulte Mensajes.", "没有表达式返回结果。请查看消息。")
-        , ("scriptNoDocuments", "The script produced no documents. See Messages.", "O script não emitiu documentos. Consulte Mensagens.", "El script no produjo documentos. Consulte Mensajes.", "脚本未生成文档。请查看消息。")
         , ("noDocumentsFound", "No documents found.", "Nenhum documento encontrado.", "No se encontraron documentos.", "未找到文档。")
         , ("timedOut", "Timed out", "Tempo limite excedido", "Tiempo agotado", "已超时")
-        , ("scriptFailed", "Failed — code {0}", "Falha — código {0}", "Falló — código {0}", "失败 — 代码 {0}")
         , ("resultLimited", " · result limited", " · resultado limitado", " · resultado limitado", " · 结果已限制")
         , ("documentsMetrics", "{0} document(s) · limit {1} · {2} ms", "{0} documento(s) · limite {1} · {2} ms", "{0} documento(s) · límite {1} · {2} ms", "{0} 个文档 · 限制 {1} · {2} 毫秒")
         , ("consoleMetrics", "{0} result(s) · {1} ms · {2} · maximum {3} documents per cursor", "{0} resultado(s) · {1} ms · {2} · máximo {3} documentos por cursor", "{0} resultado(s) · {1} ms · {2} · máximo {3} documentos por cursor", "{0} 个结果 · {1} 毫秒 · {2} · 每个游标最多 {3} 个文档")
-        , ("scriptMetrics", "{0} document(s) · {1} ms", "{0} documento(s) · {1} ms", "{0} documento(s) · {1} ms", "{0} 个文档 · {1} 毫秒")
         , ("queryInterrupted", "Execution interrupted.", "Execução interrompida.", "Ejecución interrumpida.", "执行已中断。")
         , ("writeEffectsNotReverted", "Effects already sent to MongoDB are not reverted automatically. The server result may be uncertain.", "Efeitos já enviados ao MongoDB não são revertidos automaticamente. O resultado no servidor pode ser incerto.", "Los efectos ya enviados a MongoDB no se revierten automáticamente. El resultado en el servidor puede ser incierto.", "已发送到 MongoDB 的效果不会自动回滚。服务器上的结果可能不确定。")
         , ("executionFailed", "Execution failed", "Falha na execução", "Falló la ejecución", "执行失败")
         , ("executionIncomplete", "The execution could not be completed.", "Não foi possível concluir a execução.", "No se pudo completar la ejecución.", "无法完成执行。")
-        , ("historyNotSaved", "History was not saved: {0}", "Histórico não salvo: {0}", "No se guardó el historial: {0}", "历史记录未保存：{0}")
         , ("queryCompletedHistoryNotSaved", "Query completed; history was not saved: {0}", "Consulta concluída; histórico não salvo: {0}", "Consulta completada; no se guardó el historial: {0}", "查询已完成；历史记录未保存：{0}")
         , ("savedFile", "File saved", "Arquivo salvo", "Archivo guardado", "文件已保存")
         , ("savedFileHistoryNotSaved", "File saved; history was not saved: {0}", "Arquivo salvo; histórico não salvo: {0}", "Archivo guardado; no se guardó el historial: {0}", "文件已保存；历史记录未保存：{0}")
-        , ("analyzingPipeline", "Analyzing pipeline…", "Analisando pipeline…", "Analizando pipeline…", "正在分析管道…")
-        , ("capturedPipelinePlan", "Pipeline plan captured — {0} › {1} › {2}\nqueryPlanner: estimated plan; it does not measure duration or the actual document count.\n\n{3}", "Plano do pipeline capturado — {0} › {1} › {2}\nqueryPlanner: plano estimado; não mede a duração nem a quantidade real de documentos.\n\n{3}", "Plan del pipeline capturado — {0} › {1} › {2}\nqueryPlanner: plan estimado; no mide la duración ni la cantidad real de documentos.\n\n{3}", "已捕获管道计划 — {0} › {1} › {2}\nqueryPlanner：估算计划；不测量持续时间或实际文档数量。\n\n{3}")
-        , ("planAvailable", "Plan available", "Plano disponível", "Plan disponible", "计划可用")
-        , ("analysisCancelled", "Analysis canceled. Effects already sent to the server are not reverted.", "Análise cancelada. Efeitos já enviados ao servidor não são revertidos.", "Análisis cancelado. Los efectos ya enviados al servidor no se revierten.", "分析已取消。已发送到服务器的效果不会回滚。")
-        , ("analysisFailed", "Analysis failed", "Falha na análise", "Falló el análisis", "分析失败")
         , ("copySelectedJsonHint", "Copy formatted JSON from {0}", "Copiar o JSON formatado de {0}", "Copiar el JSON formateado de {0}", "复制 {0} 的格式化 JSON")
         , ("selectDocumentToCopy", "Select a document in the results to copy.", "Selecione um documento nos resultados para copiar.", "Seleccione un documento en los resultados para copiar.", "选择结果中的文档以复制。")
         , ("invalidJsonNoEdit", "Invalid JSON: there is no document to edit.", "JSON inválido: não há documento para editar.", "JSON no válido: no hay documento para editar.", "JSON 无效：没有可编辑的文档。")
@@ -1106,7 +1028,6 @@ public sealed partial class LocalizationViewModel : ObservableObject
         , ("exactCountNote", "Exact count respects the filter; estimated count considers the entire collection.", "A contagem exata respeita o filtro; a estimada considera a coleção inteira.", "El conteo exacto respeta el filtro; el estimado considera toda la colección.", "精确计数遵循过滤器；估算计数考虑整个集合。")
         , ("distinctInitial", "Enter a field and find distinct values using the current filter.", "Informe um campo e execute valores distintos usando o filtro atual.", "Indique un campo y busque valores distintos usando el filtro actual.", "输入字段并使用当前过滤器查找不同值。")
         , ("explainInitial", "Run Explain to view the query plan and statistics.", "Execute Explain para visualizar o plano e as estatísticas da consulta.", "Ejecute Explain para ver el plan y las estadísticas de la consulta.", "运行 Explain 查看查询计划和统计信息。")
-        , ("aggregationInitial", "Select a collection and run an aggregation pipeline.", "Selecione uma coleção e execute um pipeline de agregação.", "Seleccione una colección y ejecute un pipeline de agregación.", "选择集合并运行聚合管道。")
         , ("queryReturned", "{0} document(s) returned in {1} ms.", "{0} documento(s) retornado(s) em {1} ms.", "{0} documento(s) devuelto(s) en {1} ms.", "返回 {0} 个文档，用时 {1} 毫秒。")
         , ("limitReached", " Limit reached.", " Limite atingido.", " Límite alcanzado.", " 已达到限制。")
         , ("exportedExtendedJson", "{0} document(s) exported as Extended JSON.", "{0} documento(s) exportado(s) em Extended JSON.", "{0} documento(s) exportado(s) como Extended JSON.", "已将 {0} 个文档导出为 Extended JSON。")
@@ -1118,8 +1039,6 @@ public sealed partial class LocalizationViewModel : ObservableObject
         , ("distinctNone", "No distinct value found.", "Nenhum valor distinto encontrado.", "No se encontraron valores distintos.", "未找到不同值。")
         , ("distinctReturned", "{0} distinct value(s) returned in {1} ms.", "{0} valor(es) distinto(s) retornado(s) em {1} ms.", "{0} valor(es) distinto(s) devuelto(s) en {1} ms.", "返回 {0} 个不同值，用时 {1} 毫秒。")
         , ("explainLoaded", "Explain plan loaded.", "Plano Explain carregado.", "Plan Explain cargado.", "Explain 计划已加载。")
-        , ("pipelineNone", "The pipeline returned no documents.", "O pipeline não retornou documentos.", "El pipeline no devolvió documentos.", "管道未返回文档。")
-        , ("pipelineReturned", "Pipeline returned {0} document(s) in {1} ms.", "Pipeline retornou {0} documento(s) em {1} ms.", "El pipeline devolvió {0} documento(s) en {1} ms.", "管道返回 {0} 个文档，用时 {1} 毫秒。")
         , ("documentPreviewInitial", "Enter a filter and load a preview before changing a document.", "Informe um filtro e carregue uma prévia antes de alterar um documento.", "Indique un filtro y cargue una vista previa antes de cambiar un documento.", "输入过滤器并加载预览后再修改文档。")
         , ("findModifyInitial", "The document returned after the change will appear here.", "O documento retornado após a alteração aparecerá aqui.", "El documento devuelto después del cambio aparecerá aquí.", "更改后返回的文档将显示在这里。")
         , ("insertedDocument", "Document inserted.", "Documento inserido.", "Documento insertado.", "文档已插入。")
@@ -1159,41 +1078,15 @@ public sealed partial class LocalizationViewModel : ObservableObject
         , ("activityNoEntries", "No matching entries in this snapshot.", "Nenhuma entrada correspondente nesta fotografia.", "No hay entradas coincidentes en esta captura.", "此快照中没有匹配的条目。")
         , ("activityIdleSession", "idle session", "sessão ociosa", "sesión inactiva", "空闲会话")
         , ("activityOperation", "operation", "operação", "operación", "操作")
-        , ("profilerLoaded", "Current profiler configuration loaded.", "Configuração atual do profiler carregada.", "Configuración actual del profiler cargada.", "当前分析器配置已加载。")
-        , ("profilerConfiguration", "Configure profiler", "Configurar profiler", "Configurar profiler", "配置分析器")
-        , ("profilerLevel", "Level 0–2", "Nível 0–2", "Nivel 0–2", "级别 0–2")
-        , ("profilerUseFilter", "Use filter", "Usar filtro", "Usar filtro", "使用筛选器")
         , ("profilerConfirmDatabase", "Repeat database name", "Repita o nome do banco", "Repita el nombre de la base", "重复数据库名称")
-        , ("profilerPreview", "Review profiler", "Revisar profiler", "Revisar profiler", "检查分析器")
-        , ("profilerApply", "Apply profiler", "Aplicar profiler", "Aplicar profiler", "应用分析器")
-        , ("profilerFilterPlaceholder", "Filter JSON only for level 1 with Use filter; otherwise leave empty", "Filtro JSON somente para nível 1 com Usar filtro; caso contrário, deixe vazio", "Filtro JSON solo para nivel 1 con Usar filtro; en otro caso, déjelo vacío", "筛选 JSON 仅用于级别 1 并启用筛选器；否则留空")
-        , ("profilerPreviewTarget", "Database: {0}; profile command requires write privilege.", "Banco: {0}; o comando profile exige privilégio de escrita.", "Base: {0}; el comando profile requiere privilegio de escritura.", "数据库：{0}；profile 命令需要写入权限。")
-        , ("profilerPreviewCurrent", "Current: level={0}, slowms={1}, sampleRate={2}, filter={3}.", "Atual: nível={0}, slowms={1}, sampleRate={2}, filtro={3}.", "Actual: nivel={0}, slowms={1}, sampleRate={2}, filtro={3}.", "当前：级别={0}，slowms={1}，sampleRate={2}，筛选器={3}。")
-        , ("profilerPreviewProposed", "Proposed: level={0}, slowms={1}, sampleRate={2}, filter={3}.", "Proposto: nível={0}, slowms={1}, sampleRate={2}, filtro={3}.", "Propuesto: nivel={0}, slowms={1}, sampleRate={2}, filtro={3}.", "建议：级别={0}，slowms={1}，sampleRate={2}，筛选器={3}。")
-        , ("profilerLevel2Risk", "Level 2 records all operations in system.profile; it can add substantial disk/performance cost and expose query data.", "Nível 2 registra todas as operações em system.profile; pode aumentar muito o uso de disco/desempenho e expor dados de consulta.", "El nivel 2 registra todas las operaciones en system.profile; puede aumentar mucho el coste de disco/rendimiento y exponer datos de consultas.", "级别 2 将所有操作写入 system.profile，可能显著增加磁盘和性能负担并暴露查询数据。")
-        , ("profilerFilterRisk", "Level 1 with filter records matching operations regardless of slowms/sampleRate; query details may be exposed.", "Nível 1 com filtro registra operações correspondentes independentemente de slowms/sampleRate; detalhes de consultas podem ser expostos.", "El nivel 1 con filtro registra operaciones coincidentes sin depender de slowms/sampleRate; los detalles de consultas pueden quedar expuestos.", "级别 1 使用筛选器时会记录匹配操作，忽略 slowms/sampleRate；查询细节可能暴露。")
-        , ("profilerThresholdRisk", "Level 1 records slow operations in system.profile. slowms/sampleRate also affect server-wide logging.", "Nível 1 registra operações lentas em system.profile. slowms/sampleRate também afetam o log do servidor inteiro.", "El nivel 1 registra operaciones lentas en system.profile. slowms/sampleRate también afectan al registro de todo el servidor.", "级别 1 将慢操作写入 system.profile；slowms/sampleRate 还影响整个服务器的日志。")
-        , ("profilerLevel0Scope", "Level 0 disables the database profiler; slowms/sampleRate still affect server-wide logging.", "Nível 0 desliga o profiler do banco; slowms/sampleRate ainda afetam o log do servidor inteiro.", "El nivel 0 desactiva el profiler de la base; slowms/sampleRate aún afectan al registro de todo el servidor.", "级别 0 关闭数据库分析器；slowms/sampleRate 仍影响整个服务器的日志。")
-        , ("profilerConcurrentWarning", "Settings may change between review and command. Cancellation does not undo a dispatched change; refresh to verify.", "A configuração pode mudar entre a revisão e o comando. Cancelar não desfaz uma mudança enviada; releia para verificar.", "La configuración puede cambiar entre la revisión y el comando. Cancelar no deshace un cambio enviado; vuelva a leer para verificar.", "设置可能在检查与命令之间变化。取消不会撤销已发送的更改；请重新读取以核实。")
-        , ("profilerPreviewRequired", "Review the current profiler settings and confirm the database before applying.", "Revise a configuração atual do profiler e confirme o banco antes de aplicar.", "Revise la configuración actual del profiler y confirme la base antes de aplicar.", "应用前请检查当前分析器设置并确认数据库。")
-        , ("profilerEffectUncertain", "Profiler command failed or was canceled after submission; its effect is uncertain. Read the current settings before another change.", "O comando do profiler falhou ou foi cancelado após o envio; seu efeito é incerto. Releia a configuração antes de outra mudança.", "El comando del profiler falló o se canceló tras el envío; su efecto es incierto. Vuelva a leer la configuración antes de otro cambio.", "分析器命令发送后失败或取消；效果不确定。再次更改前请读取当前设置。")
-        , ("profilerConfigured", "Profiler settings verified for {0}: level {1}.", "Configuração do profiler verificada em {0}: nível {1}.", "Configuración del profiler verificada en {0}: nivel {1}.", "已验证 {0} 的分析器设置：级别 {1}。")
-        , ("profilerCaptureMinutes", "Minutes (1–60)", "Minutos (1–60)", "Minutos (1–60)", "分钟（1–60）")
-        , ("profilerCaptureStart", "Start bounded capture", "Iniciar coleta limitada", "Iniciar captura limitada", "开始有限采集")
-        , ("profilerCaptureCollect", "Read capture", "Ler coleta", "Leer captura", "读取采集")
         , ("profilerCaptureRestore", "Restore previous settings", "Restaurar configuração anterior", "Restaurar configuración anterior", "恢复先前设置")
-        , ("profilerCaptureNotice", "Capture requires a prior configuration without a filter and a MongoDB process identity. It never stops or restores automatically. Read at most 200 metadata rows and restore explicitly; confirm the database above. Captured query contents are never shown or saved.", "A coleta exige configuração anterior sem filtro e identidade do processo MongoDB. Ela não para nem restaura automaticamente. Leia até 200 linhas de metadados e restaure explicitamente; confirme o banco acima. O conteúdo das consultas não é exibido nem salvo.", "La captura requiere configuración anterior sin filtro e identidad del proceso MongoDB. No se detiene ni restaura automáticamente. Lea hasta 200 filas de metadatos y restaure explícitamente; confirme la base arriba. El contenido de las consultas no se muestra ni guarda.", "采集要求原配置无筛选器且可识别 MongoDB 进程。系统不会自动停止或恢复。最多读取 200 条元数据，并在上方确认数据库后显式恢复。查询内容不会显示或保存。")
+        , ("profilerCaptureNotice", "Select a pending recovery record, select its connection and confirm the database. Restoration is never automatic.", "Selecione um registro pendente, escolha sua conexão e confirme o banco. A restauração nunca é automática.", "Seleccione un registro pendiente, elija su conexión y confirme la base. La restauración nunca es automática.", "选择待处理的恢复记录及其连接，然后确认数据库。恢复不会自动执行。")
         , ("profilerRecoveryPending", "{0} profiler recovery record(s) pending. Review and restore explicitly.", "Há {0} registro(s) pendente(s) de recuperação do profiler. Revise e restaure explicitamente.", "Hay {0} registro(s) pendiente(s) de recuperación del profiler. Revise y restaure explícitamente.", "有 {0} 条分析器恢复记录待处理。请检查并显式恢复。")
         , ("profilerRecoveryReadFailed", "Profiler recovery records could not be read: {0}. They were preserved.", "Não foi possível ler os registros de recuperação do profiler: {0}. Eles foram preservados.", "No se pudieron leer los registros de recuperación del profiler: {0}. Se conservaron.", "无法读取分析器恢复记录：{0}。记录已保留。")
-        , ("profilerCaptureDurationInvalid", "Choose a capture duration from 1 to 60 minutes.", "Escolha uma duração de coleta entre 1 e 60 minutos.", "Elija una duración de captura entre 1 y 60 minutos.", "请选择 1 到 60 分钟的采集时长。")
         , ("profilerCaptureEffectUncertain", "The capture or restoration may have changed the server. Review the persistent recovery record and current profiler settings before another action.", "A coleta ou restauração pode ter alterado o servidor. Revise o registro persistente de recuperação e a configuração atual do profiler antes de outra ação.", "La captura o restauración puede haber cambiado el servidor. Revise el registro persistente de recuperación y la configuración actual antes de otra acción.", "采集或恢复可能已更改服务器。再次操作前请检查持久恢复记录和当前分析器设置。")
-        , ("profilerCaptureStarted", "Bounded capture started on {0} for {1} minute(s); restore explicitly.", "Coleta limitada iniciada em {0} por {1} minuto(s); restaure explicitamente.", "Captura limitada iniciada en {0} durante {1} minuto(s); restaure explícitamente.", "已在 {0} 开始为期 {1} 分钟的有限采集；请显式恢复。")
-        , ("profilerCaptureSelect", "Select a recovery record for the current connection.", "Selecione um registro de recuperação desta conexão.", "Seleccione un registro de recuperación de esta conexión.", "请选择当前连接的恢复记录。")
-        , ("profilerCaptureCount", "{0} metadata row(s); truncated: {1}.", "{0} linha(s) de metadados; truncado: {1}.", "{0} fila(s) de metadatos; truncado: {1}.", "{0} 条元数据；截断：{1}。")
         , ("profilerCaptureConfirmRestore", "Select a recovery record for this connection and repeat its database name above.", "Selecione um registro de recuperação desta conexão e repita acima o nome do banco.", "Seleccione un registro de recuperación de esta conexión y repita arriba el nombre de la base.", "请选择此连接的恢复记录，并在上方重复输入数据库名称。")
         , ("profilerCaptureRestored", "Previous profiler settings verified for {0}.", "Configuração anterior do profiler verificada em {0}.", "Configuración anterior del profiler verificada en {0}.", "已验证 {0} 的先前分析器设置。")
         , ("topologyLoaded", "MongoDB topology loaded.", "Topologia MongoDB carregada.", "Topología de MongoDB cargada.", "MongoDB 拓扑已加载。")
-        , ("killRequested", "Interruption requested for operation {0}.", "Interrupção solicitada para a operação {0}.", "Interrupción solicitada para la operación {0}.", "已请求中断操作 {0}。")
         , ("profilesLoaded", "{0} connection(s) loaded.", "{0} conexão(ões) carregada(s).", "{0} conexión(es) cargada(s).", "已加载 {0} 个连接。")
         , ("profileFromUri", "Profile populated from the URI. Review the fields before saving.", "Perfil preenchido a partir da URI. Revise os campos antes de salvar.", "Perfil rellenado a partir de la URI. Revise los campos antes de guardar.", "已从 URI 填充配置。保存前请检查字段。")
         , ("duplicateProfileHint", "Review the name and save the connection copy.", "Revise o nome e salve a cópia da conexão.", "Revise el nombre y guarde la copia de la conexión.", "请检查名称并保存连接副本。")
@@ -1260,20 +1153,10 @@ public sealed partial class LocalizationViewModel : ObservableObject
         , ("auditExportFailed", "Failed to export audit: {0}", "Falha ao exportar auditoria: {0}", "Falló la exportación de auditoría: {0}", "导出审计失败：{0}")
         , ("suggestMqlHint", "Contextual suggestions are in the editor: Ctrl+Space opens the list and Ctrl+; asks the AI", "As sugestões contextuais ficam no editor: Ctrl+Espaço abre a lista e Ctrl+; pede à IA", "Las sugerencias contextuales están en el editor: Ctrl+Espacio abre la lista y Ctrl+; consulta a la IA", "上下文建议位于编辑器中：Ctrl+Space 打开列表，Ctrl+; 请求 AI。")
         , ("applyMqlHint", "Apply suggestions directly in the editor: Ctrl+Space opens the list and Ctrl+; asks the AI", "Aplique sugestões diretamente no editor: Ctrl+Espaço abre a lista e Ctrl+; pede à IA", "Aplique sugerencias directamente en el editor: Ctrl+Espacio abre la lista y Ctrl+; consulta a la IA", "直接在编辑器中应用建议：Ctrl+Space 打开列表，Ctrl+; 请求 AI。")
-        , ("suggestAggregationHint", "Aggregation suggestions are in the editor: Ctrl+Space opens the list and Ctrl+; asks the AI", "As sugestões de agregação ficam no editor: Ctrl+Espaço abre a lista e Ctrl+; pede à IA", "Las sugerencias de agregación están en el editor: Ctrl+Espacio abre la lista y Ctrl+; consulta a la IA", "聚合建议位于编辑器中：Ctrl+Space 打开列表，Ctrl+; 请求 AI。")
         , ("noSuggestableFields", "The sample contains no fields that can be suggested.", "A amostra não contém campos que possam ser sugeridos.", "La muestra no contiene campos que puedan sugerirse.", "样本不包含可建议的字段。")
         , ("fieldsInferred", "{0} field(s) inferred from {1} document(s). Use Suggest MQL in the filter.", "{0} campo(s) inferido(s) de {1} documento(s). Use Sugerir MQL no filtro.", "Se infirieron {0} campo(s) de {1} documento(s). Use Sugerir MQL en el filtro.", "从 {1} 个文档推断出 {0} 个字段。请在过滤器中使用建议 MQL。")
         , ("schemaSampleLoaded", "Schema sample loaded: {0} document(s), {1} field(s).", "Amostra de schema carregada: {0} documento(s), {1} campo(s).", "Muestra de esquema cargada: {0} documento(s), {1} campo(s).", "架构样本已加载：{0} 个文档，{1} 个字段。")
         , ("validatorInferred", "Validator inferred from {0} document(s); review before applying.", "Validador inferido de {0} documento(s); revise antes de aplicar.", "Validador inferido de {0} documento(s); revise antes de aplicar.", "已从 {0} 个文档推断验证器；应用前请检查。")
-        , ("scriptPathLoaded", "Script path loaded from local history.", "Caminho de script carregado do histórico local.", "Ruta del script cargada del historial local.", "已从本地历史记录加载脚本路径。")
-        , ("scriptCompleted", "Script completed in {0} ms.", "Script concluído em {0} ms.", "Script completado en {0} ms.", "脚本已完成，用时 {0} 毫秒。")
-        , ("scriptExitCode", "Script completed with code {0}.", "Script concluído com código {0}.", "Script completado con código {0}.", "脚本已完成，代码为 {0}。")
-        , ("scriptSaved", "Script saved to {0}.", "Script salvo em {0}.", "Script guardado en {0}.", "脚本已保存到 {0}。")
-        , ("scriptLoaded", "Script loaded from {0}.", "Script carregado de {0}.", "Script cargado desde {0}.", "脚本已从 {0} 加载。")
-        , ("scriptResultsHeader", "RESULTS EJSON", "RESULTADOS EJSON", "RESULTADOS EJSON", "EJSON 结果")
-        , ("scriptConsoleHeader", "CONSOLE", "CONSOLE", "CONSOLA", "控制台")
-        , ("scriptErrorsHeader", "ERRORS", "ERROS", "ERRORES", "错误")
-        , ("scriptNoOutput", "The script returned no results or messages.", "O script não retornou resultados nem mensagens.", "El script no devolvió resultados ni mensajes.", "脚本未返回结果或消息。")
         , ("exportDatabaseInitial", "Select a database to export it as Extended JSON.", "Selecione um banco para exportá-lo em Extended JSON.", "Seleccione una base de datos para exportarla como Extended JSON.", "选择数据库以将其导出为 Extended JSON。")
         , ("importDatabaseInitial", "Provide the export folder and choose the target database.", "Informe a pasta da exportação e escolha o banco de destino.", "Indique la carpeta de exportación y elija la base de datos de destino.", "提供导出文件夹并选择目标数据库。")
         , ("databaseExportSummary", "{0} collection(s), {1} document(s).", "{0} coleção(ões), {1} documento(s).", "{0} colección(es), {1} documento(s).", "{0} 个集合，{1} 个文档。")
@@ -1296,13 +1179,8 @@ public sealed partial class LocalizationViewModel : ObservableObject
         , ("importStageFailed", "Import failed; cleanup completed", "Importação falhou; limpeza concluída", "Falló la importación; limpieza completada", "导入失败；清理已完成")
         , ("importStageFailedPartial", "Import failed; destination may be partial", "Importação falhou; o destino pode estar parcial", "Falló la importación; el destino puede estar parcial", "导入失败；目标数据可能不完整")
         , ("databaseImported", "Import completed: {0} document(s).", "Importação concluída: {0} documento(s).", "Importación completada: {0} documento(s).", "导入已完成：{0} 个文档。")
-        , ("usersLoaded", "MongoDB users loaded.", "Usuários MongoDB carregados.", "Usuarios de MongoDB cargados.", "MongoDB 用户已加载。")
-        , ("rolesLoaded", "MongoDB roles loaded.", "Papéis MongoDB carregados.", "Roles de MongoDB cargados.", "MongoDB 角色已加载。")
-        , ("userCreated", "User {0} created in database {1}.", "Usuário {0} criado no banco {1}.", "Usuario {0} creado en la base de datos {1}.", "已在数据库 {1} 中创建用户 {0}。")
-        , ("userRemoved", "User {0} removed from database {1}.", "Usuário {0} removido do banco {1}.", "Usuario {0} eliminado de la base de datos {1}.", "已从数据库 {1} 删除用户 {0}。")
         , ("userCreatedAudit", "User {0} created.", "Usuário {0} criado.", "Usuario {0} creado.", "已创建用户 {0}。")
         , ("userRemovedAudit", "User {0} removed.", "Usuário {0} removido.", "Usuario {0} eliminado.", "已删除用户 {0}。")
-        , ("rolesUpdated", "Roles for user {0} updated.", "Papéis do usuário {0} atualizados.", "Roles del usuario {0} actualizados.", "用户 {0} 的角色已更新。")
         , ("databaseStatsLoaded", "Statistics for {0} loaded.", "Estatísticas de {0} carregadas.", "Estadísticas de {0} cargadas.", "已加载 {0} 的统计信息。")
         , ("databaseRemoved", "Database {0} removed.", "Banco {0} removido.", "Base de datos {0} eliminada.", "已删除数据库 {0}。")
         , ("databaseCreated", "Database {0} created with collection {1}.", "Banco {0} criado com a coleção {1}.", "Base de datos {0} creada con la colección {1}.", "已创建数据库 {0}，集合为 {1}。")
@@ -1319,10 +1197,6 @@ public sealed partial class LocalizationViewModel : ObservableObject
         , ("collectionValidationLoaded", "Current validation for collection {0} loaded.", "Validação atual da coleção {0} carregada.", "Validación actual de la colección {0} cargada.", "已加载集合 {0} 的当前验证。")
         , ("collectionRemovedAudit", "Collection removed.", "Coleção removida.", "Colección eliminada.", "已删除集合。")
         , ("collectionRemoved", "Collection {0} removed.", "Coleção {0} removida.", "Colección {0} eliminada.", "已删除集合 {0}。")
-        , ("collectionValidationDone", "Validation for collection {0} completed.", "Validação da coleção {0} concluída.", "Validación de la colección {0} completada.", "集合 {0} 的验证已完成。")
-        , ("collectionIntegrityAudit", "Collection integrity verified.", "Integridade da coleção verificada.", "Integridad de la colección verificada.", "已验证集合完整性。")
-        , ("collectionCompacted", "Compaction for collection {0} completed.", "Compactação da coleção {0} concluída.", "Compactación de la colección {0} completada.", "集合 {0} 的压缩已完成。")
-        , ("compactionRequested", "Compaction requested.", "Compactação solicitada.", "Compactación solicitada.", "已请求压缩。")
         , ("collectionStatsLoaded", "Statistics for collection {0} loaded.", "Estatísticas da coleção {0} carregadas.", "Estadísticas de la colección {0} cargadas.", "已加载集合 {0} 的统计信息。")
         , ("readOnlyDocumentStatus", "Read-only preview; nothing was executed.", "Visualização somente leitura; nada foi executado.", "Vista previa de solo lectura; no se ejecutó nada.", "只读预览；未执行任何操作。")
         , ("canonicalExtendedJson", " · export continues as canonical Extended JSON", " · exportação continua em Extended JSON canônico", " · la exportación continúa como Extended JSON canónico", " · 导出仍使用规范 Extended JSON")
@@ -1641,7 +1515,6 @@ public sealed partial class LocalizationViewModel : ObservableObject
         , ("editResultNeedsCollection", "Select a collection result before editing documents.", "Selecione um resultado de coleção antes de editar documentos.", "Seleccione un resultado de colección antes de editar documentos.", "编辑文档前请选择集合结果。")
         , ("editDocumentNeedsId", "Select a document with _id; do not exclude this field from the projection.", "Selecione um documento com _id; não exclua esse campo da projeção.", "Seleccione un documento con _id; no excluya este campo de la proyección.", "请选择包含 _id 的文档；不要在投影中排除该字段。")
         , ("editDocumentUnavailable", "The document is no longer available. Refresh the page.", "O documento não está mais disponível. Atualize a página.", "El documento ya no está disponible. Actualice la página.", "文档已不可用。请刷新页面。")
-        , ("scriptResultsPlaceholder", "The structured result and mongosh console appear here.", "O resultado estruturado e o console do mongosh aparecem aqui.", "El resultado estructurado y la consola de mongosh aparecen aquí.", "结构化结果和 mongosh 控制台会显示在这里。")
         , ("connected", "connected", "conectada", "conectada", "已连接")
         , ("disconnected", "disconnected", "desconectada", "desconectada", "已断开")
         , ("expandToLoad", "Expand to load", "Expandir para carregar", "Expandir para cargar", "展开以加载")
@@ -1817,8 +1690,6 @@ public sealed partial class LocalizationViewModel : ObservableObject
         , ("consoleExecutionTimedOut", "Timed out; effects sent to the server are not reverted.", "Tempo limite excedido; efeitos enviados ao servidor não são revertidos.", "Se agotó el tiempo; los efectos enviados al servidor no se revierten.", "已超时；发送到服务器的效果不会回滚。")
         , ("consoleHistoryNotSaved", "History was not saved: ", "Histórico não salvo: ", "No se guardó el historial: ", "历史记录未保存：")
         , ("consoleExpression", "Console · expression", "Console · expressão", "Consola · expresión", "控制台 · 表达式")
-        , ("scriptMongosh", "mongosh script", "Script mongosh", "Script de mongosh", "mongosh 脚本")
-        , ("resultAggregation", "Aggregation", "Agregação", "Agregación", "聚合")
         , ("resultQuery", "Query", "Consulta", "Consulta", "查询")
         , ("consoleHistoryItem", "{0} · {1} · {2} › {3}{4} · {5} · {6}", "{0} · {1} · {2} › {3}{4} · {5} · {6}", "{0} · {1} · {2} › {3}{4} · {5} · {6}", "{0} · {1} · {2} › {3}{4} · {5} · {6}")
         , ("consoleResultItem", "[{0}] {1} › {2}{3} · {4} document(s){5}", "[{0}] {1} › {2}{3} · {4} documento(s){5}", "[{0}] {1} › {2}{3} · {4} documento(s){5}", "[{0}] {1} › {2}{3} · {4} 个文档{5}")
@@ -1868,7 +1739,6 @@ public sealed partial class LocalizationViewModel : ObservableObject
         , ("identifierFilterLine", "Filter: {{ _id: {0} }}", "Filtro: {{ _id: {0} }}", "Filtro: {{ _id: {0} }}", "过滤器：{{ _id: {0} }}")
         , ("identifierExplicit", "explicit", "explícito", "explícito", "显式")
         , ("identifierInferred", "inferred from text", "inferido do texto", "inferido del texto", "从文本推断")
-        , ("scriptTextInitial", "// db starts at the connection's selected database\nconst filtro = EJSON.parse('{ \"ativo\": true }');\nconst cursor = db.getCollection(\"clientes\").find(filtro).limit(100);\nawait slop.results.stream(cursor);", "// db começa no banco selecionado da conexão\nconst filtro = EJSON.parse('{ \"ativo\": true }');\nconst cursor = db.getCollection(\"clientes\").find(filtro).limit(100);\nawait slop.results.stream(cursor);", "// db comienza en la base de datos seleccionada de la conexión\nconst filtro = EJSON.parse('{ \"ativo\": true }');\nconst cursor = db.getCollection(\"clientes\").find(filtro).limit(100);\nawait slop.results.stream(cursor);", "// db 从连接所选的数据库开始\nconst filtro = EJSON.parse('{ \"ativo\": true }');\nconst cursor = db.getCollection(\"clientes\").find(filtro).limit(100);\nawait slop.results.stream(cursor);")
         , ("operationLoadingProfiles", "Loading local connections", "Carregando conexões locais", "Cargando conexiones locales", "正在加载本地连接")
         , ("operationLoadingConsoleHistory", "Loading Console history", "Carregando histórico do Console", "Cargando el historial de la consola", "正在加载控制台历史记录")
         , ("operationLoadingTopology", "Loading topology", "Carregando topologia", "Cargando topología", "正在加载拓扑")

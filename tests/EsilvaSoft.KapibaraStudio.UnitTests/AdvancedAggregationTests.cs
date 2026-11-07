@@ -14,36 +14,6 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests;
 [TestFixture]
 public sealed class AdvancedAggregationTests
 {
-    [Test]
-    public async Task ExplainKeepsSnapshotAndCancelsOnlyItsOwnTab()
-    {
-        using var context = new WorkspaceTestContext();
-        var profile = ConnectionProfile.Create("Dev", "mongodb://host");
-        var firstReply = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var secondReply = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var captured = new List<AggregationQuery>();
-        context.Mongo.Handler = (method, args) =>
-        {
-            Assert.That(method, Is.EqualTo("ExplainAggregationAsync"));
-            var query = (AggregationQuery)args[1]!; captured.Add(query);
-            return (query.Database == "first" ? firstReply.Task : secondReply.Task).WaitAsync((CancellationToken)args[2]!);
-        };
-        var first = new WorkspaceTabViewModel(context.Workspace) { Profile = profile, IsConnected = true, Database = "first", Collection = "orders", Mode = "Agregação", Text = "[{ $match: {} }]", Limit = 7 };
-        var second = new WorkspaceTabViewModel(context.Workspace) { Profile = profile, IsConnected = true, Database = "second", Collection = "customers", Mode = "Agregação", Text = "[]" };
-        var runFirst = first.ExplainAggregationCommand.ExecuteAsync(null);
-        var runSecond = second.ExplainAggregationCommand.ExecuteAsync(null);
-        first.Database = "changed"; first.Collection = "changed"; first.Text = "[]"; first.Limit = 1;
-        secondReply.SetResult("{\"queryPlanner\":{\"namespace\":\"second.customers\"}}");
-        await runSecond;
-        Assert.That(second.Messages, Does.Contain("Dev › second › customers"));
-        Assert.That(first.IsRunning, Is.True);
-        first.CancelCommand.Execute(null); await runFirst;
-        Assert.That(first.Status, Is.EqualTo("Cancelado"));
-        Assert.That(second.Messages, Does.Contain("second.customers"));
-        Assert.That(captured[0], Is.EqualTo(new AggregationQuery("first", "orders", "[{ $match: {} }]", 7)));
-        Assert.That(first.Results, Does.Not.Contain("queryPlanner"));
-    }
-
     [TestCase("[\n { $match: {} },\n { $group: { _id: '$customer', total: { $sum: '$price' } } }\n]", true)]
     [TestCase("db.orders.aggregate([{ $match: { id: ObjectId('507f1f77bcf86cd799439011') } }]);", false)]
     [TestCase("[{ $set: { id: UUID('00112233-4455-6677-8899-aabbccddeeff'), exact: NumberLong('9223372036854775807') } }]", true)]

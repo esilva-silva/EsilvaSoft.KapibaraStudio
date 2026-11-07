@@ -57,7 +57,7 @@ public sealed class PredictiveAutocompleteTests
     {
         var runtime = new CompletionRuntimeFake { Handler = (_, _) => Task.FromResult(new ModelGenerationResult("a + b;\n}\nfunction extra() {}", 12, TimeSpan.Zero, "cpu")) };
         await using var ai = new AiAutocompleteProvider(new CompletionCatalogFake(), () => runtime);
-        var result = await new AutocompleteService(ai).GetCompletionAsync(new("return ", ";\n}"));
+        var result = await ai.GetCompletionAsync(new("return ", ";\n}"), new());
         Assert.That(result?.Text, Is.EqualTo("a + b"));
     }
     [Test]
@@ -117,7 +117,7 @@ public sealed class PredictiveAutocompleteTests
     {
         var runtime = new CompletionRuntimeFake();
         await using var ai = new AiAutocompleteProvider(new CompletionCatalogFake(), () => runtime);
-        var service = new AutocompleteService(ai);
+        var service = new AutocompleteService(ai.Models);
         await service.ConfigureAsync(new() { DelayMilliseconds = 2000 });
         using var session = new CompletionSession();
         var result = session.RequestAsync(service, new("Acc", "") { Dictionary = ["AccountId"] });
@@ -127,16 +127,16 @@ public sealed class PredictiveAutocompleteTests
     }
 
     [Test]
-    public async Task CacheIncludesAuxiliaryContextAndDictionaryCanBeDisabled()
+    public async Task DisabledDictionaryNeverStartsInferenceForAuxiliaryContext()
     {
         var runtime = new CompletionRuntimeFake();
         await using var ai = new AiAutocompleteProvider(new CompletionCatalogFake(), () => runtime);
-        var service = new AutocompleteService(ai);
+        var service = new AutocompleteService(ai.Models);
         await service.ConfigureAsync(new() { UseDictionary = false });
         var request = new AutocompleteRequest("Conn", "") { Context = "Production" };
         Assert.That(service.GetImmediateCompletion(request), Is.Null);
         await service.GetCompletionAsync(request); await service.GetCompletionAsync(request);
         await service.GetCompletionAsync(request with { Context = "Development" });
-        Assert.That(runtime.Generations, Is.EqualTo(2));
+        Assert.That(runtime.Generations, Is.Zero);
     }
 }

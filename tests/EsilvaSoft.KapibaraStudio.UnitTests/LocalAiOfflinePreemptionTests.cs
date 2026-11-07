@@ -55,7 +55,7 @@ public sealed class LocalAiOfflinePreemptionTests
     {
         var models = new LocalAiModelService(new CompletionCatalogFake(), () => new StreamingRuntimeFake());
         await using var _ = models;
-        var autocomplete = new AutocompleteService(new AiAutocompleteProvider(models));
+        var autocomplete = new AutocompleteService(models);
         await autocomplete.ConfigureAsync(Selected);
         var local = new LocalAgentProvider(models, autocomplete);
         var openAi = new OfflineExternalProviderFake("openai", "sem rede", AgentProviderAuthState.VaultUnavailable);
@@ -99,7 +99,7 @@ public sealed class LocalAiOfflinePreemptionTests
     {
         var models = new LocalAiModelService(new CompletionCatalogFake(), () => new StreamingRuntimeFake());
         await using var _ = models;
-        var autocomplete = new AutocompleteService(new AiAutocompleteProvider(models));
+        var autocomplete = new AutocompleteService(models);
         await autocomplete.ConfigureAsync(Selected);
         var local = new LocalAgentProvider(models, autocomplete);
         var openAi = new OfflineExternalProviderFake("openai", "sem rede", AgentProviderAuthState.VaultUnavailable);

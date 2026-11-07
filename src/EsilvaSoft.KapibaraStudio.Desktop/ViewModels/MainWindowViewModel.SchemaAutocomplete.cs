@@ -36,12 +36,6 @@ public sealed partial class MainWindowViewModel
         StatusMessage = T("applyMqlHint");
     }
 
-    [RelayCommand]
-    private void SuggestAggregation()
-    {
-        AutocompleteSuggestions = T("suggestAggregationHint");
-    }
-
     [RelayCommand(CanExecute = nameof(CanExecuteQuery))]
     private async Task SampleSchemaFieldsAsync()
     {

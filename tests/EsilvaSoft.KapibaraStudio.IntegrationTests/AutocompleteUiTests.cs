@@ -88,48 +88,6 @@ public sealed class AutocompleteUiTests
         }, CancellationToken.None);
     }
 
-    [Test, Explicit("Requer SLOP_QWEN_MODEL externo."), Category("LocalModelIntegration")]
-    public async Task RealQwenCompletionTravelsThroughEditorAndAcceptsTab()
-    {
-        var path = Environment.GetEnvironmentVariable("SLOP_QWEN_MODEL");
-        Assert.That(path, Is.Not.Null.And.Not.Empty);
-        var session = HeadlessUnitTestSession.GetOrStartForAssembly(typeof(IntegrationUiTestApp).Assembly);
-        await session.Dispatch<bool>(async () =>
-        {
-            using var context = new WorkspaceTestContext();
-            var catalog = new LocalModelCatalog(fileAccess: new LocalModelFileAccess(), workspacePaths: new LocalWorkspacePathResolver());
-            await using var ai = new AiAutocompleteProvider(catalog, () => new OnnxLocalModelRuntime(fileAccess: new LocalModelFileAccess()));
-            var service = new AutocompleteService(ai);
-            using var workspace = new WorkspaceViewModel(context.Workspace, context.Repository, service, catalog);
-            var window = new MainWindow { DataContext = workspace }; window.Show(); await window.InitializationTask;
-            workspace.AutocompletePreferences.ModelPath = path!;
-            workspace.AutocompletePreferences.HardwareIndex = (int)AiAccelerationMode.Cpu;
-            await workspace.AutocompletePreferences.ApplyCommand.ExecuteAsync(null);
-            var tab = workspace.ActiveTab!; window.UpdateLayout(); Dispatcher.UIThread.RunJobs();
-            var view = window.GetVisualDescendants().OfType<WorkspaceTabView>().Single(v => v.DataContext == tab);
-            var editor = view.FindControl<MongoTextEditor>("CodeEditor")!;
-            const string prefix = "function add(a, b) {\n    return ";
-            editor.Focus(); editor.Text = prefix + ";\n}"; editor.CaretIndex = prefix.Length;
-            editor.SelectionStart = editor.SelectionEnd = editor.CaretIndex;
-            for (var i = 0; i < 1000 && !view.FindControl<Border>("CompletionPanel")!.IsVisible; i++) { await Task.Delay(10); Dispatcher.UIThread.RunJobs(); }
-            Assert.That(service.Status.State, Is.EqualTo(LocalModelState.Ready), service.Status.Message);
-            Assert.That(view.FindControl<InlineCompletionTextBlock>("CompletionText")!.Suggestion, Is.EqualTo("a + b"));
-            var directory = UiEvidenceDirectory.Current(); Directory.CreateDirectory(directory);
-            foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
-            {
-                Avalonia.Application.Current!.RequestedThemeVariant = theme;
-                window.Width = 1366; window.Height = 768; window.UpdateLayout(); Dispatcher.UIThread.RunJobs();
-                using var frame = window.CaptureRenderedFrame();
-                frame!.Save(Path.Combine(directory, $"autocomplete-real-qwen-{theme}.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
-            }
-            window.KeyPress(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, null);
-            Assert.That(editor.Text, Is.EqualTo(prefix + "a;\n}"));
-            window.KeyPress(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, null);
-            Assert.That(editor.Text, Is.EqualTo(prefix + "a + b;\n}"));
-            typeof(MainWindow).GetField("_allowClose", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.SetValue(window, true);
-            window.Close(); return true;
-        }, CancellationToken.None);
-    }
     [Test]
     public async Task PreemptiveSuggestionAcceptsTabDismissesEscapeAndRendersBothThemes()
     {

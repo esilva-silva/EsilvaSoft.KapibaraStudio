@@ -4,7 +4,7 @@ Referência: 06/11/2026. **Studio — MongoDB Database Management & Development 
 
 Esta é a especificação oficial do MVP em `docs-new/`. `docs/` é histórico de implementação, decisões e evidências; seus planos antigos não determinam a nova sequência. A criação desta documentação não altera código, disponibilidade, versão do binário, tags ou pacotes.
 
-O MVP concentra gestão cotidiana de bancos e desenvolvimento com Console JavaScript, preservação de BSON, segurança e assistência opcional. O recorte aprovado corresponde aos quinze itens do tópico 1 do [registro histórico](../../docs/mvp-status.md). Os cortes aprovados serão executados no futuro, com compatibilidade e testes; a aprovação documental não comprova remoção.
+O MVP concentra gestão cotidiana de bancos e desenvolvimento com Console JavaScript, preservação de BSON, segurança e assistência opcional. O recorte aprovado corresponde aos quinze itens do tópico 1 do [registro histórico](../../docs/mvp-status.md). Os cortes foram implementados na Task-R 1, com compatibilidade e testes por lote; a homologação real permanece separada, conforme [evidências](../Remover/TODO.md).
 
 ## Leitura e responsabilidade
 

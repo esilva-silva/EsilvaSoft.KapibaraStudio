@@ -185,8 +185,11 @@ public sealed class TraditionalCompletionUiTests
             Dispatcher.UIThread.RunJobs();
             Assert.That(editor.IsKeyboardFocusWithin, Is.False);
 
-            tab.Mode = "Script";
-            var execution = tab.ExecuteCommand.ExecuteAsync("print('pending')");
+            tab.Mode = "Console";
+            var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            context.Mongo.Handler = (_, args) => { started.TrySetResult(); return new TaskCompletionSource<EsilvaSoft.KapibaraStudio.Core.QueryPage>().Task.WaitAsync((CancellationToken)args[2]!); };
+            var execution = tab.ExecuteCommand.ExecuteAsync("db.collection.find({})");
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
             Assert.That(tab.IsRunning, Is.True);
 
             window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);

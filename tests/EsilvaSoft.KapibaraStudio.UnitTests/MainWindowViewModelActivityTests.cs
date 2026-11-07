@@ -81,7 +81,6 @@ public sealed class MainWindowViewModelActivityTests
         Assert.Multiple(() =>
         {
             Assert.That(viewModel.AdministrationResults, Does.Contain("inprog"));
-            Assert.That(viewModel.CanKillOperation, Is.False);
         });
     }
 
@@ -116,28 +115,4 @@ public sealed class MainWindowViewModelActivityTests
         Assert.That(viewModel.AdministrationResults, Is.EqualTo("previous"));
     }
 
-    [Test]
-    public async Task KillRequiresVisibleCompleteSnapshotWithCapturedServerAndInvalidatesOnFilterChange()
-    {
-        using var context = new WorkspaceTestContext();
-        context.Mongo.Handler = (method, _) => method switch
-        {
-            "GetCurrentOperationsAsync" => Task.FromResult("""
-                {"source":"$currentOp","inprog":[{"opid":45,"host":"server-a:27017","connectionId":5,"op":"query","ns":"db.items","command":{"find":"items","comment":"batch-7"}}]}
-                """),
-            _ => throw new InvalidOperationException(method)
-        };
-        var viewModel = new MainWindowViewModel(context.Workspace, autoLoadCollections: false)
-        {
-            SelectedProfile = ConnectionProfile.Create("local", "mongodb://localhost")
-        };
-
-        await viewModel.LoadCurrentOperationsCommand.ExecuteAsync(null);
-        viewModel.OperationIdToKill = "45";
-        viewModel.OperationKillConfirmation = "45";
-        Assert.That(viewModel.CanKillOperation, Is.True);
-
-        viewModel.OperationCommentFilter = "different-batch";
-        Assert.That(viewModel.CanKillOperation, Is.False);
-    }
 }

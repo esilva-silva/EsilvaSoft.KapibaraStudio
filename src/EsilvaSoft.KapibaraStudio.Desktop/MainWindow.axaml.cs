@@ -180,7 +180,7 @@ public partial class MainWindow : Window
             var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = T("saveScriptPicker"),
-                SuggestedFileName = tab.Mode == "Texto" ? "sem-titulo.txt" : tab.IsConsole || tab.IsScript ? "consulta.js" : "consulta.json",
+                SuggestedFileName = tab.Mode == "Texto" ? "sem-titulo.txt" : tab.IsConsole ? "consulta.js" : "consulta.json",
                 FileTypeChoices = [new FilePickerFileType("Arquivo de texto") { Patterns = ["*.txt", "*.md", "*.json", "*.js", "*.*"] }, FilePickerFileTypes.All]
             });
             if (file is null) return false;

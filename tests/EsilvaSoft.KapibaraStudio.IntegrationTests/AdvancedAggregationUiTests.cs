@@ -15,6 +15,7 @@ namespace EsilvaSoft.KapibaraStudio.IntegrationTests;
 [TestFixture, NonParallelizable, Category("Integration")]
 public sealed class AdvancedAggregationUiTests
 {
+    private static readonly string[] RecoveryLanguages = ["pt-BR", "en", "es", "zh-CN"];
     [Test]
     public async Task DerivedFieldSuggestionInsertsAtTheCursorAndPreservesUndoOffline()
     {
@@ -26,8 +27,8 @@ public sealed class AdvancedAggregationUiTests
             context.Mongo.Handler = (_, _) => { networkCalls++; throw new InvalidOperationException("Não deve consultar metadados remotos."); };
             using var workspace = new WorkspaceViewModel(context.Workspace, context.Repository);
             var window = new MainWindow { DataContext = workspace }; window.Show(); await window.InitializationTask;
-            var tab = workspace.ActiveTab!; tab.Mode = "Agregação"; tab.TraditionalCompletion = new DerivedFieldProvider();
-            const string original = "[{ $group: { _id: '$customer', total: { $sum: '$price' } } }, { $project: { value: '$to";
+            var tab = workspace.ActiveTab!; tab.Mode = "Console"; tab.TraditionalCompletion = new DerivedFieldProvider();
+            const string original = "db.orders.aggregate([{ $group: { _id: '$customer', total: { $sum: '$price' } } }, { $project: { value: '$to";
             tab.Text = original;
             window.UpdateLayout(); Dispatcher.UIThread.RunJobs();
             var view = window.GetVisualDescendants().OfType<WorkspaceTabView>().Single();
@@ -95,7 +96,7 @@ public sealed class AdvancedAggregationUiTests
     }
 
     [Test]
-    public async Task OfflineValidationSelectsStageErrorAndRendersBothThemes()
+    public async Task LegacyRecoveryRendersNoticeAndPreservesPipelineInBothThemes()
     {
         var session = HeadlessUnitTestSession.GetOrStartForAssembly(typeof(IntegrationUiTestApp).Assembly);
         await session.Dispatch<bool>(async () =>
@@ -105,15 +106,16 @@ public sealed class AdvancedAggregationUiTests
             context.Mongo.Handler = (method, _) => { networkCalls++; throw new InvalidOperationException(method); };
             using var workspace = new WorkspaceViewModel(context.Workspace, context.Repository);
             var window = new MainWindow { DataContext = workspace }; window.Show(); await window.InitializationTask;
-            var tab = workspace.ActiveTab!; tab.Mode = "Agregação";
-            tab.Text = "[\n  { $match: { active: true } },\n  { $group: { _id: '$customer', total: { $sum: '$price' } } },\n  { $out: 'copy' }\n]";
+            var tab = workspace.ActiveTab!;
+            const string pipeline = "[{ $match: { active: true } }, { $out: 'copy' }]";
+            tab.Restore(new EsilvaSoft.KapibaraStudio.Core.WorkspaceDraft { Mode = "Agregação", Text = pipeline, IsDirty = true }, null);
             window.UpdateLayout(); Dispatcher.UIThread.RunJobs();
             var view = window.GetVisualDescendants().OfType<WorkspaceTabView>().Single();
             var editor = view.FindControl<MongoTextEditor>("CodeEditor")!;
-            view.FindControl<Button>("ValidateCodeButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            await view.ValidationTask;
-            Assert.That(tab.Errors, Does.Contain("estágio 3"));
-            Assert.That(editor.SelectedText, Is.EqualTo("$out"));
+            Assert.That(tab.Mode, Is.EqualTo("Texto"));
+            Assert.That(tab.Text, Is.EqualTo(pipeline));
+            Assert.That(tab.ExecuteCommand.CanExecute(null), Is.False);
+            Assert.That(view.GetVisualDescendants().OfType<TextBlock>().Any(block => block.Text == tab.LegacyRecoveryNotice), Is.True);
             Assert.That(networkCalls, Is.Zero);
             var directory = UiEvidenceDirectory.Current(); Directory.CreateDirectory(directory);
             foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
@@ -139,4 +141,60 @@ public sealed class AdvancedAggregationUiTests
             window.Close(); return true;
         }, CancellationToken.None);
     }
+    [Test]
+    public async Task LegacyInputRemainsEditableAndOptInCanBeRevokedInEveryLanguage()
+    {
+        var session = HeadlessUnitTestSession.GetOrStartForAssembly(typeof(IntegrationUiTestApp).Assembly);
+        await session.Dispatch<bool>(async () =>
+        {
+            using var context = new WorkspaceTestContext();
+            using var workspace = new WorkspaceViewModel(context.Workspace, context.Repository);
+            var window = new MainWindow { DataContext = workspace };
+            window.Show(); await window.InitializationTask;
+            var tab = workspace.ActiveTab!;
+            tab.Restore(new EsilvaSoft.KapibaraStudio.Core.WorkspaceDraft { Mode = "Script", Text = "// recovered script", InputJson = "{\"legacy\":1}" }, null);
+            window.Width = 960; window.Height = 620;
+            var directory = UiEvidenceDirectory.Current(); Directory.CreateDirectory(directory);
+            try
+            {
+                foreach (var language in RecoveryLanguages)
+                foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+                foreach (var scale in new[] { 1d, 1.5, 2 })
+                {
+                    LocalizationViewModel.Current.Language = language; tab.RefreshLanguage();
+                    Avalonia.Application.Current!.RequestedThemeVariant = theme;
+                    window.SetRenderScaling(scale); window.UpdateLayout(); Dispatcher.UIThread.RunJobs();
+                    var view = window.GetVisualDescendants().OfType<WorkspaceTabView>().Single();
+                    var options = view.FindControl<Button>("EditorOptionsButton")!;
+                    options.Flyout!.ShowAt(options);
+                    window.UpdateLayout(); Dispatcher.UIThread.RunJobs();
+                    var input = view.FindControl<MongoTextEditor>("LegacyInputEditor")!;
+                    var persist = view.FindControl<CheckBox>("LegacyPersistInput")!;
+                    Assert.That(input.Text, Is.EqualTo(tab.InputJson));
+                    Assert.That(input.IsEffectivelyVisible, Is.True);
+                    input.SelectionStart = 0; input.SelectionEnd = input.Text.Length;
+                    Assert.That(input.SelectedText, Is.EqualTo(tab.InputJson), "O texto deve continuar selecionável para cópia.");
+                    input.Text = "{\"recovered\":2}";
+                    Dispatcher.UIThread.RunJobs();
+                    Assert.That(tab.InputJson, Is.EqualTo(input.Text));
+                    persist.IsChecked = false; Dispatcher.UIThread.RunJobs();
+                    Assert.That(tab.Snapshot().InputJson, Is.Null);
+                    persist.IsChecked = true; Dispatcher.UIThread.RunJobs();
+                    Assert.That(tab.Snapshot().InputJson, Is.EqualTo(input.Text));
+                    using var frame = window.CaptureRenderedFrame();
+                    frame!.Save(Path.Combine(directory, $"legacy-input-{language}-{theme}-{scale.ToString(System.Globalization.CultureInfo.InvariantCulture)}.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+                    options.Flyout.Hide();
+                }
+            }
+            finally
+            {
+                LocalizationViewModel.Current.Language = "pt-BR";
+                window.SetRenderScaling(1);
+                typeof(MainWindow).GetField("_allowClose", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.SetValue(window, true);
+                window.Close();
+            }
+            return true;
+        }, CancellationToken.None);
+    }
+
 }

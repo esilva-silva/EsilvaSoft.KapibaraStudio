@@ -9,6 +9,7 @@ public sealed record WorkspaceDraft
     public string Database { get; init; } = "";
     public string Collection { get; init; } = "";
     public string Mode { get; init; } = "Script";
+    public string? LegacyMode { get; init; }
     public string Text { get; init; } = "";
     public string? InputJson { get; init; }
     public string FilePath { get; init; } = "";

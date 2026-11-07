@@ -27,7 +27,7 @@
 - Não abrir uma segunda conexão LiteDB ao arquivo local: use o proprietário registrado em DI e migração aditiva/versionada.
 - Rascunhos respeitam opt-out geral/por conexão; entrada JSON respeita opt-in. Não persistir resultados ou credenciais nos snapshots.
 - Falha de persistência deve ser visível. Nunca sobrescrever sessão ilegível com uma sessão vazia.
-- Preservar BSON/Extended JSON, UUIDs, proteções de escrita, confirmações, auditoria e limites do runtime mongosh.
+- Preservar BSON/Extended JSON, UUIDs, proteções de escrita, confirmações, auditoria e limites do Console JavaScript. Modos Script/mongosh e Agregação retirados recuperam texto/origem sem executar; não reintroduzir o processo mongosh.
 
 ## Verificação e documentação
 

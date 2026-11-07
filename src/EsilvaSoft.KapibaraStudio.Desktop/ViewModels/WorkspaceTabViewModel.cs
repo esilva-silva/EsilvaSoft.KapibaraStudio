@@ -27,12 +27,17 @@ public sealed partial class WorkspaceTabViewModel : ObservableObject, IDisposabl
     public string? MissingTargetHost { get; private set; }
     public bool ContainsResultData { get; set; }
     public event EventHandler? DraftChanged;
-    // Modos que o editor entende. Script e Agregação continuam aqui para que rascunhos e histórico
-    // salvos nesses modos reabram como foram gravados, sem conversão silenciosa.
-    public IReadOnlyList<string> Modes { get; } = ["Console", "Script", "Agregação", "Texto"];
-    // Modos oferecidos pela interface na fase atual. Script e Agregação estão no backlog
-    // (docs/backlog/bkl-03-script-engine-entre-conexoes.md e bkl-04-modo-aggregation.md).
-    public IReadOnlyList<string> SelectableModes { get; } = ["Console", "Texto"];
+    public IReadOnlyList<string> Modes { get; } = ["Console", "Texto"];
+    public IReadOnlyList<string> SelectableModes => Modes;
+    public string? LegacyMode { get; private set; }
+    public bool HasLegacyRecovery => LegacyMode is not null && IsText;
+    public string LegacyRecoveryNotice => F("legacyDraftRecovered", LegacyMode);
+    [RelayCommand]
+    private void AdaptLegacyInConsole()
+    {
+        if (HasLegacyRecovery && !IsRunning) Mode = "Console";
+    }
+    private static bool IsLegacyMode(string mode) => mode is "Script" or "Agregação";
 
     [ObservableProperty] private ConnectionProfile? _profile;
     [ObservableProperty] private bool _isConnected;
@@ -68,19 +73,17 @@ public sealed partial class WorkspaceTabViewModel : ObservableObject, IDisposabl
     private static string F(string key, params object?[] arguments) => LocalizationViewModel.Current.Format(key, arguments);
     private static string NotExecutedText => T("notExecuted");
 
-    public string Title => (string.IsNullOrEmpty(FilePath) ? Mode == "Script" ? T("untitledScript") : string.IsNullOrEmpty(Collection) ? Mode : Collection : Path.GetFileName(FilePath)) + (IsDirty ? " •" : "");
+    public string Title => (string.IsNullOrEmpty(FilePath) ? string.IsNullOrEmpty(Collection) ? Mode : Collection : Path.GetFileName(FilePath)) + (IsDirty ? " •" : "");
     public string Context => $"{Profile?.Name ?? T("noConnection")} › {(string.IsNullOrWhiteSpace(Database) ? T("chooseDatabase") : Database)}{(IsConsole || string.IsNullOrWhiteSpace(Collection) ? "" : " › " + Collection)}";
     public string AccessHint => Profile is null ? T("chooseConnectionForTab") : !IsConnected ? T("disconnectedOpenConnection") : Profile.IsReadOnly ? T("readOnlyPrefix") + Profile.RoutingLabel : T("fixedTargetPrefix") + Profile.RoutingLabel;
-    public bool IsScript => Mode == "Script";
-    public bool IsAggregation => Mode == "Agregação";
     public bool IsText => Mode == "Texto";
-    public bool CanExplainAggregation => IsAggregation && CanExecute;
+
     public bool IsQuery => Mode == "Consulta JSON";
     public double CodeLineHeight => CodeFontSize * 1.5;
     partial void OnCodeFontSizeChanged(double value) => OnPropertyChanged(nameof(CodeLineHeight));
     public bool CanEditContext => !IsRunning;
-    public bool CanExecute => !IsText && !IsRunning && IsConnected && Profile is not null && !string.IsNullOrWhiteSpace(Database) && !string.IsNullOrWhiteSpace(Text)
-        && (IsConsole || (IsScript ? !Profile.IsReadOnly : !string.IsNullOrWhiteSpace(Collection)));
+    public bool CanExecute => (IsConsole || IsQuery) && !IsRunning && IsConnected && Profile is not null && !string.IsNullOrWhiteSpace(Database) && !string.IsNullOrWhiteSpace(Text)
+        && (IsConsole || !string.IsNullOrWhiteSpace(Collection));
     partial void OnProfileChanged(ConnectionProfile? value)
     {
         if (value is not null) { MissingProfileId = value.Id; MissingTargetHost = value.TargetHost; }
@@ -115,11 +118,10 @@ public sealed partial class WorkspaceTabViewModel : ObservableObject, IDisposabl
                     DraftChanged?.Invoke(this, EventArgs.Empty);
                 }
                 OnPropertyChanged(nameof(Context));
-                OnPropertyChanged(nameof(IsScript));
                 OnPropertyChanged(nameof(IsQuery));
                 OnPropertyChanged(nameof(IsConsole));
-                OnPropertyChanged(nameof(IsAggregation));
                 OnPropertyChanged(nameof(IsText));
+                OnPropertyChanged(nameof(HasLegacyRecovery));
             }
             if (e.PropertyName is nameof(Profile) or nameof(IsConnected)) OnPropertyChanged(nameof(AccessHint));
             if (e.PropertyName is nameof(IsDirty) or nameof(FilePath) or nameof(Collection) or nameof(Mode)) OnPropertyChanged(nameof(Title));
@@ -129,14 +131,14 @@ public sealed partial class WorkspaceTabViewModel : ObservableObject, IDisposabl
                 OnPropertyChanged(nameof(CanEditContext));
                 OnPropertyChanged(nameof(CanExport));
                 ExecuteCommand.NotifyCanExecuteChanged();
-                OnPropertyChanged(nameof(CanExplainAggregation));
-                ExplainAggregationCommand.NotifyCanExecuteChanged();
+
             }
         };
     }
 
     public void RefreshLanguage()
     {
+        OnPropertyChanged(nameof(LegacyRecoveryNotice));
         OnPropertyChanged(nameof(Title));
         OnPropertyChanged(nameof(Context));
         OnPropertyChanged(nameof(AccessHint));
@@ -158,7 +160,6 @@ public sealed partial class WorkspaceTabViewModel : ObservableObject, IDisposabl
         var mode = Mode;
         // Snapshot every input before the first await. Selection is never replaced after an error.
         var text = string.IsNullOrEmpty(selection) ? Text : selection;
-        var input = InputJson;
         var query = BuildQuery(text);
         var limit = Limit;
         var maxTimeMs = MaxTimeMs;
@@ -198,30 +199,15 @@ public sealed partial class WorkspaceTabViewModel : ObservableObject, IDisposabl
                 Status = result.IsCanceled ? T("statusCancelled") : result.IsTimedOut ? T("timedOut") : result.Error is null ? T("statusSuccess") : T("statusError");
                 ResultTabIndex = result.Error is null ? 0 : 2;
             }
-            else if (mode == "Script")
-            {
-                var result = await _workspace.ExecuteScriptAsync(profile, text, input, database, cancellation.Token);
-                executionErrorCode = result.ExitCode == 0 ? null : result.ExitCode.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                _resultEmptyText = result.Results.Count == 0 ? T("scriptNoDocuments") : null;
-                _resultMetrics = F("scriptMetrics", result.Results.Count, result.Duration.TotalMilliseconds.ToString("F0", System.Globalization.CultureInfo.InvariantCulture));
-                await SetResultsAsync(() => [StructuredResultSet.FromDocuments(1, new ResultOrigin(T("scriptMongosh"), profile.Id, profile, database, null), result.Results, false, ResultCompleteness.Unknown)], null, cancellation.Token);
-                Messages = result.StandardOutput;
-                Errors = result.StandardError;
-                Status = result.ExitCode == 0 ? T("statusSuccess") : F("scriptFailed", result.ExitCode);
-                ResultTabIndex = result.ExitCode != 0 || Errors.Length > 0 ? 2 : Documents.Count == 0 ? 1 : 0;
-            }
+
             else
             {
-                var aggregation = mode == "Agregação";
-                var result = aggregation
-                    ? await _workspace.AggregateAsync(profile, new AggregationQuery(database, collection, text, limit), cancellation.Token)
-                    : await _workspace.QueryAsync(profile, query, cancellation.Token);
-                var completeness = aggregation ? ResultCompleteness.Derived
-                    : query.ProjectionJson is null || ExtendedJsonComparer.AreEquivalent(query.ProjectionJson, "{}") ? ResultCompleteness.Complete : ResultCompleteness.PartialProjection;
+                var result = await _workspace.QueryAsync(profile, query, cancellation.Token);
+                var completeness = query.ProjectionJson is null || ExtendedJsonComparer.AreEquivalent(query.ProjectionJson, "{}") ? ResultCompleteness.Complete : ResultCompleteness.PartialProjection;
                 _resultEmptyText = result.Documents.Count == 0 ? T("noDocumentsFound") : null;
                 _resultMetrics = F("documentsMetrics", result.Documents.Count, query.Limit, result.Duration.TotalMilliseconds.ToString("F0", System.Globalization.CultureInfo.InvariantCulture)) + (result.IsTruncated ? T("resultLimited") : "");
-                await SetResultsAsync(() => [StructuredResultSet.FromDocuments(1, new ResultOrigin(aggregation ? T("resultAggregation") : T("resultQuery"), profile.Id, profile, database, collection),
-                    result.Documents, result.IsTruncated, completeness, aggregation ? "aggregate" : "find")], null, cancellation.Token);
+                await SetResultsAsync(() => [StructuredResultSet.FromDocuments(1, new ResultOrigin(T("resultQuery"), profile.Id, profile, database, collection),
+                    result.Documents, result.IsTruncated, completeness, "find")], null, cancellation.Token);
                 Status = T("statusSuccess");
                 ResultTabIndex = 0;
                 if (historyEnabled && mode == "Consulta JSON")
@@ -255,21 +241,6 @@ public sealed partial class WorkspaceTabViewModel : ObservableObject, IDisposabl
         }
         finally
         {
-            if (mode == "Agregação" && historyEnabled)
-            {
-                try
-                {
-                    var entry = new ConsoleHistoryEntry(1, Guid.NewGuid(), executedAt, profile.Id, profile.Name, database,
-                        "Ambiente não registrado", text, System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds, Status, [profile.Id])
-                    { Mode = mode, Collection = collection, DocumentLimit = limit, TargetHost = profile.TargetHost };
-                    await _workspace.SaveExecutionHistoryAsync(entry, CancellationToken.None);
-                }
-                catch (Exception ex)
-                {
-                    Messages += "\n" + F("historyNotSaved", DesktopOperationErrorMessages.Describe(ex));
-                    if (Errors.Length == 0) ResultTabIndex = 1;
-                }
-            }
             operation.Complete(Status == T("statusCancelled") ? ApplicationOperationStatus.Cancelled : Errors.Length > 0 || Status == T("executionFailed") ? ApplicationOperationStatus.Error : ApplicationOperationStatus.Success,
                 $"{Status} — {profile.Name} › {database}");
             _cancellation = null; IsRunning = false; ApplyPendingUuidPolicy();
@@ -334,7 +305,7 @@ public sealed partial class WorkspaceTabViewModel : ObservableObject, IDisposabl
     public WorkspaceDraft Snapshot() => new()
     {
         Id = Id, ContainsResultData = ContainsResultData, ProfileId = Profile?.Id ?? MissingProfileId, TargetHost = Profile?.TargetHost ?? MissingTargetHost, Database = Database, Collection = Collection,
-        Mode = Mode, Text = Text, InputJson = PersistInput ? InputJson : null, FilePath = FilePath,
+        Mode = Mode, LegacyMode = LegacyMode, Text = Text, InputJson = PersistInput ? InputJson : null, FilePath = FilePath,
         FileEncoding = FileEncoding.ToString(), FileHasBom = FileHasBom,
         FileRevisionLength = FileRevision?.Length, FileRevisionLastWriteTimeUtc = FileRevision?.LastWriteTimeUtc,
         FileRevisionSha256 = FileRevision?.Sha256, SavedText = _savedText,
@@ -352,7 +323,8 @@ public sealed partial class WorkspaceTabViewModel : ObservableObject, IDisposabl
         Profile = profile is null ? null : profile with { TargetHost = draft.TargetHost ?? profile.TargetHost };
         Database = draft.Database;
         Collection = draft.Collection;
-        Mode = draft.Mode == "Consulta JSON" ? "Console" : Modes.Contains(draft.Mode) ? draft.Mode : "Console";
+        LegacyMode = IsLegacyMode(draft.Mode) ? draft.Mode : draft.LegacyMode;
+        Mode = IsLegacyMode(draft.Mode) ? "Texto" : draft.Mode == "Consulta JSON" ? "Console" : Modes.Contains(draft.Mode) ? draft.Mode : "Console";
         Text = draft.Mode == "Consulta JSON" ? ConsoleScripts.FromQuery(new MongoQuery(draft.Database, draft.Collection, draft.Text,
             ProjectionJson: EmptyToNull(draft.Projection), SortJson: EmptyToNull(draft.Sort), Limit: draft.Limit, Skip: draft.Skip,
             HintJson: EmptyToNull(draft.Hint), MaxTimeMs: draft.MaxTimeMs, Comment: EmptyToNull(draft.Comment), BatchSize: draft.BatchSize, CollationJson: EmptyToNull(draft.Collation))) : draft.Text;
@@ -374,6 +346,8 @@ public sealed partial class WorkspaceTabViewModel : ObservableObject, IDisposabl
         IsConnected = false;
         _savedText = draft.SavedText ?? (IsDirty ? null : Text);
         _restoring = false;
+        OnPropertyChanged(nameof(HasLegacyRecovery));
+        OnPropertyChanged(nameof(LegacyRecoveryNotice));
     }
 
     private static string? EmptyToNull(string value) => string.IsNullOrWhiteSpace(value) ? null : value;

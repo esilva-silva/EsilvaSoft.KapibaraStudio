@@ -4,7 +4,7 @@ using EsilvaSoft.KapibaraStudio.Core;
 
 namespace EsilvaSoft.KapibaraStudio.Application;
 
-/// <summary>Autocomplete over the shared local model service: prompt contract, privacy filter and output cleanup.</summary>
+/// <summary>Explicit lab evaluation over the shared local model service: prompt contract, privacy filter and output cleanup. Not wired to editor typing.</summary>
 public sealed class AiAutocompleteProvider : IAsyncDisposable, IDisposable
 {
     private readonly bool _ownsModels;
@@ -20,7 +20,7 @@ public sealed class AiAutocompleteProvider : IAsyncDisposable, IDisposable
     public LocalModelStatus Status => Models.Status;
 
     /// <summary>
-    /// Completa pela IA local. Com <c>load</c> = <see cref="AiModelLoadPolicy.LoadedOnly"/> (caminho automático), sem o
+    /// Completa pela IA local para avaliação explícita no laboratório. Com <c>load</c> = <see cref="AiModelLoadPolicy.LoadedOnly"/>, sem o
     /// modelo desta chave já carregado o serviço recusa, e a recusa vira abstenção silenciosa: nenhuma carga, nenhum
     /// descarregamento, nenhuma troca.
     /// </summary>
@@ -31,9 +31,8 @@ public sealed class AiAutocompleteProvider : IAsyncDisposable, IDisposable
 #pragma warning restore CA1822
 
     /// <summary>
-    /// Runs the exact automatic autocomplete path once and returns both runtime output and the cleaned ghost.
-    /// Internal so only the explicitly trusted lab assembly can retain raw text; the Desktop path continues to
-    /// expose only the cleaned completion.
+    /// Runs a laboratory autocomplete evaluation once and returns runtime output and the cleaned candidate.
+    /// Internal so only the explicitly trusted lab assembly can retain raw text. The Desktop does not register this provider.
     /// </summary>
     internal async Task<AutocompleteCapture?> GetCompletionCaptureAsync(AutocompleteRequest request, AutocompleteSettings settings,
         AiModelLoadPolicy load = AiModelLoadPolicy.LoadIfNeeded, bool allowIncompleteCapture = false,
@@ -71,7 +70,7 @@ public sealed class AiAutocompleteProvider : IAsyncDisposable, IDisposable
     internal static bool ContainsReservedOrSensitiveText(string source) => CompletionOutputProcessor.ContainsReservedOrSensitiveText(source);
 
     /// <summary>
-    /// Returns null for output that must never reach the editor. O caminho automático usa a limpeza tradicional, sem
+    /// Returns null for output that must never reach the editor. A avaliação do laboratório usa a limpeza tradicional, sem
     /// parada estrutural: o ghost é uma continuação curta que o usuário vê antes de aceitar.
     /// </summary>
     internal static string? CleanGeneratedText(string text, string suffix) => CompletionOutputProcessor.Clean(text, suffix);

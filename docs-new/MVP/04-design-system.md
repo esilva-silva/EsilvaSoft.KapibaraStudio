@@ -18,6 +18,8 @@ pt-BR inicial, en fallback e suporte existente es/zh-CN. Trocar idioma atualiza 
 
 Destino aparece no cabeçalho; execução/carregamento, ausência de modelo, erro, resultado vazio, rascunho pendente e falha de persistência são explícitos. Confirmação não confunde negação, expiração e indisponibilidade. Propostas mostram diff, conflito e Undo, sem salvar/consultar automaticamente.
 
+Rascunhos dos modos retirados abrem em Texto com aviso localizado de origem e execução desativada. Opções mantém entrada JSON recuperada, controle de persistência e ação explícita de adaptação ao Console sem execução. Esses controles devem caber na janela mínima; o editor mantém sua rolagem local e o rótulo de persistência permanece inteiro.
+
 Autocomplete normal usa ghost determinístico e lista Ctrl+Espaço. IA só é chamada por `Ctrl+;`; Tab aceita prévia, Escape descarta. Descartar prévia/lista tem precedência sobre cancelar consulta. Ctrl+. não é padrão. Ctrl+Espaço pode conflitar com IME: existe override persistido, sem prometer tela de edição de atalhos.
 
 Agente: Ctrl+Shift+A abre/foca/recolhe conforme foco; Enter quebra linha e Ctrl+Enter envia no composer. Escape no composer não cancela turno. Cancelar execução é ação explícita. Atalhos do editor não executam consulta enquanto foco pertence ao agente. F6 permite sair do editor/retornar da superfície própria.

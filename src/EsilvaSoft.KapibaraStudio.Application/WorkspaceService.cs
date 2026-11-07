@@ -5,7 +5,7 @@ using System.Text.Json;
 
 namespace EsilvaSoft.KapibaraStudio.Application;
 
-public sealed class WorkspaceService(IConnectionProfileRepository profiles, IQueryHistoryRepository queryHistory, IScriptHistoryRepository scriptHistory, ISavedQueryRepository savedQueries, IAuditRepository audit, IMongoWorkspaceService mongo, IScriptExecutionService scripts, IScriptFileService scriptFiles, IConnectionSecretStore secrets, IEnvironmentVaultRepository? environments = null, IExplorerMetadataService? explorer = null, IConsoleRuntime? console = null, IConsoleHistoryRepository? consoleHistory = null, IApplicationOperationService? operations = null, ICodeFormatter? formatter = null, IResultPageExportService? resultExports = null, ICodeValidator? validator = null, IMetadataInvalidationBus? metadataInvalidation = null, SchemaLearningService? schemaLearning = null, LearnedSchemaCatalogSource? learnedSchemaCatalog = null, ILearnedSchemaRepository? learnedSchemaRepository = null, ITextFileService? textFiles = null, ITextExportFileService? textExports = null, IProfilerCaptureRepository? profilerCaptures = null)
+public sealed class WorkspaceService(IConnectionProfileRepository profiles, IQueryHistoryRepository queryHistory, IScriptHistoryRepository scriptHistory, ISavedQueryRepository savedQueries, IAuditRepository audit, IMongoWorkspaceService mongo, IScriptFileService scriptFiles, IConnectionSecretStore secrets, IEnvironmentVaultRepository? environments = null, IExplorerMetadataService? explorer = null, IConsoleRuntime? console = null, IConsoleHistoryRepository? consoleHistory = null, IApplicationOperationService? operations = null, ICodeFormatter? formatter = null, IResultPageExportService? resultExports = null, ICodeValidator? validator = null, IMetadataInvalidationBus? metadataInvalidation = null, SchemaLearningService? schemaLearning = null, LearnedSchemaCatalogSource? learnedSchemaCatalog = null, ILearnedSchemaRepository? learnedSchemaRepository = null, ITextFileService? textFiles = null, ITextExportFileService? textExports = null, IProfilerCaptureRepository? profilerCaptures = null)
 {
     /// <summary>Optional desktop localizer for operation descriptions; null keeps the application-layer default text.</summary>
     public Func<string, string>? OperationLocalizer { get; set; }
@@ -244,80 +244,17 @@ public sealed class WorkspaceService(IConnectionProfileRepository profiles, IQue
         mongo.GetCurrentOperationsAsync(profile, cancellationToken);
 
 
-    public Task<string> GetProfilerStatusAsync(ConnectionProfile profile, string database, CancellationToken cancellationToken = default) =>
-        mongo.GetProfilerStatusAsync(profile, database, cancellationToken);
-
-    public Task<ProfilerConfigurationResult> ConfigureProfilerAsync(ConnectionProfile profile, ProfilerConfigurationRequest request, CancellationToken cancellationToken = default) =>
-        TrackAsync("Configurando profiler", operationToken => mongo.ConfigureProfilerAsync(profile, request, operationToken), token: cancellationToken);
-
     private ProfilerCaptureCoordinator ProfilerCaptures => new(
         profilerCaptures ?? throw new NotSupportedException("Recuperação local do profiler indisponível."), mongo);
 
     public Task<IReadOnlyList<ProfilerCaptureTicket>> GetPendingProfilerCapturesAsync(CancellationToken cancellationToken = default) =>
-        profilerCaptures?.GetPendingAsync(cancellationToken)
-        ?? Task.FromResult<IReadOnlyList<ProfilerCaptureTicket>>([]);
-
-    public Task<ProfilerCaptureTicket> StartProfilerCaptureAsync(ConnectionProfile profile,
-        ProfilerConfigurationRequest request, TimeSpan duration, CancellationToken cancellationToken = default) =>
-        TrackAsync("Iniciando coleta do profiler", operationToken => ProfilerCaptures.StartAsync(profile, request,
-            duration, operationToken), token: cancellationToken);
-
-    public Task<ProfilerCapturePage> CollectProfilerCaptureAsync(ConnectionProfile profile, Guid ticketId,
-        CancellationToken cancellationToken = default) =>
-        TrackAsync("Coletando profiler", operationToken => ProfilerCaptures.CollectAsync(profile, ticketId,
-            operationToken), token: cancellationToken);
+        (profilerCaptures ?? throw new NotSupportedException("Recuperação local do profiler indisponível."))
+            .GetPendingAsync(cancellationToken);
 
     public Task RestoreProfilerCaptureAsync(ConnectionProfile profile, Guid ticketId,
         string confirmationDatabase, CancellationToken cancellationToken = default) =>
         TrackAsync("Restaurando profiler", operationToken => ProfilerCaptures.RestoreAsync(profile,
             ticketId, confirmationDatabase, operationToken), token: cancellationToken);
-
-    public Task KillOperationAsync(ConnectionProfile profile, OperationKillRequest request, CancellationToken cancellationToken = default) =>
-        mongo.KillOperationAsync(profile, request, cancellationToken);
-
-    public Task<string> ValidateCollectionIntegrityAsync(ConnectionProfile profile, CollectionIntegrityCheckRequest request, CancellationToken cancellationToken = default)
-    {
-        profile.EnsureWriteAllowed();
-        request.Validate();
-        return mongo.ValidateCollectionIntegrityAsync(profile, request, cancellationToken);
-    }
-
-    public Task<string> CompactCollectionAsync(ConnectionProfile profile, CollectionCompactRequest request, CancellationToken cancellationToken = default)
-    {
-        profile.EnsureWriteAllowed();
-        request.Validate();
-        return mongo.CompactCollectionAsync(profile, request, cancellationToken);
-    }
-
-    public Task<string> GetUsersAsync(ConnectionProfile profile, CancellationToken cancellationToken = default) =>
-        mongo.GetUsersAsync(profile, cancellationToken);
-
-    public Task<string?> GetUserRolesAsync(ConnectionProfile profile, string database, string username, CancellationToken cancellationToken = default) =>
-        mongo.GetUserRolesAsync(profile, database, username, cancellationToken);
-
-    public Task CreateUserAsync(ConnectionProfile profile, DatabaseUserCreateRequest request, CancellationToken cancellationToken = default) =>
-        mongo.CreateUserAsync(profile, request, cancellationToken);
-
-    public Task DropUserAsync(ConnectionProfile profile, DatabaseUserDropRequest request, CancellationToken cancellationToken = default) =>
-        mongo.DropUserAsync(profile, request, cancellationToken);
-
-    public Task UpdateUserRolesAsync(ConnectionProfile profile, DatabaseUserRoleRequest request, CancellationToken cancellationToken = default) =>
-        mongo.UpdateUserRolesAsync(profile, request, cancellationToken);
-
-    public Task<string> GetRolesAsync(ConnectionProfile profile, CancellationToken cancellationToken = default) =>
-        mongo.GetRolesAsync(profile, cancellationToken);
-
-    public Task<int> GetRuntimeServerParameterAsync(ConnectionProfile profile, string parameterName, CancellationToken cancellationToken = default) =>
-        mongo.GetRuntimeServerParameterAsync(profile, parameterName, cancellationToken);
-
-    public Task<RuntimeServerParameterMutationResult> SetRuntimeServerParameterAsync(ConnectionProfile profile, RuntimeServerParameterRequest request, CancellationToken cancellationToken = default) =>
-        mongo.SetRuntimeServerParameterAsync(profile, request, cancellationToken);
-
-    public Task<string> GetCustomRoleDefinitionAsync(ConnectionProfile profile, string database, string roleName, CancellationToken cancellationToken = default) =>
-        mongo.GetCustomRoleDefinitionAsync(profile, database, roleName, cancellationToken);
-
-    public Task<DatabaseRoleMutationResult> MutateCustomRoleAsync(ConnectionProfile profile, DatabaseRoleMutationRequest request, CancellationToken cancellationToken = default) =>
-        mongo.MutateCustomRoleAsync(profile, request, cancellationToken);
 
     public async Task<string> GetDatabaseStatsAsync(ConnectionProfile profile, string database, CancellationToken cancellationToken = default)
     {
@@ -469,13 +406,6 @@ public sealed class WorkspaceService(IConnectionProfileRepository profiles, IQue
     {
         await mongo.DropIndexAsync(profile, request, cancellationToken).ConfigureAwait(false);
         InvalidateMetadata(profile, MetadataChange.Indexes, request.Database, request.Collection);
-    }
-
-    public async Task<ScriptExecutionResult> ExecuteScriptAsync(ConnectionProfile profile, string script, string? inputJson, string? database = null, CancellationToken cancellationToken = default)
-    {
-        try { return await scripts.ExecuteAsync(profile, script, inputJson, database, cancellationToken).ConfigureAwait(false); }
-        // An external script may change any namespace; everything cached for the connection becomes stale.
-        finally { InvalidateMetadata(profile, MetadataChange.Connection, strength: InvalidationStrength.Soft); }
     }
 
     public Task SaveScriptAsync(string path, string script, CancellationToken cancellationToken = default) =>

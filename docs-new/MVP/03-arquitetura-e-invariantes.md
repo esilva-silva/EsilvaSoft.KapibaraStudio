@@ -6,7 +6,7 @@ O Desktop Avalonia compõe apresentação, casos de uso/contratos e adaptadores 
 
 O Explorer navega e lê metadados; selecionar ou abrir coleção nunca consulta documentos automaticamente. Cada aba mantém seu destino. Antes de await, capturar perfil, banco, coleção quando aplicável, texto, opções e identidade/geração da solicitação. Resposta e progresso só atualizam a aba/turno que os originou; descartar respostas obsoletas.
 
-CancellationTokenSource pertence à operação/aba, sem compartilhamento entre abas. Cancelar não prova rollback de operações já enviadas. Runtime Console suporta subconjunto explícito de JavaScript/MongoDB; não expor CLR, arquivos, rede JS ou comandos genéricos como fallback. Preservar limites do runtime mongosh enquanto houver compatibilidade legada.
+CancellationTokenSource pertence à operação/aba, sem compartilhamento entre abas. Cancelar não prova rollback de operações já enviadas. Runtime Console suporta subconjunto explícito de JavaScript/MongoDB; não expor CLR, arquivos, rede JS ou comandos genéricos como fallback. O processo mongosh dos modos separados foi retirado na Task-R 1/L2; compatibilidade legada recupera texto e origem, sem executar o runtime removido.
 
 ## Dados e persistência
 

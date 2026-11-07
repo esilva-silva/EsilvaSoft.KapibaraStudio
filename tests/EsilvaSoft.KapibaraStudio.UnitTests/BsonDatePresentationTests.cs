@@ -8,17 +8,6 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests;
 [TestFixture]
 public sealed class BsonDatePresentationTests
 {
-    [Test]
-    public void MongoshHelperCreatesNativeUtcDateAndKeepsStaticMethods()
-    {
-        using var engine = new Jint.Engine();
-        engine.Execute(EsilvaSoft.KapibaraStudio.Infrastructure.MongoshScriptTemplate.DateHelpers);
-        Assert.That(engine.Evaluate("Date('2024-12-30 20:56:44.999').toISOString()").AsString(), Is.EqualTo("2024-12-30T20:56:44.999Z"));
-        Assert.That(engine.Evaluate("new Date('2024-12-30 20:56:44.999') instanceof globalThis.Date").AsBoolean(), Is.True);
-        Assert.That(engine.Evaluate("Date.UTC(1970, 0, 1)").AsNumber(), Is.Zero);
-        Assert.Throws<Jint.Runtime.JavaScriptException>(() => engine.Evaluate("Date('2024-02-30 20:56:44.999')"));
-    }
-
     [TestCase("2024-12-30 20:56:44.999")]
     [TestCase("2024-12-30T20:56:44.999Z")]
     [TestCase("2024-12-30T17:56:44.999-03:00")]

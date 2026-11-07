@@ -8,7 +8,6 @@ internal sealed class WorkspaceTestContext : IDisposable
 {
     public MemoryWorkspaceRepository Repository { get; }
     public WorkspaceService Workspace { get; }
-    public ControlledScripts Scripts { get; } = new();
     public MongoTestProxy Mongo { get; }
     public WorkspaceTestContext(IConsoleHistoryRepository? historyOverride = null, ITextFileService? textFiles = null,
         ITextExportFileService? textExports = null)
@@ -23,8 +22,8 @@ internal sealed class WorkspaceTestContext : IDisposable
             _ => throw new NotSupportedException(name)
         };
         var secrets = new SessionConnectionSecretStore();
-        var console = new ConsoleRuntime(Repository, Repository, secrets, new WorkspaceConsoleSession(mongo), Repository, Repository);
-        Workspace = new WorkspaceService(Repository, Repository, Repository, Repository, Repository, mongo, Scripts, new MemoryTextFiles(), secrets, Repository, new ExplorerMetadataService(mongo), console, historyOverride ?? Repository, formatter: new MongoCodeFormatter(), validator: new MongoCodeValidator(), textFiles: textFiles, textExports: textExports);
+        var console = new ConsoleRuntime(Repository, Repository, secrets, new WorkspaceConsoleSession(mongo), historyOverride ?? Repository, Repository);
+        Workspace = new WorkspaceService(Repository, Repository, Repository, Repository, Repository, mongo, new MemoryTextFiles(), secrets, Repository, new ExplorerMetadataService(mongo), console, historyOverride ?? Repository, formatter: new MongoCodeFormatter(), validator: new MongoCodeValidator(), textFiles: textFiles, textExports: textExports);
     }
     public void Dispose() => Repository.Dispose();
 }

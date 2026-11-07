@@ -111,8 +111,11 @@ public sealed class WorkspaceRenderingTests
             environments.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
             await environmentModal;
             // Exercise the real shell event route: Escape dismisses a connection dialog without canceling a running tab.
-            vm.ActiveTab.Mode = "Script";
-            var run = vm.ActiveTab.ExecuteCommand.ExecuteAsync("print('running');");
+            vm.ActiveTab.Mode = "Console";
+            var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            context.Mongo.Handler = (_, args) => { started.TrySetResult(); return new TaskCompletionSource<QueryPage>().Task.WaitAsync((CancellationToken)args[2]!); };
+            var run = vm.ActiveTab.ExecuteCommand.ExecuteAsync("db.collection.find({})");
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
             window.FindControl<Button>("ConnectionsButton")!.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
             Dispatcher.UIThread.RunJobs();
             var owned = window.OwnedWindows.OfType<ConnectionsWindow>().Single();

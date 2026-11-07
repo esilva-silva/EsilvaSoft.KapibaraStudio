@@ -7,20 +7,20 @@
 | Divisão | Finalidade | Documento de trabalho |
 | --- | --- | --- |
 | [MVP](MVP/README.md) | Manter a gestão cotidiana de bancos e concluir o desenvolvimento assistido | [Requisitos e estado](MVP/02-requisitos-e-estado.md) · [Fases](MVP/fases/README.md) |
-| [Remover](Remover/README.md) | Executar futuramente os cortes aprovados, preservando capacidades compartilhadas | [Inventário técnico](Remover/inventario-tecnico.md) · [TODOs](Remover/TODO.md) |
+| [Remover](Remover/README.md) | Acompanhar os cortes executados e suas preservações | [Inventário técnico](Remover/inventario-tecnico.md) · [TODOs](Remover/TODO.md) |
 | [Melhorias](Melhorias/README.md) | Conceitos de evolução após o MVP, sem compromisso de versão | [Conceitos](Melhorias/conceitos.md) |
 
-O recorte deriva dos três tópicos de [mvp-status.md](../docs/mvp-status.md). A decisão posterior preserva Claude, Codex, APIs externas e MCP externo em Melhorias, com código e disponibilidade atuais. Os demais cortes do tópico 2 são decisões para execução futura, não remoções já realizadas.
+O recorte deriva dos três tópicos de [mvp-status.md](../docs/mvp-status.md). A decisão posterior preserva Claude, Codex, APIs externas e MCP externo em Melhorias, com código e disponibilidade atuais. A Task-R 1 implementa os cortes dos lotes L2–L4 e cancela as metas documentais do tópico 2; resultados e limites estão nos TODOs e evidências de Remover.
 
 ## Precedência e manutenção
 
 1. `docs-new` é a referência oficial de escopo, fases e decisões para trabalho futuro. As [decisões vigentes](MVP/08-decisoes-vigentes.md) consolidam contratos obrigatórios; instruções em [AGENTS.md](../AGENTS.md) continuam aplicáveis.
 2. [docs](../docs/README.md) preserva o histórico, ADRs de origem e evidências datadas. A numeração de fases antiga não orienta a nova sequência. Em caso de conflito de planejamento, prevalece `docs-new`; evidência antiga não muda de data nem de alcance.
 3. Documentação normativa não comprova implementação. O catálogo novo separa implementação de validação e deve apontar ao código/registro correspondente. Código divergente vira lacuna explícita, não alegação de comportamento entregue.
-4. Os cortes não autorizam apagar configurações, credenciais, rascunhos ou histórico. Compatibilidade, segurança e recuperação fazem parte da entrega futura.
+4. Os cortes não autorizam apagar configurações, credenciais, rascunhos ou histórico. Compatibilidade, segurança e recuperação fazem parte da entrega.
 5. Atualizar estado em um único lugar: [catálogo MVP](MVP/02-requisitos-e-estado.md). Fases descrevem entregas residuais e referenciam seus IDs; o inventário de remoção e os conceitos de melhoria têm IDs próprios.
 
-Esta reorganização só cria documentação e encaminhamentos. Nenhuma funcionalidade, permissão, dependência, versão de binário, tag ou pacote foi alterada; nenhum teste da aplicação foi executado para comprovar capacidades novas.
+A reorganização inicial foi documental. A execução posterior da [Task-R 1](../tasks/Task-R%201%20-%20Limpeza%20e%20remoção%20de%20código.md) altera código e testes nos cortes aprovados, sem publicar versões, alterar tags ou adicionar funcionalidades adiadas. Consulte [evidências](Remover/TODO.md) para distinguir validação automatizada de homologação real.
 
 ## Entregas do novo plano
 

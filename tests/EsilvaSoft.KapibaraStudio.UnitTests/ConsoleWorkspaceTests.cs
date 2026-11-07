@@ -46,6 +46,5 @@ public sealed class ConsoleWorkspaceTests
         await context.Repository.SaveSessionAsync(new WorkspaceSession { Tabs = [tab.Snapshot()] });
         var restored = (await context.Repository.LoadSessionAsync()).Tabs.Single();
         Assert.That(restored.TargetHost, Is.EqualTo("host:27017")); Assert.That(restored.Text, Is.EqualTo(tab.Text));
-        Assert.That(context.Scripts.Calls, Is.Empty);
     }
 }

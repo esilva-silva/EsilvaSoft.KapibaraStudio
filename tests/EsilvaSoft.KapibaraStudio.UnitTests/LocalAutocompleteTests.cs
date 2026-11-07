@@ -13,19 +13,35 @@ public sealed class LocalAutocompleteTests
 {
     private static readonly int[] PrefixMarker = [100001];
     [Test]
-    public async Task AutomaticUsesAiAndBoundedCacheAvoidsRepeatedInference()
+    public async Task AutomaticNeverInfersEvenWithALoadedModelAndLegacyAiPolicy()
     {
         var runtime = new CompletionRuntimeFake();
         await using var ai = new AiAutocompleteProvider(new CompletionCatalogFake(), () => runtime);
-        var service = new AutocompleteService(ai);
+        var service = new AutocompleteService(ai.Models);
+        await ai.GetCompletionAsync(new("db.", ""), new());
+        Assert.That(runtime.Generations, Is.EqualTo(1), "Precondition: shared model is loaded.");
         var request = new AutocompleteRequest("db.", "", "javascript");
-        Assert.That((await service.GetCompletionAsync(request))?.IsAi, Is.True);
-        Assert.That((await service.GetCompletionAsync(request))?.Text, Is.EqualTo("collection.find({})"));
+        for (var i = 0; i < 67; i++)
+            Assert.That(await service.GetCompletionAsync(request with { Suffix = i.ToString(System.Globalization.CultureInfo.InvariantCulture) }, CompletionSourcePolicy.All), Is.Null);
         Assert.That(runtime.Generations, Is.EqualTo(1));
-        for (var i = 0; i < 65; i++) await service.GetCompletionAsync(request with { Suffix = i.ToString(System.Globalization.CultureInfo.InvariantCulture) });
-        await service.GetCompletionAsync(request);
-        Assert.That(runtime.Generations, Is.EqualTo(67));
         Assert.That(runtime.Initializations, Is.EqualTo(1));
+        Assert.That((await service.GetCompletionAsync(new("cons", "")))?.IsAi, Is.False);
+    }
+
+    [Test]
+    public async Task LegacyAiPolicyAndCanceledRequestsNeverLoadAColdModel()
+    {
+        var runtime = new CompletionRuntimeFake();
+        await using var ai = new AiAutocompleteProvider(new CompletionCatalogFake(), () => runtime);
+        var service = new AutocompleteService(ai.Models);
+        await service.ConfigureAsync(new() { Mode = AutocompleteMode.Ai, InlineUseAi = true, AiCompletionEnabled = true });
+        Assert.That(await service.GetCompletionAsync(new("db.", ""), CompletionSourcePolicy.All), Is.Null);
+        Assert.That(await service.GetCompletionAsync(new("cons", ""), new CompletionSourcePolicy(false, true, true)), Is.Null);
+        using var canceled = new CancellationTokenSource(); canceled.Cancel();
+        Assert.ThrowsAsync<OperationCanceledException>(() => service.GetCompletionAsync(new("db.", ""), canceled.Token));
+        Assert.That(runtime.Initializations, Is.Zero);
+        Assert.That(runtime.Generations, Is.Zero);
+        Assert.That(service.Status, Is.EqualTo(ai.Models.Status));
     }
 
     [TestCase(AutocompleteMode.Automatic)]
@@ -34,10 +50,10 @@ public sealed class LocalAutocompleteTests
     {
         var runtime = new CompletionRuntimeFake { Handler = (_, _) => throw new InvalidDataException("private prompt must not escape") };
         await using var ai = new AiAutocompleteProvider(new CompletionCatalogFake(), () => runtime);
-        var service = new AutocompleteService(ai);
+        var service = new AutocompleteService(ai.Models);
         await service.ConfigureAsync(new() { Mode = mode });
-        Assert.That(await service.GetCompletionAsync(new("db.", "")), Is.Null);
-        await service.GetCompletionAsync(new("db.customers.", ""));
+        Assert.That(await ai.GetCompletionAsync(new("db.", ""), service.Settings), Is.Null);
+        await ai.GetCompletionAsync(new("db.customers.", ""), service.Settings);
         var result = await service.GetCompletionAsync(new("const customer = 1; cust", ""));
         Assert.That(result, Is.EqualTo(new AutocompleteResult("omer", false, "Autocomplete básico local")));
         await service.GetCompletionAsync(new("cons", ""));
@@ -52,7 +68,7 @@ public sealed class LocalAutocompleteTests
     {
         var runtime = new CompletionRuntimeFake();
         await using var ai = new AiAutocompleteProvider(new CompletionCatalogFake(), () => runtime);
-        var service = new AutocompleteService(ai);
+        var service = new AutocompleteService(ai.Models);
         await service.ConfigureAsync(new() { Enabled = enabled, Mode = mode });
         var result = await service.GetCompletionAsync(new("cons", ""));
         Assert.That(runtime.Initializations, Is.Zero);
@@ -66,7 +82,7 @@ public sealed class LocalAutocompleteTests
     {
         var runtime = new CompletionRuntimeFake();
         await using var ai = new AiAutocompleteProvider(new CompletionCatalogFake(), () => runtime);
-        await new AutocompleteService(ai).GetCompletionAsync(new(prefix, suffix));
+        await ai.GetCompletionAsync(new(prefix, suffix), new());
         Assert.That(runtime.Initializations, Is.Zero);
     }
 
@@ -84,13 +100,13 @@ public sealed class LocalAutocompleteTests
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var runtime = new CompletionRuntimeFake { Handler = async (_, token) => { entered.SetResult(); await Task.Delay(Timeout.Infinite, token); return null!; } };
         await using var ai = new AiAutocompleteProvider(new CompletionCatalogFake(), () => runtime);
-        var service = new AutocompleteService(ai);
+        var service = new AutocompleteService(ai.Models);
         using var cancellation = new CancellationTokenSource();
-        var first = service.GetCompletionAsync(new("db.", ""), cancellation.Token);
+        var first = ai.GetCompletionAsync(new("db.", ""), service.Settings, cancellationToken: cancellation.Token);
         await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)); cancellation.Cancel();
         Assert.That(async () => await first, Throws.InstanceOf<OperationCanceledException>());
         runtime.Handler = (_, _) => Task.FromResult(new ModelGenerationResult("t value = 1;", 4, TimeSpan.Zero, "cpu"));
-        Assert.That((await service.GetCompletionAsync(new("db.", "")))?.IsAi, Is.True);
+        Assert.That((await ai.GetCompletionAsync(new("db.", ""), service.Settings))?.IsAi, Is.True);
         Assert.That(runtime.Initializations, Is.EqualTo(1));
     }
 
@@ -100,8 +116,8 @@ public sealed class LocalAutocompleteTests
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var runtime = new CompletionRuntimeFake { Handler = async (_, token) => { entered.SetResult(); await Task.Delay(Timeout.Infinite, token); return null!; } };
         await using var ai = new AiAutocompleteProvider(new CompletionCatalogFake(), () => runtime);
-        var service = new AutocompleteService(ai);
-        var first = service.GetCompletionAsync(new("db.", ""));
+        var service = new AutocompleteService(ai.Models);
+        var first = ai.GetCompletionAsync(new("db.", ""), service.Settings);
         await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
         // Desde 27/10/2026 Enabled governa só o autocomplete normal; o modelo deixa de estar em uso quando o
         // autocomplete com IA e o agente local estão desligados.

@@ -23,7 +23,7 @@ public sealed class LocalAgentProviderTests
             Runtime = runtime ?? new StreamingRuntimeFake();
             Catalog = catalog ?? new CompletionCatalogFake();
             Models = new LocalAiModelService(Catalog, () => Runtime);
-            Autocomplete = new AutocompleteService(new AiAutocompleteProvider(Models));
+            Autocomplete = new AutocompleteService(Models);
             Settings = settings ?? Selected;
             Provider = new LocalAgentProvider(Models, Autocomplete);
         }

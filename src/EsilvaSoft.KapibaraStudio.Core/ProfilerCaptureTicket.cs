@@ -33,7 +33,3 @@ public sealed record ProfilerCaptureTicket(
         return this;
     }
 }
-
-public sealed record ProfilerCaptureEntry(DateTimeOffset TimestampUtc, string Operation, string Namespace, int? Milliseconds, string? PlanSummary);
-
-public sealed record ProfilerCapturePage(IReadOnlyList<ProfilerCaptureEntry> Entries, bool Truncated, DateTimeOffset ThroughUtc);

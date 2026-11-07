@@ -46,19 +46,6 @@ public sealed partial class MainWindowViewModel
     private decimal? _newCollectionMaxDocuments;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanValidateCollectionIntegrity))]
-    [NotifyCanExecuteChangedFor(nameof(ValidateCollectionIntegrityCommand))]
-    private string _collectionIntegrityConfirmation = string.Empty;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanCompactCollection))]
-    [NotifyCanExecuteChangedFor(nameof(CompactCollectionCommand))]
-    private string _collectionCompactConfirmation = string.Empty;
-
-    [ObservableProperty]
-    private bool _collectionCompactForce;
-
-    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanRenameCollection))]
     [NotifyCanExecuteChangedFor(nameof(RenameCollectionCommand))]
     private string _renameCollectionName = string.Empty;
@@ -109,16 +96,6 @@ public sealed partial class MainWindowViewModel
 
     [ObservableProperty]
     private string _collectionValidationReadbackText = string.Empty;
-
-    public bool CanValidateCollectionIntegrity => SelectedProfile is { IsReadOnly: false }
-        && !string.IsNullOrWhiteSpace(SelectedDatabase)
-        && !string.IsNullOrWhiteSpace(SelectedCollection)
-        && string.Equals(SelectedCollection, CollectionIntegrityConfirmation.Trim(), StringComparison.Ordinal);
-
-    public bool CanCompactCollection => SelectedProfile is { IsReadOnly: false }
-        && !string.IsNullOrWhiteSpace(SelectedDatabase)
-        && !string.IsNullOrWhiteSpace(SelectedCollection)
-        && string.Equals(SelectedCollection, CollectionCompactConfirmation.Trim(), StringComparison.Ordinal);
 
     public bool CanLoadCollectionStats => CanExecuteQuery;
 
@@ -365,51 +342,6 @@ public sealed partial class MainWindowViewModel
         StatusMessage = F("collectionRemoved", collection);
         await RecordAuditAsync("collection.drop", profile, database, collection, T("collectionRemovedAudit"));
         await ReloadCollectionsForOriginalContextAsync(profile, database, collection);
-    }
-
-    [RelayCommand(CanExecute = nameof(CanValidateCollectionIntegrity))]
-    private async Task ValidateCollectionIntegrityAsync()
-    {
-        if (!TryGetCollectionContext(out var profile, out var database, out var collection))
-        {
-            return;
-        }
-
-        var request = new CollectionIntegrityCheckRequest(database, collection, CollectionIntegrityConfirmation);
-        if (!await RunAsync(async cancellationToken =>
-            {
-                AdministrationResults = await _workspace.ValidateCollectionIntegrityAsync(profile, request, cancellationToken);
-                StatusMessage = F("collectionValidationDone", collection);
-            }))
-        {
-            return;
-        }
-
-        CollectionIntegrityConfirmation = string.Empty;
-        await RecordAuditAsync("collection.validate", profile, database, collection, T("collectionIntegrityAudit"));
-    }
-
-    [RelayCommand(CanExecute = nameof(CanCompactCollection))]
-    private async Task CompactCollectionAsync()
-    {
-        if (!TryGetCollectionContext(out var profile, out var database, out var collection))
-        {
-            return;
-        }
-
-        var request = new CollectionCompactRequest(database, collection, CollectionCompactConfirmation, CollectionCompactForce);
-        if (!await RunAsync(async cancellationToken =>
-            {
-                AdministrationResults = await _workspace.CompactCollectionAsync(profile, request, cancellationToken);
-                StatusMessage = F("collectionCompacted", collection);
-            }))
-        {
-            return;
-        }
-
-        CollectionCompactConfirmation = string.Empty;
-        CollectionCompactForce = false;
-        await RecordAuditAsync("collection.compact", profile, database, collection, T("compactionRequested"));
     }
 
     [RelayCommand(CanExecute = nameof(CanLoadCollectionStats))]

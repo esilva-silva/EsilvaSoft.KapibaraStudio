@@ -19,32 +19,12 @@ public sealed partial class MainWindowViewModel
     [ObservableProperty]
     private string _collectionMaintenancePreviewText = string.Empty;
 
-    public bool CanApplyCollectionIntegrityPlan => HasCurrentCollectionMaintenancePlan(CollectionMaintenanceKind.Validate)
-        && SelectedProfile is { IsReadOnly: false }
-        && string.Equals(SelectedCollection, CollectionIntegrityConfirmation.Trim(), StringComparison.Ordinal);
-
-    public bool CanApplyCollectionCompactPlan => HasCurrentCollectionMaintenancePlan(CollectionMaintenanceKind.Compact)
-        && SelectedProfile is { IsReadOnly: false }
-        && string.Equals(SelectedCollection, CollectionCompactConfirmation.Trim(), StringComparison.Ordinal);
-
     public bool CanApplyCollectionValidationPlan => HasCurrentCollectionMaintenancePlan(CollectionMaintenanceKind.ConfigureValidation)
         && SelectedProfile is { IsReadOnly: false }
         && string.Equals(SelectedCollection, CollectionValidationConfirmation.Trim(), StringComparison.Ordinal);
 
     [RelayCommand]
-    private Task PreviewCollectionIntegrityAsync() => PreviewCollectionMaintenanceAsync(CollectionMaintenanceKind.Validate);
-
-    [RelayCommand]
-    private Task PreviewCollectionCompactAsync() => PreviewCollectionMaintenanceAsync(CollectionMaintenanceKind.Compact);
-
-    [RelayCommand]
     private Task PreviewCollectionValidationAsync() => PreviewCollectionMaintenanceAsync(CollectionMaintenanceKind.ConfigureValidation);
-
-    [RelayCommand(CanExecute = nameof(CanApplyCollectionIntegrityPlan))]
-    private Task ApplyCollectionIntegrityPlanAsync() => ApplyCollectionMaintenanceAsync(CollectionMaintenanceKind.Validate);
-
-    [RelayCommand(CanExecute = nameof(CanApplyCollectionCompactPlan))]
-    private Task ApplyCollectionCompactPlanAsync() => ApplyCollectionMaintenanceAsync(CollectionMaintenanceKind.Compact);
 
     [RelayCommand(CanExecute = nameof(CanApplyCollectionValidationPlan))]
     private Task ApplyCollectionValidationPlanAsync() => ApplyCollectionMaintenanceAsync(CollectionMaintenanceKind.ConfigureValidation);
@@ -69,17 +49,7 @@ public sealed partial class MainWindowViewModel
                     return;
 
                 var topology = DescribeTopology(state.Preflight.TopologyJson);
-                if (kind == CollectionMaintenanceKind.Compact && topology.IsRouter)
-                    throw new InvalidOperationException(T("collectionMaintenanceCompactMongos"));
-                if (kind == CollectionMaintenanceKind.Compact && topology.IsReplicaSetPrimary && !CollectionCompactForce)
-                    throw new InvalidOperationException(T("collectionMaintenanceCompactPrimaryForce"));
-
-                var risk = kind switch
-                {
-                    CollectionMaintenanceKind.Validate => T("collectionMaintenanceValidateRisk"),
-                    CollectionMaintenanceKind.Compact => T("collectionMaintenanceCompactRisk"),
-                    _ => T("collectionMaintenanceCollModRisk")
-                };
+                var risk = T("collectionMaintenanceCollModRisk");
                 var capability = topology.IsRouter
                     ? T("collectionMaintenanceCapabilityRouter")
                     : topology.IsReplicaSetPrimary
@@ -143,16 +113,6 @@ public sealed partial class MainWindowViewModel
             string commandResult;
             switch (kind)
             {
-                case CollectionMaintenanceKind.Validate:
-                    commandAttempted = true;
-                    var integrityRequest = new CollectionIntegrityCheckRequest(plan.Database, plan.Collection, CollectionIntegrityConfirmation, plan.State.Preflight);
-                    commandResult = await _workspace.ValidateCollectionIntegrityAsync(plan.Profile, integrityRequest, cancellationToken);
-                    break;
-                case CollectionMaintenanceKind.Compact:
-                    commandAttempted = true;
-                    var compactRequest = new CollectionCompactRequest(plan.Database, plan.Collection, CollectionCompactConfirmation, CollectionCompactForce, plan.State.Preflight);
-                    commandResult = await _workspace.CompactCollectionAsync(plan.Profile, compactRequest, cancellationToken);
-                    break;
                 case CollectionMaintenanceKind.ConfigureValidation:
                     commandAttempted = true;
                     var validationRequest = new CollectionValidationRequest(
@@ -213,21 +173,12 @@ public sealed partial class MainWindowViewModel
         if (succeeded)
         {
             await RecordAuditAsync(
-                kind switch
-                {
-                    CollectionMaintenanceKind.Validate => "collection.validate",
-                    CollectionMaintenanceKind.Compact => "collection.compact",
-                    _ => "collection.validation.configure"
-                },
+                "collection.validation.configure",
                 plan.Profile,
                 plan.Database,
                 plan.Collection,
                 T("collectionMaintenanceAudit"));
-            CollectionIntegrityConfirmation = string.Empty;
-            CollectionCompactConfirmation = string.Empty;
             CollectionValidationConfirmation = string.Empty;
-            if (kind == CollectionMaintenanceKind.Compact)
-                CollectionCompactForce = false;
             NotifyCollectionMaintenanceCommands();
             _collectionMaintenancePlan = null;
         }
@@ -268,12 +219,7 @@ public sealed partial class MainWindowViewModel
         && ReferenceEquals(plan.Profile, SelectedProfile)
         && string.Equals(plan.Signature, CurrentCollectionMaintenanceSignature(kind), StringComparison.Ordinal);
 
-    private bool IsCollectionMaintenanceConfirmed(CollectionMaintenanceKind kind) => kind switch
-    {
-        CollectionMaintenanceKind.Validate => CanApplyCollectionIntegrityPlan,
-        CollectionMaintenanceKind.Compact => CanApplyCollectionCompactPlan,
-        _ => CanApplyCollectionValidationPlan
-    };
+    private bool IsCollectionMaintenanceConfirmed(CollectionMaintenanceKind kind) => CanApplyCollectionValidationPlan;
 
     private string CurrentCollectionMaintenanceSignature(CollectionMaintenanceKind kind) =>
         CollectionMaintenanceSignature(SelectedProfile, SelectedDatabase, SelectedCollection, kind);
@@ -285,7 +231,6 @@ public sealed partial class MainWindowViewModel
             database ?? string.Empty,
             collection ?? string.Empty,
             kind,
-            kind == CollectionMaintenanceKind.Compact ? CollectionCompactForce.ToString() : string.Empty,
             kind == CollectionMaintenanceKind.ConfigureValidation ? CollectionValidatorJson : string.Empty,
             kind == CollectionMaintenanceKind.ConfigureValidation ? CollectionValidationLevel.ToString() : string.Empty,
             kind == CollectionMaintenanceKind.ConfigureValidation ? CollectionValidationAction.ToString() : string.Empty);
@@ -299,14 +244,8 @@ public sealed partial class MainWindowViewModel
 
     private void NotifyCollectionMaintenanceCommands()
     {
-        OnPropertyChanged(nameof(CanApplyCollectionIntegrityPlan));
-        OnPropertyChanged(nameof(CanApplyCollectionCompactPlan));
         OnPropertyChanged(nameof(CanApplyCollectionValidationPlan));
-        PreviewCollectionIntegrityCommand.NotifyCanExecuteChanged();
-        PreviewCollectionCompactCommand.NotifyCanExecuteChanged();
         PreviewCollectionValidationCommand.NotifyCanExecuteChanged();
-        ApplyCollectionIntegrityPlanCommand.NotifyCanExecuteChanged();
-        ApplyCollectionCompactPlanCommand.NotifyCanExecuteChanged();
         ApplyCollectionValidationPlanCommand.NotifyCanExecuteChanged();
     }
 
@@ -342,15 +281,12 @@ public sealed partial class MainWindowViewModel
         return document.RootElement.Clone();
     }
 
-    partial void OnCollectionIntegrityConfirmationChanged(string value) => NotifyCollectionMaintenanceCommands();
-    partial void OnCollectionCompactConfirmationChanged(string value) => NotifyCollectionMaintenanceCommands();
-    partial void OnCollectionCompactForceChanged(bool value) => ClearCollectionMaintenancePlan();
     partial void OnCollectionValidationConfirmationChanged(string value) => NotifyCollectionMaintenanceCommands();
     partial void OnCollectionValidatorJsonChanged(string value) => ClearCollectionMaintenancePlan();
     partial void OnCollectionValidationLevelChanged(CollectionValidationLevel value) => ClearCollectionMaintenancePlan();
     partial void OnCollectionValidationActionChanged(CollectionValidationAction value) => ClearCollectionMaintenancePlan();
 
-    private enum CollectionMaintenanceKind { Validate, Compact, ConfigureValidation }
+    private enum CollectionMaintenanceKind { ConfigureValidation }
     private sealed record CollectionMaintenancePlan(
         ConnectionProfile Profile,
         string Database,

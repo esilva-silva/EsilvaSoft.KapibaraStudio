@@ -200,105 +200,25 @@ public sealed class MongoWorkspaceService : IMongoWorkspaceService
         return await MongoServerAdministrator.GetProfilerStatusAsync(context, database, cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task<ProfilerConfigurationResult> ConfigureProfilerAsync(
+    public async Task<ProfilerConfigurationResult> RestoreProfilerSettingsAsync(
         ConnectionProfile profile,
-        ProfilerConfigurationRequest request,
+        ProfilerCaptureTicket ticket,
+        string confirmationDatabase,
+        string expectedStatusJson,
+        string expectedTopologyJson,
         CancellationToken cancellationToken = default)
     {
         profile.EnsureWriteAllowed();
-        request.Validate();
+        ticket.Validate();
+        if (ticket.ProfileId != profile.Id || !string.Equals(ticket.Database, confirmationDatabase, StringComparison.Ordinal)
+            || ProfilerCaptureTopology.GetNodeIdentity(expectedTopologyJson) != ticket.NodeIdentity
+            || ProfilerSettings.Parse(expectedStatusJson) != ticket.Applied)
+            throw new InvalidOperationException("O registro de recuperação não corresponde ao estado confirmado.");
+        var request = new ProfilerConfigurationRequest(ticket.Database, ticket.Previous.Level,
+            ticket.Previous.SlowMs, ticket.Previous.SampleRate, ProfilerFilterMode.Unset,
+            null, confirmationDatabase, expectedStatusJson, expectedTopologyJson).Validate();
         var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
         return await MongoServerAdministrator.ConfigureProfilerAsync(context, profile, request, cancellationToken).ConfigureAwait(false);
-    }
-
-    public async Task<ProfilerCapturePage> ReadProfilerCaptureAsync(ConnectionProfile profile, string database,
-        DateTimeOffset fromUtc, DateTimeOffset throughUtc, CancellationToken cancellationToken = default)
-    {
-        var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
-        return await MongoServerAdministrator.ReadProfilerCaptureAsync(context, database, fromUtc, throughUtc,
-            cancellationToken).ConfigureAwait(false);
-    }
-
-    public async Task KillOperationAsync(ConnectionProfile profile, OperationKillRequest request, CancellationToken cancellationToken = default)
-    {
-        var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
-        await MongoServerAdministrator.KillOperationAsync(context, profile, request, cancellationToken).ConfigureAwait(false);
-    }
-
-    public async Task<string> ValidateCollectionIntegrityAsync(ConnectionProfile profile, CollectionIntegrityCheckRequest request, CancellationToken cancellationToken = default)
-    {
-        profile.EnsureWriteAllowed();
-        request.Validate();
-        var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
-        return await MongoServerAdministrator.ValidateCollectionIntegrityAsync(context, profile, request, cancellationToken).ConfigureAwait(false);
-    }
-
-    public async Task<string> CompactCollectionAsync(ConnectionProfile profile, CollectionCompactRequest request, CancellationToken cancellationToken = default)
-    {
-        profile.EnsureWriteAllowed();
-        request.Validate();
-        var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
-        return await MongoServerAdministrator.CompactCollectionAsync(context, profile, request, cancellationToken).ConfigureAwait(false);
-    }
-
-    public async Task<string> GetUsersAsync(ConnectionProfile profile, CancellationToken cancellationToken = default)
-    {
-        var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
-        return await MongoServerAdministrator.GetUsersAsync(context, cancellationToken).ConfigureAwait(false);
-    }
-
-    public async Task CreateUserAsync(ConnectionProfile profile, DatabaseUserCreateRequest request, CancellationToken cancellationToken = default)
-    {
-        var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
-        await MongoServerAdministrator.CreateUserAsync(context, profile, request, cancellationToken).ConfigureAwait(false);
-    }
-
-    public async Task DropUserAsync(ConnectionProfile profile, DatabaseUserDropRequest request, CancellationToken cancellationToken = default)
-    {
-        var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
-        await MongoServerAdministrator.DropUserAsync(context, profile, request, cancellationToken).ConfigureAwait(false);
-    }
-
-    public async Task UpdateUserRolesAsync(ConnectionProfile profile, DatabaseUserRoleRequest request, CancellationToken cancellationToken = default)
-    {
-        var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
-        await MongoServerAdministrator.UpdateUserRolesAsync(context, profile, request, cancellationToken).ConfigureAwait(false);
-    }
-
-    public async Task<string> GetRolesAsync(ConnectionProfile profile, CancellationToken cancellationToken = default)
-    {
-        var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
-        return await MongoServerAdministrator.GetRolesAsync(context, cancellationToken).ConfigureAwait(false);
-    }
-
-    public async Task<string?> GetUserRolesAsync(ConnectionProfile profile, string database, string username, CancellationToken cancellationToken = default)
-    {
-        var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
-        return await MongoServerAdministrator.GetUserRolesAsync(context, database, username, cancellationToken).ConfigureAwait(false);
-    }
-
-    public async Task<int> GetRuntimeServerParameterAsync(ConnectionProfile profile, string parameterName, CancellationToken cancellationToken = default)
-    {
-        var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
-        return await MongoServerAdministrator.GetRuntimeServerParameterAsync(context, parameterName, cancellationToken).ConfigureAwait(false);
-    }
-
-    public async Task<RuntimeServerParameterMutationResult> SetRuntimeServerParameterAsync(ConnectionProfile profile, RuntimeServerParameterRequest request, CancellationToken cancellationToken = default)
-    {
-        var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
-        return await MongoServerAdministrator.SetRuntimeServerParameterAsync(context, profile, request, cancellationToken).ConfigureAwait(false);
-    }
-
-    public async Task<string> GetCustomRoleDefinitionAsync(ConnectionProfile profile, string database, string roleName, CancellationToken cancellationToken = default)
-    {
-        var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
-        return await MongoServerAdministrator.GetCustomRoleDefinitionAsync(context, database, roleName, cancellationToken).ConfigureAwait(false);
-    }
-
-    public async Task<DatabaseRoleMutationResult> MutateCustomRoleAsync(ConnectionProfile profile, DatabaseRoleMutationRequest request, CancellationToken cancellationToken = default)
-    {
-        var context = await PrepareAsync(profile, cancellationToken).ConfigureAwait(false);
-        return await MongoServerAdministrator.MutateCustomRoleAsync(context, profile, request, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<string> GetDatabaseStatsAsync(ConnectionProfile profile, string database, CancellationToken cancellationToken = default)

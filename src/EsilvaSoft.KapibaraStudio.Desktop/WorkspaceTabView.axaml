@@ -1,4 +1,4 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui" xmlns:syntax="using:EsilvaSoft.KapibaraStudio.Desktop.SyntaxHighlighting" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:EsilvaSoft.KapibaraStudio.Desktop" xmlns:core="using:EsilvaSoft.KapibaraStudio.Core" xmlns:vm="using:EsilvaSoft.KapibaraStudio.Desktop.ViewModels" xmlns:completion="using:EsilvaSoft.KapibaraStudio.Autocomplete.Core.Completion" x:Class="EsilvaSoft.KapibaraStudio.Desktop.WorkspaceTabView" x:DataType="vm:WorkspaceTabViewModel">
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:syntax="using:EsilvaSoft.KapibaraStudio.Desktop.SyntaxHighlighting" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:EsilvaSoft.KapibaraStudio.Desktop" xmlns:core="using:EsilvaSoft.KapibaraStudio.Core" xmlns:vm="using:EsilvaSoft.KapibaraStudio.Desktop.ViewModels" xmlns:completion="using:EsilvaSoft.KapibaraStudio.Autocomplete.Core.Completion" x:Class="EsilvaSoft.KapibaraStudio.Desktop.WorkspaceTabView" x:DataType="vm:WorkspaceTabViewModel">
   <Grid RowDefinitions="Auto,*">
     <Border Padding="12,6" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" Background="{DynamicResource SecondaryBackground}">
       <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="4">
@@ -9,7 +9,7 @@
             <TextBlock Text="{local:Loc Key=target}" VerticalAlignment="Center" />
           </StackPanel>
         </Button>
-        <TextBlock Grid.Row="1" Text="{Binding AccessHint}" Classes="metadata" />
+        <StackPanel Grid.Row="1"><TextBlock Text="{Binding AccessHint}" Classes="metadata" /><TextBlock Text="{Binding LegacyRecoveryNotice}" IsVisible="{Binding HasLegacyRecovery}" TextWrapping="Wrap" /></StackPanel>
       </Grid>
     </Border>
     <Grid x:Name="SplitGrid" Grid.Row="1">
@@ -32,22 +32,22 @@
               <TextBlock Text="{local:Loc Key=cancel}" VerticalAlignment="Center" />
             </StackPanel>
           </Button>
-          <Button Margin="0,0,6,4" AutomationProperties.Name="{local:Loc Key=options}">
+          <Button x:Name="EditorOptionsButton" Margin="0,0,6,4" AutomationProperties.Name="{local:Loc Key=options}">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <Path Classes="command-icon" Data="{StaticResource CodeIcon}" />
               <TextBlock Text="{local:Loc Key=options}" VerticalAlignment="Center" />
             </StackPanel>
             <Button.Flyout>
               <Flyout>
-                <ScrollViewer MaxHeight="340" Width="480" VerticalScrollBarVisibility="Auto">
-                  <StackPanel Spacing="6" Margin="8" IsEnabled="{Binding CanEditContext}">
+                <ScrollViewer MaxHeight="340" Width="400" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                  <StackPanel Width="360" HorizontalAlignment="Left" Spacing="6" Margin="8" IsEnabled="{Binding CanEditContext}">
                     <Button x:Name="FormatCodeButton" Content="{local:Loc Key=formatCode}" Click="FormatCode" ToolTip.Tip="{local:Loc Key=formatCodeTip}" />
                     <Button x:Name="ValidateCodeButton" Content="{local:Loc Key=validateSyntax}" Click="ValidateCode" ToolTip.Tip="{local:Loc Key=validateSyntaxTip}" />
-                    <Button Content="{local:Loc Key=analyzePipeline}" Command="{Binding ExplainAggregationCommand}" IsVisible="{Binding IsAggregation}" ToolTip.Tip="{local:Loc Key=analyzePipelineTip}" />
-                    <Grid IsVisible="{Binding IsScript}" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8">
-                      <TextBlock Text="{local:Loc Key=inputExtendedJson}" />
-                      <syntax:MongoTextEditor syntax:SyntaxSettings.Language="Json" Grid.Row="1" Text="{Binding InputJson}" Classes="code syntax" AutomationProperties.Name="{local:Loc Key=inputExtendedJson}" />
-                      <CheckBox Grid.Row="1" Grid.Column="1" Content="{local:Loc Key=persistInput}" IsChecked="{Binding PersistInput}" />
+                    <Button Content="{local:Loc Key=adaptLegacyInConsole}" Command="{Binding AdaptLegacyInConsoleCommand}" IsVisible="{Binding HasLegacyRecovery}" />
+                    <Grid IsVisible="{Binding HasLegacyRecovery}" RowDefinitions="Auto,Auto,Auto" RowSpacing="4">
+                      <TextBlock Text="{local:Loc Key=legacyInputJson}" TextWrapping="Wrap" />
+                      <syntax:MongoTextEditor x:Name="LegacyInputEditor" MinHeight="80" syntax:SyntaxSettings.Language="Json" Grid.Row="1" Text="{Binding InputJson}" Classes="code syntax" AutomationProperties.Name="{local:Loc Key=legacyInputJson}" />
+                      <CheckBox x:Name="LegacyPersistInput" Grid.Row="2" IsChecked="{Binding PersistInput}"><TextBlock Text="{local:Loc Key=persistInput}" TextWrapping="Wrap" /></CheckBox>
                     </Grid>
                     <Grid IsVisible="{Binding IsQuery}" RowDefinitions="Auto,Auto,Auto,Auto" ColumnDefinitions="*,*" ColumnSpacing="8" RowSpacing="4">
                       <TextBlock Text="{local:Loc Key=projection}" />

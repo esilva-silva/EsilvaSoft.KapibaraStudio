@@ -129,13 +129,6 @@ public sealed class EnvironmentVaultTests
     }
 
     [Test]
-    public void ScriptCredentialsAndValuesStayOutOfScriptSource()
-    {
-        var script = MongoshScriptTemplate.BuildScript("{}", "slop.results.emit({value: ENV.get('key')});", "database");
-        Assert.That(script, Does.Not.Contain("private-value"));
-    }
-
-    [Test]
     public async Task EnvironmentFormSavesCustomValuesAndReportsPersistenceFailure()
     {
         using var context = new WorkspaceTestContext();
@@ -182,8 +175,11 @@ public sealed class EnvironmentVaultTests
         await model.InitializeAsync(); await model.OpenConnectionAsync(profile);
         model.BindActiveTab(profile, "database", "collection");
         var tab = model.ActiveTab!;
-        tab.Mode = "Script"; // This scenario exercises the separate mongosh runner.
-        var execution = tab.ExecuteCommand.ExecuteAsync("print('pending')");
+        tab.Mode = "Console";
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        context.Mongo.Handler = (_, args) => { started.TrySetResult(); return new TaskCompletionSource<QueryPage>().Task.WaitAsync((CancellationToken)args[2]!); };
+        var execution = tab.ExecuteCommand.ExecuteAsync("db.collection.find({})");
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.That(tab.IsRunning, Is.True);
         var identity = ConnectionIdentity.From(profile);
         model.Metadata.PutCollections(profile, "database", ["collection"]);

@@ -8,160 +8,136 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests;
 [TestFixture]
 public sealed class ProfilerCaptureCoordinatorTests
 {
-    private const string Initial = """{"was":0,"slowms":100,"sampleRate":1}""";
-    private const string Enabled = """{"was":1,"slowms":50,"sampleRate":0.5}""";
     private const string Topology = """{"topologyVersion":{"processId":{"$oid":"507f1f77bcf86cd799439011"}},"isWritablePrimary":true}""";
-    private static readonly string[] StatusReadOnlyCall = ["GetProfilerStatusAsync"];
+    private const string Applied = """{"was":1,"slowms":50,"sampleRate":0.5}""";
 
     [Test]
-    public void PersistenceFailurePreventsProfilerCommand()
+    public async Task ListingPendingDoesNotContactMongo()
     {
-        var repository = new MemoryCaptureRepository { FailCreate = true };
-        var commands = 0;
+        var profile = ConnectionProfile.Create("local", "mongodb://localhost");
+        var repository = new MemoryCaptureRepository(Ticket(profile));
+        var mongo = Proxy((method, _) => throw new AssertionException($"Unexpected Mongo call: {method}"));
+        Assert.That(await new ProfilerCaptureCoordinator(repository, mongo).GetPendingAsync(), Has.Count.EqualTo(1));
+    }
+
+    [Test]
+    public async Task RestoreCompletesOnlyAfterVerifiedResult()
+    {
+        var profile = ConnectionProfile.Create("local", "mongodb://localhost");
+        var ticket = Ticket(profile);
+        var repository = new MemoryCaptureRepository(ticket);
         var mongo = Proxy((method, _) => method switch
         {
-            "GetProfilerStatusAsync" => Task.FromResult(Initial),
             "GetTopologyAsync" => Task.FromResult(Topology),
-            "ConfigureProfilerAsync" => CountCommand(),
-            _ => throw new InvalidOperationException(method)
+            "GetProfilerStatusAsync" => Task.FromResult(Applied),
+            "RestoreProfilerSettingsAsync" => Task.FromResult(new ProfilerConfigurationResult(0, 100, 1m, false)),
+            _ => throw new AssertionException(method)
         });
-        Task<ProfilerConfigurationResult> CountCommand()
-        {
-            commands++;
-            return Task.FromResult(new ProfilerConfigurationResult(1, 50, 0.5m, false));
-        }
+        await new ProfilerCaptureCoordinator(repository, mongo).RestoreAsync(profile, ticket.Id, ticket.Database);
+        Assert.That(repository.Items, Is.Empty);
+    }
+
+    [Test]
+    public void ConcurrentChangeKeepsTicketAndDoesNotSendCommand()
+    {
         var profile = ConnectionProfile.Create("local", "mongodb://localhost");
-        var coordinator = new ProfilerCaptureCoordinator(repository, mongo);
-
-        Assert.That(async () => await coordinator.StartAsync(profile, Request(), TimeSpan.FromMinutes(10)),
-            Throws.TypeOf<IOException>());
-        Assert.That(commands, Is.Zero);
-    }
-
-    [Test]
-    public void FilteredBaselineIsRefusedBeforePersistenceOrCommand()
-    {
-        var repository = new MemoryCaptureRepository();
-        var calls = new List<string>();
-        var mongo = Proxy((method, _) =>
-        {
-            calls.Add(method);
-            return method switch
-            {
-                "GetProfilerStatusAsync" => Task.FromResult("""{"was":0,"slowms":100,"sampleRate":1,"filter":{"op":"query"}}"""),
-                _ => throw new InvalidOperationException(method)
-            };
-        });
-
-        Assert.That(async () => await new ProfilerCaptureCoordinator(repository, mongo)
-            .StartAsync(ConnectionProfile.Create("local", "mongodb://localhost"),
-                Request(), TimeSpan.FromMinutes(10)), Throws.TypeOf<InvalidOperationException>());
-        Assert.Multiple(() =>
-        {
-            Assert.That(repository.Items, Is.Empty);
-            Assert.That(calls, Is.EqualTo(StatusReadOnlyCall));
-        });
-    }
-
-    [Test]
-    public async Task StartCollectRestoreKeepsReceiptUntilVerified()
-    {
-        var repository = new MemoryCaptureRepository();
-        var status = Initial;
-        var commands = 0;
-        var mongo = Proxy((method, args) => method switch
-        {
-            "GetProfilerStatusAsync" => Task.FromResult(status),
-            "GetTopologyAsync" => Task.FromResult(Topology),
-            "ConfigureProfilerAsync" => Configure((ProfilerConfigurationRequest)args[1]!),
-            "ReadProfilerCaptureAsync" => Task.FromResult(new ProfilerCapturePage(
-                [new ProfilerCaptureEntry(DateTimeOffset.UtcNow, "query", "sample_mflix.movies", 7, "COLLSCAN")],
-                false, (DateTimeOffset)args[3]!)),
-            _ => throw new InvalidOperationException(method)
-        });
-        Task<ProfilerConfigurationResult> Configure(ProfilerConfigurationRequest request)
-        {
-            Assert.That(repository.Items, Has.Count.EqualTo(1), "A recuperação deve existir antes do comando.");
-            commands++;
-            status = request.Level == 0 ? Initial : Enabled;
-            return Task.FromResult(new ProfilerConfigurationResult(request.Level,
-                request.SlowMs, request.SampleRate, false));
-        }
-        var profile = ConnectionProfile.Create("local", "mongodb://localhost");
-        var coordinator = new ProfilerCaptureCoordinator(repository, mongo);
-
-        var ticket = await coordinator.StartAsync(profile, Request(), TimeSpan.FromMinutes(10));
-        var pendingAfterRestart = await new ProfilerCaptureCoordinator(repository, mongo).GetPendingAsync();
-        var page = await coordinator.CollectAsync(profile, ticket.Id);
-        await coordinator.RestoreAsync(profile, ticket.Id, "sample_mflix");
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(ticket.State, Is.EqualTo(ProfilerCaptureState.Active));
-            Assert.That(pendingAfterRestart, Has.Count.EqualTo(1));
-            Assert.That(page.Entries, Has.Count.EqualTo(1));
-            Assert.That(page.Entries[0].PlanSummary, Is.EqualTo("COLLSCAN"));
-            Assert.That(commands, Is.EqualTo(2));
-            Assert.That(repository.Items, Is.Empty);
-        });
-    }
-
-    [Test]
-    public async Task ConcurrentChangeBlocksRestoreAndRetainsReceipt()
-    {
-        var repository = new MemoryCaptureRepository();
-        var status = Initial;
-        var commands = 0;
+        var ticket = Ticket(profile);
+        var repository = new MemoryCaptureRepository(ticket);
         var mongo = Proxy((method, _) => method switch
         {
-            "GetProfilerStatusAsync" => Task.FromResult(status),
             "GetTopologyAsync" => Task.FromResult(Topology),
-            "ConfigureProfilerAsync" => Configure(),
-            _ => throw new InvalidOperationException(method)
+            "GetProfilerStatusAsync" => Task.FromResult("""{"was":1,"slowms":25,"sampleRate":0.5}"""),
+            _ => throw new AssertionException(method)
         });
-        Task<ProfilerConfigurationResult> Configure()
-        {
-            commands++;
-            status = Enabled;
-            return Task.FromResult(new ProfilerConfigurationResult(1, 50, 0.5m, false));
-        }
-        var profile = ConnectionProfile.Create("local", "mongodb://localhost");
-        var coordinator = new ProfilerCaptureCoordinator(repository, mongo);
-        var ticket = await coordinator.StartAsync(profile, Request(), TimeSpan.FromMinutes(10));
-        status = """{"was":1,"slowms":25,"sampleRate":0.5}""";
-
-        Assert.That(async () => await coordinator.RestoreAsync(profile, ticket.Id, "sample_mflix"),
-            Throws.TypeOf<InvalidOperationException>());
-        Assert.Multiple(() =>
-        {
-            Assert.That(commands, Is.EqualTo(1));
-            Assert.That(repository.Items, Has.Count.EqualTo(1));
-        });
+        Assert.That(async () => await new ProfilerCaptureCoordinator(repository, mongo).RestoreAsync(profile, ticket.Id, ticket.Database), Throws.TypeOf<InvalidOperationException>());
+        Assert.That(repository.Items, Has.Count.EqualTo(1));
     }
 
     [Test]
-    public void CancellationAfterSubmissionLeavesDurableUncertainReceipt()
+    public void CancellationAfterSubmissionLeavesUncertainTicket()
     {
-        var repository = new MemoryCaptureRepository();
+        var profile = ConnectionProfile.Create("local", "mongodb://localhost");
+        var ticket = Ticket(profile);
+        var repository = new MemoryCaptureRepository(ticket);
         var mongo = Proxy((method, _) => method switch
         {
-            "GetProfilerStatusAsync" => Task.FromResult(Initial),
             "GetTopologyAsync" => Task.FromResult(Topology),
-            "ConfigureProfilerAsync" => Task.FromException<ProfilerConfigurationResult>(
-                new OperationCanceledException("server outcome unknown")),
-            _ => throw new InvalidOperationException(method)
+            "GetProfilerStatusAsync" => Task.FromResult(Applied),
+            "RestoreProfilerSettingsAsync" => Task.FromException<ProfilerConfigurationResult>(new OperationCanceledException()),
+            _ => throw new AssertionException(method)
         });
-        var profile = ConnectionProfile.Create("local", "mongodb://localhost");
-
-        Assert.That(async () => await new ProfilerCaptureCoordinator(repository, mongo)
-            .StartAsync(profile, Request(), TimeSpan.FromMinutes(10)),
-            Throws.TypeOf<OperationCanceledException>());
+        Assert.That(async () => await new ProfilerCaptureCoordinator(repository, mongo).RestoreAsync(profile, ticket.Id, ticket.Database), Throws.TypeOf<OperationCanceledException>());
         Assert.That(repository.Items.Single().State, Is.EqualTo(ProfilerCaptureState.Uncertain));
     }
 
-    private static ProfilerConfigurationRequest Request() => new(
-        "sample_mflix", 1, 50, 0.5m, ProfilerFilterMode.Unset,
-        null, "sample_mflix", Initial, Topology);
+    [Test]
+    public void UnconfirmedReadbackRetainsUncertainTicket()
+    {
+        var profile = ConnectionProfile.Create("local", "mongodb://localhost");
+        var ticket = Ticket(profile);
+        var repository = new MemoryCaptureRepository(ticket);
+        var mongo = Proxy((method, _) => method switch
+        {
+            "GetTopologyAsync" => Task.FromResult(Topology),
+            "GetProfilerStatusAsync" => Task.FromResult(Applied),
+            "RestoreProfilerSettingsAsync" => Task.FromResult(new ProfilerConfigurationResult(1, 50, 0.5m, false)),
+            _ => throw new AssertionException(method)
+        });
+        Assert.That(async () => await new ProfilerCaptureCoordinator(repository, mongo).RestoreAsync(profile, ticket.Id, ticket.Database), Throws.TypeOf<InvalidOperationException>());
+        Assert.That(repository.Items.Single().State, Is.EqualTo(ProfilerCaptureState.Uncertain));
+    }
+
+    [TestCase(true)]
+    [TestCase(false)]
+    public void WrongProfileOrConfirmationNeverContactsMongo(bool wrongProfile)
+    {
+        var profile = ConnectionProfile.Create("local", "mongodb://localhost");
+        var ticket = Ticket(profile);
+        var repository = new MemoryCaptureRepository(ticket);
+        var mongo = Proxy((method, _) => throw new AssertionException($"Unexpected Mongo call: {method}"));
+        var selected = wrongProfile ? ConnectionProfile.Create("other", "mongodb://localhost") : profile;
+        var confirmation = wrongProfile ? ticket.Database : "other_database";
+        Assert.That(async () => await new ProfilerCaptureCoordinator(repository, mongo).RestoreAsync(selected, ticket.Id, confirmation),
+            wrongProfile ? Throws.TypeOf<InvalidOperationException>() : Throws.TypeOf<ArgumentException>());
+        Assert.That(repository.Items.Single(), Is.EqualTo(ticket));
+    }
+
+    [Test]
+    public void ChangedNodeNeverRestoresOldTicket()
+    {
+        var profile = ConnectionProfile.Create("local", "mongodb://localhost");
+        var ticket = Ticket(profile);
+        var repository = new MemoryCaptureRepository(ticket);
+        var mongo = Proxy((method, _) => method == "GetTopologyAsync"
+            ? Task.FromResult(Topology.Replace("507f1f77bcf86cd799439011", "507f1f77bcf86cd799439012", StringComparison.Ordinal))
+            : throw new AssertionException(method));
+        Assert.That(async () => await new ProfilerCaptureCoordinator(repository, mongo).RestoreAsync(profile, ticket.Id, ticket.Database), Throws.TypeOf<InvalidOperationException>());
+        Assert.That(repository.Items.Single(), Is.EqualTo(ticket));
+    }
+
+    [Test]
+    public void FailedCompletionKeepsRecoveryPossible()
+    {
+        var profile = ConnectionProfile.Create("local", "mongodb://localhost");
+        var ticket = Ticket(profile);
+        var repository = new MemoryCaptureRepository(ticket) { FailComplete = true };
+        var mongo = Proxy((method, _) => method switch
+        {
+            "GetTopologyAsync" => Task.FromResult(Topology),
+            "GetProfilerStatusAsync" => Task.FromResult(Applied),
+            "RestoreProfilerSettingsAsync" => Task.FromResult(new ProfilerConfigurationResult(0, 100, 1m, false)),
+            _ => throw new AssertionException(method)
+        });
+        Assert.That(async () => await new ProfilerCaptureCoordinator(repository, mongo).RestoreAsync(profile, ticket.Id, ticket.Database), Throws.TypeOf<IOException>());
+        Assert.That(repository.Items.Single().State, Is.EqualTo(ProfilerCaptureState.Uncertain));
+    }
+
+    private static ProfilerCaptureTicket Ticket(ConnectionProfile profile)
+    {
+        var now = DateTimeOffset.UtcNow;
+        return new(1, Guid.NewGuid(), profile.Id, "sample_mflix", ProfilerCaptureTopology.GetNodeIdentity(Topology), now, now.AddMinutes(10),
+            new ProfilerSettings(0, 100, 1m, null), new ProfilerSettings(1, 50, 0.5m, null), ProfilerCaptureState.Active);
+    }
 
     private static IMongoWorkspaceService Proxy(Func<string, object?[], object?> handler)
     {
@@ -170,27 +146,13 @@ public sealed class ProfilerCaptureCoordinatorTests
         return mongo;
     }
 
-    private sealed class MemoryCaptureRepository : IProfilerCaptureRepository
+    private sealed class MemoryCaptureRepository(ProfilerCaptureTicket ticket) : IProfilerCaptureRepository
     {
-        public List<ProfilerCaptureTicket> Items { get; } = [];
-        public bool FailCreate { get; init; }
-        public Task<IReadOnlyList<ProfilerCaptureTicket>> GetPendingAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<ProfilerCaptureTicket>>(Items.ToArray());
-        public Task CreateAsync(ProfilerCaptureTicket ticket, CancellationToken cancellationToken = default)
-        {
-            if (FailCreate) throw new IOException("disk failure");
-            Items.Add(ticket);
-            return Task.CompletedTask;
-        }
-        public Task UpdateAsync(ProfilerCaptureTicket ticket, CancellationToken cancellationToken = default)
-        {
-            Items[Items.FindIndex(item => item.Id == ticket.Id)] = ticket;
-            return Task.CompletedTask;
-        }
-        public Task CompleteAsync(Guid id, CancellationToken cancellationToken = default)
-        {
-            Items.RemoveAll(item => item.Id == id);
-            return Task.CompletedTask;
-        }
+        public List<ProfilerCaptureTicket> Items { get; } = [ticket];
+        public bool FailComplete { get; init; }
+        public Task<IReadOnlyList<ProfilerCaptureTicket>> GetPendingAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<ProfilerCaptureTicket>>(Items.ToArray());
+        public Task CreateAsync(ProfilerCaptureTicket item, CancellationToken cancellationToken = default) { Items.Add(item); return Task.CompletedTask; }
+        public Task UpdateAsync(ProfilerCaptureTicket item, CancellationToken cancellationToken = default) { Items[Items.FindIndex(x => x.Id == item.Id)] = item; return Task.CompletedTask; }
+        public Task CompleteAsync(Guid id, CancellationToken cancellationToken = default) { if (FailComplete) throw new IOException("Synthetic persistence failure"); Items.RemoveAll(x => x.Id == id); return Task.CompletedTask; }
     }
 }

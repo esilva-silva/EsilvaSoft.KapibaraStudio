@@ -25,10 +25,8 @@ public interface IAiCompletionProvider
 /// O provider da IA explícita: contexto rico sob orçamento, prioridade interativa e candidato seguro.
 /// </summary>
 /// <remarks>
-/// <para><strong>Papel.</strong> É o par explícito do <see cref="AiAutocompleteProvider"/>, que continua atendendo o
-/// ghost automático da Fase 5.1 pelo caminho v1 cru, em segundo plano. A divisão é deliberada: o automático é barato
-/// e silencioso, o explícito pode pagar a montagem de contexto da Fase 3 (fatos, janela sintática, orçamento medido
-/// pelo tokenizador real) porque o usuário pediu e está esperando.</para>
+/// <para><strong>Papel.</strong> Atende somente a solicitação explícita do editor. O autocomplete normal é
+/// determinístico; <see cref="AiAutocompleteProvider"/> permanece separado para avaliação no KapiLab.</para>
 /// <para><strong>Prioridade.</strong> Todo pedido sai como <see cref="AiRequestPriority.Interactive"/>, seja qual for
 /// a prioridade escrita no <see cref="AiGenerationRequest"/>. É o que faz <c>Ctrl+;</c> preemptar uma geração de
 /// fundo em andamento, e não o contrário.</para>

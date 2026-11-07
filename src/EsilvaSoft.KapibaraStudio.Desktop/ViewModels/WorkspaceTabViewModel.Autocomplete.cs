@@ -52,7 +52,7 @@ public sealed partial class WorkspaceTabViewModel
         token.ThrowIfCancellationRequested();
         var profile = Profile;
         var scope = profile is null ? null : new CatalogScope(ConnectionIdentity.From(profile), Database, Collection);
-        var dialect = Mode switch { "Agregação" => EditorDialects.AggregationJson, "Script" => EditorDialects.MongoshScript, _ => EditorDialects.Console };
+        var dialect = EditorDialects.Console;
         var capturedCaret = Math.Clamp(caret, 0, snapshot.Length);
         // Peek: lê o cache de metadados já carregado, nunca agenda I/O.
         var inputSchema = scope is null ? null : PipelineInputSchema?.Invoke(scope);
@@ -87,8 +87,7 @@ public sealed partial class WorkspaceTabViewModel
     public Func<IReadOnlyList<string>> KnownAutocompleteNames { get; set; } = () => [];
     public IReadOnlyList<string> GetObservedCompletionFields(string prefix)
     {
-        var target = IsAggregation ? new EsilvaSoft.KapibaraStudio.Autocomplete.Core.SyntaxHighlighting.SyntaxNamespace(Profile?.Name ?? "", Database, Collection)
-            : MongoCompletionTarget.Resolve(prefix, CaptureSyntaxContext());
+        var target = MongoCompletionTarget.Resolve(prefix, CaptureSyntaxContext());
         // A bare field prefix has no query path; use an unambiguous result source in this tab's current destination.
         if (target is null && prefix.All(c => char.IsLetterOrDigit(c) || c is '_' or '$'))
         {
@@ -122,7 +121,7 @@ public sealed partial class WorkspaceTabViewModel
         var names = KnownAutocompleteNames().Concat(new[] { Profile?.Name ?? "", Database, Collection }).ToArray();
         var history = ConsoleHistory.Where(entry => entry.ProfileId == Profile?.Id && entry.Database == Database)
             .OrderByDescending(entry => entry.ExecutedAt).Take(3).Select(entry => entry.Script).ToArray();
-        var language = Mode switch { "Agregação" => "json", "Script" => "JavaScript (mongosh)", _ => "Mongo Console JavaScript" };
+        var language = "Mongo Console JavaScript";
         var request = AutocompleteContextBuilder.Build(new(text, caret, language,
             InputJson, fields, names, history, FilePath), settings);
         EsilvaSoft.KapibaraStudio.Autocomplete.Core.AutocompleteMetrics.ContextBuildDuration.Record(

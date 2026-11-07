@@ -11,48 +11,6 @@ public static partial class OperationErrorMessages
     public static string Describe(Exception exception, bool export = false, Func<string, string>? localize = null)
     {
         ArgumentNullException.ThrowIfNull(exception);
-        if (exception is MongoRoleAdministrationException roleFailure)
-        {
-            var roleKey = roleFailure.Kind switch
-            {
-                MongoRoleAdministrationFailureKind.PermissionDenied => "errorRolePermission",
-                MongoRoleAdministrationFailureKind.Unsupported => "errorRoleUnsupported",
-                MongoRoleAdministrationFailureKind.ReadbackFailed => "errorRoleReadback",
-                MongoRoleAdministrationFailureKind.InvalidInput => "errorRoleInput",
-                _ => "errorRoleCommand"
-            };
-            var roleMessage = ResolveRoleOrUserText(roleKey, localize);
-            Trace.WriteLine($"{roleKey}; exception={exception.GetType().Name}", "Operações");
-            return roleMessage;
-        }
-        if (exception is MongoUserAdministrationException userFailure)
-        {
-            var key = userFailure.Kind switch
-            {
-                MongoUserAdministrationFailureKind.ReadbackFailed => "errorUserReadback",
-                MongoUserAdministrationFailureKind.PermissionDenied => "errorUserPermission",
-                MongoUserAdministrationFailureKind.Unsupported => "errorUserUnsupported",
-                MongoUserAdministrationFailureKind.InvalidInput => "errorUserInput",
-                MongoUserAdministrationFailureKind.Conflict => "errorUserConflict",
-                _ => "errorUserCommand"
-            };
-            var userMessage = ResolveRoleOrUserText(key, localize);
-            Trace.WriteLine($"{key}; kind={userFailure.Kind}; exception={exception.GetType().Name}", "Operações");
-            return userMessage;
-        }
-        if (exception is RuntimeServerParameterException parameterFailure)
-        {
-            var parameterKey = parameterFailure.Kind switch
-            {
-                RuntimeServerParameterFailureKind.PermissionDenied => "errorRuntimeParameterPermission",
-                RuntimeServerParameterFailureKind.Unsupported => "errorRuntimeParameterUnsupported",
-                _ => "errorRuntimeParameterReadback"
-            };
-            var parameterMessage = localize?.Invoke(parameterKey) ?? DefaultText(parameterKey);
-            Trace.WriteLine($"{parameterKey}; exception={exception.GetType().Name}", "Operações");
-            return parameterMessage;
-        }
-
         var types = new HashSet<string>(StringComparer.Ordinal);
         for (var type = exception.GetType(); type is not null; type = type.BaseType) types.Add(type.Name);
         var categoryKey = exception switch {

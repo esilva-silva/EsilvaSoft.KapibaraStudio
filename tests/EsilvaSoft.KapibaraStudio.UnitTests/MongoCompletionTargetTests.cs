@@ -53,9 +53,9 @@ public sealed class MongoCompletionTargetTests
         using var context = new WorkspaceTestContext();
         var profile = ConnectionProfile.Create("Dev", "mongodb://host");
         context.Mongo.Handler = (_, _) => Task.FromResult(new QueryPage(["{\"orderTotal\":12,\"customer\":{\"name\":\"Ana\"}}"], TimeSpan.Zero, false));
-        var tab = new WorkspaceTabViewModel(context.Workspace) { Profile = profile, IsConnected = true, Database = "shop", Collection = "orders", Mode = "Agregação", Text = "[]" };
+        var tab = new WorkspaceTabViewModel(context.Workspace) { Profile = profile, IsConnected = true, Database = "shop", Collection = "orders", Mode = "Console", Text = "db.orders.aggregate([])" };
         await tab.ExecuteCommand.ExecuteAsync(null);
-        Assert.That(tab.GetObservedCompletionFields("["), Does.Contain("orderTotal").And.Contain("customer.name"));
+        Assert.That(tab.GetObservedCompletionFields("db.orders.aggregate(["), Does.Contain("orderTotal").And.Contain("customer.name"));
         tab.Mode = "Console";
         Assert.That(tab.GetObservedCompletionFields("db.orders.aggregate(["), Does.Contain("orderTotal"));
         Assert.That(tab.GetObservedCompletionFields("db.customers.aggregate(["), Is.Empty);

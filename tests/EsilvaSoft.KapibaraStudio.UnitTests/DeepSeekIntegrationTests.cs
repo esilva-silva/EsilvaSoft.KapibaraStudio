@@ -30,7 +30,7 @@ public sealed class DeepSeekIntegrationTests
             return new("find({})", 4, TimeSpan.Zero, "cpu");
         } };
         await using var provider = new AiAutocompleteProvider(new CompletionCatalogFake(), () => runtime);
-        var autocomplete = new AutocompleteService(provider);
+        var autocomplete = new AutocompleteService(provider.Models);
         await autocomplete.ConfigureAsync(new() { ModelPath = "model" });
         using var cancellation = new CancellationTokenSource();
         // Pedido explícito do papel Chat, como o do LocalAgentProvider: prioridade interativa e token próprio.
@@ -38,7 +38,7 @@ public sealed class DeepSeekIntegrationTests
             _ => new ModelGenerationRequest("/* Rewrite */ db.find({})", "", 2048, 64, RequireFullContext: true),
             AiRequestPriority.Interactive, cancellationToken: cancellation.Token);
         await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        var completion = autocomplete.GetCompletionAsync(new("db.", ""));
+        var completion = provider.GetCompletionAsync(new("db.", ""), autocomplete.Settings);
         cancellation.Cancel();
         Assert.That(async () => await pending, Throws.InstanceOf<OperationCanceledException>());
         Assert.That((await completion.WaitAsync(TimeSpan.FromSeconds(5)))!.Text, Is.EqualTo("find({})"));

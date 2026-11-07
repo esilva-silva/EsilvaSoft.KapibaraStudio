@@ -29,9 +29,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         ImportResults = T("importDatabaseInitial");
         IndexResults = T("indexesInitial");
         AutocompleteSuggestions = T("autocompleteFieldsNote");
-        ScriptResults = T("scriptNoOutput");
         LoadProfilesCommand.Execute(null);
-        _ = LoadScriptHistoryAsync();
         _ = LoadProfilerCaptureRecoveryAsync();
     }
 
@@ -61,8 +59,6 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(CanRenameCollection))]
     [NotifyPropertyChangedFor(nameof(CanDropCollection))]
     [NotifyPropertyChangedFor(nameof(CanConfigureCollectionValidation))]
-    [NotifyPropertyChangedFor(nameof(CanValidateCollectionIntegrity))]
-    [NotifyPropertyChangedFor(nameof(CanCompactCollection))]
     [NotifyPropertyChangedFor(nameof(CanUpdateView))]
     [NotifyCanExecuteChangedFor(nameof(DeleteSelectedProfileCommand))]
     [NotifyCanExecuteChangedFor(nameof(EditSelectedProfileCommand))]
@@ -78,7 +74,6 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(GetDistinctValuesCommand))]
     [NotifyCanExecuteChangedFor(nameof(SaveSavedQueryCommand))]
     [NotifyCanExecuteChangedFor(nameof(ExplainQueryCommand))]
-    [NotifyCanExecuteChangedFor(nameof(ExecuteAggregationCommand))]
     [NotifyCanExecuteChangedFor(nameof(InsertDocumentCommand))]
     [NotifyCanExecuteChangedFor(nameof(PreviewDocumentCommand))]
     [NotifyCanExecuteChangedFor(nameof(InsertManyDocumentsCommand))]
@@ -88,19 +83,12 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(LoadIndexesCommand))]
     [NotifyCanExecuteChangedFor(nameof(LoadIndexDiagnosticsCommand))]
     [NotifyCanExecuteChangedFor(nameof(CreateIndexCommand))]
-    [NotifyCanExecuteChangedFor(nameof(ExecuteScriptCommand))]
     [NotifyCanExecuteChangedFor(nameof(ExportDatabaseCommand))]
     [NotifyCanExecuteChangedFor(nameof(CreateDatabaseCommand))]
     [NotifyCanExecuteChangedFor(nameof(DropDatabaseCommand))]
     [NotifyCanExecuteChangedFor(nameof(LoadServerStatusCommand))]
     [NotifyCanExecuteChangedFor(nameof(LoadTopologyCommand))]
     [NotifyCanExecuteChangedFor(nameof(LoadCurrentOperationsCommand))]
-    [NotifyCanExecuteChangedFor(nameof(KillOperationCommand))]
-    [NotifyCanExecuteChangedFor(nameof(LoadUsersCommand))]
-    [NotifyCanExecuteChangedFor(nameof(CreateDatabaseUserCommand))]
-    [NotifyCanExecuteChangedFor(nameof(DropDatabaseUserCommand))]
-    [NotifyCanExecuteChangedFor(nameof(UpdateDatabaseUserRolesCommand))]
-    [NotifyCanExecuteChangedFor(nameof(LoadRolesCommand))]
     [NotifyCanExecuteChangedFor(nameof(LoadDatabaseStatsCommand))]
     [NotifyCanExecuteChangedFor(nameof(LoadCollectionStatsCommand))]
     [NotifyCanExecuteChangedFor(nameof(DropIndexCommand))]
@@ -109,8 +97,6 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(RenameCollectionCommand))]
     [NotifyCanExecuteChangedFor(nameof(DropCollectionCommand))]
     [NotifyCanExecuteChangedFor(nameof(ConfigureCollectionValidationCommand))]
-    [NotifyCanExecuteChangedFor(nameof(ValidateCollectionIntegrityCommand))]
-    [NotifyCanExecuteChangedFor(nameof(CompactCollectionCommand))]
     [NotifyCanExecuteChangedFor(nameof(UpdateViewCommand))]
     private ConnectionProfile? _selectedProfile;
 
@@ -124,8 +110,6 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(CanRenameCollection))]
     [NotifyPropertyChangedFor(nameof(CanDropCollection))]
     [NotifyPropertyChangedFor(nameof(CanConfigureCollectionValidation))]
-    [NotifyPropertyChangedFor(nameof(CanValidateCollectionIntegrity))]
-    [NotifyPropertyChangedFor(nameof(CanCompactCollection))]
     [NotifyPropertyChangedFor(nameof(CanUpdateView))]
     [NotifyCanExecuteChangedFor(nameof(ExecuteQueryCommand))]
     [NotifyCanExecuteChangedFor(nameof(LoadCollectionValidationCommand))]
@@ -136,7 +120,6 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(GetDistinctValuesCommand))]
     [NotifyCanExecuteChangedFor(nameof(SaveSavedQueryCommand))]
     [NotifyCanExecuteChangedFor(nameof(ExplainQueryCommand))]
-    [NotifyCanExecuteChangedFor(nameof(ExecuteAggregationCommand))]
     [NotifyCanExecuteChangedFor(nameof(InsertDocumentCommand))]
     [NotifyCanExecuteChangedFor(nameof(PreviewDocumentCommand))]
     [NotifyCanExecuteChangedFor(nameof(InsertManyDocumentsCommand))]
@@ -149,9 +132,6 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(ExportDatabaseCommand))]
     [NotifyCanExecuteChangedFor(nameof(DropDatabaseCommand))]
     [NotifyCanExecuteChangedFor(nameof(LoadDatabaseStatsCommand))]
-    [NotifyCanExecuteChangedFor(nameof(CreateDatabaseUserCommand))]
-    [NotifyCanExecuteChangedFor(nameof(DropDatabaseUserCommand))]
-    [NotifyCanExecuteChangedFor(nameof(UpdateDatabaseUserRolesCommand))]
     [NotifyCanExecuteChangedFor(nameof(LoadCollectionStatsCommand))]
     [NotifyCanExecuteChangedFor(nameof(DropIndexCommand))]
     [NotifyCanExecuteChangedFor(nameof(ImportDatabaseCommand))]
@@ -159,8 +139,6 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(RenameCollectionCommand))]
     [NotifyCanExecuteChangedFor(nameof(DropCollectionCommand))]
     [NotifyCanExecuteChangedFor(nameof(ConfigureCollectionValidationCommand))]
-    [NotifyCanExecuteChangedFor(nameof(ValidateCollectionIntegrityCommand))]
-    [NotifyCanExecuteChangedFor(nameof(CompactCollectionCommand))]
     [NotifyCanExecuteChangedFor(nameof(UpdateViewCommand))]
     [NotifyPropertyChangedFor(nameof(CollectionContextHint))]
     private string? _selectedDatabase;
@@ -175,7 +153,6 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(GetDistinctValuesCommand))]
     [NotifyCanExecuteChangedFor(nameof(SaveSavedQueryCommand))]
     [NotifyCanExecuteChangedFor(nameof(ExplainQueryCommand))]
-    [NotifyCanExecuteChangedFor(nameof(ExecuteAggregationCommand))]
     [NotifyCanExecuteChangedFor(nameof(InsertDocumentCommand))]
     [NotifyCanExecuteChangedFor(nameof(PreviewDocumentCommand))]
     [NotifyCanExecuteChangedFor(nameof(InsertManyDocumentsCommand))]
@@ -192,11 +169,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(RenameCollectionCommand))]
     [NotifyCanExecuteChangedFor(nameof(DropCollectionCommand))]
     [NotifyPropertyChangedFor(nameof(CanConfigureCollectionValidation))]
-    [NotifyPropertyChangedFor(nameof(CanValidateCollectionIntegrity))]
-    [NotifyPropertyChangedFor(nameof(CanCompactCollection))]
     [NotifyCanExecuteChangedFor(nameof(ConfigureCollectionValidationCommand))]
-    [NotifyCanExecuteChangedFor(nameof(ValidateCollectionIntegrityCommand))]
-    [NotifyCanExecuteChangedFor(nameof(CompactCollectionCommand))]
     [NotifyPropertyChangedFor(nameof(CanUpdateView))]
     [NotifyCanExecuteChangedFor(nameof(UpdateViewCommand))]
     [NotifyPropertyChangedFor(nameof(CollectionContextHint))]
@@ -244,10 +217,6 @@ public sealed partial class MainWindowViewModel : ObservableObject
     {
         NotifyImportTargetChanged();
         NotifyStandaloneImportTargetChanged();
-        NotifyCustomRoleTargetChanged();
-        NotifyRuntimeParameterTargetChanged();
-        NotifyDatabaseUserRoleTargetChanged();
-        NotifyProfilerTargetChanged();
         Databases.Clear();
         Collections.Clear();
         _knownFields.Clear();
@@ -268,10 +237,6 @@ public sealed partial class MainWindowViewModel : ObservableObject
     {
         NotifyImportTargetChanged();
         NotifyStandaloneImportTargetChanged();
-        NotifyCustomRoleTargetChanged();
-        NotifyRuntimeParameterTargetChanged();
-        NotifyDatabaseUserRoleTargetChanged();
-        NotifyProfilerTargetChanged();
         Collections.Clear();
         SelectedCollection = null;
         ExecuteQueryCommand.NotifyCanExecuteChanged();

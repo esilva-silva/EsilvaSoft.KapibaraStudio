@@ -126,19 +126,6 @@ public sealed class ResultPanelTests
             Assert.That(WorkspaceTabViewModel.GetEditAvailability(projected.Children.Single(n => n.IsDocument).Document!).Reason, Does.StartWith("Projeção parcial"));
         });
 
-        var script = new WorkspaceTabViewModel(context.Workspace) { Mode = "Script", Profile = profile, Database = "loja", Text = "slop.results.emit({})", IsConnected = true };
-        var run = script.ExecuteCommand.ExecuteAsync(null);
-        context.Scripts.Calls[0].Completion.SetResult(new(0, ["{\"_id\":1}", "{inválido"], "", "", TimeSpan.Zero));
-        await run;
-        Assert.Multiple(() =>
-        {
-            Assert.That(script.ResultTree.Select(n => (n.Name, n.TypeName)), Is.EqualTo(new[] { ("Documento 1", "Documento"), ("Documento 2", "JSON inválido") }));
-            Assert.That(script.Results, Does.Contain("// Documento 2: JSON inválido — "));
-            Assert.That(script.Results, Does.Contain("{inválido"));
-            Assert.That(WorkspaceTabViewModel.GetEditAvailability(script.ResultDocuments[0]).Reason, Does.Contain("coleção de origem"));
-            Assert.That(WorkspaceTabViewModel.GetEditAvailability(script.ResultDocuments[1]).Reason, Does.StartWith("JSON inválido"));
-        });
-
         var none = ConsoleTab(context, profile, "const x = 1;");
         await none.ExecuteCommand.ExecuteAsync(null);
         Assert.That((none.HasResultTree, none.ResultTreeStatus), Is.EqualTo((false, "Nenhuma expressão retornou resultado. Consulte Mensagens.")));
@@ -167,7 +154,7 @@ public sealed class ResultPanelTests
             Assert.That(view.Origin, Does.Contain("[1]"));
             Assert.That(view.Identity, Is.EqualTo("_id: 1"));
             Assert.That(view.CodeLineHeight, Is.EqualTo(24));
-            Assert.That((calls, tab.IsRunning, tab.Status, context.Scripts.Calls.Count), Is.EqualTo((0, false, "Concluído", 0)));
+            Assert.That((calls, tab.IsRunning, tab.Status), Is.EqualTo((0, false, "Concluído")));
         });
     }
 

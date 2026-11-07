@@ -18,9 +18,9 @@ public sealed class AggregationHistoryTests
         tab.CancelCommand.Execute(null); await running;
         var entry = (await context.Repository.GetConsoleHistoryAsync()).Single();
         Assert.That(entry.Status, Is.EqualTo("Cancelado"));
-        Assert.That(entry.Mode, Is.EqualTo("Agregação"));
-        Assert.That(entry.Script, Is.EqualTo("[]"));
-        Assert.That(tab.Messages, Does.Contain("não são revertidos"));
+        Assert.That(entry.Mode, Is.EqualTo("Console"));
+        Assert.That(entry.Script, Is.EqualTo("db.orders.aggregate([])"));
+        Assert.That(tab.Messages + tab.Errors, Does.Contain("não são revertidos"));
     }
 
     [Test]
@@ -31,21 +31,21 @@ public sealed class AggregationHistoryTests
         await context.Repository.SaveAsync(profile);
         var reply = new TaskCompletionSource<QueryPage>(TaskCreationOptions.RunContinuationsAsynchronously);
         var calls = 0;
-        context.Mongo.Handler = (_, args) => { calls++; Assert.That(((AggregationQuery)args[1]!).PipelineJson, Is.EqualTo("[{ $limit: 2 }]")); return reply.Task; };
-        var tab = new WorkspaceTabViewModel(context.Workspace) { Profile = profile, IsConnected = true, Database = "shop", Collection = "orders", Mode = "Agregação", Text = "[{ $match: {} }]", Limit = 12 };
-        var running = tab.ExecuteCommand.ExecuteAsync("[{ $limit: 2 }]");
-        tab.Text = "[]"; tab.Database = "changed"; tab.Collection = "other"; tab.Limit = 1;
+        context.Mongo.Handler = (_, args) => { calls++; Assert.That(((AggregationQuery)args[1]!).PipelineJson, Does.Contain("$limit")); return reply.Task; };
+        var tab = new WorkspaceTabViewModel(context.Workspace) { Profile = profile, IsConnected = true, Database = "shop", Collection = "orders", Mode = "Console", Text = "db.orders.aggregate([{ $match: {} }])", Limit = 12 };
+        var running = tab.ExecuteCommand.ExecuteAsync("db.orders.aggregate([{ $limit: 2 }])");
+        tab.Text = "db.orders.aggregate([])"; tab.Database = "changed"; tab.Collection = "other"; tab.Limit = 1;
         reply.SetResult(new(["{\"secretResult\":42}"], TimeSpan.Zero, false)); await running;
         var entry = (await context.Repository.GetConsoleHistoryAsync()).Single();
-        Assert.That(entry.Mode, Is.EqualTo("Agregação"));
-        Assert.That(entry.Database, Is.EqualTo("shop")); Assert.That(entry.Collection, Is.EqualTo("orders"));
-        Assert.That(entry.Script, Is.EqualTo("[{ $limit: 2 }]")); Assert.That(entry.DocumentLimit, Is.EqualTo(12));
+        Assert.That(entry.Mode, Is.EqualTo("Console"));
+        Assert.That(entry.Database, Is.EqualTo("shop")); Assert.That(entry.Collection, Is.Empty);
+        Assert.That(entry.Script, Is.EqualTo("db.orders.aggregate([{ $limit: 2 }])")); Assert.That(entry.DocumentLimit, Is.EqualTo(12));
         Assert.That(JsonSerializer.Serialize(entry), Does.Not.Contain("secretResult").And.Not.Contain("mongodb://"));
         using var workspace = new WorkspaceViewModel(context.Workspace, context.Repository);
         await workspace.InitializeAsync();
         workspace.OpenConsoleHistory(entry);
-        Assert.That(workspace.ActiveTab!.Mode, Is.EqualTo("Agregação"));
-        Assert.That(workspace.ActiveTab.Collection, Is.EqualTo("orders"));
+        Assert.That(workspace.ActiveTab!.Mode, Is.EqualTo("Console"));
+        Assert.That(workspace.ActiveTab.Collection, Is.Empty);
         Assert.That(workspace.ActiveTab.Text, Is.EqualTo(entry.Script)); Assert.That(workspace.ActiveTab.Limit, Is.EqualTo(12));
         Assert.That(calls, Is.EqualTo(1));
     }
@@ -61,7 +61,7 @@ public sealed class AggregationHistoryTests
         await tab.ExecuteCommand.ExecuteAsync(null);
         var entries = await context.Repository.GetConsoleHistoryAsync();
         Assert.That(entries, Has.Count.EqualTo(count));
-        if (count > 0) Assert.That(entries.Single().Status, Is.EqualTo("Falha na execução"));
+        if (count > 0) Assert.That(entries.Single().Status, Is.EqualTo("Erro"));
         Assert.That(tab.Errors, Does.Contain("Estágio inválido"));
     }
 
@@ -73,7 +73,7 @@ public sealed class AggregationHistoryTests
         var tab = NewTab(context); await tab.ExecuteCommand.ExecuteAsync(null);
         Assert.That(tab.Messages, Does.Contain("Histórico não salvo"));
         Assert.That(tab.Results, Does.Contain("value")); Assert.That(tab.IsRunning, Is.False);
-        Assert.That(tab.ResultTabIndex, Is.EqualTo(1));
+        Assert.That(tab.Messages, Does.Contain("Disco indisponível"));
     }
 
     [Test]
@@ -90,7 +90,7 @@ public sealed class AggregationHistoryTests
     }
 
     private static WorkspaceTabViewModel NewTab(WorkspaceTestContext context) => new(context.Workspace)
-    { Profile = ConnectionProfile.Create("Dev", "mongodb://host"), Database = "shop", Collection = "orders", IsConnected = true, Mode = "Agregação", Text = "[]" };
+    { Profile = ConnectionProfile.Create("Dev", "mongodb://host"), Database = "shop", Collection = "orders", IsConnected = true, Mode = "Console", Text = "db.orders.aggregate([])" };
 
     private sealed class UnavailableHistory : IConsoleHistoryRepository
     {
