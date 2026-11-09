@@ -89,12 +89,13 @@ internal static class KapiLabCommandLine
         var runViaQueue = new Option<bool>("--via-queue") { Description = "Autoriza GPU sob coordenação local da fila (exige KAPILAB_GPU_TOKEN)." };
         var runStandaloneGpu = new Option<bool>("--standalone-gpu") { Description = "Executa GPU standalone, respeitando tmp/gpu.pause." };
         var runContextTokens = new Option<int?>("--context-tokens") { Description = "Janela por chamada (64 até o limite do pacote); padrão: janela do pacote." };
-        foreach (var option in new Option[] { runPackage, runInput, runOutput, runDevice, runViaQueue, runStandaloneGpu, runContextTokens })
+        var runTaskTimeout = new Option<int?>("--task-timeout") { Description = "Tempo limite de cada tarefa em segundos (10 a 3600); sobrepõe o timeoutSeconds do arquivo." };
+        foreach (var option in new Option[] { runPackage, runInput, runOutput, runDevice, runViaQueue, runStandaloneGpu, runContextTokens, runTaskTimeout })
             run.Options.Add(option);
         run.SetAction(parseResult => ExecuteAsync("agent.run", () => AgentModelRunCommand.RunAsync(
             parseResult.GetValue(runPackage) ?? "", parseResult.GetValue(runInput) ?? "", parseResult.GetValue(runOutput),
             parseResult.GetValue(workspace), parseResult.GetValue(runDevice) ?? "auto", parseResult.GetValue(runViaQueue),
-            parseResult.GetValue(runStandaloneGpu), parseResult.GetValue(runContextTokens))));
+            parseResult.GetValue(runStandaloneGpu), parseResult.GetValue(runContextTokens), parseResult.GetValue(runTaskTimeout))));
         agent.Subcommands.Add(run);
         return agent;
     }

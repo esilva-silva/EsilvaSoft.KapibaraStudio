@@ -49,7 +49,7 @@ kapilab catalog plans --in <plan-cases.json> [--out <plan-snapshot.json>]
 kapilab catalog invoke (--in <legacy.json> | --fixture <fixture.json>) [--out <report.json>]
 kapilab fixture seed --fixture <fixture.json>
 kapilab agent replay --in <replay-cases.json> [--out <report.json>]
-kapilab agent run --package <pacote-agente> --in <agent-tasks.json> [--out <report.json>] [--device auto|cpu|gpu|npu] [--standalone-gpu|--via-queue] [--context-tokens <n>]
+kapilab agent run --package <pacote-agente> --in <agent-tasks.json> [--out <report.json>] [--device auto|cpu|gpu|npu] [--standalone-gpu|--via-queue] [--context-tokens <n>] [--task-timeout <s>]
 kapilab matrix run --in <process-matrix.json> [--out <report.json>]
 kapilab report evaluate --gates <gates.json> --evidence <run-evidence.json> --out reports/lab/report.json
 kapilab report merge <report.json> <report.json> [...] --out reports/lab/merged.json
@@ -185,6 +185,14 @@ no repositório de modelos). Ele declara raciocínio sempre ligado (`toggle: non
 - Templates desse tipo já abrem `<think>` no prompt. O `LocalAgentProvider` agora começa o passo em raciocínio nesses pacotes; antes, o
   pensamento vazava para a resposta e para o parser de tool calls.
 - O resultado mede o modelo base, não um agente treinado para MongoDB.
+- `agent run` anexa o buffer ativo como o chip automático da IDE (`AgentAttachmentResolver`, probe de caminhos real e consentimento
+  sintético). A aprovação exige que cada tool esperada tenha **sucesso** ao menos uma vez, não só que tenha sido chamada.
+  `--task-timeout <s>` sobrepõe o `timeoutSeconds` do arquivo.
+- Resultado de 09/11/2026 (DirectML, `--context-tokens 16384 --task-timeout 900`; orçamento de raciocínio do pacote: 4096 por passo
+  e 32768 por turno):
+  - 9 das 10 tarefas passaram, e 16 das 17 chamadas de tool tiveram sucesso; média de 125 s por tarefa.
+  - A falha (`databases`) é do modelo: depois de esgotar o raciocínio, ele degenerou em texto repetido.
+  - Com 1024 tokens de raciocínio por passo o modelo não chegava a chamar a tool, e com 180 s por tarefa 7 de 10 estouravam o tempo.
 
 ## Contrato de agente local Qwen3
 

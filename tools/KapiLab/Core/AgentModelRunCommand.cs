@@ -33,11 +33,12 @@ internal static class AgentModelRunCommand
     internal sealed record Input(string Schema, string[] Domains, AgentTask[] Tasks, int MaxToolResultBytes = 6144);
     internal sealed record AgentTask(string Id, string Message, string Database, string Collection,
         string[]? ExpectTools = null, string[]? ForbidTools = null, string[]? ExpectAnswerContains = null,
-        int TimeoutSeconds = 180, int? ReasoningBudgetTokens = null, string? ActiveFileText = null);
+        int TimeoutSeconds = 180, int? ReasoningBudgetTokens = null, string? ActiveFileText = null, bool AttachActiveFile = true);
     internal sealed record ToolCall(string Tool, string? Status, string? ErrorCode);
     internal sealed record TaskResult(string Id, string Outcome, string? RuntimeErrorCode, ToolCall[] ToolCalls, string Answer,
         int AnswerChars, int? ReasoningTokens, bool? ReasoningTruncated, int Proposals, double DurationMs,
-        bool ExpectedToolsCalled, bool ForbiddenToolsAvoided, bool AnswerContainsExpected, bool AllToolCallsSucceeded, bool Passed,
+        bool ExpectedToolsCalled, bool ExpectedToolsSucceeded, bool ForbiddenToolsAvoided, bool AnswerContainsExpected, bool AllToolCallsSucceeded,
+        bool Passed,
         string[] MissingTools, string[] MissingAnswerParts, FixtureMongoAccess.Command[] MongoCommands);
     internal sealed record Summary(int Tasks, int Passed, int Completed, int ToolCalls, int ToolCallsSucceeded,
         double PassRate, double DurationMsMean);
@@ -75,7 +76,8 @@ internal static class AgentModelRunCommand
     }
 
     internal static async Task<int> RunAsync(string package, string tasksPath, string? output, string? workspaceOption,
-        string device, bool viaQueue, bool standaloneGpu, int? contextTokens, CancellationToken cancellationToken = default)
+        string device, bool viaQueue, bool standaloneGpu, int? contextTokens, int? taskTimeoutSeconds = null,
+        CancellationToken cancellationToken = default)
     {
         var root = LabWorkspace.Resolve(workspaceOption);
         if (root is null)
@@ -95,6 +97,16 @@ internal static class AgentModelRunCommand
         }
         var path = Cli.KapiLabCommandLine.ReadArtifactPath(tasksPath, root);
         var input = ReadInput(root, path);
+        if (taskTimeoutSeconds is { } timeout)
+        {
+            if (timeout is < 10 or > 3600)
+            {
+                Console.Error.WriteLine("error --task-timeout deve estar entre 10 e 3600 segundos.");
+                return (int)ExitCode.Usage;
+            }
+            // Override do laboratório: modelos com raciocínio longo precisam de mais tempo por turno que o fixture declara.
+            input = input with { Tasks = input.Tasks.Select(task => task with { TimeoutSeconds = timeout }).ToArray() };
+        }
         var outputPath = output is null ? null : LabWorkspace.ResolveOutput(root, output);
         if (outputPath is not null) LabWorkspace.RefuseInputOverwrite(root, outputPath,
             input.Domains.Select(domain => Cli.KapiLabCommandLine.ReadArtifactPath(domain, root)).Append(path).ToArray());
@@ -218,8 +230,26 @@ internal static class AgentModelRunCommand
                 NativeFileWrite = true,
                 MaximumToolCallsPerTurn = model.Metadata!.Agent!.MaxToolCallsPerTurn,
                 ConfirmationCategories = AgentConfirmationCategories.None,
+                // Consentimento sintético de envio (na IDE, aceito pelo usuário na primeira vez); exigido para anexar o buffer ativo.
+                ExternalDestinationConsentAt = DateTimeOffset.UtcNow,
             };
             var plan = AgentModePolicy.Plan(AgentOperationMode.Agent, permissions, new(true, true, false), false);
+            // Como o chip automático da IDE: o buffer ativo vai anexado à mensagem (mesmo resolvedor e redação do produto). Sem ele, o
+            // runtime recusa propostas no buffer ativo (ActiveFileNotAttached), e o laboratório ficaria mais restrito que a IDE.
+            IReadOnlyList<AgentContextAttachment> attachments = [];
+            if (task.AttachActiveFile)
+            {
+                var resolution = await AgentAttachmentResolver.ResolveAsync([new AgentAttachmentRequest(AgentAttachmentKind.ActiveFile)],
+                    ports.Context, permissions, task.Message, deadline.Token,
+                    pathProbe: provider.GetService<IAgentWorkspacePathProbe>()).ConfigureAwait(false);
+                if (!resolution.Succeeded)
+                {
+                    Console.Error.WriteLine($"error agent.run task={task.Id} anexo do arquivo ativo recusado: " +
+                        string.Join(", ", resolution.Failures.Select(f => f.Error)));
+                    throw new InvalidDataException($"Tarefa {task.Id}: anexo do arquivo ativo recusado ({string.Join(", ", resolution.Failures.Select(f => f.Error))}).");
+                }
+                attachments = resolution.Attachments;
+            }
             var session = await runtime.StartSessionAsync(new(LocalAgentProvider.Id), deadline.Token).ConfigureAwait(false);
             var turn = AgentTurnId.New();
             var calls = new List<ToolCall>();
@@ -236,7 +266,7 @@ internal static class AgentModelRunCommand
             {
                 var request = new AgentTurnRequest(turn, task.Message, "kapi-agent-tab", 1)
                 {
-                    Plan = plan, Permissions = permissions, ConversationId = Guid.NewGuid(), WorkspaceContext = ports.Context,
+                    Plan = plan, Permissions = permissions, ConversationId = Guid.NewGuid(), WorkspaceContext = ports.Context, Attachments = attachments,
                     Reasoning = task.ReasoningBudgetTokens is { } budget ? new AgentReasoningOptions(true, budget) : null,
                 };
                 await foreach (var evt in runtime.RunTurnAsync(session, request, deadline.Token).ConfigureAwait(false))
@@ -280,16 +310,18 @@ internal static class AgentModelRunCommand
             var finalAnswer = answer.ToString().Trim();
             var called = calls.Select(call => call.Tool).ToHashSet(StringComparer.Ordinal);
             var missingTools = (task.ExpectTools ?? []).Where(tool => !called.Contains(tool)).ToArray();
+            var succeededTools = calls.Where(call => call.Status == "Succeeded").Select(call => call.Tool).ToHashSet(StringComparer.Ordinal);
+            var expectedSucceeded = (task.ExpectTools ?? []).All(succeededTools.Contains);
             var forbiddenAvoided = !(task.ForbidTools ?? []).Any(called.Contains);
             var missingParts = (task.ExpectAnswerContains ?? [])
                 .Where(part => finalAnswer.IndexOf(part, StringComparison.OrdinalIgnoreCase) < 0).ToArray();
             var allSucceeded = calls.All(call => call.Status == "Succeeded");
             var completed = outcome == AgentTurnOutcome.Completed;
-            var passed = completed && missingTools.Length == 0 && forbiddenAvoided && missingParts.Length == 0 &&
+            var passed = completed && missingTools.Length == 0 && expectedSucceeded && forbiddenAvoided && missingParts.Length == 0 &&
                 !mongoCommands.Any(command => command.Prohibited);
             results.Add(new(task.Id, (outcome ?? AgentTurnOutcome.OutcomeUnknown).ToString(), runtimeError, calls.ToArray(),
                 finalAnswer, finalAnswer.Length, reasoningTokens, reasoningTruncated, ports.Proposals.Count - proposalCount,
-                Math.Round(watch.Elapsed.TotalMilliseconds, 1), missingTools.Length == 0, forbiddenAvoided, missingParts.Length == 0,
+                Math.Round(watch.Elapsed.TotalMilliseconds, 1), missingTools.Length == 0, expectedSucceeded, forbiddenAvoided, missingParts.Length == 0,
                 allSucceeded, passed, missingTools, missingParts, mongoCommands));
             Console.Error.WriteLine($"info agent.run task={task.Id} outcome={results[^1].Outcome} tools={calls.Count} passed={passed} " +
                 $"ms={results[^1].DurationMs:0}");
