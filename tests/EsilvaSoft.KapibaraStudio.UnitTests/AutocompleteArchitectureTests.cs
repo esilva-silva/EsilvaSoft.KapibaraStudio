@@ -190,13 +190,14 @@ public sealed class AutocompleteArchitectureTests
 
     /// <summary>
     /// Regra 4 da meta. Verificação positiva a partir da raiz de composição real (as duas chamadas que
-    /// <c>App.axaml.cs</c> faz): o único contrato que esta build serializa é <c>editor-context-v1</c>, e nenhum
+    /// <c>App.axaml.cs</c> faz): os únicos contratos que esta build serializa são <c>editor-context-v1</c> e
+    /// <c>editor-context-v2</c> (cabeçalho v1 + <c>TARGET FIELDS</c>, alunos cursor-in-call v4), e nenhum
     /// descritor de DI carrega um contrato — experimental ou não. Os descritores são inspecionados antes de construir
     /// o provedor: assim o teste não precisa abrir o LiteDB do workspace para responder a uma pergunta que é sobre
     /// registro, não sobre resolução.
     /// </summary>
     [Test]
-    public void OnlyEditorContextV1IsRegisteredInProduction()
+    public void OnlyTheEditorContextContractsAreImplementedInProduction()
     {
         var services = new ServiceCollection();
         services.AddKapibaraStudioInfrastructure(SyntheticPaths.Combine("architecture", "workspace.db"));
@@ -214,10 +215,11 @@ public sealed class AutocompleteArchitectureTests
             Assert.That(services, Is.Not.Empty, "A raiz de composição precisa estar registrando algo.");
             Assert.That(registeredContracts, Is.Empty, "Contrato de contexto registrado em DI: " + string.Join(", ", registeredContracts));
             Assert.That(AiCtx.AiContextContractResolver.Implemented.Select(contract => contract.GetType()),
-                Is.EqualTo(new[] { typeof(AiCtx.EditorContextV1Contract) }));
+                Is.EqualTo(new[] { typeof(AiCtx.EditorContextV1Contract), typeof(AiCtx.EditorContextV2Contract) }));
             Assert.That(AiCtx.AiContextContractResolver.Implemented.Select(contract => contract.ContractId),
-                Is.EqualTo(new[] { LocalModelContextContracts.EditorContextV1 }));
-            Assert.That(LocalModelContextContracts.Supported, Is.EqualTo(new[] { LocalModelContextContracts.EditorContextV1 }));
+                Is.EqualTo(new[] { LocalModelContextContracts.EditorContextV1, LocalModelContextContracts.EditorContextV2 }));
+            Assert.That(LocalModelContextContracts.Supported,
+                Is.EqualTo(new[] { LocalModelContextContracts.EditorContextV1, LocalModelContextContracts.EditorContextV2 }));
         });
     }
 

@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using EsilvaSoft.KapibaraStudio.Application;
+using EsilvaSoft.KapibaraStudio.Application.AiContext;
 using EsilvaSoft.KapibaraStudio.Autocomplete.Core;
 using EsilvaSoft.KapibaraStudio.Core;
 using EsilvaSoft.KapibaraStudio.KapiLab.Core;
@@ -22,7 +23,8 @@ internal static class ContractRenderCommand
     public static async Task<int> RunAsync(string input, string contract, string? output, int? limit,
         string? ids, bool noEditorContext, string? workspaceOption)
     {
-        if (!string.Equals(contract, "editor-context-v1", StringComparison.Ordinal))
+        var selectedContract = AiContextContractResolver.Implemented.FirstOrDefault(item => string.Equals(item.ContractId, contract, StringComparison.Ordinal));
+        if (selectedContract is null)
         {
             Console.Error.WriteLine("error contrato ainda não suportado por este comando.");
             return (int)ExitCode.Drift;
@@ -65,7 +67,7 @@ internal static class ContractRenderCommand
                 if (lineNumber > 100_000) throw new InvalidDataException("Arquivo excede o limite de 100.000 linhas.");
                 if (line.Length == 0) continue;
                 if (selected >= (limit ?? MaximumRecords)) break;
-                var rendered = RenderLine(line, lineNumber, noEditorContext, environment);
+                var rendered = RenderLine(line, lineNumber, noEditorContext, environment, selectedContract);
                 if (!seen.Add(rendered.Id)) throw new InvalidDataException($"Linha {lineNumber}: id duplicado.");
                 if (requestedIds is not null && !requestedIds.Contains(rendered.Id)) continue;
                 selected++;
@@ -142,7 +144,8 @@ internal static class ContractRenderCommand
         return line.ToString();
     }
 
-    internal static RenderedRecord RenderLine(string line, int lineNumber, bool noEditorContext, EnvironmentReport? environment = null)
+    internal static RenderedRecord RenderLine(string line, int lineNumber, bool noEditorContext, EnvironmentReport? environment = null,
+        IAiContextContract? contract = null)
     {
         var settings = new AutocompleteSettings
         {
@@ -150,18 +153,25 @@ internal static class ContractRenderCommand
             UseResultPanelContext = !noEditorContext,
             UseInputPanelContext = !noEditorContext,
         };
-        var parsed = ParseInputLine(line, lineNumber, settings);
+        contract ??= EditorContextV1Contract.Instance;
+        var parsed = ParseInputLine(line, lineNumber, settings, contract);
         var modelPrefix = AutocompleteContextBuilder.ModelPrefix(parsed.Request);
         var prefixBytes = Encoding.UTF8.GetBytes(modelPrefix);
         var suffixBytes = Encoding.UTF8.GetBytes(parsed.Request.Suffix);
         var source = environment ?? EnvironmentReport.Create();
-        return new("kapilab-render-v1", parsed.Id, "editor-context-v1", modelPrefix, parsed.Request.Suffix,
+        return new("kapilab-render-v1", parsed.Id, contract.ContractId, modelPrefix, parsed.Request.Suffix,
             Convert.ToHexStringLower(SHA256.HashData(prefixBytes)), Convert.ToHexStringLower(SHA256.HashData(suffixBytes)),
             new(parsed.PrefixCharacters, parsed.SuffixCharacters, parsed.Request.Context.Length, parsed.Request.Dictionary.Count),
             new(source.IdeCommit, source.GenAiVersion));
     }
 
-    internal static ParsedInputRecord ParseInputLine(string line, int lineNumber, AutocompleteSettings settings)
+    /// <summary>
+    /// Registro FIM/completion do laboratório. O cabeçalho sai do <paramref name="contract"/> (padrão: <c>editor-context-v1</c>, congelado);
+    /// o <c>editor-context-v2</c> lê também <c>editor.target_fields</c> (<c>[{path, type, item?}]</c>, formato dos registros v4 do
+    /// repositório de modelos) e o alvo em <c>editor.target</c> (texto ou objeto com <c>collection</c>).
+    /// </summary>
+    internal static ParsedInputRecord ParseInputLine(string line, int lineNumber, AutocompleteSettings settings,
+        IAiContextContract? contract = null)
     {
         using var document = JsonDocument.Parse(line, new JsonDocumentOptions { MaxDepth = 32, CommentHandling = JsonCommentHandling.Disallow });
         var root = document.RootElement;
@@ -181,11 +191,35 @@ internal static class ContractRenderCommand
         if (CompletionPrivacy.ContainsSensitiveText(combinedText) || combinedText.Contains("<|", StringComparison.Ordinal) || combinedText.Contains("<｜", StringComparison.Ordinal))
             throw new UnauthorizedAccessException("Entrada contém texto sensível ou marcador reservado; conteúdo não foi processado.");
 
+        var targetCollection = TryString(editor, "target", out var target) ? target
+            : editor.ValueKind == JsonValueKind.Object && editor.TryGetProperty("target", out var targetObject) && TryString(targetObject, "collection", out var collection)
+                ? collection : null;
+        var targetFields = ReadTargetFields(editor, lineNumber);
+        if (targetFields.Any(field => CompletionPrivacy.ContainsSensitiveText(field.Path + field.Type + field.Item)))
+            throw new UnauthorizedAccessException("Entrada contém texto sensível ou marcador reservado; conteúdo não foi processado.");
         var snapshot = new AutocompleteContextSnapshot(string.Concat(prefix, suffix), prefix.Length, language,
-            inputPanel, resultFields, knownNames, recentCommands,
-            TryString(editor, "target", out var target) ? target : null);
-        var request = AutocompleteContextBuilder.Build(snapshot, settings);
-        return new(id, type, request, prefix.Length, suffix.Length);
+            inputPanel, resultFields, knownNames, recentCommands, targetCollection)
+        {
+            TargetCollection = targetCollection, TargetFields = targetFields.Count > 0 ? targetFields : null,
+        };
+        var request = (contract ?? EditorContextV1Contract.Instance).Build(snapshot, settings);
+        return new(id, type, request, prefix.Length, suffix.Length) { Prefix = prefix, Suffix = suffix };
+    }
+
+    private static List<AutocompleteTargetField> ReadTargetFields(JsonElement editor, int lineNumber)
+    {
+        var fields = new List<AutocompleteTargetField>();
+        if (editor.ValueKind != JsonValueKind.Object || !editor.TryGetProperty("target_fields", out var value)) return fields;
+        if (value.ValueKind != JsonValueKind.Array) throw new InvalidDataException($"Linha {lineNumber}: target_fields precisa ser uma lista.");
+        foreach (var item in value.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.Object || !TryString(item, "path", out var path) || !TryString(item, "type", out var fieldType) ||
+                path.Length is 0 or > 256 || fieldType.Length is 0 or > 32)
+                throw new InvalidDataException($"Linha {lineNumber}: target_fields exige path e type.");
+            fields.Add(new(path, fieldType, TryString(item, "item", out var element) ? element : null));
+            if (fields.Count > 512) throw new InvalidDataException($"Linha {lineNumber}: target_fields excede 512 itens.");
+        }
+        return fields;
     }
 
     private static string ReadString(JsonElement parent, string propertyName, string fallback, int lineNumber)
@@ -248,7 +282,12 @@ internal static class ContractRenderCommand
     internal sealed record RenderedRecord(string Schema, string Id, string Contract, string ModelPrefix, string Suffix,
         string ModelPrefixSha256, string SuffixSha256, RequestSummary Request, IdeSummary Ide);
     internal sealed record ParsedInputRecord(string Id, string Type, AutocompleteRequest Request,
-        int PrefixCharacters, int SuffixCharacters);
+        int PrefixCharacters, int SuffixCharacters)
+    {
+        /// <summary>Prefixo e sufixo completos do registro (antes da janela do contrato), para o fechamento interno do v2.</summary>
+        public string Prefix { get; init; } = "";
+        public string Suffix { get; init; } = "";
+    }
     internal sealed record RequestSummary(int PrefixChars, int SuffixChars, int ContextChars, int DictionaryCount);
     internal sealed record IdeSummary(string? Commit, string GenAi);
 }

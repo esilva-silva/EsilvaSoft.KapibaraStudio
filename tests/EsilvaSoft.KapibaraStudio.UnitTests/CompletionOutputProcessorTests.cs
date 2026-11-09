@@ -4,7 +4,7 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests;
 
 /// <summary>
 /// A limpeza de saída compartilhada pelas modalidades de IA. <see cref="CompletionOutputProcessor.Clean"/> é o
-/// comportamento congelado do ghost automático; <see cref="CompletionOutputProcessor.CleanStructured"/> acrescenta a
+/// comportamento congelado do ghost automático; <see cref="CompletionOutputProcessor.CleanStructured(string, string, out bool)"/> acrescenta a
 /// parada estrutural do caminho explícito.
 /// </summary>
 [TestFixture]

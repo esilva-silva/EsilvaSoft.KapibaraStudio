@@ -30,7 +30,7 @@ public sealed class AiContextContractResolverTests
             Is.EqualTo(LocalModelContextContracts.EditorContextV1));
 
     [TestCase("compact-facts-v1")]
-    [TestCase("editor-context-v2")]
+    [TestCase("editor-context-v3")]
     [TestCase("")]
     public void UnknownContractFailsTyped(string declared)
     {

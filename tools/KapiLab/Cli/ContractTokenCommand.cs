@@ -104,14 +104,14 @@ internal static class ContractTokenCommand
                 }
                 else rendered = JsonSerializer.Deserialize<RenderedContract>(line, JsonOptions)
                     ?? throw new InvalidDataException("Registro renderizado inválido.");
-                if (rendered.Schema != "kapilab-render-v1" || rendered.Contract is not ("editor-context-v1" or LocalAgentPromptBuilder.ContractId)
+                if (rendered.Schema != "kapilab-render-v1" || rendered.Contract is not ("editor-context-v1" or "editor-context-v2" or LocalAgentPromptBuilder.ContractId)
                     || contract is not null && rendered.Contract != contract
                     || string.IsNullOrWhiteSpace(rendered.Id) || rendered.Id.Length > 256
                     || rendered.ModelPrefix is null || rendered.Suffix is null
                     || !IsSha256(rendered.ModelPrefixSha256) || !IsSha256(rendered.SuffixSha256))
                     throw new InvalidDataException("Registro não corresponde a kapilab-render-v1/editor-context-v1.");
                 if (!ids.Add(rendered.Id)) throw new InvalidDataException("Entrada contém id duplicado.");
-                if (rendered.Contract == "editor-context-v1" && (CompletionOutputProcessor.ContainsReservedOrSensitiveText(rendered.ModelPrefix)
+                if (rendered.Contract is "editor-context-v1" or "editor-context-v2" && (CompletionOutputProcessor.ContainsReservedOrSensitiveText(rendered.ModelPrefix)
                     || CompletionOutputProcessor.ContainsReservedOrSensitiveText(rendered.Suffix)))
                     throw new UnauthorizedAccessException("Contrato contém marcador reservado ou texto sensível.");
                 if (!HashMatches(rendered.ModelPrefix, rendered.ModelPrefixSha256)

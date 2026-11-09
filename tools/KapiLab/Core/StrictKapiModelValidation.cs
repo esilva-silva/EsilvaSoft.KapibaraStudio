@@ -30,7 +30,9 @@ internal static class StrictKapiModelValidation
                 return Invalid("metadata.object_or_duplicate_property");
             if (!String(root, "schema", 64, out var schema) || schema != MetadataSchema)
                 issues.Add("metadata.schema_unsupported");
-            if (!String(root, "contextContract", 64, out var context) || context != LocalModelContextContracts.EditorContextV1)
+            // Contratos de contexto que este build serializa (editor-context-v1 congelado e o v2 dos alunos cursor-in-call v4).
+            if (!String(root, "contextContract", 64, out var context) ||
+                !LocalModelContextContracts.Supported.Contains(context, StringComparer.Ordinal))
                 issues.Add("metadata.context_contract_unsupported");
             if (root.TryGetProperty("npu", out _)) issues.Add("metadata.npu_schema_unavailable");
 

@@ -8,7 +8,7 @@ namespace EsilvaSoft.KapibaraStudio.Application.AiContext;
 /// The frozen <c>editor-context-v1</c> contract: the plain-text header the SlopCoder packages were trained on.
 /// </summary>
 /// <remarks>
-/// This type is a façade and nothing else. It delegates verbatim to <see cref="AutocompleteContextBuilder.Build"/>
+/// This type is a façade and nothing else. It delegates verbatim to <see cref="AutocompleteContextBuilder.Build(AutocompleteContextSnapshot, AutocompleteSettings)"/>
 /// rather than re-implementing the header, because the byte-for-byte output — including the frozen CRLF header and
 /// the literal <c>"\n"</c> delimiters used by <c>ModelPrefix</c> — is the training contract itself and is frozen by
 /// <c>EditorContextV1GoldenTests</c>. Any duplicated logic here would be a second source of truth free to drift.

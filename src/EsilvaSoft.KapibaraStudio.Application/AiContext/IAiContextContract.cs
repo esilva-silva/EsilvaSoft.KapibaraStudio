@@ -9,7 +9,7 @@ namespace EsilvaSoft.KapibaraStudio.Application.AiContext;
 /// <c>Autocomplete.Core</c> must stay free of anything that knows about models, tokenizers or runtimes.
 /// </summary>
 /// <remarks>
-/// <see cref="Build"/> mirrors <see cref="AutocompleteContextBuilder.Build"/> exactly (same parameters, same
+/// <see cref="Build"/> mirrors <see cref="AutocompleteContextBuilder.Build(AutocompleteContextSnapshot, AutocompleteSettings)"/> exactly (same parameters, same
 /// <see cref="AutocompleteRequest"/> result) instead of the narrower <c>string</c> shape sketched in the task: the
 /// caller needs <c>Prefix</c>/<c>Suffix</c>/<c>Dictionary</c> alongside <c>Context</c>, and returning only the header
 /// would force every consumer to rebuild the rest and diverge from the frozen bytes.

@@ -11,6 +11,22 @@ internal static class GuidanceSmoke
 {
     public const string ResultSchema = "kapilab-guidance-smoke-v1";
 
+    /// <summary>
+    /// Whether the step after <c>GenerateNextToken</c> appended exactly one token. GenAI can finish on EOS without
+    /// appending one; re-reading <c>GetSequence(0)[^1]</c> then counted the old last id twice. Same rule as the
+    /// IDE's <c>GeneratedTokenReader</c>.
+    /// </summary>
+    /// <param name="sequenceLength">Current sequence length.</param>
+    /// <param name="previousLength">Length before the step; advanced when a token was appended.</param>
+    public static bool CountsNewToken(int sequenceLength, ref int previousLength)
+    {
+        if (sequenceLength == previousLength) return false;
+        if (sequenceLength != previousLength + 1)
+            throw new InvalidOperationException("Sequência inesperada na geração de um único token.");
+        previousLength = sequenceLength;
+        return true;
+    }
+
     public static string ClassifyStatus(bool supported, int? guidedOutputTokens) =>
         supported ? "supported" : guidedOutputTokens == 0 ? "inconclusive" : "not_supported";
 

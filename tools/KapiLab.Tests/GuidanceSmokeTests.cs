@@ -14,6 +14,24 @@ public sealed class GuidanceSmokeTests
         Assert.That(GuidanceSmoke.ClassifyStatus(supported, tokens), Is.EqualTo(expected));
     }
 
+    /// <summary>
+    /// Bug do token duplicado: no EOS o GenAI pode concluir sem anexar token, e a leitura de
+    /// <c>GetSequence(0)[^1]</c> contava o último id antigo como saída nova.
+    /// </summary>
+    [Test]
+    public void AStepThatAppendsNothingIsNotCountedAsAToken()
+    {
+        var length = 10;
+        Assert.Multiple(() =>
+        {
+            Assert.That(GuidanceSmoke.CountsNewToken(11, ref length), Is.True);
+            Assert.That(length, Is.EqualTo(11));
+            Assert.That(GuidanceSmoke.CountsNewToken(11, ref length), Is.False, "EOS sem token anexado.");
+            Assert.That(length, Is.EqualTo(11));
+            Assert.Throws<InvalidOperationException>(() => GuidanceSmoke.CountsNewToken(13, ref length));
+        });
+    }
+
     [Test]
     public void UnsupportedCapabilityHasNoGrammarOrOverheadResult()
     {

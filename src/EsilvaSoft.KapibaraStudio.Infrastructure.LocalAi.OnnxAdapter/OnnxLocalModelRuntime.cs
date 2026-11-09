@@ -349,10 +349,8 @@ public sealed class OnnxLocalModelRuntime(IAutocompleteDiagnostics? diagnostics 
             cacheContextLength, () => new Generator(model, parameters), cache.SessionLifetime) : null;
         using var transient = session is null ? new Generator(model, parameters) : null;
         var generator = session?.Generator ?? transient!;
-        // Um prefill de apenas um token mudou a saída INT4 na prova nativa. Reprocessar um bloco mínimo
-        // mantém prompts curtos no caminho completo; a equivalência numérica ainda exige homologação por pacote.
-        var reuseCap = Math.Min(cache?.CapTokens ?? int.MaxValue, Math.Max(0, input.Length - 32));
-        var reused = session is null ? 0 : PrefixSessionCache<Generator>.ReusableTokens(session.Tokens, input, reuseCap);
+        // Bloco mínimo reprocessado e teto do chamador: ver PrefixSessionCache.ReusableTokensForPrompt.
+        var reused = session is null ? 0 : PrefixSessionCache<Generator>.ReusableTokensForPrompt(session.Tokens, input, cache?.CapTokens);
         using var decoder = tokenizer.CreateIncrementalDecoder();
         var watch = Stopwatch.StartNew();
         TimeSpan? firstToken = null;

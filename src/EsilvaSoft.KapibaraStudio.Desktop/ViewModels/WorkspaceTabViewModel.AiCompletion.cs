@@ -71,7 +71,28 @@ public sealed partial class WorkspaceTabViewModel
             .OrderByDescending(entry => entry.ExecutedAt).Take(3).Select(entry => entry.Script).ToArray();
         var language = "Mongo Console JavaScript";
         var session = CapturePrefixCacheSession(language);
+        var (targetCollection, targetFields) = CaptureTargetFields(text[..clamped]);
         return new AutocompleteContextSnapshot(text, clamped, language, InputJson, fields, names, history, FilePath)
-        { PrefixCacheSessionKey = session.Key, PrefixCacheSessionLifetime = session.Lifetime };
+        {
+            PrefixCacheSessionKey = session.Key, PrefixCacheSessionLifetime = session.Lifetime,
+            TargetCollection = targetCollection, TargetFields = targetFields
+        };
+    }
+
+    /// <summary>
+    /// Campos e tipos da coleção alvo do statement no cursor, para o contrato <c>editor-context-v2</c>. Lê o schema
+    /// inferido já em cache (<see cref="PipelineInputSchema"/>, com <c>Peek</c>: nunca agenda I/O) e só quando o alvo
+    /// é desta conexão; sem alvo resolvido ou sem schema em cache, nada é enviado.
+    /// </summary>
+    private (string? Collection, IReadOnlyList<AutocompleteTargetField>? Fields) CaptureTargetFields(string prefix)
+    {
+        if (Profile is not { } profile || PipelineInputSchema is not { } resolve) return (null, null);
+        var target = MongoCompletionTarget.Resolve(prefix, CaptureSyntaxContext());
+        if (target is null || target.Connection != profile.Name || target.Database.Length == 0 || target.Collection.Length == 0)
+            return (null, null);
+        var schema = resolve(new EsilvaSoft.KapibaraStudio.Autocomplete.Core.CatalogScope(
+            EsilvaSoft.KapibaraStudio.Autocomplete.Core.ConnectionIdentity.From(profile), target.Database, target.Collection));
+        var fields = AutocompleteTargetField.FromSchema(schema);
+        return fields.Count == 0 ? (null, null) : (target.Collection, fields);
     }
 }

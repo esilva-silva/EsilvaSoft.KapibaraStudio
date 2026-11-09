@@ -7,7 +7,7 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests.Ai;
 
 /// <summary>
 /// One case of the frozen editor-context-v1 corpus. <paramref name="Resolve"/> either replays a captured tab
-/// through <see cref="AutocompleteContextBuilder.Build"/> or hand-builds an <see cref="AutocompleteRequest"/>
+/// through <see cref="AutocompleteContextBuilder.Build(AutocompleteContextSnapshot, AutocompleteSettings)"/> or hand-builds an <see cref="AutocompleteRequest"/>
 /// directly, to reach branches that <c>Build</c> itself can never produce (an unterminated header, a blank
 /// context). <paramref name="Tags"/> feed <c>EditorContextV1GoldenTests.CorpusCoversEveryBranch</c>; every entry in
 /// <c>EditorContextV1GoldenTests.RequiredTags</c> must be claimed by at least one case.

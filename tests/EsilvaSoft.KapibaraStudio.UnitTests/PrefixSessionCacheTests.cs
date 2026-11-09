@@ -34,6 +34,66 @@ public sealed class PrefixSessionCacheTests
         });
     }
 
+    // Prompt de autocomplete em ids: envelope estável (cabeçalho + nomes) seguido do código antes do cursor e do fim FIM.
+    private static int[] Prompt(int header, params int[] tail) => [.. Enumerable.Range(1000, header), .. tail];
+
+    /// <summary>
+    /// Digitação: só o fim do prompt muda (código + sufixo + marcador). O envelope inteiro é reaproveitado e apenas
+    /// a parte diferente é reprocessada, nunca menos que o bloco mínimo.
+    /// </summary>
+    [Test]
+    public void WhenOnlyTheEndChangesTheWholeStablePrefixIsReused()
+    {
+        int[] suffix = [.. Enumerable.Repeat(9, 40)];
+        var previous = Prompt(200, [1, 2, 3, .. suffix]);
+        var typed = Prompt(200, [1, 2, 3, 4, .. suffix]);
+        var typedNearTheEnd = Prompt(200, [1, 2, 3, 4, 9, 9]);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(PrefixSessionCache<Resource>.ReusableTokensForPrompt(previous, typed, cap: null), Is.EqualTo(203),
+                "Envelope de 200 ids mais o código comum até o ponto da edição.");
+            Assert.That(PrefixSessionCache<Resource>.ReusableTokensForPrompt(Prompt(200, 1, 2, 3, 9, 9), typedNearTheEnd, cap: null),
+                Is.EqualTo(typedNearTheEnd.Length - PrefixSessionCache<Resource>.MinimumRecomputedTokens),
+                "Com fim curto, o bloco mínimo é que limita: os últimos 32 ids sempre são reprocessados.");
+        });
+    }
+
+    /// <summary>
+    /// Mudança no começo (cabeçalho, nomes conhecidos, linguagem): o maior prefixo comum para no primeiro id
+    /// diferente, e com o primeiro id trocado nada é reaproveitado — prefill completo.
+    /// </summary>
+    [Test]
+    public void AChangeAtTheBeginningInvalidatesTheReuse()
+    {
+        var previous = Prompt(200, 1, 2, 3);
+        var otherHeader = (int[])previous.Clone();
+        otherHeader[0] = 7;
+        var otherNames = (int[])previous.Clone();
+        otherNames[60] = 7;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(PrefixSessionCache<Resource>.ReusableTokensForPrompt(previous, otherHeader, cap: null), Is.Zero);
+            Assert.That(PrefixSessionCache<Resource>.ReusableTokensForPrompt(previous, otherNames, cap: null), Is.EqualTo(60));
+        });
+    }
+
+    /// <summary>Prompt repetido, prompt curto e teto do chamador.</summary>
+    [Test]
+    public void TheMinimumRecomputedBlockAndTheCallerCapBoundTheReuse()
+    {
+        var prompt = Prompt(200, 1, 2, 3);
+        Assert.Multiple(() =>
+        {
+            Assert.That(PrefixSessionCache<Resource>.ReusableTokensForPrompt(prompt, prompt, cap: null),
+                Is.EqualTo(prompt.Length - PrefixSessionCache<Resource>.MinimumRecomputedTokens));
+            Assert.That(PrefixSessionCache<Resource>.ReusableTokensForPrompt(Prompt(20), Prompt(20), cap: null), Is.Zero,
+                "Prompt mais curto que o bloco mínimo vai pelo caminho completo.");
+            Assert.That(PrefixSessionCache<Resource>.ReusableTokensForPrompt(prompt, prompt, cap: 50), Is.EqualTo(50));
+        });
+    }
+
     [Test]
     public void LruEvictsTheIdleLeastRecentlyUsedSession()
     {

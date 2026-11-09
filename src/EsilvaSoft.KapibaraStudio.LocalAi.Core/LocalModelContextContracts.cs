@@ -10,7 +10,13 @@ public static class LocalModelContextContracts
     /// <summary>Frozen production contract (AutocompleteContextBuilder header).</summary>
     public const string EditorContextV1 = "editor-context-v1";
 
-    public static IReadOnlyList<string> Supported { get; } = [EditorContextV1];
+    /// <summary>
+    /// v1 plus the <c>TARGET FIELDS</c> header line and inner-closer post-processing (cursor-in-call students v4).
+    /// Unknown to older builds, which mark such a package invalid instead of serving it the v1 prompt.
+    /// </summary>
+    public const string EditorContextV2 = "editor-context-v2";
+
+    public static IReadOnlyList<string> Supported { get; } = [EditorContextV1, EditorContextV2];
 
     /// <summary>True for an undeclared contract (absence is never an incompatibility) and for every known identifier.</summary>
     public static bool IsSupported(string? contract) => contract is null || Resolve(contract) is not null;

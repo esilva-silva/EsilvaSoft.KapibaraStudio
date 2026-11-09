@@ -151,8 +151,17 @@ public sealed partial class AutocompleteSettingsViewModel
         var maximumContext = Math.Min(ProductContextMaximum, model?.ContextLength ?? UnknownModelContextMaximum);
         maximumContext = Math.Max(64, maximumContext - completion - AutocompleteTokenBudget.PromptOverheadTokens);
         var context = Math.Min(recommendation.ContextTokens, maximumContext);
-        if (model?.Metadata?.RecommendedContextTokens is { } recommendedContext) context = Math.Min(context, recommendedContext);
-        if (model?.Metadata?.RecommendedCompletionTokens is { } recommendedCompletion) completion = Math.Min(completion, recommendedCompletion);
+        // The package's recommendation is the model tier's validated budget (Nano 4k/64, Small 8k/128, Big 16k/128 for
+        // the cursor-in-call students) and wins over the hardware tier, which only guesses for packages that declare
+        // none. The model window still bounds both.
+        if (model?.Metadata?.RecommendedCompletionTokens is { } recommendedCompletion)
+            completion = Math.Min(recommendedCompletion, maximumCompletion);
+        if (model?.Metadata?.RecommendedContextTokens is { } recommendedContext)
+        {
+            var window = Math.Min(ProductContextMaximum, model.ContextLength ?? UnknownModelContextMaximum);
+            context = Math.Min(recommendedContext, Math.Max(64, window - completion - AutocompleteTokenBudget.PromptOverheadTokens));
+            maximumContext = Math.Max(maximumContext, context + completion);
+        }
         completion = Math.Min(completion, Math.Max(1, maximumContext - context));
         SetEffectiveWhileLoading(() =>
         {
@@ -215,10 +224,13 @@ public sealed partial class AutocompleteSettingsViewModel
         var selectedCompletion = AutocompleteTokenBudget.TryParse(MaximumTokensText, out var parsedCompletion)
             ? parsedCompletion
             : Math.Min(AiHardwareTiers.Recommendation(tier).CompletionTokens, Math.Min(ProductCompletionMaximum, model?.AutocompleteMaximumTokens ?? UnknownModelCompletionMaximum));
-        var maxContext = Math.Min(effectiveContext - selectedCompletion - AutocompleteTokenBudget.PromptOverheadTokens, memoryContext);
-        maxContext = Math.Max(0, maxContext);
         var recommendedContext = model?.Metadata?.RecommendedContextTokens;
-        var context = new HashSet<int>(new[] { 64, 128, 256, 512, 1024, 2048, 4096, 8192, recommendedContext ?? 0 }.Where(value => value >= 64 && value <= maxContext));
+        // The package's recommendation lifts the memory guess (it is the model tier's validated window); the model
+        // window still bounds every suggestion.
+        var maxContext = Math.Min(effectiveContext - selectedCompletion - AutocompleteTokenBudget.PromptOverheadTokens,
+            Math.Max(memoryContext, recommendedContext ?? 0));
+        maxContext = Math.Max(0, maxContext);
+        var context = new HashSet<int>(new[] { 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, recommendedContext ?? 0 }.Where(value => value >= 64 && value <= maxContext));
         var currentContext = AutocompleteTokenBudget.TryParse(ContextTokensText, out var parsedContext) ? parsedContext : 0;
         var maxCompletion = Math.Min(ProductCompletionMaximum, model?.AutocompleteMaximumTokens ?? UnknownModelCompletionMaximum);
         maxCompletion = Math.Min(maxCompletion, Math.Max(0, effectiveContext - currentContext - AutocompleteTokenBudget.PromptOverheadTokens));

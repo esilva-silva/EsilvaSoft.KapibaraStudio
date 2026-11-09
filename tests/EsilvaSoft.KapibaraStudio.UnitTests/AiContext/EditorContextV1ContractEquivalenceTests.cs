@@ -11,7 +11,7 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests.AiContext;
 
 /// <summary>
 /// Proves that routing through <see cref="EditorContextV1Contract"/> produces the very same bytes as calling
-/// <see cref="AutocompleteContextBuilder.Build"/> directly, for every case of the frozen corpus in
+/// <see cref="AutocompleteContextBuilder.Build(AutocompleteContextSnapshot, AutocompleteSettings)"/> directly, for every case of the frozen corpus in
 /// <see cref="EditorContextV1Corpus"/>.
 /// <para>
 /// The corpus exposes each case as a <c>Func&lt;AutocompleteRequest&gt;</c>, i.e. the already-built output, and not

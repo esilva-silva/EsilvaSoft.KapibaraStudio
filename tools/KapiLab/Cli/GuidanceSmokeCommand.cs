@@ -187,6 +187,7 @@ internal static class GuidanceSmokeCommand
         using var generator = new Generator(model, parameters);
         generator.AppendTokens(promptTokens);
         var generated = 0;
+        var sequenceLength = promptTokens.Length;
         using var registration = cancellationToken.Register(() =>
         {
             try { generator.SetRuntimeOption("terminate_session", "1"); }
@@ -198,7 +199,9 @@ internal static class GuidanceSmokeCommand
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 generator.GenerateNextToken();
-                _ = generator.GetSequence(0)[^1]; // Observe token count only; never decode or emit generated text.
+                // Observe token count only; never decode or emit generated text. GenAI can finish on EOS without
+                // appending a token: the old last id is not new output and must not be counted again.
+                if (!GuidanceSmoke.CountsNewToken(generator.GetSequence(0).Length, ref sequenceLength)) break;
                 generated++;
             }
             cancellationToken.ThrowIfCancellationRequested();

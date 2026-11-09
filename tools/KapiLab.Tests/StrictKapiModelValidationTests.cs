@@ -37,11 +37,12 @@ public sealed class StrictKapiModelValidationTests
 
     private static string Hash(string value) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
 
-    private static string Metadata(string minimum = "0.15.2", string schema = StrictKapiModelValidation.MetadataSchema) =>
+    private static string Metadata(string minimum = "0.15.2", string schema = StrictKapiModelValidation.MetadataSchema,
+        string contextContract = "editor-context-v1") =>
         JsonSerializer.Serialize(new
         {
             schema,
-            contextContract = "editor-context-v1",
+            contextContract,
             capabilities = BasicCapabilities,
             runtime = new { minimumGenAi = minimum },
         });
@@ -71,6 +72,18 @@ public sealed class StrictKapiModelValidationTests
         Assert.That(StrictKapiModelValidation.ValidateMetadata(package.Root, package.Files).Valid, Is.True);
         Assert.That((await new LocalModelCatalog(package.Root, fileAccess: package.Files).ValidateAsync(package.Root)).Status.State,
             Is.EqualTo(LocalModelState.Available));
+    }
+
+    [TestCase("editor-context-v1", true)]
+    [TestCase("editor-context-v2", true)]
+    [TestCase("editor-context-v3", false)]
+    public void ContextContractMustBeOneTheBuildSerializes(string contract, bool valid)
+    {
+        using var package = new Package();
+        package.Write("kapibarastudio-model.json", Metadata(contextContract: contract));
+        var result = StrictKapiModelValidation.ValidateMetadata(package.Root, package.Files);
+        Assert.That(result.Valid, Is.EqualTo(valid), string.Join(",", result.Issues));
+        if (!valid) Assert.That(result.Issues, Does.Contain("metadata.context_contract_unsupported"));
     }
 
     [Test]

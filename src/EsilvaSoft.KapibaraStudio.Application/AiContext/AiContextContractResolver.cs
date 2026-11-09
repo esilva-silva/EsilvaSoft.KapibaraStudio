@@ -10,14 +10,14 @@ namespace EsilvaSoft.KapibaraStudio.Application.AiContext;
 /// v1 prompt to a model trained on another format produces silently worse output.
 /// </summary>
 /// <remarks>
-/// Only <see cref="EditorContextV1Contract"/> exists today. <c>LocalModelMetadata.SupportsRepositoryContext</c>
+/// <see cref="EditorContextV1Contract"/> and <see cref="EditorContextV2Contract"/> exist today. <c>LocalModelMetadata.SupportsRepositoryContext</c>
 /// deliberately does not take part in the choice: it describes how much context a model can exploit, not how the
 /// prompt is serialized, and the contracts that consume it do not exist yet (batch A34b).
 /// </remarks>
 public static class AiContextContractResolver
 {
     /// <summary>Contracts implemented by this build, keyed by canonical identifier.</summary>
-    public static IReadOnlyList<IAiContextContract> Implemented { get; } = [EditorContextV1Contract.Instance];
+    public static IReadOnlyList<IAiContextContract> Implemented { get; } = [EditorContextV1Contract.Instance, EditorContextV2Contract.Instance];
 
     /// <summary>Contract for a package; a package that declares none gets the frozen <c>editor-context-v1</c>.</summary>
     /// <exception cref="AiContextContractNotSupportedException">The metadata declares a contract this build does not implement.</exception>

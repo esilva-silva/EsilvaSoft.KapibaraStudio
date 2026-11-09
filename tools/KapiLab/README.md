@@ -36,7 +36,7 @@ kapilab bench autocomplete --package <diretório> --in <records.jsonl> [--warmup
 kapilab bench autocomplete --matrix <matrix.json> --in <records.jsonl> [--out <report.json>]
 kapilab bench chat --package <diretório> --in <chat.jsonl> [--device auto|cpu|gpu|npu] [--context-tokens <n>] [--max-tokens 256] [--limit 100] [--warmup 1] [--iterations 1]
 kapilab bench chat --matrix <matrix.json> --in <chat.jsonl> [--context-tokens <n>] [--out <report.json>]
-kapilab contract render --in <records.jsonl> [--contract editor-context-v1|local-agent-fim-v0]
+kapilab contract render --in <records.jsonl> [--contract editor-context-v1|editor-context-v2|local-agent-fim-v0]
 kapilab contract tokenize --package <diretório> --in <render.jsonl> [--context-tokens 2048] [--completion-tokens 32] [--out <tokens.jsonl>]
 kapilab contract diff --expected <tokens.jsonl> --actual <tokens.jsonl> [--out <diff.json>]
 kapilab parity compare --in <observations.json> [--tolerances <tolerances.json>] [--out <parity.json>]
@@ -49,6 +49,7 @@ kapilab catalog plans --in <plan-cases.json> [--out <plan-snapshot.json>]
 kapilab catalog invoke (--in <legacy.json> | --fixture <fixture.json>) [--out <report.json>]
 kapilab fixture seed --fixture <fixture.json>
 kapilab agent replay --in <replay-cases.json> [--out <report.json>]
+kapilab agent run --package <pacote-agente> --in <agent-tasks.json> [--out <report.json>] [--device auto|cpu|gpu|npu] [--standalone-gpu|--via-queue] [--context-tokens <n>]
 kapilab matrix run --in <process-matrix.json> [--out <report.json>]
 kapilab report evaluate --gates <gates.json> --evidence <run-evidence.json> --out reports/lab/report.json
 kapilab report merge <report.json> <report.json> [...] --out reports/lab/merged.json
@@ -146,6 +147,44 @@ Ausência de gates, métrica, valor ou referência; execução/métrica desquali
 
 O console ainda está em implementação. A paridade Python do PR 1 está comprovada em 1.300 registros reais + 700 sintéticos, com tokenização do pacote real. Continuam pendentes paridade em 2.000 registros exclusivamente reais, host tokenizer sem carregar decoder, export live de sessão/grants e catálogo canônico externo. Os demais limites e gates mantêm o estado registrado na rastreabilidade.
 
+
+## Alunos v4 (`editor-context-v2`)
+
+`model validate --strict-kapi` aceita os contratos de contexto que o build serializa (`editor-context-v1` e `editor-context-v2`).
+`contract render --contract editor-context-v2` e `model run autocomplete` leem, além do formato v1, `editor.target_fields`
+(`[{path, type, item?}]`) e `editor.target` como objeto (`{collection}`), o formato dos registros v4 do repositório de modelos.
+`model run autocomplete` resolve o contrato pelos metadados do pacote com `AiContextContractResolver`, como o pipeline da IDE: no v2,
+o cabeçalho ganha `TARGET FIELDS` e a sugestão passa por `CompletionOutputProcessor.CloseInnerDelimiters`.
+Prova de 08/11/2026: `KapiCoder-Mongo-Small-v4-ONNX-dml-fp16` no DirectML, sem fallback, 40 registros da suíte cursor-in-call.
+O texto foi idêntico ao do Python/HF em 39 de 40, com as mesmas métricas (38/40 consistentes, 26/26 com campo certo). O fechamento
+interno foi aplicado em 4 casos, e o TTFT mediano foi de 155 ms.
+
+## Agente local com modelo real (`agent run`)
+
+`agent run` executa tarefas `kapilab-agent-task-v1` com o `LocalAgentProvider` da IDE sobre um pacote de agente Qwen3 real, no host de
+fixture KapiSim. A composição é a mesma de `catalog invoke --fixture`: infraestrutura da IDE, registry real, grants transitórios de
+produção e bancos sintéticos semeados. A diferença é que o turno é dirigido pelo modelo, não por um provider roteirizado.
+- Cada tarefa traz `id`, `message`, `database`, `collection` e, opcionalmente: `expectTools`, `forbidTools`, `expectAnswerContains`,
+  `timeoutSeconds` (10–900), `reasoningBudgetTokens` e `activeFileText`.
+- O relatório `kapilab-agent-run-report-v1` traz, por tarefa: as chamadas de tool (nome, status e código), a resposta final, os tokens
+  de raciocínio, as propostas, o tempo, os comandos MongoDB observados e as checagens de aceite. O resumo traz a taxa de aprovação.
+- Saída 0 quando todas as tarefas passam; 6 em caso de reprovação.
+- O caso de referência está em `Fixtures/kapi-sim/cases/agent-tasks.json`: 10 tarefas que cobrem as 8 tools de produto, mais uma
+  resposta direta sem tool.
+
+```powershell
+wsl -d Ubuntu -u root -e systemctl start mongod
+dotnet tools/KapiLab/bin/Debug/net10.0/EsilvaSoft.KapibaraStudio.KapiLab.dll --workspace . agent run `
+  --package C:/IA/models/KapibaraStudio.MongoIA/Repos/KapiCoder-Mongo-Agent/exports/KapiCoder-Mongo-Agent-Qwen3-4B-Thinking-ONNX-dml-fp16 `
+  --in tools/KapiLab/Fixtures/kapi-sim/cases/agent-tasks.json --out reports/lab/agent-run/qwen3-4b-thinking-dml.json `
+  --device gpu --standalone-gpu --context-tokens 8192
+```
+
+O pacote de referência é o Qwen3-4B-Thinking-2507, exportado para ONNX DML fp16 sem ajuste fino (`scripts/export/package_agent.py`
+no repositório de modelos). Ele declara raciocínio sempre ligado (`toggle: none`) e janela limitada a 16k.
+- Templates desse tipo já abrem `<think>` no prompt. O `LocalAgentProvider` agora começa o passo em raciocínio nesses pacotes; antes, o
+  pensamento vazava para a resposta e para o parser de tool calls.
+- O resultado mede o modelo base, não um agente treinado para MongoDB.
 
 ## Contrato de agente local Qwen3
 

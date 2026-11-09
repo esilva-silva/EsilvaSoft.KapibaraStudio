@@ -150,6 +150,62 @@ public sealed class AutocompleteSettingsViewModelTests
         Assert.That(preferences.SelectedHardwareProfile!.Name, Is.EqualTo("Radeon RX 7800 XT"));
     }
 
+    /// <summary>
+    /// O orçamento recomendado pelo pacote é o do tier do modelo (alunos cursor-in-call: Nano 4k/64, Small 8k/128,
+    /// Big 16k/128) e vence o palpite do tier de hardware, que num perfil de 16 GiB pararia em 4096. A janela do modelo
+    /// continua limitando, e a sugestão do pacote aparece na lista mesmo acima do palpite de memória.
+    /// </summary>
+    [TestCase(4096, 64)]
+    [TestCase(8192, 128)]
+    [TestCase(16384, 128)]
+    public void ThePackageTierBudgetWinsOverTheHardwareGuess(int context, int completion)
+    {
+        var preferences = new AutocompleteSettingsViewModel(new CompletionServiceFake(), catalog: null, settings => Task.CompletedTask);
+        preferences.Load(new());
+        preferences.HardwareProfileVendor = "AMD";
+        preferences.HardwareProfileName = "Radeon RX 7800 XT";
+        preferences.HardwareProfileMemoryGiB = "16";
+        preferences.AddHardwareProfileCommand.Execute(null);
+
+        preferences.SelectedModelOption = TierModel(context, completion, contextLength: 32768);
+
+        var snapshot = preferences.Snapshot();
+        Assert.Multiple(() =>
+        {
+            Assert.That((snapshot.ContextTokens, snapshot.MaximumCompletionTokens), Is.EqualTo((context, completion)));
+            Assert.That(preferences.HasTokenBudgetError, Is.False);
+            Assert.That(preferences.ContextTokenSuggestions, Does.Contain(context.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        });
+    }
+
+    /// <summary>Um pacote que recomenda mais do que a própria janela comporta é cortado pela janela.</summary>
+    [Test]
+    public void ThePackageTierBudgetIsStillBoundedByTheModelWindow()
+    {
+        var preferences = new AutocompleteSettingsViewModel(new CompletionServiceFake(), catalog: null, settings => Task.CompletedTask);
+        preferences.Load(new());
+        preferences.HardwareProfileVendor = "AMD";
+        preferences.HardwareProfileName = "Radeon RX 7800 XT";
+        preferences.HardwareProfileMemoryGiB = "16";
+        preferences.AddHardwareProfileCommand.Execute(null);
+
+        preferences.SelectedModelOption = TierModel(16384, 128, contextLength: 8192);
+
+        var snapshot = preferences.Snapshot();
+        Assert.That(snapshot.ContextTokens + snapshot.MaximumCompletionTokens + AutocompleteTokenBudget.PromptOverheadTokens,
+            Is.LessThanOrEqualTo(8192));
+        Assert.That(preferences.HasTokenBudgetError, Is.False);
+    }
+
+    private static LocalModelOption TierModel(int context, int completion, int contextLength) =>
+        new("kapicoder-tier", true, new LocalModelValidation(
+            new LocalModelDefinition("kapicoder-tier", "KapiCoder", "models/kapicoder-tier", "Qwen2.5-Coder")
+            {
+                ContextLength = contextLength, AutocompleteMaximumTokens = 256,
+                Metadata = new LocalModelMetadata { RecommendedContextTokens = context, RecommendedCompletionTokens = completion }
+            },
+            new LocalModelStatus(LocalModelState.Ready, "pronto")));
+
     [Test]
     public void FreeTypedBudgetsRejectAnInvalidCombinedWindow()
     {

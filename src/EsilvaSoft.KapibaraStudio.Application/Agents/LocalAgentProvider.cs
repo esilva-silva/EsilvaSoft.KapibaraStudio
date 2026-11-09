@@ -252,6 +252,14 @@ public sealed class LocalAgentProvider : IAgentProvider
                     var forceCloseReasoning = false;
                     var stepReasoningTokens = 0;
                     var reasoningStart = Stopwatch.GetTimestamp();
+                    // Modelos que sempre pensam (toggle "none", p.ex. Qwen3-*-Thinking-2507): o template já termina o prompt de geração
+                    // com "<think>\n", então o token de abertura nunca aparece no stream e só o de fechamento chega. O passo começa em
+                    // raciocínio; um "<think>" que ainda venha antes do primeiro token é tratado como a mesma abertura.
+                    if (stepBudget > 0 && metadata?.Reasoning?.Toggle == "none")
+                    {
+                        inReasoning = true;
+                        yield return new(AgentEventKind.ReasoningStarted);
+                    }
                     var failure = false;
                     string? generationFailure = null;
                     var stream = models.StreamAsync(LocalModelRole.Chat, settings,
@@ -275,6 +283,7 @@ public sealed class LocalAgentProvider : IAgentProvider
                         var reasoning = metadata?.Reasoning;
                         if (reasoning?.StartTokenId is { } startId && chunk.TokenId == startId)
                         {
+                            if (inReasoning && stepReasoningTokens == 0 && reasoningText.Length == 0) continue;
                             if (!reasoningEnabled)
                             {
                                 yield return new(AgentEventKind.AgentError, "LocalReasoningUnavailable");

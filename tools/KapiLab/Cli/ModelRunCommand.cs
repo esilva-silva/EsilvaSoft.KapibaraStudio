@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using EsilvaSoft.KapibaraStudio.Application;
+using EsilvaSoft.KapibaraStudio.Application.AiContext;
 using EsilvaSoft.KapibaraStudio.Core;
 using EsilvaSoft.KapibaraStudio.Infrastructure.LocalAi;
 using EsilvaSoft.KapibaraStudio.KapiLab.Core;
@@ -138,6 +139,9 @@ internal static class ModelRunCommand
         }
 
         using var provider = new AiAutocompleteProvider(models);
+        // Contrato do pacote, como o pipeline da IDE: v2 = TARGET FIELDS no cabeçalho + fechamento de delimitadores internos.
+        var contract = AiContextContractResolver.Resolve(validation.Model?.Metadata);
+        var closeInner = contract.ContractId == LocalModelContextContracts.EditorContextV2;
         var statusAfterLoad = models.Status;
         var environment = EnvironmentReport.Create();
         var count = 0;
@@ -164,7 +168,7 @@ internal static class ModelRunCommand
                 break;
             }
 
-            var parsed = ContractRenderCommand.ParseInputLine(line, lineNumber, settings);
+            var parsed = ContractRenderCommand.ParseInputLine(line, lineNumber, settings, contract);
             if (!duplicateIds.Add(parsed.Id)) throw new InvalidDataException("Entrada contém ID duplicado.");
             var stopwatch = Stopwatch.StartNew();
             var capture = await provider.GetCompletionCaptureAsync(parsed.Request, settings, AiModelLoadPolicy.LoadedOnly,
@@ -172,6 +176,8 @@ internal static class ModelRunCommand
                 .ConfigureAwait(false);
             stopwatch.Stop();
             var result = capture?.Completion;
+            if (closeInner && result is not null)
+                result = result with { Text = CompletionOutputProcessor.CloseInnerDelimiters(parsed.Prefix, result.Text, parsed.Suffix) };
             var status = models.Status;
             if (result is null && status.State is LocalModelState.Failed or LocalModelState.Unsupported)
             {

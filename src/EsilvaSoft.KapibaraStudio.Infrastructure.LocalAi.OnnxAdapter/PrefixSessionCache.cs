@@ -83,6 +83,21 @@ internal sealed class PrefixSessionCache<T>(Action<string>? invalidated = null) 
         }
     }
 
+    /// <summary>
+    /// Bloco mínimo sempre reprocessado no fim do prompt. Um prefill de apenas um token mudou a saída INT4 na prova
+    /// nativa; reprocessar um bloco mínimo mantém prompts curtos no caminho completo. A equivalência numérica ainda
+    /// exige homologação por pacote.
+    /// </summary>
+    internal const int MinimumRecomputedTokens = 32;
+
+    /// <summary>
+    /// Quantos tokens do KV da sessão o próximo prompt reaproveita: o maior prefixo comum, limitado pelo teto do
+    /// chamador e deixando ao menos <see cref="MinimumRecomputedTokens"/> para reprocessar. Comparação de ids, nunca
+    /// de texto.
+    /// </summary>
+    internal static int ReusableTokensForPrompt(IReadOnlyList<int> previous, IReadOnlyList<int> input, int? cap)
+        => ReusableTokens(previous, input, Math.Min(cap ?? int.MaxValue, Math.Max(0, input.Count - MinimumRecomputedTokens)));
+
     internal static int ReusableTokens(IReadOnlyList<int> previous, IReadOnlyList<int> input, int? cap)
     {
         var maximum = Math.Min(Math.Min(previous.Count, Math.Max(0, input.Count - 1)), Math.Max(0, cap ?? int.MaxValue));

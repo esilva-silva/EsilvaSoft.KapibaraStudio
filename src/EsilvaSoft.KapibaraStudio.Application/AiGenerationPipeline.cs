@@ -43,7 +43,7 @@ public enum AiCompletionFailure
 /// </summary>
 /// <remarks>
 /// <para><strong>Candidato seguro.</strong> Um <see cref="AiCompletionCandidate"/> só é construído depois de
-/// <see cref="CompletionOutputProcessor.CleanStructured"/>: sem segredo, sem marcador reservado, sem bloco cercado,
+/// <see cref="CompletionOutputProcessor.CleanStructured(string, string, InnerCloserContext?, out bool)"/>: sem segredo, sem marcador reservado, sem bloco cercado,
 /// dentro do limite de tamanho e cortado na primeira fronteira estrutural violada. Ele nunca é um comando, uma
 /// consulta a executar ou uma ação — quem o recebe insere texto.</para>
 /// <para><strong>Privacidade.</strong> As métricas do candidato são números; o texto vive o tempo da chamada e não é
@@ -480,7 +480,8 @@ public sealed class AiGenerationPipeline
         var failure = timedOut ? AiCompletionFailure.Timeout : AiCompletionFailure.Rejected;
         var message = timedOut ? TimeoutMessage : RejectedMessage;
         if (request.RequireComplete && !complete) return AiCompletionUpdate.Failed(failure, message);
-        if (CompletionOutputProcessor.CleanStructured(text, prepared.Prompt.Suffix, out var truncated) is not { } candidate)
+        if (CompletionOutputProcessor.CleanStructured(text, prepared.Prompt.Suffix, CloseInnerContext(request, prepared),
+                out var truncated) is not { } candidate)
         {
             _diagnostics?.Record(timedOut ? "ai.completion.timeout" : "ai.completion.rejected");
             return AiCompletionUpdate.Failed(failure, message);
@@ -500,6 +501,20 @@ public sealed class AiGenerationPipeline
             TruncatedByStructuralStop = truncated,
             TimedOut = timedOut
         });
+    }
+
+    /// <summary>
+    /// Fechamento de delimitadores internos: só no contrato <c>editor-context-v2</c>, cujos modelos foram avaliados com
+    /// essa regra, e só com o contexto do editor ligado (sem ele o modelo não viu o sufixo). O documento é o da aba
+    /// capturada, não o recorte do prompt: um corte de janela poderia cair dentro de uma string e inverter a paridade.
+    /// </summary>
+    private static InnerCloserContext? CloseInnerContext(AiGenerationRequest request, PreparedRequest prepared)
+    {
+        if (!string.Equals(prepared.Prompt.ContractId, LocalModelContextContracts.EditorContextV2, StringComparison.Ordinal)
+            || !request.Settings.UseEditorContext) return null;
+        var snapshot = request.Snapshot;
+        var caret = Math.Clamp(snapshot.Caret, 0, snapshot.Text.Length);
+        return new InnerCloserContext(snapshot.Text[..caret], snapshot.Text[caret..]);
     }
 
     private static AiCompletionUpdate Unavailable(LocalModelUnavailableException exception) =>

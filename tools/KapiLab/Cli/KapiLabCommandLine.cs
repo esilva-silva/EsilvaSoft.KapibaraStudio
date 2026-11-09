@@ -80,6 +80,22 @@ internal static class KapiLabCommandLine
         replay.SetAction(parseResult => ExecuteAsync("agent.replay", () => AgentReplayCommand.RunAsync(
             parseResult.GetValue(input) ?? "", parseResult.GetValue(output), parseResult.GetValue(workspace))));
         agent.Subcommands.Add(replay);
+
+        var run = new Command("run", "Executa tarefas kapilab-agent-task-v1 com um agente Qwen3 LOCAL real sobre o fixture KapiSim.");
+        var runPackage = new Option<string>("--package") { Description = "Pacote ONNX de agente (local-agent-qwen3-v1).", Required = true };
+        var runInput = new Option<string>("--in") { Description = "Arquivo kapilab-agent-task-v1 no workspace.", Required = true };
+        var runOutput = new Option<string?>("--out") { Description = "Relatório em data/lab, reports/lab ou tmp; padrão stdout." };
+        var runDevice = new Option<string>("--device") { Description = "Hardware: auto, cpu, gpu ou npu.", DefaultValueFactory = _ => "auto" };
+        var runViaQueue = new Option<bool>("--via-queue") { Description = "Autoriza GPU sob coordenação local da fila (exige KAPILAB_GPU_TOKEN)." };
+        var runStandaloneGpu = new Option<bool>("--standalone-gpu") { Description = "Executa GPU standalone, respeitando tmp/gpu.pause." };
+        var runContextTokens = new Option<int?>("--context-tokens") { Description = "Janela por chamada (64 até o limite do pacote); padrão: janela do pacote." };
+        foreach (var option in new Option[] { runPackage, runInput, runOutput, runDevice, runViaQueue, runStandaloneGpu, runContextTokens })
+            run.Options.Add(option);
+        run.SetAction(parseResult => ExecuteAsync("agent.run", () => AgentModelRunCommand.RunAsync(
+            parseResult.GetValue(runPackage) ?? "", parseResult.GetValue(runInput) ?? "", parseResult.GetValue(runOutput),
+            parseResult.GetValue(workspace), parseResult.GetValue(runDevice) ?? "auto", parseResult.GetValue(runViaQueue),
+            parseResult.GetValue(runStandaloneGpu), parseResult.GetValue(runContextTokens))));
+        agent.Subcommands.Add(run);
         return agent;
     }
 
@@ -713,7 +729,7 @@ internal static class KapiLabCommandLine
         var contract = new Command("contract", "Renderiza prompts com os builders reais da IDE.");
         var render = new Command("render", "Renderiza contratos reais da IDE para edição ou chat local legado.");
         var input = new Option<string>("--in") { Description = "Arquivo JSONL de registros.", Required = true };
-        var contractName = new Option<string>("--contract") { Description = "Contrato da IDE.", DefaultValueFactory = _ => "editor-context-v1" };
+        var contractName = new Option<string>("--contract") { Description = "Contrato da IDE (editor-context-v1, editor-context-v2, local-agent-qwen3-v1 ou local-agent-fim-v0).", DefaultValueFactory = _ => "editor-context-v1" };
         var output = new Option<string?>("--out") { Description = "Saída em data/lab ou reports/lab; padrão stdout." };
         var limit = new Option<int?>("--limit") { Description = "Número máximo de registros lidos." };
         var ids = new Option<string?>("--ids") { Description = "Lista de IDs separada por vírgulas." };

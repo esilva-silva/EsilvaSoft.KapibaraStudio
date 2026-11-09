@@ -1,3 +1,4 @@
+using System.Text;
 using EsilvaSoft.KapibaraStudio.Autocomplete.Core;
 
 namespace EsilvaSoft.KapibaraStudio.Application;
@@ -9,7 +10,7 @@ namespace EsilvaSoft.KapibaraStudio.Application;
 /// <para>Este tipo é a extração literal do que vivia dentro de <see cref="AiAutocompleteProvider"/>: o filtro de
 /// texto reservado/sensível e a limpeza que remove o eco do sufixo do documento. <see cref="Clean"/> reproduz aquele
 /// comportamento byte a byte — o ghost automático da Fase 5.1 continua vendo exatamente o mesmo resultado — e
-/// <see cref="CleanStructured"/> acrescenta a parada estrutural de <see cref="StructuralStopDetector"/>, usada pelo
+/// <see cref="CleanStructured(string, string, out bool)"/> acrescenta a parada estrutural de <see cref="StructuralStopDetector"/>, usada pelo
 /// caminho explícito (<c>Ctrl+;</c>), onde o candidato é inserido inteiro e um texto sintaticamente quebrado custa
 /// caro ao usuário.</para>
 /// <para><strong>Privacidade.</strong> Nada aqui persiste, registra ou agrega texto: cada chamada recebe uma
@@ -68,14 +69,145 @@ public static class CompletionOutputProcessor
     /// <param name="truncated">Verdadeiro quando a parada estrutural encurtou o candidato.</param>
     /// <returns>O candidato final, ou <see langword="null"/> quando nada sobrou de utilizável.</returns>
     public static string? CleanStructured(string text, string suffix, out bool truncated)
+        => CleanStructured(text, suffix, closeInner: null, out truncated);
+
+    /// <summary>
+    /// <see cref="CleanStructured(string, string, out bool)"/> com o fechamento de delimitadores internos do contrato
+    /// <c>editor-context-v2</c> (<see cref="CloseInnerDelimiters"/>) entre a limpeza e a parada estrutural.
+    /// </summary>
+    /// <param name="text">Texto gerado pelo modelo.</param>
+    /// <param name="suffix">Sufixo enviado ao modelo, usado no corte do eco.</param>
+    /// <param name="closeInner">Documento ao redor do cursor; <see langword="null"/> mantém o comportamento v1.</param>
+    /// <param name="truncated">Verdadeiro quando a parada estrutural encurtou o candidato.</param>
+    public static string? CleanStructured(string text, string suffix, InnerCloserContext? closeInner, out bool truncated)
     {
         truncated = false;
         if (Clean(text, suffix) is not { } cleaned) return null;
+        if (closeInner is { } document) cleaned = CloseInnerDelimiters(document.Prefix, cleaned, document.Suffix);
         var stopped = StructuralStopDetector.Truncate(cleaned);
         truncated = stopped.Length != cleaned.Length;
         return string.IsNullOrWhiteSpace(stopped) ? null : stopped;
     }
+
+    /// <summary>Teto de fechamentos internos acrescentados por <see cref="CloseInnerDelimiters"/>.</summary>
+    public const int MaximumInnerClosers = 4;
+
+    /// <summary>
+    /// Fecha os delimitadores <em>internos</em> que a sugestão deixou abertos quando o sufixo só traz os externos.
+    /// Espelho de <c>close_inner_delimiters</c> (<c>bakeoff/v1/scripts/compact/contracts.py</c> no repositório de
+    /// modelos), validado na suíte cursor-in-call.
+    /// </summary>
+    /// <remarks>
+    /// <para>Caso típico: <c>db.c.find({ a: { $ty|</c> com sufixo <c> })</c> (o editor auto-fechou só o objeto do
+    /// filtro); o modelo devolve <c>pe: "string"</c> e o documento ficaria sem o <c>}</c> do objeto do operador.</para>
+    /// <para>A regra só age quando a sugestão não é vazia nem termina dentro de texto; o sufixo começa com fechamentos
+    /// (ignorando espaços e aspas) e depois termina o statement (fim ou <c>;</c> — qualquer outro caractere é uma
+    /// continuação e a posição dos fechamentos fica ambígua); e esses fechamentos são exatamente os últimos esperados
+    /// pela pilha de <c>prefixo + sugestão</c>, faltando de 1 a <see cref="MaximumInnerClosers"/> internos. Os
+    /// fechamentos vão separados por espaço, no estilo do console (<c>{ a: 1 }</c>).</para>
+    /// </remarks>
+    public static string CloseInnerDelimiters(string prefix, string text, string suffix)
+    {
+        ArgumentNullException.ThrowIfNull(prefix);
+        ArgumentNullException.ThrowIfNull(text);
+        ArgumentNullException.ThrowIfNull(suffix);
+        if (string.IsNullOrWhiteSpace(text)) return text;
+        var document = prefix + text;
+        if (EndsInString(document)) return text;
+        var stack = OpenStack(StripStrings(document));
+        var expected = new StringBuilder(stack.Count);
+        for (var i = stack.Count - 1; i >= 0; i--) expected.Append(Closing(stack[i]));
+        var (closers, continues) = ClosersAndContinuation(StripStrings(suffix));
+        var expectedText = expected.ToString();
+        if (continues || closers.Length == 0 || closers.Length >= expectedText.Length
+            || !expectedText.EndsWith(closers, StringComparison.Ordinal))
+            return text;
+        var missing = expectedText[..^closers.Length];
+        if (missing.Length > MaximumInnerClosers) return text;
+        var separator = char.IsWhiteSpace(text[^1]) ? "" : " ";
+        return text + separator + string.Join(' ', missing.ToCharArray());
+    }
+
+    private static char Closing(char opening) => opening switch { '(' => ')', '[' => ']', _ => '}' };
+
+    /// <summary>Troca o conteúdo de strings por espaços, preservando as aspas (espelho de <c>_strip_strings</c>).</summary>
+    private static string StripStrings(string text)
+    {
+        var output = new StringBuilder(text.Length);
+        char? quote = null;
+        var escape = false;
+        foreach (var current in text)
+        {
+            if (quote is { } open)
+            {
+                if (escape) escape = false;
+                else if (current == '\\') escape = true;
+                else if (current == open)
+                {
+                    quote = null;
+                    output.Append(current);
+                    continue;
+                }
+                output.Append(' ');
+                continue;
+            }
+            if (current is '"' or '\'' or '`') quote = current;
+            output.Append(current);
+        }
+        return output.ToString();
+    }
+
+    /// <summary>Pilha de aberturas sem par (espelho de <c>open_stack_flat</c>); fechamento sem par é descartado.</summary>
+    private static List<char> OpenStack(string flat)
+    {
+        var stack = new List<char>();
+        foreach (var current in flat)
+        {
+            if (current is '(' or '[' or '{') stack.Add(current);
+            else if (current is ')' or ']' or '}' && stack.Count > 0 && Closing(stack[^1]) == current) stack.RemoveAt(stack.Count - 1);
+        }
+        return stack;
+    }
+
+    /// <summary>
+    /// Fechamentos iniciais do sufixo e se ele continua o mesmo statement depois deles (espelho de
+    /// <c>_closers_and_continuation</c>): espaços e aspas são ignorados, <c>;</c> e o fim terminam o statement.
+    /// </summary>
+    private static (string Closers, bool Continues) ClosersAndContinuation(string flat)
+    {
+        var closers = new StringBuilder();
+        foreach (var current in flat)
+        {
+            if (current is ')' or ']' or '}') closers.Append(current);
+            else if (char.IsWhiteSpace(current) || current is '"' or '\'' or '`') continue;
+            else return (closers.ToString(), current != ';');
+        }
+        return (closers.ToString(), false);
+    }
+
+    private static bool EndsInString(string text)
+    {
+        char? quote = null;
+        var escape = false;
+        foreach (var current in text)
+        {
+            if (quote is { } open)
+            {
+                if (escape) escape = false;
+                else if (current == '\\') escape = true;
+                else if (current == open) quote = null;
+            }
+            else if (current is '"' or '\'' or '`') quote = current;
+        }
+        return quote is not null;
+    }
 }
+
+/// <summary>
+/// Documento ao redor do cursor para <see cref="CompletionOutputProcessor.CloseInnerDelimiters"/>: o texto antes e
+/// depois do cursor no instante do pedido. Vive só durante a limpeza; nada aqui é guardado.
+/// </summary>
+public readonly record struct InnerCloserContext(string Prefix, string Suffix);
 
 /// <summary>
 /// Onde a geração atravessa uma fronteira estrutural que não deveria.

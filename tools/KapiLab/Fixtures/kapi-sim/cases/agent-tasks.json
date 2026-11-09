@@ -1,0 +1,72 @@
+{
+  "schema": "kapilab-agent-task-v1",
+  "domains": [
+    "tools/KapiLab/Fixtures/kapi-sim/domains/store.json",
+    "tools/KapiLab/Fixtures/kapi-sim/domains/logistics.json",
+    "tools/KapiLab/Fixtures/kapi-sim/domains/iot.json"
+  ],
+  "maxToolResultBytes": 6144,
+  "tasks": [
+    {
+      "id": "connections",
+      "message": "Quais conexões MongoDB eu tenho disponíveis aqui?",
+      "database": "kapi_sim_store", "collection": "items",
+      "expectTools": ["list_connections"], "expectAnswerContains": ["KapiSim"]
+    },
+    {
+      "id": "databases",
+      "message": "Liste os bancos de dados da conexão selecionada.",
+      "database": "kapi_sim_store", "collection": "items",
+      "expectTools": ["list_databases"], "expectAnswerContains": ["kapi_sim_store", "kapi_sim_iot"]
+    },
+    {
+      "id": "collections",
+      "message": "Quais coleções existem no banco kapi_sim_logistics?",
+      "database": "kapi_sim_logistics", "collection": "items",
+      "expectTools": ["list_collections"], "expectAnswerContains": ["items"]
+    },
+    {
+      "id": "schema",
+      "message": "Descreva os campos e tipos da coleção items do banco kapi_sim_store.",
+      "database": "kapi_sim_store", "collection": "items",
+      "expectTools": ["get_cached_schema"], "expectAnswerContains": ["quantity", "category"]
+    },
+    {
+      "id": "indexes",
+      "message": "Quais índices a coleção items do banco kapi_sim_iot tem?",
+      "database": "kapi_sim_iot", "collection": "items",
+      "expectTools": ["get_indexes"], "expectAnswerContains": ["_id"]
+    },
+    {
+      "id": "workspace",
+      "message": "Qual arquivo está aberto no editor e qual banco e coleção estão selecionados?",
+      "database": "kapi_sim_store", "collection": "items",
+      "expectTools": ["get_workspace_context"], "expectAnswerContains": ["query.js", "kapi_sim_store"]
+    },
+    {
+      "id": "query-with-schema",
+      "message": "Escreva um find para a coleção items do banco kapi_sim_iot que retorne só os campos code e quantity dos itens ativos. Confira os campos antes de responder.",
+      "database": "kapi_sim_iot", "collection": "items",
+      "expectTools": ["get_cached_schema"], "forbidTools": ["create_workspace_file"], "expectAnswerContains": ["active", "code", "quantity"]
+    },
+    {
+      "id": "propose-edit",
+      "message": "Altere o arquivo aberto para que a consulta traga só os itens com quantity maior que 10, ordenados por quantity decrescente.",
+      "database": "kapi_sim_store", "collection": "items",
+      "expectTools": ["propose_file_edit"], "forbidTools": ["create_workspace_file"]
+    },
+    {
+      "id": "create-file",
+      "message": "Crie um arquivo novo chamado por-categoria.js com um aggregate que conte os itens da coleção items por category.",
+      "database": "kapi_sim_store", "collection": "items",
+      "expectTools": ["create_workspace_file"]
+    },
+    {
+      "id": "no-tool",
+      "message": "Em uma frase: qual a diferença entre find e aggregate no MongoDB?",
+      "database": "kapi_sim_store", "collection": "items",
+      "forbidTools": ["create_workspace_file", "propose_file_edit"], "expectAnswerContains": ["aggregate"],
+      "timeoutSeconds": 120
+    }
+  ]
+}

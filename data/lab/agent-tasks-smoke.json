@@ -1,0 +1,23 @@
+{
+ "schema": "kapilab-agent-task-v1",
+ "domains": [
+  "tools/KapiLab/Fixtures/kapi-sim/domains/store.json",
+  "tools/KapiLab/Fixtures/kapi-sim/domains/logistics.json",
+  "tools/KapiLab/Fixtures/kapi-sim/domains/iot.json"
+ ],
+ "maxToolResultBytes": 6144,
+ "tasks": [
+  {
+   "id": "connections",
+   "message": "Quais conexões MongoDB eu tenho disponíveis aqui?",
+   "database": "kapi_sim_store",
+   "collection": "items",
+   "expectTools": [
+    "list_connections"
+   ],
+   "expectAnswerContains": [
+    "KapiSim"
+   ]
+  }
+ ]
+}

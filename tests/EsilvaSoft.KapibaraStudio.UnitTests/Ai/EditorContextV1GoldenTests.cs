@@ -8,9 +8,9 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests.Ai;
 
 /// <summary>
 /// Freezes the <c>editor-context-v1</c> contract consumed by SlopCoder training packages:
-/// <see cref="AutocompleteContextBuilder.Build"/> and <see cref="AutocompleteContextBuilder.ModelPrefix"/>.
+/// <see cref="AutocompleteContextBuilder.Build(AutocompleteContextSnapshot, EsilvaSoft.KapibaraStudio.Core.AutocompleteSettings)"/> and <see cref="AutocompleteContextBuilder.ModelPrefix"/>.
 /// <para>
-/// <see cref="AutocompleteContextBuilder.Build"/> joins header lines with the frozen CRLF contract, while
+/// <see cref="AutocompleteContextBuilder.Build(AutocompleteContextSnapshot, EsilvaSoft.KapibaraStudio.Core.AutocompleteSettings)"/> joins header lines with the frozen CRLF contract, while
 /// <see cref="AutocompleteContextBuilder.ModelPrefix"/> wraps that context with a bare <c>"\n"</c> literal. A golden
 /// that normalizes <c>\r\n</c> to <c>\n</c> before comparing would hide exactly the regression this file exists to
 /// catch (for example swapping the contract CRLF for <c>Append("\n")</c>). Every artifact below is therefore stored
