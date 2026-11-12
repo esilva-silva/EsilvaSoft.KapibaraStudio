@@ -54,6 +54,8 @@ Em isolamento que bloqueie telemetria Avalonia, registrar `-p:UsedAvaloniaProduc
 - [F02-T04 — Validar concorrência e ciclo de vida](fase-02-v0.11.0/task-04-ciclo-de-vida.md)
 - [F02-T05 — Avaliar modelo real e experiência nativa](fase-02-v0.11.0/task-05-avaliacao-real.md)
 
+Detalhamento em user stories: [IA local — KS-US01..US10](ia-local/README.md), árvore de execução separada criada em 12/11/2026. Não altera as tarefas acima nem as entregas F02-E01..E05; o treinamento dos modelos é acompanhado no repositório de modelos.
+
 ## Fase 03 — v0.12.0 — GitHub Copilot
 
 **Requisitos:** MVP-011, MVP-014. **Dependência:** IA local da fase 02 aceita nos critérios aplicáveis; reutilizar registry, sessões, permissões e adapters.
