@@ -1,10 +1,13 @@
-using System.Runtime.CompilerServices;
 using System.Text.Json;
 using EsilvaSoft.KapibaraStudio.Application;
 using EsilvaSoft.KapibaraStudio.Application.Agents;
 using EsilvaSoft.KapibaraStudio.Core;
 using EsilvaSoft.KapibaraStudio.Core.Agents;
 using EsilvaSoft.KapibaraStudio.LocalAi.Core;
+using EsilvaSoft.KapibaraStudio.Testing;
+using static EsilvaSoft.KapibaraStudio.Testing.LocalAgentScript;
+using ScriptedRuntime = EsilvaSoft.KapibaraStudio.Testing.ScriptedAgentRuntime;
+using Step = EsilvaSoft.KapibaraStudio.Testing.ScriptedAgentStep;
 
 namespace EsilvaSoft.KapibaraStudio.UnitTests;
 
@@ -16,9 +19,6 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests;
 [TestFixture]
 public sealed class LocalAgentProviderToolLoopTests
 {
-    private const int ThinkStart = 151667;
-    private const int ThinkEnd = 151668;
-    private const string ForceClose = "\n</think>\n\n";
     private const string ListDatabases = "list_databases";
     private const string GetIndexes = "get_indexes";
     private static readonly TimeSpan Wait = TimeSpan.FromSeconds(5);
@@ -28,62 +28,6 @@ public sealed class LocalAgentProviderToolLoopTests
     private static readonly string[] SecondTurnRoles = ["system", "user", "assistant", "user"];
     private static readonly string[] ExternalRoles = ["user", "tool", "user"];
     private static readonly bool[] FallbackByStep = [true, false, true];
-
-    private static GeneratedChunk Text(string text) => new(text, 0, false) { TokenId = 1 };
-    private static GeneratedChunk Token(int id) => new("", 0, false) { TokenId = id };
-    private static string Call(string name, string arguments = "{}") =>
-        "<tool_call>{\"name\":\"" + name + "\",\"arguments\":" + arguments + "}</tool_call>";
-
-    /// <summary>Uma geração do roteiro: pedaços entregues em ordem, com falha ou retenção opcionais.</summary>
-    private sealed record Step(params GeneratedChunk[] Chunks)
-    {
-        public Exception? Failure { get; init; }
-        /// <summary>Depois de entregar os pedaços, espera o cancelamento em vez de concluir a geração.</summary>
-        public bool HoldAtEnd { get; init; }
-    }
-
-    private sealed class ScriptedRuntime : ILocalModelRuntime
-    {
-        private readonly Queue<Step> _steps = new();
-        public List<ModelGenerationRequest> Requests { get; } = [];
-        /// <summary>Por pedido: havia sessão de geração e ela ainda estava viva quando o passo começou.</summary>
-        public List<bool> SessionOpenAtStart { get; } = [];
-        public TaskCompletionSource Held { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        public LocalModelRuntimeInfo? RuntimeInfo => null;
-
-        public ScriptedRuntime Then(params GeneratedChunk[] chunks) { _steps.Enqueue(new Step(chunks)); return this; }
-        public ScriptedRuntime Then(Step step) { _steps.Enqueue(step); return this; }
-
-        public Task InitializeAsync(LocalModelDefinition model, AutocompleteSettings settings, CancellationToken cancellationToken = default) =>
-            Task.CompletedTask;
-
-        public Task<ModelGenerationResult> GenerateAsync(ModelGenerationRequest request, CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException("O agente local usa streaming.");
-
-        public async IAsyncEnumerable<GeneratedChunk> StreamAsync(ModelGenerationRequest request,
-            [EnumeratorCancellation] CancellationToken cancellationToken = default)
-        {
-            Requests.Add(request);
-            SessionOpenAtStart.Add(request.PrefixCache is { } session && !session.SessionLifetime.IsCancellationRequested);
-            if (!_steps.TryDequeue(out var step)) throw new InvalidOperationException("Roteiro esgotado: o provider gerou um passo a mais.");
-            if (step.Failure is not null) throw step.Failure;
-            var generated = 0;
-            foreach (var chunk in step.Chunks)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                await Task.Yield();
-                yield return chunk with { GeneratedTokens = ++generated };
-            }
-            if (step.HoldAtEnd)
-            {
-                Held.TrySetResult();
-                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false);
-            }
-            yield return new GeneratedChunk("", generated, true) { Provider = "cpu" };
-        }
-
-        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
-    }
 
     private sealed class RegistryFake(params string[] names) : IAgentToolRegistry
     {
@@ -107,23 +51,6 @@ public sealed class LocalAgentProviderToolLoopTests
             throw new NotSupportedException("O provider local nunca invoca handlers; quem invoca é o runtime compartilhado.");
         }
     }
-
-    private static LocalModelDefinition AgentModel(string? contract = LocalAgentPromptBuilder.ContractId, string toggle = "hard",
-        int maxToolCalls = 2, int maxResultBytes = 64) =>
-        new("agent-test", "Agente de teste", "models", "Qwen3")
-        {
-            PromptFormat = LocalModelPromptFormats.Qwen3ChatMlTools,
-            Capabilities = LocalModelCapabilities.Chat | LocalModelCapabilities.Agent | LocalModelCapabilities.Tools | LocalModelCapabilities.Reasoning,
-            Metadata = new LocalModelMetadata
-            {
-                AgentContract = contract,
-                Agent = new("qwen3-chatml-tools-v1", "chat_template.jinja", "qwen-hermes-json", "kapibara-tools-2026-10",
-                    maxToolCalls, maxResultBytes, null),
-                Reasoning = new(true, "think-tags", ThinkStart, ThinkEnd, DefaultEnabled: true, toggle, "", new(8, 1, 64),
-                    TurnBudgetTokens: 12, "force-close", ForceClose, "strip", new string('0', 64)),
-                AgentGeneration = new(32, new(0.6, 0.95, 20), new(0.7, 0.8, 20)),
-            },
-        };
 
     private sealed class Harness : IAsyncDisposable
     {
