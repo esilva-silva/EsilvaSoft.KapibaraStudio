@@ -82,16 +82,21 @@ public sealed class LocalAgentProvider : IAgentProvider
             return new(false, LocalAgentUnavailableReason.ModelMissingOrInvalid, LocalAgentCapabilities.None);
 
         var capabilities = model.Capabilities;
+        // Um contrato declarado e desconhecido significa que o pacote espera outro prompt: não é servido como agente.
+        // Ausência do campo mantém pacotes anteriores carregáveis (só o gate estrito do laboratório o exige).
+        var contractSupported = model.Metadata?.AgentContract is not { } contract ||
+            string.Equals(contract, LocalAgentPromptBuilder.ContractId, StringComparison.Ordinal);
         var proposals = capabilities.HasFlag(LocalModelCapabilities.Fim) && capabilities.HasFlag(LocalModelCapabilities.Chat);
         var agent = capabilities.HasFlag(LocalModelCapabilities.Agent) && capabilities.HasFlag(LocalModelCapabilities.Tools) &&
             capabilities.HasFlag(LocalModelCapabilities.Chat) && model.Metadata?.Agent is not null &&
-            model.PromptFormat == LocalModelPromptFormats.Qwen3ChatMlTools;
+            model.PromptFormat == LocalModelPromptFormats.Qwen3ChatMlTools && contractSupported;
         var reasoning = agent && capabilities.HasFlag(LocalModelCapabilities.Reasoning) && model.Metadata?.Reasoning is { Supported: true };
         var localCapabilities = new LocalAgentCapabilities(proposals, Chat: agent, ToolCalling: agent,
             Sessions: agent, TurnPlan: agent, Reasoning: reasoning);
         return proposals || agent
             ? new(true, LocalAgentUnavailableReason.None, localCapabilities, model.Name, model)
-            : new(false, LocalAgentUnavailableReason.ModelMissingOrInvalid, LocalAgentCapabilities.None, model.Name, model);
+            : new(false, contractSupported ? LocalAgentUnavailableReason.ModelMissingOrInvalid
+                : LocalAgentUnavailableReason.AgentContractUnsupported, LocalAgentCapabilities.None, model.Name, model);
     }
 
     public async Task<IAgentSession> CreateSessionAsync(AgentSessionOptions options, CancellationToken cancellationToken)
@@ -111,6 +116,8 @@ public sealed class LocalAgentProvider : IAgentProvider
         LocalAgentUnavailableReason.NoModelConfigured => new("Nenhum modelo local selecionado para o agente.")
             { UnavailableReason = LocalModelUnavailableReason.NoModelConfigured },
         LocalAgentUnavailableReason.ModelMissingOrInvalid => new("O modelo local selecionado está ausente ou não declara suporte a agente.")
+            { UnavailableReason = LocalModelUnavailableReason.ModelInvalid },
+        LocalAgentUnavailableReason.AgentContractUnsupported => new("O modelo local selecionado declara um contrato de agente que esta versão não conhece.")
             { UnavailableReason = LocalModelUnavailableReason.ModelInvalid },
         _ => new("IA local desabilitada nas preferências.") { UnavailableReason = LocalModelUnavailableReason.Unspecified },
     };
@@ -200,6 +207,17 @@ public sealed class LocalAgentProvider : IAgentProvider
 
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             if (!_turns.TryAdd(request.TurnId, cts)) throw new InvalidOperationException("Turno duplicado nesta sessão.");
+            // Sessão de geração do turno: os passos pedem ao runtime que reaproveite o KV do prefixo comum em vez de
+            // reprocessar o prompt inteiro. A identidade é opaca e vive só até o fim do turno; o runtime só a honra em
+            // CPU, com opt-in nas preferências e pacote homologado, e sem isso gera como antes.
+            using var generationSession = new CancellationTokenSource();
+            var turnSession = settings.PrefixCacheMode == PrefixCacheMode.Reuse
+                ? new PrefixCacheState
+                {
+                    SessionKey = "agent-turn:" + request.TurnId.Value, Mode = PrefixCacheMode.Reuse,
+                    SessionLifetime = generationSession.Token,
+                }
+                : null;
             var gateAcquired = false;
             var historyStart = 0;
             var turnCompleted = false;
@@ -218,10 +236,12 @@ public sealed class LocalAgentProvider : IAgentProvider
                 var invalidFormatRetries = 0;
                 var answerTokens = Math.Clamp(metadata?.AgentGeneration?.MaxAnswerTokensPerStep ?? DefaultTokens, 1, 2048);
                 var completed = false;
+                var step = 0;
 
                 while (!completed && toolCalls <= maxToolCalls)
                 {
                     cts.Token.ThrowIfCancellationRequested();
+                    var firstStep = step++ == 0;
                     var turnBudget = metadata?.Reasoning?.TurnBudgetTokens ?? reasoningBudget;
                     var stepBudget = reasoningEnabled ? Math.Max(0, Math.Min(reasoningBudget, turnBudget - reasoningTokensUsed)) : 0;
                     if (reasoningEnabled && stepBudget == 0 && metadata?.Reasoning?.Toggle == "none")
@@ -239,6 +259,11 @@ public sealed class LocalAgentProvider : IAgentProvider
                         Temperature = sampling?.Temperature ?? 0.7,
                         TopP = sampling?.TopP,
                         TopK = sampling?.TopK,
+                        Seed = request.SamplingSeed,
+                        // O dispositivo é escolhido no primeiro passo; depois dele uma falha do acelerador encerra o
+                        // turno com erro em vez de continuar em outro dispositivo sem aviso.
+                        AllowAccelerationFallback = firstStep,
+                        PrefixCache = turnSession,
                         ChatPrompt = chatPrompt,
                         StopSequences = ["<|im_end|>", "<|endoftext|>"],
                     };
@@ -261,6 +286,7 @@ public sealed class LocalAgentProvider : IAgentProvider
                         yield return new(AgentEventKind.ReasoningStarted);
                     }
                     var failure = false;
+                    var cancelled = false;
                     string? generationFailure = null;
                     var stream = models.StreamAsync(LocalModelRole.Chat, settings,
                         activeModel => SamePackage(activeModel, model) ? generation
@@ -271,8 +297,12 @@ public sealed class LocalAgentProvider : IAgentProvider
                     {
                         bool moved;
                         try { moved = await enumerator.MoveNextAsync().ConfigureAwait(false); }
-                        catch (OperationCanceledException) when (cts.IsCancellationRequested) { yield break; }
+                        catch (OperationCanceledException) when (cts.IsCancellationRequested) { cancelled = true; break; }
+                        // O serviço de modelos entrega o estouro de janela como indisponibilidade tipada; o runtime direto
+                        // lança a exceção de contexto. Os dois são o mesmo erro para quem conversa.
                         catch (LocalModelContextException) { generationFailure = "LocalContextExhausted"; break; }
+                        catch (LocalModelUnavailableException overflow) when (overflow.UnavailableReason == LocalModelUnavailableReason.ContextOverflow)
+                        { generationFailure = "LocalContextExhausted"; break; }
                         catch (Exception exception) when (exception is not OperationCanceledException)
                         { generationFailure = "LocalGenerationFailure"; break; }
 
@@ -351,9 +381,13 @@ public sealed class LocalAgentProvider : IAgentProvider
                         }
                     }
 
-                    if (generationFailure is not null)
+                    if (cancelled || generationFailure is not null)
                     {
-                        yield return new(AgentEventKind.AgentError, generationFailure);
+                        // Um raciocínio aberto é encerrado explicitamente: o painel não fica com um bloco "pensando" órfão.
+                        if (inReasoning)
+                            yield return ReasoningCompleted(stepReasoningTokens, Stopwatch.GetElapsedTime(reasoningStart), truncated: false,
+                                cancelled ? AgentTurnOutcome.Cancelled : AgentTurnOutcome.Failed);
+                        if (generationFailure is not null) yield return new(AgentEventKind.AgentError, generationFailure);
                         yield break;
                     }
 
@@ -437,6 +471,8 @@ public sealed class LocalAgentProvider : IAgentProvider
                         _history.RemoveAll(message => message.Role == "assistant" && message.Content.Contains("<think>", StringComparison.Ordinal));
                 }
                 _turns.TryRemove(request.TurnId, out _);
+                // Fim do turno, por qualquer caminho: o runtime libera o gerador desta sessão.
+                await generationSession.CancelAsync().ConfigureAwait(false);
                 if (gateAcquired) _conversationGate.Release();
             }
         }
@@ -578,13 +614,14 @@ public sealed class LocalAgentProvider : IAgentProvider
             return request.Reasoning?.BudgetTokens ?? limits.Default;
         }
 
-        private static AgentProviderEvent ReasoningCompleted(int tokens, TimeSpan duration, bool truncated) =>
+        private static AgentProviderEvent ReasoningCompleted(int tokens, TimeSpan duration, bool truncated,
+            AgentTurnOutcome outcome = AgentTurnOutcome.Completed) =>
             new(AgentEventKind.ReasoningCompleted)
             {
                 ReasoningTokens = tokens,
                 ReasoningDurationMs = Math.Max(0, (long)duration.TotalMilliseconds),
                 ReasoningTruncatedByBudget = truncated,
-                ReasoningOutcome = AgentTurnOutcome.Completed,
+                ReasoningOutcome = outcome,
             };
 
     }

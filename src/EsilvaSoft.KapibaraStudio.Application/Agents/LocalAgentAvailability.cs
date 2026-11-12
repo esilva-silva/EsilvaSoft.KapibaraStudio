@@ -11,6 +11,8 @@ public enum LocalAgentUnavailableReason
     NoModelConfigured,
     /// <summary>A pasta selecionada não existe, não é um pacote utilizável ou não declara o contrato de proposta FIM.</summary>
     ModelMissingOrInvalid,
+    /// <summary>O pacote declara um <c>agentContract</c> que esta versão não conhece; o prompt vigente não é aplicado a ele.</summary>
+    AgentContractUnsupported,
 }
 
 /// <summary>

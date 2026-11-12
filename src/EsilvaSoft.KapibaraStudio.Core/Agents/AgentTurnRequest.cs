@@ -42,4 +42,10 @@ public sealed record AgentTurnRequest(
 
     /// <summary>Optional local reasoning choice. Providers without Reasoning must reject a supplied choice.</summary>
     public AgentReasoningOptions? Reasoning { get; init; }
+
+    /// <summary>
+    /// Optional sampling seed for providers that sample locally, so an evaluation run can be repeated. Null keeps the
+    /// provider's own randomness; providers without local sampling ignore it.
+    /// </summary>
+    public int? SamplingSeed { get; init; }
 }

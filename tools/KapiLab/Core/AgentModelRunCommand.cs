@@ -43,7 +43,11 @@ internal static class AgentModelRunCommand
     internal sealed record Summary(int Tasks, int Passed, int Completed, int ToolCalls, int ToolCallsSucceeded,
         double PassRate, double DurationMsMean);
     internal sealed record Report(string Schema, string Package, string Model, string? Provider, string? Backend,
-        bool GrantsSynthetic, string FixtureSha256, Summary Summary, IReadOnlyList<TaskResult> Tasks, string IdeCommit, string GenAi);
+        bool GrantsSynthetic, string FixtureSha256, Summary Summary, IReadOnlyList<TaskResult> Tasks, string IdeCommit, string GenAi)
+    {
+        /// <summary>Se a rodada pediu sessão de geração por turno (reuso de KV entre os passos); medição de laboratório.</summary>
+        public bool SessionMode { get; init; }
+    }
 
     internal static Input ReadInput(string root, string path)
     {
@@ -77,7 +81,7 @@ internal static class AgentModelRunCommand
 
     internal static async Task<int> RunAsync(string package, string tasksPath, string? output, string? workspaceOption,
         string device, bool viaQueue, bool standaloneGpu, int? contextTokens, int? taskTimeoutSeconds = null,
-        CancellationToken cancellationToken = default)
+        bool sessionMode = false, CancellationToken cancellationToken = default)
     {
         var root = LabWorkspace.Resolve(workspaceOption);
         if (root is null)
@@ -130,6 +134,9 @@ internal static class AgentModelRunCommand
             ChatEnabled = true,
             ContextTokens = Cli.ModelRunChatCommand.ResolveContextTokens(model, contextTokens),
             AiTimeoutMilliseconds = 60_000,
+            // Sessão por turno: mesmo mecanismo do produto, que só a honra em CPU. O laboratório pode medi-la em pacote
+            // ainda não homologado; o produto exige a declaração do pacote.
+            PrefixCacheMode = sessionMode ? PrefixCacheMode.Reuse : PrefixCacheMode.Disabled,
         }.Validate();
 
         var uri = KapiSimFixture.RequireUri(Environment.GetEnvironmentVariable("KAPILAB_MONGO_URI") ?? "mongodb://127.0.0.1:27017");
@@ -138,12 +145,13 @@ internal static class AgentModelRunCommand
         var temporaryRoot = LabWorkspace.ResolveOutput(root, temporaryRelativePath);
         var hash = await KapiSimFixture.SeedAsync(uri, domains, cancellationToken).ConfigureAwait(false);
         Directory.CreateDirectory(temporaryRoot);
-        await using var models = KapiLabModelServices.Create(catalog, fileAccess, "agent-run", root, gpuMode);
+        await using var models = KapiLabModelServices.Create(catalog, fileAccess, "agent-run", root, gpuMode,
+            allowUnvalidatedPrefixCache: sessionMode);
         Report report;
         try
         {
             report = await ExecuteAsync(input, domains, hash, uri, temporaryRoot, models, model, settings, packagePath, cancellationToken)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false) with { SessionMode = sessionMode };
         }
         catch (LocalModelUnavailableException exception) when (KapiLabModelServices.IsGpuLockUnavailable(exception))
         {

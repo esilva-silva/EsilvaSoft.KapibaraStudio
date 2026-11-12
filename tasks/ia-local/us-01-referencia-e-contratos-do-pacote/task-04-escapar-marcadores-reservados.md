@@ -1,6 +1,6 @@
 # KS-US01-T04 — Neutralizar marcadores reservados em texto não confiável
 
-**Estado de execução:** aberta; criação do arquivo não executa nem homologa a entrega. **Versão-alvo:** v0.11.0.
+**Estado de execução:** concluída na parte automatizável em 12/11/2026; nenhuma correção de produto foi necessária. **Versão-alvo:** v0.11.0.
 
 **User story:** [KS-US01 — Fixar a referência e fazer valer os contratos do pacote](README.md). **Requisitos relacionados:** MVP-012, MVP-013. **Entregas oficiais:** F02-E01.
 
@@ -27,11 +27,11 @@ Garantir que mensagem do usuário, anexos e resultados de tool contendo marcador
 
 ## Execução
 
-- [ ] Verificar o comportamento atual com `<tool_call>`, `</tool_call>`, `<tool_response>`, `<think>`, `</think>` e marcadores de turno do ChatML em cada origem de texto.
-- [ ] Corrigir onde o marcador atravessa, preservando o conteúdo legítimo para o usuário e o encoder JSON do contrato.
+- [x] Verificar o comportamento atual com `<tool_call>`, `</tool_call>`, `<tool_response>`, `<think>`, `</think>` e marcadores de turno do ChatML em cada origem de texto.
+- [x] Corrigir onde o marcador atravessa, preservando o conteúdo legítimo para o usuário e o encoder JSON do contrato.
 - [ ] Testar marcador partido entre chunks, em Unicode escapado e dentro de resultado truncado.
-- [ ] Confirmar que só a saída do próprio modelo é analisada pelo `LocalAgentToolCallParser`.
-- [ ] Atualizar os documentos oficiais afetados quando o comportamento mudar e registrar evidências e limitações pelo procedimento oficial, sem transportar contagens antigas como resultado do checkout.
+- [x] Confirmar que só a saída do próprio modelo é analisada pelo `LocalAgentToolCallParser`.
+- [x] Atualizar os documentos oficiais afetados quando o comportamento mudar e registrar evidências e limitações pelo procedimento oficial, sem transportar contagens antigas como resultado do checkout.
 
 ## Aceite e validação
 
@@ -43,15 +43,15 @@ Nenhuma origem externa produz `ToolRequested` ou evento de raciocínio; os bytes
 
 ## Registro de execução
 
-Preencher ao executar; nenhum resultado novo é declarado neste arquivo.
+Execução parcial registrada abaixo; itens não exercitados continuam abertos.
 
 | Campo | Registro |
 | --- | --- |
-| Snapshot e alterações locais | A registrar |
-| Data, responsável, ambiente e versões | A registrar |
-| Cenários, comandos, esperado e observado | A registrar |
-| Resultado por critério | Pendente |
-| Evidência oficial e artefatos sanitizados | A vincular em docs |
-| Limitações e bloqueios | A registrar com impacto, recurso faltante e próximo passo |
+| Snapshot e alterações locais | `fcc4b72` em `master`, com as alterações deste lote ainda não commitadas |
+| Data, responsável, ambiente e versões | 12/11/2026 · Claude Code a pedido do usuário · Windows 11 · .NET SDK 10.0.402 · sem modelo real, sem MongoDB |
+| Cenários, comandos, esperado e observado | Verificado no código e por teste: mensagem, contexto autorizado, anexos e resultado de tool chegam ao modelo como JSON do encoder padrão, com `<` e `>` escapados; o prompt de sistema por turno com `<tool_call>`, `<think>` ou `<|im_start|>` é recusado com `ContextRejected`. Testes `ReservedMarkersInUserTextAttachmentsAndToolResultsReachTheModelOnlyAsEscapedData` e `AForgedMarkerInThePerTurnSystemPromptRejectsTheContextBeforeTheModel`. Restore `--locked-mode`, build da solução com `-p:UsedAvaloniaProducts=` (0 avisos, 0 erros) e `dotnet test` da solução: Infrastructure.Agents.Tests 403/403; UnitTests 3.794 aprovados e 20 ignorados; IntegrationTests 1.126 aprovados, 20 ignorados e 1 falha (`AttachmentsCountTowardsTheInputLimitAndFailTypedWithoutAnyProcess`, bloqueado por variáveis de ambiente do Claude Code herdadas da sessão; não toca o código alterado). Foco: `--filter FullyQualifiedName~LocalAgentProvider` 38/38. |
+| Resultado por critério | Aprovado para as origens externas do provider local. |
+| Evidência oficial e artefatos sanitizados | `tests/EsilvaSoft.KapibaraStudio.UnitTests/LocalAgentProviderToolLoopTests.cs`; contrato atualizado em [IA local](../../../docs/MVP/contratos/ia-local.md) |
+| Limitações e bloqueios | Marcador partido entre chunks é coberto pelos testes existentes do parser, não reexecutados isoladamente; o comportamento do template nativo com as sequências escapadas não foi observado com modelo real. |
 
 Não armazenar credenciais, texto de raciocínio ou payloads sensíveis. Ao concluir, atualizar o estado de execução acima e os checklists com links para a evidência oficial; o estado dos requisitos continua no catálogo MVP.

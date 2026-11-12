@@ -11,6 +11,12 @@ public sealed record ModelGenerationRequest(string Prefix, string Suffix, int Co
     public int? Seed { get; init; }
 
     /// <summary>
+    /// Whether the runtime may restart this generation on CPU when the accelerated provider fails before the first
+    /// chunk. A multi-step turn clears it after its first step so the device does not change mid-turn.
+    /// </summary>
+    public bool AllowAccelerationFallback { get; init; } = true;
+
+    /// <summary>
     /// Prompt já tokenizado, no formato do modelo carregado (marcadores FIM inclusos). Quando presente, o runtime o
     /// usa como está e não tokeniza <see cref="Prefix"/>/<see cref="Suffix"/> de novo — quem montou o contexto na
     /// Fase 3 já pagou esse custo. O runtime continua validando se o prompt cabe na janela do modelo.

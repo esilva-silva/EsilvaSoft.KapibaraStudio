@@ -144,7 +144,7 @@ public sealed class OnnxLocalModelRuntime(IAutocompleteDiagnostics? diagnostics 
                     chunk = enumerator.Current;
                 }
                 // Depois do primeiro pedaço entregue, reiniciar na CPU duplicaria texto já exibido: a falha sobe.
-                catch (OnnxRuntimeGenAIException ex) when (!emitted && _provider.Kind != AiAccelerationMode.Cpu && !cancellationToken.IsCancellationRequested)
+                catch (OnnxRuntimeGenAIException ex) when (!emitted && request.AllowAccelerationFallback && _provider.Kind != AiAccelerationMode.Cpu && !cancellationToken.IsCancellationRequested)
                 {
                     accelerated = ex;
                     break;
@@ -275,7 +275,7 @@ public sealed class OnnxLocalModelRuntime(IAutocompleteDiagnostics? diagnostics 
             catch (Exception) { }
             var cancelled = cancellationToken.IsCancellationRequested || request.PrefixCache?.SessionLifetime.IsCancellationRequested == true;
             if ((!finalDelivered || cancelled || worker.IsFaulted) && request.PrefixCache is { } cache)
-                _prefixSessions.InvalidateSession(cache.SessionKey, worker.IsFaulted ? "failure" : cancelled ? "cancelled" : "abandoned");
+                _prefixSessions.InvalidateSession(PrefixReusePolicy.SessionKey(request), worker.IsFaulted ? "failure" : cancelled ? "cancelled" : "abandoned");
         }
     }
 
@@ -332,11 +332,8 @@ public sealed class OnnxLocalModelRuntime(IAutocompleteDiagnostics? diagnostics 
         var stopTexts = StopTexts(request);
         var window = stopTexts.Length == 0 ? 0 : stopTexts.Max(stop => stop.Length) - 1;
         var cache = request.PrefixCache;
-        var reuse = _provider.Kind == AiAccelerationMode.Cpu && request.ChatPrompt is null
-            && request.Temperature == 0 && request.TopP is null && request.TopK is null
-            && cache is { Mode: PrefixCacheMode.Reuse, SessionKey.Length: > 0 }
-            && _settings?.PrefixCacheMode == PrefixCacheMode.Reuse;
-        reuse &= allowUnvalidatedPrefixCache || _definition?.Metadata?.CpuPrefixCacheValidated == true;
+        var reuse = PrefixReusePolicy.IsEligible(_provider.Kind, request, _settings?.PrefixCacheMode,
+            _definition?.Metadata?.CpuPrefixCacheValidated == true, allowUnvalidatedPrefixCache);
         var cacheContextLength = Math.Min(_contextLength, Math.Max(request.ContextTokens, input.Length + request.MaximumTokens));
         using var parameters = new GeneratorParams(model);
         parameters.SetSearchOption("max_length", _definition?.IsHtpPipeline == true ? 2048 : reuse ? cacheContextLength : input.Length + request.MaximumTokens);
@@ -345,8 +342,8 @@ public sealed class OnnxLocalModelRuntime(IAutocompleteDiagnostics? diagnostics 
         if (request.TopP is { } topP && double.IsFinite(topP) && topP is > 0 and <= 1) parameters.SetSearchOption("top_p", topP);
         if (request.TopK is { } topK && topK > 0) parameters.SetSearchOption("top_k", topK);
         if (request.Seed is { } seed) parameters.SetSearchOption("random_seed", seed);
-        using var session = reuse ? _prefixSessions.Acquire(cache!.SessionKey, _settings!.PrefixCacheMaxSessions,
-            cacheContextLength, () => new Generator(model, parameters), cache.SessionLifetime) : null;
+        using var session = reuse ? _prefixSessions.Acquire(PrefixReusePolicy.SessionKey(request), _settings!.PrefixCacheMaxSessions,
+            cacheContextLength, () => new Generator(model, parameters), cache!.SessionLifetime) : null;
         using var transient = session is null ? new Generator(model, parameters) : null;
         var generator = session?.Generator ?? transient!;
         // Bloco mínimo reprocessado e teto do chamador: ver PrefixSessionCache.ReusableTokensForPrompt.

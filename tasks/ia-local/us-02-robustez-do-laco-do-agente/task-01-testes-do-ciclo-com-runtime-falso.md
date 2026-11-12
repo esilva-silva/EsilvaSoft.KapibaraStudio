@@ -1,6 +1,6 @@
 # KS-US02-T01 — Cobrir o ciclo de tools com runtime falso
 
-**Estado de execução:** aberta; criação do arquivo não executa nem homologa a entrega. **Versão-alvo:** v0.11.0.
+**Estado de execução:** concluída na parte automatizável em 12/11/2026; modelo real fica em KS-US05 e KS-US10. **Versão-alvo:** v0.11.0.
 
 **User story:** [KS-US02 — Tornar o laço do agente local previsível em sucesso e falha](README.md). **Requisitos relacionados:** MVP-013. **Entregas oficiais:** F02-E03.
 
@@ -23,12 +23,12 @@ Cobrir o laço de vários passos do `LocalAgentProvider` com um runtime falso de
 
 ## Execução
 
-- [ ] Criar runtime falso que emite sequências de tokens roteirizadas, inclusive `<think>` e `<tool_call>`.
-- [ ] Testar `ToolRequested` → `SubmitToolResultAsync` → resposta final, com um e com vários passos.
-- [ ] Testar o limite de chamadas por turno, o orçamento de raciocínio por passo e por turno e o fechamento forçado.
-- [ ] Testar o rollback do histórico quando o turno falha e a remoção do raciocínio entre turnos.
-- [ ] Testar resultado de tool truncado e com erro.
-- [ ] Atualizar os documentos oficiais afetados quando o comportamento mudar e registrar evidências e limitações pelo procedimento oficial, sem transportar contagens antigas como resultado do checkout.
+- [x] Criar runtime falso que emite sequências de tokens roteirizadas, inclusive `<think>` e `<tool_call>`.
+- [x] Testar `ToolRequested` → `SubmitToolResultAsync` → resposta final, com um e com vários passos.
+- [x] Testar o limite de chamadas por turno, o orçamento de raciocínio por passo e por turno e o fechamento forçado.
+- [x] Testar o rollback do histórico quando o turno falha e a remoção do raciocínio entre turnos.
+- [x] Testar resultado de tool truncado e com erro.
+- [x] Atualizar os documentos oficiais afetados quando o comportamento mudar e registrar evidências e limitações pelo procedimento oficial, sem transportar contagens antigas como resultado do checkout.
 
 ## Aceite e validação
 
@@ -40,15 +40,15 @@ Os cenários acima passam sem modelo real e falham quando o comportamento corres
 
 ## Registro de execução
 
-Preencher ao executar; nenhum resultado novo é declarado neste arquivo.
+Execução parcial registrada abaixo; itens não exercitados continuam abertos.
 
 | Campo | Registro |
 | --- | --- |
-| Snapshot e alterações locais | A registrar |
-| Data, responsável, ambiente e versões | A registrar |
-| Cenários, comandos, esperado e observado | A registrar |
-| Resultado por critério | Pendente |
-| Evidência oficial e artefatos sanitizados | A vincular em docs |
-| Limitações e bloqueios | A registrar com impacto, recurso faltante e próximo passo |
+| Snapshot e alterações locais | `fcc4b72` em `master`, com as alterações deste lote ainda não commitadas |
+| Data, responsável, ambiente e versões | 12/11/2026 · Claude Code a pedido do usuário · Windows 11 · .NET SDK 10.0.402 · sem modelo real, sem MongoDB |
+| Cenários, comandos, esperado e observado | Runtime roteirizado por passo (tokens de `<think>` e `<tool_call>`) e registry falso que só anuncia descritores. 20 testes novos: ciclo de uma e de várias tools, limite de chamadas, orçamento por passo e por turno, fechamento forçado, retry de envelope, rollback do histórico, raciocínio fora do turno seguinte, resultado truncado e com erro. Restore `--locked-mode`, build da solução com `-p:UsedAvaloniaProducts=` (0 avisos, 0 erros) e `dotnet test` da solução: Infrastructure.Agents.Tests 403/403; UnitTests 3.794 aprovados e 20 ignorados; IntegrationTests 1.126 aprovados, 20 ignorados e 1 falha (`AttachmentsCountTowardsTheInputLimitAndFailTypedWithoutAnyProcess`, bloqueado por variáveis de ambiente do Claude Code herdadas da sessão; não toca o código alterado). Foco: `--filter FullyQualifiedName~LocalAgentProvider` 38/38. |
+| Resultado por critério | Aprovado. Os testes falharam antes das correções correspondentes (estouro de janela e raciocínio cancelado), o que mostra que detectam regressão. |
+| Evidência oficial e artefatos sanitizados | `tests/EsilvaSoft.KapibaraStudio.UnitTests/LocalAgentProviderToolLoopTests.cs`; contrato atualizado em [IA local](../../../docs/MVP/contratos/ia-local.md) |
+| Limitações e bloqueios | O registry real e a auditoria não participam destes testes; a fronteira de permissões continua coberta pelos testes de registry existentes. |
 
 Não armazenar credenciais, texto de raciocínio ou payloads sensíveis. Ao concluir, atualizar o estado de execução acima e os checklists com links para a evidência oficial; o estado dos requisitos continua no catálogo MVP.

@@ -49,7 +49,7 @@ kapilab catalog plans --in <plan-cases.json> [--out <plan-snapshot.json>]
 kapilab catalog invoke (--in <legacy.json> | --fixture <fixture.json>) [--out <report.json>]
 kapilab fixture seed --fixture <fixture.json>
 kapilab agent replay --in <replay-cases.json> [--out <report.json>]
-kapilab agent run --package <pacote-agente> --in <agent-tasks.json> [--out <report.json>] [--device auto|cpu|gpu|npu] [--standalone-gpu|--via-queue] [--context-tokens <n>] [--task-timeout <s>]
+kapilab agent run --package <pacote-agente> --in <agent-tasks.json> [--out <report.json>] [--device auto|cpu|gpu|npu] [--standalone-gpu|--via-queue] [--context-tokens <n>] [--task-timeout <s>] [--session-mode]
 kapilab matrix run --in <process-matrix.json> [--out <report.json>]
 kapilab report evaluate --gates <gates.json> --evidence <run-evidence.json> --out reports/lab/report.json
 kapilab report merge <report.json> <report.json> [...] --out reports/lab/merged.json
@@ -169,6 +169,10 @@ produção e bancos sintéticos semeados. A diferença é que o turno é dirigid
 - O relatório `kapilab-agent-run-report-v1` traz, por tarefa: as chamadas de tool (nome, status e código), a resposta final, os tokens
   de raciocínio, as propostas, o tempo, os comandos MongoDB observados e as checagens de aceite. O resumo traz a taxa de aprovação.
 - Saída 0 quando todas as tarefas passam; 6 em caso de reprovação.
+- `--session-mode` pede a sessão de geração por turno: os passos de um turno reaproveitam o KV do prefixo comum em vez de reprocessar
+  o prompt inteiro. Só tem efeito com `--device cpu`; nos demais dispositivos a rodada é idêntica à sem a opção. O laboratório aceita
+  pacote ainda não homologado, o produto não. O relatório registra `sessionMode`; para medir o ganho, rode as mesmas tarefas com e sem
+  a opção, na mesma máquina ociosa, e compare o tempo por tarefa e as respostas.
 - O caso de referência está em `Fixtures/kapi-sim/cases/agent-tasks.json`: 10 tarefas que cobrem as 8 tools de produto, mais uma
   resposta direta sem tool.
 
