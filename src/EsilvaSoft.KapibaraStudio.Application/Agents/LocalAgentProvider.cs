@@ -81,23 +81,37 @@ public sealed class LocalAgentProvider : IAgentProvider
         if (validation.Validity != LocalModelValidity.Valid || validation.Model is not { } model)
             return new(false, LocalAgentUnavailableReason.ModelMissingOrInvalid, LocalAgentCapabilities.None);
 
+        var localCapabilities = CapabilitiesOf(model, out var contractSupported);
+        return localCapabilities.FimCodeProposals || localCapabilities.Chat
+            ? new(true, LocalAgentUnavailableReason.None, localCapabilities, model.Name, model)
+            : new(false, contractSupported ? LocalAgentUnavailableReason.ModelMissingOrInvalid
+                : LocalAgentUnavailableReason.AgentContractUnsupported, LocalAgentCapabilities.None, model.Name, model);
+    }
+
+    /// <summary>
+    /// O que um pacote validado oferece ao agente local, só pelo que ele declara: agente com tools (pacote Qwen3 com
+    /// bloco agent e contrato conhecido) e/ou propostas FIM. É a mesma regra da disponibilidade, exposta para que a
+    /// seleção de modelo liste apenas pacotes que o agente consegue usar.
+    /// </summary>
+    public static LocalAgentCapabilities CapabilitiesOf(LocalModelDefinition model, out bool contractSupported)
+    {
+        ArgumentNullException.ThrowIfNull(model);
         var capabilities = model.Capabilities;
         // Um contrato declarado e desconhecido significa que o pacote espera outro prompt: não é servido como agente.
         // Ausência do campo mantém pacotes anteriores carregáveis (só o gate estrito do laboratório o exige).
-        var contractSupported = model.Metadata?.AgentContract is not { } contract ||
+        contractSupported = model.Metadata?.AgentContract is not { } contract ||
             string.Equals(contract, LocalAgentPromptBuilder.ContractId, StringComparison.Ordinal);
         var proposals = capabilities.HasFlag(LocalModelCapabilities.Fim) && capabilities.HasFlag(LocalModelCapabilities.Chat);
         var agent = capabilities.HasFlag(LocalModelCapabilities.Agent) && capabilities.HasFlag(LocalModelCapabilities.Tools) &&
             capabilities.HasFlag(LocalModelCapabilities.Chat) && model.Metadata?.Agent is not null &&
             model.PromptFormat == LocalModelPromptFormats.Qwen3ChatMlTools && contractSupported;
         var reasoning = agent && capabilities.HasFlag(LocalModelCapabilities.Reasoning) && model.Metadata?.Reasoning is { Supported: true };
-        var localCapabilities = new LocalAgentCapabilities(proposals, Chat: agent, ToolCalling: agent,
-            Sessions: agent, TurnPlan: agent, Reasoning: reasoning);
-        return proposals || agent
-            ? new(true, LocalAgentUnavailableReason.None, localCapabilities, model.Name, model)
-            : new(false, contractSupported ? LocalAgentUnavailableReason.ModelMissingOrInvalid
-                : LocalAgentUnavailableReason.AgentContractUnsupported, LocalAgentCapabilities.None, model.Name, model);
+        return new LocalAgentCapabilities(proposals, Chat: agent, ToolCalling: agent, Sessions: agent, TurnPlan: agent, Reasoning: reasoning);
     }
+
+    /// <summary>True quando o pacote pode ser escolhido para o agente local (com tools ou só com propostas FIM).</summary>
+    public static bool CanServeAgent(LocalModelDefinition model) =>
+        CapabilitiesOf(model, out _) is { Chat: true } or { FimCodeProposals: true };
 
     public async Task<IAgentSession> CreateSessionAsync(AgentSessionOptions options, CancellationToken cancellationToken)
     {

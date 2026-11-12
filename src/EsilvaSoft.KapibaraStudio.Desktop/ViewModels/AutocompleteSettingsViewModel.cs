@@ -267,9 +267,13 @@ public sealed partial class AutocompleteSettingsViewModel(IAutocompleteService s
             try
             {
                 Models.Clear();
-                foreach (var model in found.Where(candidate => candidate.Model is not null)) Models.Add(new(FolderOf(model.Path), false, model));
+                // Cada lista só oferece o que o pacote declara saber fazer: um pacote só de agente não é escolhido para o
+                // autocomplete e vice-versa. Uma escolha já salva continua visível mais abaixo, mesmo fora do filtro.
+                foreach (var model in found.Where(candidate => candidate.Model is { } definition &&
+                             definition.Capabilities.HasFlag(LocalModelCapabilities.Autocomplete)))
+                    Models.Add(new(FolderOf(model.Path), false, model));
                 AgentModels.Clear();
-                foreach (var model in found.Where(candidate => candidate.Model is not null))
+                foreach (var model in found.Where(candidate => candidate.Model is { } definition && Application.Agents.LocalAgentProvider.CanServeAgent(definition)))
                     AgentModels.Add(new LocalModelOption(FolderOf(model.Path), false, model));
                 if (_chatModel.Length > 0 && !AgentModels.Any(option => string.Equals(option.Reference, _chatModel, PathComparison)))
                 {

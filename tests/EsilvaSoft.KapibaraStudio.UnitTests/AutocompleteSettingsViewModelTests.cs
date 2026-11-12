@@ -11,6 +11,9 @@ namespace EsilvaSoft.KapibaraStudio.UnitTests;
 [TestFixture]
 public sealed class AutocompleteSettingsViewModelTests
 {
+    private static readonly string[] AutocompletePackages = ["nano-fim", "so-autocomplete"];
+    private static readonly string[] AgentPackages = ["nano-fim", "agent-qwen3"];
+
     [Test]
     public void IdleTimeoutDefaultsMigratesAndRoundTripsThroughPreferences()
     {
@@ -65,6 +68,74 @@ public sealed class AutocompleteSettingsViewModelTests
         preferences.ChatModel = "agent-qwen";
         preferences.Load(preferences.Snapshot());
         Assert.That(preferences.ChatModel, Is.EqualTo("agent-qwen"));
+    }
+
+    private sealed class ManyModelsCatalog(params LocalModelDefinition[] models) : ILocalModelCatalog
+    {
+        public string DefaultDirectory => "models";
+        public Task<IReadOnlyList<LocalModelValidation>> DiscoverAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<LocalModelValidation>>(
+                [.. models.Select(model => new LocalModelValidation(model, new(LocalModelState.Available, "available")))]);
+        public Task<LocalModelValidation> ValidateAsync(string path, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new LocalModelValidation(models.FirstOrDefault(model => model.Path == path),
+                new(LocalModelState.Available, "available")));
+    }
+
+    private static LocalModelDefinition Package(string folder, LocalModelCapabilities capabilities, string? agentContract = null,
+        bool agentBlock = false) =>
+        new(folder, folder, Path.Combine("models", folder), agentBlock ? "Qwen3" : "Qwen2.5-Coder")
+        {
+            Capabilities = capabilities,
+            PromptFormat = agentBlock ? LocalModelPromptFormats.Qwen3ChatMlTools : LocalModelPromptFormats.QwenFim,
+            Metadata = new LocalModelMetadata
+            {
+                AgentContract = agentContract,
+                Agent = agentBlock ? new("qwen3-chatml-tools-v1", "chat_template.jinja", "qwen-hermes-json", "kapibara-tools-2026-10", 12, 6144, null) : null,
+            },
+        };
+
+    [Test]
+    public async Task EachRoleListsOnlyThePackagesThatCanServeIt()
+    {
+        const LocalModelCapabilities agentOnly = LocalModelCapabilities.Chat | LocalModelCapabilities.Agent | LocalModelCapabilities.Tools;
+        var catalog = new ManyModelsCatalog(
+            Package("nano-fim", LocalModelCapabilities.Autocomplete | LocalModelCapabilities.Chat | LocalModelCapabilities.Fim),
+            Package("agent-qwen3", agentOnly, "local-agent-qwen3-v1", agentBlock: true),
+            Package("agent-futuro", agentOnly, "local-agent-qwen3-v9", agentBlock: true),
+            Package("agent-sem-bloco", agentOnly),
+            Package("so-autocomplete", LocalModelCapabilities.Autocomplete | LocalModelCapabilities.Fim),
+            Package("embeddings", LocalModelCapabilities.Embeddings));
+        var preferences = new AutocompleteSettingsViewModel(new CompletionServiceFake(), catalog, save: _ => Task.CompletedTask);
+        preferences.Load(new());
+
+        await preferences.RefreshModelsCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(preferences.Models.Select(option => option.Reference), Is.EquivalentTo(AutocompletePackages),
+                "Pacote só de agente ou de embeddings não é oferecido ao autocomplete.");
+            Assert.That(preferences.AgentModels.Select(option => option.Reference), Is.EquivalentTo(AgentPackages),
+                "O agente lista pacotes de agente com contrato conhecido e pacotes FIM com chat; contrato desconhecido, bloco ausente e autocomplete puro ficam fora.");
+        });
+    }
+
+    [Test]
+    public async Task ASavedChoiceOutsideTheRoleFilterStaysVisibleInsteadOfBeingDroppedSilently()
+    {
+        var catalog = new ManyModelsCatalog(
+            Package("nano-fim", LocalModelCapabilities.Autocomplete | LocalModelCapabilities.Chat | LocalModelCapabilities.Fim),
+            Package("so-autocomplete", LocalModelCapabilities.Autocomplete | LocalModelCapabilities.Fim));
+        var preferences = new AutocompleteSettingsViewModel(new CompletionServiceFake(), catalog, save: _ => Task.CompletedTask);
+        preferences.Load(new() { SelectedModel = "nano-fim", ChatModel = "so-autocomplete" });
+
+        await preferences.RefreshModelsCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(preferences.ChatModel, Is.EqualTo("so-autocomplete"), "A escolha salva não é trocada por outra.");
+            Assert.That(preferences.AgentModels.Select(option => option.Reference), Does.Contain("so-autocomplete"));
+            Assert.That(preferences.Snapshot().ChatModel, Is.EqualTo("so-autocomplete"));
+        });
     }
 
     [Test]
