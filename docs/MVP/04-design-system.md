@@ -6,7 +6,7 @@ Preservar experiência desktop de edição prolongada: barra superior, lateral C
 
 Janela inicial 1440×900, mínima 960×620; Explorer inicial 260, ajustável 200–420; editor/resultados em torno de 60/40, mínimos 180/140; divisores de 5 unidades lógicas. Modal deve caber na proprietária com conteúdo rolável. Controles usam recursos/medidas existentes e espaçamentos múltiplos de 4.
 
-Painel Agente IA fica à direita, largura inicial 380, mínima 320 e máxima 560; preserva pelo menos 690 para a área de abas. Sem espaço, ocupa superfície própria com retorno explícito ao editor. Não restaurar assistente por aba nem criar chat separado de workflow.
+Painel Agente IA fica à direita, largura inicial 380, mínima 320 e máxima 560; preserva pelo menos 690 para a área de abas. Sem espaço, ocupa superfície própria com retorno explícito ao editor. Não restaurar assistente por aba nem criar chat separado de workflow. Opção de provider que o pacote não permite alterar permanece visível, no estado efetivo e bloqueada, com o motivo em dica exibida também com o controle desabilitado; é o caso de Raciocínio em modelo local que sempre raciocina. Código de erro ou de indisponibilidade do agente local sempre tem mensagem legível nos quatro idiomas; o código cru só aparece como complemento.
 
 ## Hierarquia, tema e localização
 

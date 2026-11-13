@@ -1,6 +1,6 @@
 # KS-US07-T04 — Atualizar guia e design system
 
-**Estado de execução:** aberta; criação do arquivo não executa nem homologa a entrega. **Versão-alvo:** v0.11.0.
+**Estado de execução:** em andamento; guia e design system atualizados em 13/11/2026 para o que foi entregue. **Versão-alvo:** v0.11.0.
 
 **User story:** [KS-US07 — Completar a experiência do agente local no painel](README.md). **Requisitos relacionados:** MVP-011, MVP-013. **Entregas oficiais:** F02-E03, F02-E05.
 
@@ -23,8 +23,8 @@ Descrever no guia e no design system o agente local, o raciocínio e seus estado
 
 ## Execução
 
-- [ ] Documentar preferências, estados, limites e o que não é persistido.
-- [ ] Documentar o uso sem modelo e a escolha de modelo por papel.
+- [x] Documentar preferências, estados, limites e o que não é persistido.
+- [x] Documentar o uso sem modelo e a escolha de modelo por papel.
 - [ ] Conferir atalhos e termos pt-BR com a interface.
 - [ ] Atualizar os documentos oficiais afetados quando o comportamento mudar e registrar evidências e limitações pelo procedimento oficial, sem transportar contagens antigas como resultado do checkout.
 
@@ -38,15 +38,15 @@ Guia e design system correspondem à interface entregue.
 
 ## Registro de execução
 
-Preencher ao executar; nenhum resultado novo é declarado neste arquivo.
+Execução parcial registrada abaixo; itens não exercitados continuam abertos.
 
 | Campo | Registro |
 | --- | --- |
-| Snapshot e alterações locais | A registrar |
-| Data, responsável, ambiente e versões | A registrar |
-| Cenários, comandos, esperado e observado | A registrar |
-| Resultado por critério | Pendente |
-| Evidência oficial e artefatos sanitizados | A vincular em docs |
-| Limitações e bloqueios | A registrar com impacto, recurso faltante e próximo passo |
+| Snapshot e alterações locais | `c41de38` no branch `ia-local-us06`, com as alterações deste lote ainda não commitadas |
+| Data, responsável, ambiente e versões | 13/11/2026 · Claude Code a pedido do usuário · Windows 11 · .NET SDK 10.0.402 · Headless, sem modelo real |
+| Cenários, comandos, esperado e observado | Guia: seleção de modelo por papel, alternador de raciocínio e orçamento conforme o pacote, raciocínio fora do histórico salvo com retenção, e mensagens próprias de falha do agente local. Design system: opção que o pacote não permite alterar fica visível, no estado efetivo e bloqueada, com o motivo em dica; código de erro local sempre com mensagem legível. `node scripts/check-docs-reader.cjs` aprovado. Build da solução com `-p:UsedAvaloniaProducts=`: 0 avisos, 0 erros. `dotnet test` da solução: Infrastructure.Agents.Tests 403/403; UnitTests 3.805 aprovados e 20 ignorados; IntegrationTests 1.143 aprovados, 20 ignorados e 2 falhas: `AttachmentsCountTowardsTheInputLimitAndFailTypedWithoutAnyProcess` (bloqueado por variáveis de ambiente do Claude Code herdadas da sessão) e `CancelledNativeDeletionPreservesLocalStateAndAllowsIdempotentRetry(True)`, teste de exclusão de sessão Copilot que falhou uma vez na suíte integral e passou três vezes isolado; causa não diagnosticada. |
+| Resultado por critério | Parcial: documentos correspondem ao que este lote e o de KS-US06 entregaram. |
+| Evidência oficial e artefatos sanitizados | `tests/EsilvaSoft.KapibaraStudio.IntegrationTests/AgentChatReasoningToggleUiTests.cs`, `LocalAgentProviderToolLoopTests.cs`; [guia](../../../docs/MVP/05-guia-de-uso.md) e [design system](../../../docs/MVP/04-design-system.md) atualizados |
+| Limitações e bloqueios | A conferência de atalhos e termos pt-BR com a interface não foi refeita; estados de espera ainda não existem para documentar. |
 
 Não armazenar credenciais, texto de raciocínio ou payloads sensíveis. Ao concluir, atualizar o estado de execução acima e os checklists com links para a evidência oficial; o estado dos requisitos continua no catálogo MVP.

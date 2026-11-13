@@ -144,7 +144,8 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
     [NotifyPropertyChangedFor(nameof(IsExternalDestination), nameof(DestinationText), nameof(DestinationHint),
         nameof(HasModels), nameof(IsStatusError), nameof(ProviderSummary), nameof(ModeText), nameof(HasModeText), nameof(ReadScopeText),
         nameof(HasReadScope), nameof(ReadScopeSummary), nameof(IsReadScopeCritical), nameof(SupportsTurnPlan), nameof(AreChipsEnabled),
-        nameof(ShowChipsDisabledNotice), nameof(IsCopilotSubscriptionSelected), nameof(SupportsReasoning), nameof(IsReasoningOptionVisible), nameof(ReasoningBudgets))]
+        nameof(ShowChipsDisabledNotice), nameof(IsCopilotSubscriptionSelected), nameof(SupportsReasoning), nameof(IsReasoningOptionVisible), nameof(ReasoningBudgets),
+        nameof(IsReasoningAlwaysOn), nameof(CanToggleReasoning), nameof(ReasoningToggleHint))]
     private AgentProviderOption? _selectedProvider;
 
     [ObservableProperty] private string? _selectedModel;
@@ -161,7 +162,7 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(StatusText), nameof(StatusSummary), nameof(IsStatusError), nameof(IsBusy), nameof(IsIdle),
-        nameof(CanChangeProvider), nameof(ShowStatusLine), nameof(ShowStatusArea), nameof(ShowEmptyInvitation), nameof(ShowRefreshProviders))]
+        nameof(CanToggleReasoning), nameof(CanChangeProvider), nameof(ShowStatusLine), nameof(ShowStatusArea), nameof(ShowEmptyInvitation), nameof(ShowRefreshProviders))]
     private AgentChatState _state;
 
     /// <summary>Idle notice of the panel (e.g. provider switched); turn details belong to the conversation.</summary>
@@ -204,6 +205,14 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
     public bool SupportsReasoning => SelectedProvider?.Presentation.SupportsReasoning == true;
 
     public bool IsReasoningOptionVisible => IsFeatureAvailable && SupportsReasoning;
+
+    /// <summary>The selected package always reasons: the choice is shown, checked and locked, with the reason in its tooltip.</summary>
+    public bool IsReasoningAlwaysOn => SupportsReasoning && SelectedProvider?.Presentation.ReasoningCanBeDisabled == false;
+
+    public bool CanToggleReasoning => IsIdle && !IsReasoningAlwaysOn;
+
+    /// <summary>Explains a locked toggle; null keeps the control without a tooltip.</summary>
+    public string? ReasoningToggleHint => IsReasoningAlwaysOn ? Text.Resolve("agentReasoningAlwaysOn") : null;
 
     public bool IsReasoningRetentionVisible => IsReasoningOptionVisible &&
         string.Equals(SelectedProvider?.ProviderId, LocalAgentProvider.Id, StringComparison.Ordinal);
@@ -598,6 +607,14 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
 
     partial void OnSelectedProviderChanged(AgentProviderOption? oldValue, AgentProviderOption? newValue)
     {
+        // Vale também na carga inicial e na atualização do catálogo, quando a troca de provider é suprimida: um pacote que
+        // sempre raciocina não pode ficar com a opção desmarcada por uma preferência salva com outro pacote.
+        if (IsReasoningAlwaysOn && !ReasoningEnabled)
+        {
+            _loadingProviderReasoningPreference = true;
+            try { ReasoningEnabled = true; }
+            finally { _loadingProviderReasoningPreference = false; }
+        }
         if (_suppressProviderSwitch)
         {
             return;
@@ -626,7 +643,8 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
         _loadingProviderReasoningPreference = true;
         try
         {
-            ReasoningEnabled = reasoning?.Enabled ?? provider.Presentation.ReasoningDefaultEnabled;
+            // Uma preferência salva com outro pacote não desliga o raciocínio de um pacote que sempre pensa.
+            ReasoningEnabled = IsReasoningAlwaysOn || (reasoning?.Enabled ?? provider.Presentation.ReasoningDefaultEnabled);
             var budgetOptions = ReasoningBudgets;
             var preferredBudget = reasoning?.BudgetTokens ?? provider.Presentation.ReasoningDefaultBudgetTokens ?? 512;
             SelectedReasoningBudget = budgetOptions.Count == 0 ? 512 : budgetOptions.OrderBy(value => Math.Abs(value - preferredBudget)).First();
@@ -790,6 +808,7 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
         _readScopeCache = null;
         OnPropertyChanged(nameof(IsBusy));
         OnPropertyChanged(nameof(IsIdle));
+        OnPropertyChanged(nameof(CanToggleReasoning));
         OnPropertyChanged(nameof(CanChangeProvider));
         OnPropertyChanged(nameof(ReadScopeText));
         OnPropertyChanged(nameof(HasReadScope));
@@ -820,6 +839,7 @@ public sealed partial class AgentChatViewModel : ObservableObject, IAsyncDisposa
     {
         OnPropertyChanged(nameof(IsBusy));
         OnPropertyChanged(nameof(IsIdle));
+        OnPropertyChanged(nameof(CanToggleReasoning));
         OnPropertyChanged(nameof(CanChangeProvider));
         // Provider availability/auth refresh may finish while a turn is already connecting or streaming. Restore the
         // active conversation's own state when switching back to it; the turn completion calls this method again

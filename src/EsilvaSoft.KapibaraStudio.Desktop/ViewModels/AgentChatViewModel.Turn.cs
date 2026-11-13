@@ -99,7 +99,7 @@ public sealed partial class AgentChatViewModel
         var mode = SelectedMode.Mode;
         var modelId = SelectedModel;
         var reasoning = provider.Presentation.SupportsReasoning
-            ? new AgentReasoningOptions(ReasoningEnabled, SelectedReasoningBudget)
+            ? new AgentReasoningOptions(ReasoningEnabled || IsReasoningAlwaysOn, SelectedReasoningBudget)
             : null;
         var conversation = ActiveConversation;
         var context = _host.CaptureWorkspace();

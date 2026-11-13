@@ -50,7 +50,8 @@ public sealed record AgentProviderPresentation(
     bool ReasoningDefaultEnabled = false,
     int? ReasoningDefaultBudgetTokens = null,
     int? ReasoningMinimumBudgetTokens = null,
-    int? ReasoningMaximumBudgetTokens = null)
+    int? ReasoningMaximumBudgetTokens = null,
+    bool ReasoningCanBeDisabled = true)
 {
     /// <summary>
     /// Builds the view from promoted contracts. Destination comes from the catalog entry (provider <c>IsLocal</c>), the
@@ -74,7 +75,8 @@ public sealed record AgentProviderPresentation(
             ReasoningDefaultEnabled: status.Capabilities.Reasoning && status.ReasoningDefaultEnabled == true,
             ReasoningDefaultBudgetTokens: status.ReasoningDefaultBudgetTokens,
             ReasoningMinimumBudgetTokens: status.ReasoningMinimumBudgetTokens,
-            ReasoningMaximumBudgetTokens: status.ReasoningMaximumBudgetTokens);
+            ReasoningMaximumBudgetTokens: status.ReasoningMaximumBudgetTokens,
+            ReasoningCanBeDisabled: status.ReasoningCanBeDisabled != false);
     }
 }
 

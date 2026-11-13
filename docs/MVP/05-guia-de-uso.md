@@ -37,6 +37,8 @@ Ctrl+Espaço abre autocomplete determinístico. Tab aceita ghost e Escape descar
 
 Abra Agente IA por Ctrl+Shift+A. Selecione provider/modelo disponível, contexto e permissões; envie pelo botão ou Ctrl+Enter no composer. Revise propostas e destino antes de aplicar. Consentimento de resultados/diagnósticos se refere a execução humana capturada: agente não consulta documentos nem escreve no MongoDB.
 
+Com a IA local, as preferências de IA listam em cada papel só os pacotes que servem a ele: no autocomplete, pacotes com autocomplete; no agente, pacotes de agente com contrato conhecido ou pacotes FIM com chat. Uma escolha já salva continua visível mesmo fora da lista. No painel, Raciocínio e o orçamento de tokens seguem os limites do pacote; quando o modelo sempre raciocina, a opção fica marcada e bloqueada, com a explicação na dica, e só o orçamento muda. O raciocínio aparece no painel e não é guardado no histórico, salvo com a opção de retenção. Falhas do agente local trazem mensagem própria, por exemplo quando o pedido não cabe na janela de contexto ou o modelo pede uma ferramenta não permitida.
+
 Copilot exige instalação oficial compatível e conta elegível. Caminho explícito inválido gera diagnóstico sem fallback. Opt-out de histórico local não promete apagar dados remotos nem histórico anterior.
 
 ## Gestão e transferência

@@ -55,6 +55,9 @@ public sealed class LocalAgentProvider : IAgentProvider
             ReasoningDefaultBudgetTokens = availability.Model?.Metadata?.Reasoning?.BudgetTokens?.Default,
             ReasoningMinimumBudgetTokens = availability.Model?.Metadata?.Reasoning?.BudgetTokens?.Minimum,
             ReasoningMaximumBudgetTokens = availability.Model?.Metadata?.Reasoning?.BudgetTokens?.Maximum,
+            // Pacotes que sempre pensam (toggle "none") recusam o pedido de desligar; a interface precisa saber antes de enviar.
+            ReasoningCanBeDisabled = availability.Capabilities.Reasoning && availability.Model?.Metadata?.Reasoning is { } reasoning
+                ? reasoning.Toggle != "none" : null,
         };
     }
 

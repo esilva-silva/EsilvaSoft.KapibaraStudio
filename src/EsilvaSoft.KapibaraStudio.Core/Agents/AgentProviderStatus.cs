@@ -46,6 +46,8 @@ public sealed record AgentProviderStatus
     public int? ReasoningDefaultBudgetTokens { get; init; }
     public int? ReasoningMinimumBudgetTokens { get; init; }
     public int? ReasoningMaximumBudgetTokens { get; init; }
+    /// <summary>False when the package always reasons and a request to turn reasoning off would be refused; null when undeclared.</summary>
+    public bool? ReasoningCanBeDisabled { get; init; }
 
     /// <summary>Status of a provider that does not report one. Fails closed: unavailable, nothing declared.</summary>
     public static AgentProviderStatus NotReported { get; } =

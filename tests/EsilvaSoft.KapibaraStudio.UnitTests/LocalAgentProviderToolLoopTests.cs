@@ -27,6 +27,7 @@ public sealed class LocalAgentProviderToolLoopTests
     private static readonly string[] ToolStepRoles = ["system", "user", "assistant", "tool", "user"];
     private static readonly string[] SecondTurnRoles = ["system", "user", "assistant", "user"];
     private static readonly string[] ExternalRoles = ["user", "tool", "user"];
+    private static readonly string[] Languages = ["pt-BR", "en", "es", "zh-CN"];
     private static readonly bool[] FallbackByStep = [true, false, true];
 
     private sealed class RegistryFake(params string[] names) : IAgentToolRegistry
@@ -613,6 +614,47 @@ public sealed class LocalAgentProviderToolLoopTests
             Assert.That(failure.UnavailableReason, Is.EqualTo(LocalModelUnavailableReason.ModelInvalid));
             Assert.That(failure.Message, Does.Contain("contrato de agente"));
         });
+    }
+
+    [TestCase("hard", true)]
+    [TestCase("none", false, Description = "Pacote que sempre pensa: a interface precisa saber que não dá para desligar.")]
+    public async Task TheStatusTellsWhetherReasoningCanBeTurnedOff(string toggle, bool canBeDisabled)
+    {
+        await using var harness = new Harness(new ScriptedRuntime(), AgentModel(toggle: toggle));
+        await harness.Autocomplete.ConfigureAsync(Selected);
+
+        var status = await ((IAgentProvider)harness.Provider).GetStatusAsync(CancellationToken.None);
+
+        Assert.That(status.ReasoningCanBeDisabled, Is.EqualTo(canBeDisabled));
+    }
+
+    [Test]
+    public async Task EveryLocalErrorAndUnavailabilityCodeHasAReadableMessageInEveryLanguage()
+    {
+        await using var harness = new Harness(new ScriptedRuntime());
+        await using var session = await harness.StartAsync();
+        var keys = session.ProviderErrorCodes.Select(code => "agentError." + code)
+            .Concat(Enum.GetValues<LocalAgentUnavailableReason>().Where(reason => reason != LocalAgentUnavailableReason.None)
+                .Select(reason => "agentUnavailable." + reason))
+            .ToArray();
+        var text = EsilvaSoft.KapibaraStudio.Desktop.ViewModels.LocalizationViewModel.Current;
+        var original = text.Language;
+        try
+        {
+            Assert.Multiple(() =>
+            {
+                foreach (var language in Languages)
+                {
+                    text.Language = language;
+                    foreach (var key in keys)
+                    {
+                        Assert.That(text.HasTranslation(key), Is.True, key);
+                        Assert.That(text.Resolve(key), Is.Not.EqualTo(key).And.Not.Empty, $"{key} ({language})");
+                    }
+                }
+            });
+        }
+        finally { text.Language = original; }
     }
 
     [TestCase(LocalAgentPromptBuilder.ContractId)]

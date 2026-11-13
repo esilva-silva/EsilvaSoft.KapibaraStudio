@@ -360,7 +360,8 @@
         </Grid>
         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" IsVisible="{Binding IsReasoningOptionVisible}">
           <CheckBox x:Name="ReasoningToggle" Content="{local:Loc Key=agentReasoningToggle}" IsChecked="{Binding ReasoningEnabled}"
-                    IsEnabled="{Binding IsIdle}" AutomationProperties.Name="{local:Loc Key=agentReasoningToggle}" />
+                    IsEnabled="{Binding CanToggleReasoning}" AutomationProperties.Name="{local:Loc Key=agentReasoningToggle}"
+                    ToolTip.ShowOnDisabled="True" ToolTip.Tip="{Binding ReasoningToggleHint}" />
           <TextBlock Grid.Column="1" Text="{local:Loc Key=agentReasoningBudget}" Classes="metadata" VerticalAlignment="Center" />
           <ComboBox Grid.Column="2" ItemsSource="{Binding ReasoningBudgets}" SelectedItem="{Binding SelectedReasoningBudget}"
                     IsEnabled="{Binding IsIdle}" AutomationProperties.Name="{local:Loc Key=agentReasoningBudget}" MinWidth="92" />

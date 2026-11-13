@@ -99,6 +99,7 @@ public sealed class AgentProviderCatalog
             ReasoningDefaultBudgetTokens = status.Capabilities.Reasoning ? status.ReasoningDefaultBudgetTokens : null,
             ReasoningMinimumBudgetTokens = status.Capabilities.Reasoning ? status.ReasoningMinimumBudgetTokens : null,
             ReasoningMaximumBudgetTokens = status.Capabilities.Reasoning ? status.ReasoningMaximumBudgetTokens : null,
+            ReasoningCanBeDisabled = status.Capabilities.Reasoning ? status.ReasoningCanBeDisabled : null,
         };
     }
 
