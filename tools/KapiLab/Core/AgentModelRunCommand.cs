@@ -39,14 +39,118 @@ internal static class AgentModelRunCommand
         int AnswerChars, int? ReasoningTokens, bool? ReasoningTruncated, int Proposals, double DurationMs,
         bool ExpectedToolsCalled, bool ExpectedToolsSucceeded, bool ForbiddenToolsAvoided, bool AnswerContainsExpected, bool AllToolCallsSucceeded,
         bool Passed,
-        string[] MissingTools, string[] MissingAnswerParts, FixtureMongoAccess.Command[] MongoCommands);
+        string[] MissingTools, string[] MissingAnswerParts, FixtureMongoAccess.Command[] MongoCommands)
+    {
+        /// <summary>Semente de amostragem desta execução; nula quando a rodada não fixou sementes.</summary>
+        public int? Seed { get; init; }
+        /// <summary>Tempo até o primeiro pedaço de resposta visível (depois do raciocínio); nulo se não houve resposta.</summary>
+        public double? FirstAnswerMs { get; init; }
+        /// <summary>Blocos de raciocínio concluídos no turno e quantos deles foram cortados pelo orçamento.</summary>
+        public int ReasoningBlocks { get; init; }
+        public int ReasoningBlocksTruncated { get; init; }
+    }
     internal sealed record Summary(int Tasks, int Passed, int Completed, int ToolCalls, int ToolCallsSucceeded,
-        double PassRate, double DurationMsMean);
+        double PassRate, double DurationMsMean)
+    {
+        /// <summary>Média e percentil 95 do tempo até a primeira resposta, sobre as execuções que responderam.</summary>
+        public double? FirstAnswerMsMean { get; init; }
+        public double? FirstAnswerMsP95 { get; init; }
+        /// <summary>Execuções que terminaram por envelope inválido, tool fora do plano ou limite de chamadas.</summary>
+        public int InvalidToolCallTurns { get; init; }
+        /// <summary>Execuções com ao menos um bloco de raciocínio cortado pelo orçamento.</summary>
+        public int ReasoningBudgetExceededTurns { get; init; }
+        /// <summary>Taxa de aprovação por semente, na ordem pedida; vazio quando a rodada não fixou sementes.</summary>
+        public IReadOnlyList<SeedSummary> BySeed { get; init; } = [];
+    }
+    internal sealed record SeedSummary(int Seed, int Tasks, int Passed, double PassRate);
+
+    /// <summary>
+    /// Opções de medição da rodada. Sementes repetem cada tarefa uma vez por semente; <see cref="Thinking"/> nulo mantém o
+    /// padrão do pacote e da tarefa, verdadeiro ou falso forçam o modo; o orçamento, quando informado, vale para todas as tarefas.
+    /// </summary>
+    internal sealed record RunOptions(IReadOnlyList<int> Seeds, bool? Thinking, int? ThinkBudgetTokens)
+    {
+        public static RunOptions Default { get; } = new([], null, null);
+    }
+
+    internal const int MaximumSeeds = 10;
+
+    /// <summary>Valida as opções de medição sem tocar no pacote; devolve a mensagem de uso quando inválidas.</summary>
+    internal static bool TryParseRunOptions(string? seeds, string? thinking, int? thinkBudget, out RunOptions options, out string error)
+    {
+        options = RunOptions.Default;
+        error = "";
+        var parsedSeeds = new List<int>();
+        foreach (var part in (seeds ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (!int.TryParse(part, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var seed))
+            { error = "--seeds aceita inteiros não negativos separados por vírgula."; return false; }
+            if (parsedSeeds.Contains(seed)) { error = "--seeds não aceita sementes repetidas."; return false; }
+            parsedSeeds.Add(seed);
+        }
+        if (seeds is not null && parsedSeeds.Count == 0) { error = "--seeds exige ao menos uma semente."; return false; }
+        if (parsedSeeds.Count > MaximumSeeds) { error = $"--seeds aceita até {MaximumSeeds} sementes."; return false; }
+        bool? mode;
+        switch (thinking ?? "default")
+        {
+            case "default": mode = null; break;
+            case "on": mode = true; break;
+            case "off": mode = false; break;
+            default: error = "--thinking aceita apenas default, on ou off."; return false;
+        }
+        if (thinkBudget is < 1 or > 8192) { error = "--think-budget deve estar entre 1 e 8192 tokens."; return false; }
+        if (mode == false && thinkBudget is not null) { error = "--think-budget não se aplica com --thinking off."; return false; }
+        options = new(parsedSeeds, mode, thinkBudget);
+        return true;
+    }
+
+    /// <summary>
+    /// Escolha de raciocínio enviada ao provider para uma tarefa. Sem opções da rodada, só a tarefa com orçamento próprio pede
+    /// raciocínio; caso contrário vale o padrão do pacote. O provider recusa o que o pacote não suporta, e isso aparece no relatório.
+    /// </summary>
+    internal static AgentReasoningOptions? ReasoningFor(AgentTask task, RunOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(task);
+        ArgumentNullException.ThrowIfNull(options);
+        if (options.Thinking == false) return new AgentReasoningOptions(false);
+        var budget = options.ThinkBudgetTokens ?? task.ReasoningBudgetTokens;
+        return options.Thinking == true || budget is not null ? new AgentReasoningOptions(true, budget) : null;
+    }
+
+    internal static Summary Summarize(IReadOnlyList<TaskResult> results, RunOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(results);
+        ArgumentNullException.ThrowIfNull(options);
+        var toolCalls = results.Sum(result => result.ToolCalls.Length);
+        var answered = results.Where(result => result.FirstAnswerMs is not null).Select(result => result.FirstAnswerMs!.Value).Order().ToArray();
+        return new Summary(results.Count, results.Count(result => result.Passed),
+            results.Count(result => result.Outcome == nameof(AgentTurnOutcome.Completed)), toolCalls,
+            results.Sum(result => result.ToolCalls.Count(call => call.Status == "Succeeded")),
+            results.Count == 0 ? 0 : Math.Round((double)results.Count(result => result.Passed) / results.Count, 4),
+            results.Count == 0 ? 0 : Math.Round(results.Average(result => result.DurationMs), 1))
+        {
+            FirstAnswerMsMean = answered.Length == 0 ? null : Math.Round(answered.Average(), 1),
+            // Percentil por posto mais próximo: com poucas execuções é o maior valor observado, sem interpolar.
+            FirstAnswerMsP95 = answered.Length == 0 ? null : answered[Math.Min(answered.Length - 1, (int)Math.Ceiling(answered.Length * 0.95) - 1)],
+            InvalidToolCallTurns = results.Count(result => result.RuntimeErrorCode == "InvalidToolCallFormat"),
+            ReasoningBudgetExceededTurns = results.Count(result => result.ReasoningBlocksTruncated > 0),
+            BySeed = [.. options.Seeds.Select(seed =>
+            {
+                var ofSeed = results.Where(result => result.Seed == seed).ToArray();
+                var passed = ofSeed.Count(result => result.Passed);
+                return new SeedSummary(seed, ofSeed.Length, passed, ofSeed.Length == 0 ? 0 : Math.Round((double)passed / ofSeed.Length, 4));
+            })],
+        };
+    }
     internal sealed record Report(string Schema, string Package, string Model, string? Provider, string? Backend,
         bool GrantsSynthetic, string FixtureSha256, Summary Summary, IReadOnlyList<TaskResult> Tasks, string IdeCommit, string GenAi)
     {
         /// <summary>Se a rodada pediu sessão de geração por turno (reuso de KV entre os passos); medição de laboratório.</summary>
         public bool SessionMode { get; init; }
+        /// <summary>Sementes e modo de raciocínio pedidos para a rodada; "default" mantém o padrão do pacote e da tarefa.</summary>
+        public IReadOnlyList<int> Seeds { get; init; } = [];
+        public string Thinking { get; init; } = "default";
+        public int? ThinkBudgetTokens { get; init; }
     }
 
     internal static Input ReadInput(string root, string path)
@@ -81,8 +185,14 @@ internal static class AgentModelRunCommand
 
     internal static async Task<int> RunAsync(string package, string tasksPath, string? output, string? workspaceOption,
         string device, bool viaQueue, bool standaloneGpu, int? contextTokens, int? taskTimeoutSeconds = null,
-        bool sessionMode = false, CancellationToken cancellationToken = default)
+        bool sessionMode = false, string? seeds = null, string? thinking = null, int? thinkBudget = null,
+        CancellationToken cancellationToken = default)
     {
+        if (!TryParseRunOptions(seeds, thinking, thinkBudget, out var runOptions, out var optionsError))
+        {
+            Console.Error.WriteLine("error " + optionsError);
+            return (int)ExitCode.Usage;
+        }
         var root = LabWorkspace.Resolve(workspaceOption);
         if (root is null)
         {
@@ -150,8 +260,12 @@ internal static class AgentModelRunCommand
         Report report;
         try
         {
-            report = await ExecuteAsync(input, domains, hash, uri, temporaryRoot, models, model, settings, packagePath, cancellationToken)
-                .ConfigureAwait(false) with { SessionMode = sessionMode };
+            report = await ExecuteAsync(input, domains, hash, uri, temporaryRoot, models, model, settings, packagePath, runOptions,
+                cancellationToken).ConfigureAwait(false) with
+            {
+                SessionMode = sessionMode, Seeds = runOptions.Seeds, ThinkBudgetTokens = runOptions.ThinkBudgetTokens,
+                Thinking = runOptions.Thinking switch { true => "on", false => "off", _ => "default" },
+            };
         }
         catch (LocalModelUnavailableException exception) when (KapiLabModelServices.IsGpuLockUnavailable(exception))
         {
@@ -178,7 +292,7 @@ internal static class AgentModelRunCommand
 
     private static async Task<Report> ExecuteAsync(Input input, KapiSimFixture.Domain[] domains, string hash, string uri,
         string temporaryRoot, LocalAiModelService models, LocalModelDefinition model, AutocompleteSettings settings, string packagePath,
-        CancellationToken cancellationToken)
+        RunOptions runOptions, CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         services.AddKapibaraStudioInfrastructure(Path.Combine(temporaryRoot, "workspace.db"),
@@ -216,6 +330,9 @@ internal static class AgentModelRunCommand
             throw new InvalidDataException($"Agente local indisponível para o pacote: {availability.Reason}.");
 
         var results = new List<TaskResult>();
+        // Sem sementes, cada tarefa roda uma vez com a aleatoriedade do runtime; com sementes, uma vez por semente.
+        var seedRuns = runOptions.Seeds.Count == 0 ? new int?[] { null } : [.. runOptions.Seeds.Select(seed => (int?)seed)];
+        foreach (var seed in seedRuns)
         foreach (var task in input.Tasks)
         {
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -267,6 +384,9 @@ internal static class AgentModelRunCommand
             AgentTurnOutcome? outcome = null;
             int? reasoningTokens = null;
             bool? reasoningTruncated = null;
+            double? firstAnswerMs = null;
+            var reasoningBlocks = 0;
+            var reasoningBlocksTruncated = 0;
             var watch = Stopwatch.StartNew();
             FixtureMongoAccess.Command[] mongoCommands;
             mongoAccess.BeginTools();
@@ -275,7 +395,7 @@ internal static class AgentModelRunCommand
                 var request = new AgentTurnRequest(turn, task.Message, "kapi-agent-tab", 1)
                 {
                     Plan = plan, Permissions = permissions, ConversationId = Guid.NewGuid(), WorkspaceContext = ports.Context, Attachments = attachments,
-                    Reasoning = task.ReasoningBudgetTokens is { } budget ? new AgentReasoningOptions(true, budget) : null,
+                    Reasoning = ReasoningFor(task, runOptions), SamplingSeed = seed,
                 };
                 await foreach (var evt in runtime.RunTurnAsync(session, request, deadline.Token).ConfigureAwait(false))
                 {
@@ -284,6 +404,7 @@ internal static class AgentModelRunCommand
                     switch (evt.Kind)
                     {
                         case AgentEventKind.MessageDelta when evt.Text is not null:
+                            if (evt.Text.Length > 0) firstAnswerMs ??= Math.Round(watch.Elapsed.TotalMilliseconds, 1);
                             answer.Append(evt.Text);
                             break;
                         case AgentEventKind.ToolRequested or AgentEventKind.ToolStarted when evt.ToolName is not null:
@@ -300,6 +421,8 @@ internal static class AgentModelRunCommand
                         case AgentEventKind.ReasoningCompleted:
                             reasoningTokens = evt.ReasoningTokens;
                             reasoningTruncated = evt.ReasoningTruncatedByBudget;
+                            reasoningBlocks++;
+                            if (evt.ReasoningTruncatedByBudget == true) reasoningBlocksTruncated++;
                             break;
                     }
                 }
@@ -330,18 +453,16 @@ internal static class AgentModelRunCommand
             results.Add(new(task.Id, (outcome ?? AgentTurnOutcome.OutcomeUnknown).ToString(), runtimeError, calls.ToArray(),
                 finalAnswer, finalAnswer.Length, reasoningTokens, reasoningTruncated, ports.Proposals.Count - proposalCount,
                 Math.Round(watch.Elapsed.TotalMilliseconds, 1), missingTools.Length == 0, expectedSucceeded, forbiddenAvoided, missingParts.Length == 0,
-                allSucceeded, passed, missingTools, missingParts, mongoCommands));
-            Console.Error.WriteLine($"info agent.run task={task.Id} outcome={results[^1].Outcome} tools={calls.Count} passed={passed} " +
-                $"ms={results[^1].DurationMs:0}");
+                allSucceeded, passed, missingTools, missingParts, mongoCommands)
+            {
+                Seed = seed, FirstAnswerMs = firstAnswerMs, ReasoningBlocks = reasoningBlocks, ReasoningBlocksTruncated = reasoningBlocksTruncated,
+            });
+            Console.Error.WriteLine($"info agent.run task={task.Id} seed={seed?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "-"} " +
+                $"outcome={results[^1].Outcome} tools={calls.Count} passed={passed} ms={results[^1].DurationMs:0}");
         }
         var modelStatus = models.Status;
         var environment = EnvironmentReport.Create();
-        var toolCalls = results.Sum(result => result.ToolCalls.Length);
-        var summary = new Summary(results.Count, results.Count(result => result.Passed),
-            results.Count(result => result.Outcome == nameof(AgentTurnOutcome.Completed)), toolCalls,
-            results.Sum(result => result.ToolCalls.Count(call => call.Status == "Succeeded")),
-            Math.Round((double)results.Count(result => result.Passed) / results.Count, 4),
-            Math.Round(results.Average(result => result.DurationMs), 1));
+        var summary = Summarize(results, runOptions);
         return new(ReportSchema, Path.GetFileName(packagePath), model.Name, modelStatus.Provider, modelStatus.Backend?.ToString(), true, hash,
             summary, results, environment.IdeCommit ?? "", environment.GenAiVersion);
     }

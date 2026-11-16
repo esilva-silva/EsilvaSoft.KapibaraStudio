@@ -1,6 +1,6 @@
 # KS-US10-T03 — Executar as medições reais
 
-**Estado de execução:** aberta; criação do arquivo não executa nem homologa a entrega. **Versão-alvo:** v0.11.0.
+**Estado de execução:** aberta; nenhuma medição executada. **Versão-alvo:** v0.11.0.
 
 **User story:** [KS-US10 — Avaliar com modelo real e consolidar as evidências](README.md). **Requisitos relacionados:** MVP-008, MVP-011..013. **Entregas oficiais:** F02-E05.
 
@@ -39,15 +39,15 @@ Cada limite tem valor medido e veredito; limite não atingido fica falho ou pend
 
 ## Registro de execução
 
-Preencher ao executar; nenhum resultado novo é declarado neste arquivo.
+Execução parcial registrada abaixo; itens não exercitados continuam abertos.
 
 | Campo | Registro |
 | --- | --- |
-| Snapshot e alterações locais | A registrar |
-| Data, responsável, ambiente e versões | A registrar |
-| Cenários, comandos, esperado e observado | A registrar |
-| Resultado por critério | Pendente |
-| Evidência oficial e artefatos sanitizados | A vincular em docs |
-| Limitações e bloqueios | A registrar com impacto, recurso faltante e próximo passo |
+| Snapshot e alterações locais | `d8be8dc` em `master`, com as alterações deste lote ainda não commitadas |
+| Data, responsável, ambiente e versões | 13/11/2026 · Claude Code a pedido do usuário · Windows 11 · .NET SDK 10.0.402 · Headless, sem modelo real e sem MongoDB |
+| Cenários, comandos, esperado e observado | Nenhuma medição foi feita em 13/11/2026. Os meios estão prontos: testes Explicit do agente (KS-US10-T01) e `kapilab agent run` com sementes, modo de raciocínio e `--session-mode` (KS-US10-T02 e KS-US03). |
+| Resultado por critério | Pendente. |
+| Evidência oficial e artefatos sanitizados | Testes citados acima, em `tests/` e `tools/KapiLab.Tests`; nenhum artefato novo em `docs` |
+| Limitações e bloqueios | Bloqueios: limites ainda não fixados (KS-US01-T01), pacote de agente treinado e para CPU inexistente (KT-US07 e KT-US09), e uso da GPU e do MongoDB do WSL não autorizado nesta sessão. Com o pacote candidato atual só é possível uma rodada funcional, não uma medição de aceite. |
 
 Não armazenar credenciais, texto de raciocínio ou payloads sensíveis. Ao concluir, atualizar o estado de execução acima e os checklists com links para a evidência oficial; o estado dos requisitos continua no catálogo MVP.

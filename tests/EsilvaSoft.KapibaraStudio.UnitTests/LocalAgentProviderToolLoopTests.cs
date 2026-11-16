@@ -7,6 +7,7 @@ using EsilvaSoft.KapibaraStudio.LocalAi.Core;
 using EsilvaSoft.KapibaraStudio.Testing;
 using static EsilvaSoft.KapibaraStudio.Testing.LocalAgentScript;
 using ScriptedRuntime = EsilvaSoft.KapibaraStudio.Testing.ScriptedAgentRuntime;
+using RegistryFake = EsilvaSoft.KapibaraStudio.Testing.AnnouncedToolsRegistry;
 using Step = EsilvaSoft.KapibaraStudio.Testing.ScriptedAgentStep;
 
 namespace EsilvaSoft.KapibaraStudio.UnitTests;
@@ -29,29 +30,6 @@ public sealed class LocalAgentProviderToolLoopTests
     private static readonly string[] ExternalRoles = ["user", "tool", "user"];
     private static readonly string[] Languages = ["pt-BR", "en", "es", "zh-CN"];
     private static readonly bool[] FallbackByStep = [true, false, true];
-
-    private sealed class RegistryFake(params string[] names) : IAgentToolRegistry
-    {
-        private const string Schema = "{\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"type\":\"object\",\"properties\":{\"connectionId\":{\"type\":\"string\"}}}";
-        private readonly AgentToolDescriptor[] _tools =
-            [.. names.Select(static name => new AgentToolDescriptor(name, 1, AgentToolRisk.ReadOnly, [AgentPermission.ReadMetadata]))];
-
-        public int Invocations { get; private set; }
-        public IReadOnlyList<AgentToolDescriptor> GetDescriptors() => _tools;
-        public IReadOnlyList<AgentToolDescriptor> GetInProcessDescriptors(string providerId) =>
-            providerId == LocalAgentProvider.Id ? _tools : [];
-        public AgentToolDescriptor? FindDescriptor(string? name) => _tools.FirstOrDefault(tool => tool.Name == name);
-        public string? GetInputSchemaJson(string? name) => FindDescriptor(name) is null ? null : Schema;
-        public string? GetInProcessInputSchemaJson(string providerId, string? name) => GetInputSchemaJson(name);
-        public string? GetOutputSchemaJson(string? name) => null;
-        public Task<AgentToolInvocationResult> InvokeAsync(AgentPrincipal? principal, AgentInvocationContext? invocationContext,
-            AgentOutputDestination? destination, AgentOutputDataScope? outputDataScope, string? name, string? argumentsJson,
-            CancellationToken cancellationToken = default)
-        {
-            Invocations++;
-            throw new NotSupportedException("O provider local nunca invoca handlers; quem invoca é o runtime compartilhado.");
-        }
-    }
 
     private sealed class Harness : IAsyncDisposable
     {

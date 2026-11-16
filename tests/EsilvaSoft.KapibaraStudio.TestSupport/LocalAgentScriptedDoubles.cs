@@ -90,3 +90,30 @@ internal static class LocalAgentScript
             },
         };
 }
+
+/// <summary>
+/// Registry que só anuncia descritores ao provider local, com um schema de entrada mínimo. O provider nunca invoca
+/// handlers: quem executa tools é o runtime compartilhado, e uma invocação aqui é erro do teste.
+/// </summary>
+internal sealed class AnnouncedToolsRegistry(params string[] names) : IAgentToolRegistry
+{
+    private const string Schema = "{\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"type\":\"object\",\"properties\":{\"connectionId\":{\"type\":\"string\"}}}";
+    private readonly AgentToolDescriptor[] _tools =
+        [.. names.Select(static name => new AgentToolDescriptor(name, 1, AgentToolRisk.ReadOnly, [AgentPermission.ReadMetadata]))];
+
+    public int Invocations { get; private set; }
+    public IReadOnlyList<AgentToolDescriptor> GetDescriptors() => _tools;
+    public IReadOnlyList<AgentToolDescriptor> GetInProcessDescriptors(string providerId) =>
+        providerId == LocalAgentProvider.Id ? _tools : [];
+    public AgentToolDescriptor? FindDescriptor(string? name) => _tools.FirstOrDefault(tool => tool.Name == name);
+    public string? GetInputSchemaJson(string? name) => FindDescriptor(name) is null ? null : Schema;
+    public string? GetInProcessInputSchemaJson(string providerId, string? name) => GetInputSchemaJson(name);
+    public string? GetOutputSchemaJson(string? name) => null;
+    public Task<AgentToolInvocationResult> InvokeAsync(AgentPrincipal? principal, AgentInvocationContext? invocationContext,
+        AgentOutputDestination? destination, AgentOutputDataScope? outputDataScope, string? name, string? argumentsJson,
+        CancellationToken cancellationToken = default)
+    {
+        Invocations++;
+        throw new NotSupportedException("O provider local nunca invoca handlers; quem invoca é o runtime compartilhado.");
+    }
+}

@@ -91,13 +91,18 @@ internal static class KapiLabCommandLine
         var runContextTokens = new Option<int?>("--context-tokens") { Description = "Janela por chamada (64 até o limite do pacote); padrão: janela do pacote." };
         var runTaskTimeout = new Option<int?>("--task-timeout") { Description = "Tempo limite de cada tarefa em segundos (10 a 3600); sobrepõe o timeoutSeconds do arquivo." };
         var runSessionMode = new Option<bool>("--session-mode") { Description = "Pede sessão de geração por turno (reuso de KV entre os passos; só tem efeito em CPU)." };
-        foreach (var option in new Option[] { runPackage, runInput, runOutput, runDevice, runViaQueue, runStandaloneGpu, runContextTokens, runTaskTimeout, runSessionMode })
+        var runSeeds = new Option<string?>("--seeds") { Description = "Sementes de amostragem separadas por vírgula (até 10); cada tarefa roda uma vez por semente." };
+        var runThinking = new Option<string?>("--thinking") { Description = "Raciocínio: default (pacote e tarefa), on ou off." };
+        var runThinkBudget = new Option<int?>("--think-budget") { Description = "Orçamento de raciocínio por passo (1 a 8192), para todas as tarefas." };
+        foreach (var option in new Option[] { runPackage, runInput, runOutput, runDevice, runViaQueue, runStandaloneGpu, runContextTokens, runTaskTimeout, runSessionMode,
+                     runSeeds, runThinking, runThinkBudget })
             run.Options.Add(option);
         run.SetAction(parseResult => ExecuteAsync("agent.run", () => AgentModelRunCommand.RunAsync(
             parseResult.GetValue(runPackage) ?? "", parseResult.GetValue(runInput) ?? "", parseResult.GetValue(runOutput),
             parseResult.GetValue(workspace), parseResult.GetValue(runDevice) ?? "auto", parseResult.GetValue(runViaQueue),
             parseResult.GetValue(runStandaloneGpu), parseResult.GetValue(runContextTokens), parseResult.GetValue(runTaskTimeout),
-            parseResult.GetValue(runSessionMode))));
+            parseResult.GetValue(runSessionMode), parseResult.GetValue(runSeeds), parseResult.GetValue(runThinking),
+            parseResult.GetValue(runThinkBudget))));
         agent.Subcommands.Add(run);
         return agent;
     }
